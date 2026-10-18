@@ -271,6 +271,7 @@ fn test_challenge_attached_stream_missing_data_tag() -> Result<()> {
         kind: StreamKind::ExtendedAttribute,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: None,
+        payload: None,
     };
 
     let mut mst = DcMstring::new();
@@ -299,6 +300,7 @@ fn test_challenge_attached_stream_missing_data_tag() -> Result<()> {
         kind: StreamKind::ExtendedAttribute,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: Some(Vec::new()),
+        payload: None,
     };
 
     let mut mst_empty = DcMstring::new();
@@ -317,6 +319,7 @@ fn test_challenge_attached_stream_missing_data_tag() -> Result<()> {
         kind: StreamKind::NtfsAlternateDataStream,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: Some(payload.clone()),
+        payload: None,
     };
 
     let mut mst_data = DcMstring::new();
@@ -387,6 +390,7 @@ fn test_challenge_attached_stream_nameless_and_wtf8() -> Result<()> {
         kind: StreamKind::MacOsResourceFork,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: Some(b"RESOURCE_FORK_RAW_DATA".to_vec()),
+        payload: None,
     };
 
     let mut mst = DcMstring::new();
@@ -404,6 +408,7 @@ fn test_challenge_attached_stream_nameless_and_wtf8() -> Result<()> {
         kind: StreamKind::NtfsAlternateDataStream,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: Some(vec![42]),
+        payload: None,
     };
 
     let mut mst_wtf8 = DcMstring::new();
@@ -566,6 +571,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::MacOsResourceFork,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: None,
+            payload: None,
         },
         // Nameless stream with empty data
         AttachedStream {
@@ -573,6 +579,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::MacOsResourceFork,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(Vec::new()),
+            payload: None,
         },
         // Nameless stream with binary data
         AttachedStream {
@@ -580,6 +587,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::ExtendedAttribute,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(vec![0xDE, 0xAD, 0xBE, 0xEF]),
+            payload: None,
         },
         // Named stream with ASCII name and data
         AttachedStream {
@@ -587,6 +595,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::ExtendedAttribute,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(b"text/plain".to_vec()),
+            payload: None,
         },
         // Named stream with Unicode name
         AttachedStream {
@@ -594,6 +603,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::ExtendedAttribute,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(b"https://example.com/test".to_vec()),
+            payload: None,
         },
         // Named NTFS alternate data stream with substantial binary data
         AttachedStream {
@@ -601,6 +611,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::NtfsAlternateDataStream,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(vec![42u8; 1024]),
+            payload: None,
         },
         // Stream with PosixAclAccess kind and no data
         AttachedStream {
@@ -608,6 +619,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::PosixAclAccess,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: None,
+            payload: None,
         },
         // Stream with SecurityLabel kind and data
         AttachedStream {
@@ -615,6 +627,7 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
             kind: StreamKind::SecurityLabel,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(b"system_u:object_r:bin_t:s0".to_vec()),
+            payload: None,
         },
     ];
 
@@ -670,18 +683,21 @@ fn test_attached_stream_in_file_entity_roundtrip() -> Result<()> {
             kind: StreamKind::ExtendedAttribute,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(b"attr1_value".to_vec()),
+            payload: None,
         },
         AttachedStream {
             name: None,
             kind: StreamKind::MacOsResourceFork,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(vec![1, 2, 3, 4]),
+            payload: None,
         },
         AttachedStream {
             name: Some(StreamName::from_str("SummaryInformation")),
             kind: StreamKind::NtfsAlternateDataStream,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: None,
+            payload: None,
         },
     ];
 
@@ -920,6 +936,7 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
         kind: StreamKind::ExtendedAttribute,
         entity: Box::new(FileEntity::from_vec(b"test_entity".to_vec())),
         data: Some(vec![0xAA, 0xBB, 0xCC, 0xDD]),
+        payload: None,
     };
     assert_dc_roundtrip(&stream)?;
 
@@ -929,6 +946,7 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
         kind: StreamKind::MacOsResourceFork,
         entity: Box::new(FileEntity::from_vec(Vec::new())),
         data: None,
+        payload: None,
     };
     assert_dc_roundtrip(&nameless)?;
 

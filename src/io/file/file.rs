@@ -281,7 +281,7 @@ pub use payload::{
 pub use sandboxable_dir::{ExistingEntryPolicy, SandboxableDir, SandboxedDir};
 pub use streams::{
     AttachedStream, AttachedStreamWithPayload, StreamKind, StreamName, read_and_hash_streams,
-    write_streams,
+    write_stream_from_reader, write_streams,
 };
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use traversal::{

@@ -84,6 +84,40 @@ impl JournalReader {
         Ok(JournalPayload { file, resident, start, length, position: 0, extents: extents.clone() })
     }
 
+    pub fn stream_payload(&self, stream: &ctb_io::file::AttachedStream) -> Result<JournalPayload> {
+        let FileEntityKind::Regular { size, .. } = &stream.entity.kind else {
+            bail!("Only regular streams have payloads");
+        };
+        let (file, resident, start, length) = match stream.payload.as_ref().map(|value| &value.0) {
+            Some(BinaryPayloadRef::FileSpan { file_offset, len, .. }) => {
+                (Some(self.file.try_clone()?), Vec::new(), *file_offset, *len)
+            }
+            Some(payload) => (
+                None,
+                payload.as_resident_bytes().context("Missing resident stream binary data")?.to_vec(),
+                0,
+                payload.len(),
+            ),
+            None => match &stream.data {
+                Some(bytes) => (None, bytes.clone(), 0, u64::try_from(bytes.len())?),
+                None => {
+                    ensure!(*size == 0, "Nonempty stream is missing stream data");
+                    (None, Vec::new(), 0, 0)
+                }
+            },
+        };
+        ensure!(length == *size, "Archive stream payload size mismatch");
+        ensure!(start.checked_add(length).is_some(), "Archive stream payload offset overflow");
+        Ok(JournalPayload {
+            file,
+            resident,
+            start,
+            length,
+            position: 0,
+            extents: vec![Extent::Data { offset: 0, length }],
+        })
+    }
+
     pub fn verify(&self) -> Result<()> {
         ensure!(self.completed, "Archive is incomplete");
         self.verify_contents()
@@ -163,22 +197,27 @@ impl JournalReader {
             } else {
                 ensure!(member.payload.is_none(), "Non-regular member has primary file data");
             }
-            verify_streams(&member.entity)?;
+            self.verify_streams(&member.entity)?;
         }
         Ok(())
     }
-}
 
-fn verify_streams(entity: &FileEntity) -> Result<()> {
-    for stream in &entity.streams {
-        if let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind {
-            let bytes = stream.data.as_deref().context("Archive is missing attached stream data")?;
-            ensure!(u64::try_from(bytes.len())? == *size && ctb_formats_checksum::sha256(bytes) == *sha256,
-                "Archive attached stream checksum or length mismatch");
+    fn verify_streams(&self, entity: &FileEntity) -> Result<()> {
+        for stream in &entity.streams {
+            if let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind {
+                if stream.payload.is_some() || stream.data.is_some() || *size == 0 {
+                    let mut payload = self.stream_payload(stream)?;
+                    let mut digest = Sha256Stream::new();
+                    ensure!(std::io::copy(&mut payload, &mut digest)? == *size, "Truncated archive stream payload");
+                    ensure!(digest.finalize() == *sha256, "Archive stream checksum mismatch");
+                } else {
+                    bail!("Archive is missing attached stream data for {:?}", stream.to_string_lossy());
+                }
+            }
+            self.verify_streams(&stream.entity)?;
         }
-        verify_streams(&stream.entity)?;
+        Ok(())
     }
-    Ok(())
 }
 
 pub struct JournalPayload {
@@ -479,6 +518,7 @@ mod tests {
                 entity.streams.push(ctb_io::file::AttachedStream {
                     name: None, kind: ctb_io::file::StreamKind::MacOsResourceFork,
                     entity: Box::new(warned), data: Some(Vec::new()),
+                    payload: None,
                 });
                 entity
             } else { warned };

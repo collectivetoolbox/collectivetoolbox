@@ -1007,6 +1007,23 @@ pub fn read_journal_snapshot_with_policy(
         }
     };
     snapshot.applied_directories = applied_directories;
+    for entity in snapshot.committed_entities.values() {
+        for stream in &entity.streams {
+            if stream.data.is_some() {
+                let msg = format!(
+                    "Journal snapshot for {:?} contains unexpected embedded stream body: {:?}",
+                    entity.identity.relative_path,
+                    stream.to_string_lossy()
+                );
+                warn_fmt!("{msg}");
+                snapshot.warnings.push(JournalWarningRecord {
+                    code: "unexpected-journal-stream-body".into(),
+                    message: msg,
+                    timestamp_sec: 0,
+                });
+            }
+        }
+    }
     Ok(snapshot)
 }
 
@@ -1105,7 +1122,20 @@ pub fn read_v4_journal_snapshot(
         }
     };
     let mut committed_entities = HashMap::new();
+    let mut warnings = scanned.warnings;
     for member in scanned.members {
+        if member.payload.is_some() {
+            let msg = format!(
+                "Journal snapshot for {:?} contains unexpected embedded file body",
+                member.entity.identity.relative_path
+            );
+            warn_fmt!("{msg}");
+            warnings.push(JournalWarningRecord {
+                code: "unexpected-journal-file-body".into(),
+                message: msg,
+                timestamp_sec: 0,
+            });
+        }
         let entity = member.entity;
         let path_key = match entity.identity.path_bytes() {
             Some(bytes) => bytes.to_vec(),
@@ -1124,7 +1154,7 @@ pub fn read_v4_journal_snapshot(
         noatime_used,
         environment: scanned.session.environment,
         errors: scanned.errors,
-        warnings: scanned.warnings,
+        warnings,
         applied_directories: HashMap::new(),
     })
 }
@@ -1804,8 +1834,8 @@ mod tests {
         entity.metadata.environment = Some(Arc::clone(&environment));
         let mut child = FileEntity::from_vec(b"child".to_vec());
         child.metadata.environment = Some(Arc::clone(&distinct));
-        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(child), data: None });
-        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(FileEntity::from_vec(b"unknown".to_vec())), data: None });
+        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(child), data: None, payload: None });
+        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(FileEntity::from_vec(b"unknown".to_vec())), data: None, payload: None });
         writer.record_entity(&entity);
         let mut unknown = FileEntity::from_vec(b"unknown".to_vec());
         unknown.identity.relative_path = Some(PathBuf::from("unknown"));
@@ -1976,6 +2006,7 @@ mod tests {
             kind: ctb_io::file::StreamKind::SecurityLabel,
             entity: Box::new(stream_entity),
             data: Some(vec![0, 255, 128]),
+            payload: None,
         });
         let mut wide_stream = file_entity.streams[0].clone();
         wide_stream.name = Some(ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]));
@@ -2832,6 +2863,86 @@ mod tests {
         assert_eq!(resumed.applied_directories().len(), 2);
         assert_eq!(resumed.applied_directories().get(&rel1), Some(&id1));
         assert_eq!(resumed.applied_directories().get(&rel2), Some(&id2));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_128_bit_file_id_applied_directory_receipt() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let journal_path = temp_dir.path().join("test_128.cscjournal");
+        let desc_path = temp_dir.path().join("test_128.cscdesc");
+        let source = temp_dir.path().join("source");
+        let destination = temp_dir.path().join("destination");
+
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            std::slice::from_ref(&source),
+            &destination,
+        )?;
+
+        // 128-bit file ID (e.g. ReFS or 128-bit NTFS FILE_ID_128)
+        let file_id_128: u128 = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210;
+        let volume_64: u64 = 0xfeed_cafe_dead_beef;
+        let id_128 = InodeKey::from_file_id_128(volume_64, file_id_128);
+        assert_eq!(id_128.as_u128(), Some(file_id_128));
+
+        let rel = PathBuf::from("refs_dir");
+        journal.record_applied_directory(rel.clone(), id_128.clone());
+
+        let mut dummy = FileEntity::from_vec(b"test".to_vec());
+        dummy.identity.relative_path = Some("refs_dir/file.txt".into());
+        journal.record_entity(&dummy);
+        journal.commit_batch()?;
+
+        // Verify .cscdesc contains 128-bit number
+        let desc_content = fs::read_to_string(&desc_path)?;
+        assert!(desc_content.contains("AppliedDirectories:"));
+
+        // Snapshot reading restores exact 128-bit identity
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert_eq!(snapshot.applied_directories.get(&rel), Some(&id_128));
+        assert_eq!(snapshot.applied_directories.get(&rel).unwrap().as_u128(), Some(file_id_128));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_copy_journal_warns_on_unexpected_stream_body() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let journal_path = temp_dir.path().join("warn_test.cscjournal");
+        let desc_path = temp_dir.path().join("warn_test.cscdesc");
+        let source = temp_dir.path().join("source");
+        let destination = temp_dir.path().join("destination");
+
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            std::slice::from_ref(&source),
+            &destination,
+        )?;
+
+        // Manually inject an entity that retains an in-memory stream body into the record queue
+        let mut entity = FileEntity::from_vec(b"hello".to_vec());
+        entity.identity.relative_path = Some("file_with_stream.txt".into());
+        let stream = AttachedStream::from_data(
+            Some(StreamName::from_str("user.stream")),
+            StreamKind::ExtendedAttribute,
+            b"embedded_stream_body".to_vec(),
+        )?;
+        entity.streams.push(stream);
+
+        // Bypass record_entity's strip_stream_bodies by directly queueing
+        journal.uncommitted_entities.push(entity);
+        journal.commit_batch()?;
+
+        // Reading snapshot must emit and record a warning for the unexpected stream body
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert!(
+            snapshot.warnings.iter().any(|w| w.code == "unexpected-journal-stream-body"),
+            "Expected unexpected-journal-stream-body warning in copy journal snapshot"
+        );
 
         Ok(())
     }

@@ -54,6 +54,22 @@ impl InodeKey {
             inode: inode.into(),
         }
     }
+
+    /// Creates an `InodeKey` from a 64-bit volume serial number and a 128-bit File ID
+    /// (ReFS / modern NTFS `FILE_ID_128`).
+    #[must_use]
+    pub fn from_file_id_128(volume: u64, file_id: u128) -> Self {
+        Self {
+            device_id: volume,
+            inode: Natural::from(file_id),
+        }
+    }
+
+    /// Returns the 128-bit file ID representation if this inode fits in 128 bits.
+    #[must_use]
+    pub fn as_u128(&self) -> Option<u128> {
+        u128::try_from(&self.inode).ok()
+    }
 }
 
 impl From<(u64, u64)> for InodeKey {

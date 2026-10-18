@@ -914,6 +914,7 @@ pub fn read_entity_payload(
                 streams: Vec::new(),
             }),
             data: None,
+            payload: None,
         });
     }
 

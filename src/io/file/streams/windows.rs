@@ -278,6 +278,76 @@ pub fn write_windows_streams(
     Ok(())
 }
 
+/// Writes a single alternate data stream from a streaming reader directly to disk.
+pub fn write_windows_stream_from_reader<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<()> {
+    use std::io::Write;
+
+    let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+        anyhow::bail!("Attached stream is not a regular payload");
+    };
+    let name = match &stream.name {
+        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+        None => match stream.kind {
+            StreamKind::MacOsResourceFork => OsString::from("com.apple.ResourceFork"),
+            _ => {
+                if strict_lossless {
+                    anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
+                }
+                warn_fmt!("Caveat: Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
+                return Ok(());
+            }
+        },
+    };
+    let units: Vec<u16> = name.encode_wide().collect();
+    let name_units = if units.starts_with(&[u16::from(b':')]) {
+        units.get(1..).context("Missing stream name")?
+    } else {
+        &units
+    };
+    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+    let name_units = if name_units.len() >= suffix.len()
+        && native_names_equal(name_units.get(name_units.len().saturating_sub(suffix.len())..).context("Invalid stream type suffix")?, &suffix)?
+    {
+        name_units.get(..name_units.len().saturating_sub(suffix.len())).context("Invalid stream name length")?
+    } else {
+        name_units
+    };
+    let mut canonical_name = OsString::from(":");
+    canonical_name.push(OsString::from_wide(name_units));
+    canonical_name.push(":$DATA");
+
+    let wide = crate::metadata::windows::path_to_wide(dest)?;
+    let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
+    stream_wide.extend(canonical_name.encode_wide());
+    let stream_path = OsString::from_wide(&stream_wide);
+
+    let mut file = std::fs::File::create(PathBuf::from(stream_path))
+        .with_context(|| format!("Failed to create Windows alternate data stream {:?} on {}", stream.to_string_lossy(), dest.display()))?;
+
+    let mut hasher = Sha256Stream::new();
+    let mut total_copied = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        let chunk = buffer.get(..bytes_read).context("Invalid slice range")?;
+        hasher.update(chunk);
+        file.write_all(chunk)?;
+        total_copied = total_copied.checked_add(u64::try_from(bytes_read)?).context("Stream copy size overflow")?;
+    }
+    file.flush()?;
+    anyhow::ensure!(total_copied == *size && hasher.finalize() == *sha256,
+        "Attached stream payload does not match its descriptor: {:?}", stream.to_string_lossy());
+    Ok(())
+}
+
 /// Removes an alternate data stream from `path` on Windows.
 pub fn remove_windows_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     let wide = crate::metadata::windows::path_to_wide(path)?;

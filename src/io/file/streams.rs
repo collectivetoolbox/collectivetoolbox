@@ -486,6 +486,10 @@ pub struct AttachedStream {
     #[serde(default, with = "crate::serde_helpers::opt_base64")]
     #[dc(short = 385, binary, default)]
     pub data: Option<Vec<u8>>,
+    /// Lazy file span reference to the payload data in an archive, if available.
+    #[serde(skip)]
+    #[dc(skip, reason = "Payload is retained in data or streamed lazily via LazyBinaryPayload")]
+    pub payload: Option<LazyBinaryPayload>,
 }
 
 impl AttachedStream {
@@ -665,6 +669,7 @@ impl AttachedStream {
             kind,
             entity: Box::new(entity),
             data: Some(data),
+            payload: None,
         })
     }
 
@@ -739,6 +744,7 @@ impl AttachedStream {
             kind,
             entity: Box::new(entity),
             data: collected,
+            payload: None,
         })
     }
 
@@ -793,7 +799,7 @@ impl AttachedStreamWithPayload {
     /// Converts this lazy stream into an in-memory `AttachedStream`, loading resident
     /// payload bytes if present.
     pub fn into_attached_stream(self) -> Result<AttachedStream> {
-        let data = match self.payload {
+        let data = match self.payload.as_ref() {
             Some(p) => match p.0.as_resident_bytes() {
                 Some(b) => Some(b.to_vec()),
                 None => anyhow::bail!("Lazy payload is backed by file span and cannot be made resident without file handle"),
@@ -805,6 +811,7 @@ impl AttachedStreamWithPayload {
             kind: self.kind,
             entity: self.entity,
             data,
+            payload: self.payload,
         })
     }
 
@@ -926,6 +933,100 @@ pub fn write_streams(
             );
         }
     }
+    Ok(())
+}
+
+/// Writes a single attached stream directly from a `Read` stream to disk without buffering
+/// the entire payload in memory.
+#[cfg(unix)]
+pub fn write_stream_from_reader<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<()> {
+    let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+        anyhow::bail!("Attached stream is not a regular payload");
+    };
+    let mut hasher = Sha256Stream::new();
+    let name_os = match &stream.name {
+        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+        None => match stream.kind {
+            StreamKind::MacOsResourceFork => OsString::from(RESOURCE_FORK_XATTR_NAME),
+            _ => {
+                if strict_lossless {
+                    anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
+                }
+                warn_fmt!("Caveat: Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
+                return Ok(());
+            }
+        },
+    };
+
+    #[cfg(target_os = "macos")]
+    if stream.kind == StreamKind::MacOsResourceFork {
+        let rsrc_path = dest.join("..namedfork/rsrc");
+        if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(&rsrc_path) {
+            let mut buf = [0_u8; 64 * 1024];
+            let mut total_written = 0_u64;
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 { break; }
+                let chunk = buf.get(..n).context("Invalid slice range")?;
+                hasher.update(chunk);
+                total_written = total_written.checked_add(u64::try_from(n)?).context("Stream size overflow")?;
+                file.write_all(chunk)?;
+            }
+            anyhow::ensure!(total_written == *size && hasher.finalize() == *sha256,
+                "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
+            return Ok(());
+        }
+    }
+
+    let mut data = Vec::with_capacity(usize::try_from(*size).unwrap_or(0));
+    let mut buf = [0_u8; 64 * 1024];
+    let mut total_read = 0_u64;
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 { break; }
+        let chunk = buf.get(..n).context("Invalid slice range")?;
+        hasher.update(chunk);
+        total_read = total_read.checked_add(u64::try_from(n)?).context("Stream size overflow")?;
+        data.extend_from_slice(chunk);
+    }
+    anyhow::ensure!(total_read == *size && hasher.finalize() == *sha256,
+        "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
+    if let Err(e) = xattr::set(dest, &name_os, &data) {
+        if strict_lossless {
+            anyhow::bail!("Target filesystem failed to store stream {:?} on {}: {e}", stream.to_string_lossy(), dest.display());
+        }
+        warn_fmt!("Caveat: Target filesystem cannot store extended attribute {:?} on {}: {e} (best-effort)",
+            stream.to_string_lossy(), dest.display());
+    }
+    Ok(())
+}
+
+/// Writes a single attached stream directly from a `Read` stream to disk without buffering
+/// the entire payload in memory.
+#[cfg(windows)]
+pub fn write_stream_from_reader<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<()> {
+    windows::write_windows_stream_from_reader(dest, stream, reader, strict_lossless)
+}
+
+/// Writes a single attached stream directly from a `Read` stream to disk without buffering
+/// the entire payload in memory.
+#[cfg(not(any(unix, windows)))]
+pub fn write_stream_from_reader<R: std::io::Read>(
+    _dest: &Path,
+    _stream: &AttachedStream,
+    _reader: &mut R,
+    _strict_lossless: bool,
+) -> Result<()> {
     Ok(())
 }
 

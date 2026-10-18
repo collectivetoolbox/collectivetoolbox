@@ -1705,6 +1705,7 @@ mod tests {
             kind: crate::StreamKind::ExtendedAttribute,
             data: Some(b"roundtrip test".to_vec()),
             entity: Box::new(stream_entity),
+            payload: None,
         });
 
         ctb_formats_dcstring::assert_dc_roundtrip(&entity).expect("FileEntity DcMixed roundtrip failed");
