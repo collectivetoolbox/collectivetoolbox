@@ -31,6 +31,14 @@ use std::ops::Range;
 
 /// Field encoding supplied by tagged-record derives, using inline bindings.
 pub trait DcMixedFields: DcMixedDecode {
+    fn encode_dc_field(&self, field: &str, target: &mut DcMstring) -> Result<()> {
+        self.encode_dc_field_to(field, &mut target.writer())
+    }
+
+    fn encode_dc_map_field(&self, field: &str, target: &mut DcMstring, encoding: crate::DcKvMapEncoding) -> Result<()> {
+        self.encode_dc_map_field_to(field, &mut target.writer(), encoding)
+    }
+
     /// Identifies the record owning the generated field annotations.
     fn dc_field_owner() -> &'static str;
 
@@ -38,20 +46,20 @@ pub trait DcMixedFields: DcMixedDecode {
     ///
     /// # Errors
     /// Returns an error for unknown field names or failed encoding.
-    fn encode_dc_field(
+    fn encode_dc_field_to(
         &self,
         field: &str,
-        target: &mut DcMstring,
+        target: &mut crate::DcWriter<'_>,
     ) -> Result<()>;
 
     /// Encodes a keyed field using the source array's framing.
     ///
     /// # Errors
     /// Returns an error if this record does not support keyed field encoding.
-    fn encode_dc_map_field(
+    fn encode_dc_map_field_to(
         &self,
         field: &str,
-        target: &mut DcMstring,
+        target: &mut crate::DcWriter<'_>,
         encoding: crate::DcKvMapEncoding,
     ) -> Result<()> {
         let _ = (field, target, encoding);
@@ -70,7 +78,7 @@ pub trait DcMixedFields: DcMixedDecode {
     /// Returns an error if field encoding fails.
     fn encode_fields_with_context(
         &self,
-        _mst: &mut DcMstring,
+        _mst: &mut crate::DcWriter<'_>,
         _context: &crate::SharedValueContext,
     ) -> Result<()> {
         bail!("Record does not support flattened field encoding")

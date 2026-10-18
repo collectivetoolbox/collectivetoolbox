@@ -33,6 +33,7 @@ pub mod converters;
 pub mod dc_char;
 pub mod dc_mixed;
 pub mod dc_mixed_serde;
+pub mod dc_writer;
 pub mod dc_number;
 pub mod dc_source;
 pub mod dc_str;
@@ -47,6 +48,7 @@ mod encapsulation;
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, eite, utf8};
 pub use dc_char::{DcChar, DcCharExt};
+pub use dc_writer::{DcBinaryReader, DcBinarySource, DcWriter};
 pub use dc_mixed::{
     DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcmmStreamOptions, DcMixed, DcMixedChunk,
     DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,

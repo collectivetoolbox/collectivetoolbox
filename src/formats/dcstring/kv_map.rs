@@ -43,6 +43,35 @@ pub enum DcKvMapEncoding {
 }
 
 impl DcKvMapEncoding {
+    pub fn encode_header_to(self, target: &mut crate::DcWriter<'_>) -> Result<()> {
+        target.push_char(match self {
+            Self::Legacy => DC_BEGIN_LEGACY_KV_MAP,
+            Self::Pairs => DC_BEGIN_KV_MAP,
+        })?;
+        target.push_char(DC_TYPE_ANY)?;
+        target.push_char(DC_TYPE_ANY)
+    }
+
+    pub fn encode_entry_begin_to(self, target: &mut crate::DcWriter<'_>, first: bool) -> Result<()> {
+        match self {
+            Self::Pairs => target.push_char(DC_BEGIN_KV_PAIR)?,
+            Self::Legacy if !first => target.push_char(DC_LIST_ELEMENT_SEPARATOR)?,
+            Self::Legacy => {}
+        }
+        Ok(())
+    }
+
+    pub fn encode_entry_end_to(self, target: &mut crate::DcWriter<'_>) -> Result<()> {
+        if self == Self::Pairs {
+            target.push_char(DC_END_KV_PAIR)?;
+        }
+        Ok(())
+    }
+
+    pub fn encode_end_to(self, target: &mut crate::DcWriter<'_>) -> Result<()> {
+        target.push_char(self.closer())
+    }
+
     /// Writes the array header with Object key and value types.
     pub fn encode_header(self, target: &mut DcMstring) {
         target.push_char(match self {

@@ -617,8 +617,8 @@ impl From<FinderFlags> for u16 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.to_raw_u16().encode_dc_mixed(mst)
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+        self.to_raw_u16().encode_dc_mixed_to(mst)
     }
 
     fn decode_dc_number(
@@ -686,8 +686,8 @@ impl From<ExtendedFlags> for u8 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for ExtendedFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.to_raw_u8().encode_dc_mixed(mst)
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+        self.to_raw_u8().encode_dc_mixed_to(mst)
     }
 
     fn decode_dc_number(
@@ -824,8 +824,8 @@ impl TryFrom<u8> for FinderLabel {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.index().encode_dc_mixed(mst)
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+        self.index().encode_dc_mixed_to(mst)
     }
 
     fn decode_dc_number(

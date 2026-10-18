@@ -66,8 +66,26 @@ use crate::navigator::{
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
 
-/// Trait for types that can be serialized into a `DcMixed` buffer (`DcMstring`).
+/// Serializes values to DcMM through a shared, fallible streaming encoder.
 pub trait DcMixedEncode {
+    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        self.encode_dc_mixed_to(&mut mst.writer())
+    }
+
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &SharedValueContext) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(&mut mst.writer(), context)
+    }
+
+    fn encode_format_elements_with_context(&self, format: DcChar, mst: &mut DcMstring, context: &SharedValueContext) -> Result<()> {
+        self.encode_format_elements_to_with_context(format, &mut mst.writer(), context)
+    }
+
+    /// Writes a complete DcMM document, including its header.
+    fn write_dc_mixed(&self, output: &mut dyn std::io::Write) -> Result<()> {
+        output.write_all(DcMstring::new().as_bytes())?;
+        self.encode_dc_mixed_to(&mut crate::DcWriter::new(output))
+    }
+
     /// Encodes a new mixed-mode string, not a preserved source string.
     fn to_dc_mixed(&self) -> Result<DcMstring> {
         let mut source = DcMstring::new();
@@ -80,26 +98,26 @@ pub trait DcMixedEncode {
         self.to_dc_mixed()?.to_dc_string()
     }
 
-    /// Serializes this instance into the given `DcMstring` buffer.
+    /// Serializes a record without a document header.
     ///
     /// # Errors
     /// Returns an error if serialization fails.
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()>;
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()>;
 
     /// Encodes with explicit definitions already persisted by the caller.
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, _context: &crate::SharedValueContext) -> Result<()> {
-        self.encode_dc_mixed(mst)
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, _context: &crate::SharedValueContext) -> Result<()> {
+        self.encode_dc_mixed_to(mst)
     }
 
     /// Encodes this value inside a `Dc 511 [format] ... Dc 512` format representation container.
-    fn encode_format_elements_with_context(
+    fn encode_format_elements_to_with_context(
         &self,
         format: DcChar,
-        mst: &mut DcMstring,
+        mst: &mut crate::DcWriter<'_>,
         context: &crate::SharedValueContext,
     ) -> Result<()> {
         let _ = format;
-        self.encode_dc_mixed_with_context(mst, context)
+        self.encode_dc_mixed_to_with_context(mst, context)
     }
 }
 
@@ -147,12 +165,12 @@ pub trait DcMixedFlattened: Sized {
     type State: Default;
     fn encode_flattened_fields(
         &self,
-        mst: &mut DcMstring,
+        mst: &mut crate::DcWriter<'_>,
         context: &SharedValueContext,
     ) -> Result<()>;
     fn encode_empty_flattened_marker(
         &self,
-        _mst: &mut DcMstring,
+        _mst: &mut crate::DcWriter<'_>,
         _context: &SharedValueContext,
     ) -> Result<()> {
         Ok(())
@@ -263,7 +281,7 @@ pub trait DcMixedNumber: Sized {
     ///
     /// # Errors
     /// Returns an error if serialization fails.
-    fn encode_dc_number(&self, mst: &mut DcMstring) -> Result<()>;
+    fn encode_dc_number(&self, mst: &mut crate::DcWriter<'_>) -> Result<()>;
 
     /// Deserializes an instance from a numeric Dc representation.
     ///
@@ -279,8 +297,8 @@ macro_rules! impl_dc_mixed_number_primitive {
     ($($t:ty),*) => {
         $(
             impl DcMixedNumber for $t {
-                fn encode_dc_number(&self, mst: &mut DcMstring) -> Result<()> {
-                    self.encode_dc_mixed(mst)
+                fn encode_dc_number(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+                    self.encode_dc_mixed_to(mst)
                 }
                 fn decode_dc_number(
                     ctx: &mut DcProjectionContext<'_, '_>,
@@ -339,7 +357,7 @@ impl From<BinaryPayload> for Vec<u8> {
 }
 
 impl DcMixedEncode for BinaryPayload {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         mst.push_binary_with_sha256(&self.0)
     }
 }
@@ -366,10 +384,8 @@ impl DcMixedDecode for BinaryPayload {
 pub struct LazyBinaryPayload(pub crate::navigator::BinaryPayloadRef<'static>);
 
 impl DcMixedEncode for LazyBinaryPayload {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        let bytes = self.0.as_resident_bytes()
-            .context("Lazy binary encoding requires a backing reader; use streaming encoding")?;
-        mst.push_binary_with_sha256(bytes)
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        mst.push_binary_ref(&self.0)
     }
 }
 
@@ -382,6 +398,7 @@ impl DcMixedDecode for LazyBinaryPayload {
             other => bail!("Expected binary payload, found {other:?}"),
         };
         let owned = match payload {
+            BinaryPayloadRef::Source { source_id, len } => BinaryPayloadRef::Source { source_id: *source_id, len: *len },
             BinaryPayloadRef::Borrowed(bytes) => BinaryPayloadRef::Inline(bytes.to_vec()),
             BinaryPayloadRef::Inline(bytes) => BinaryPayloadRef::Inline(bytes.clone()),
             BinaryPayloadRef::FileSpan { file_offset, len, checksum, checksum_action } => {
@@ -422,17 +439,17 @@ impl DcForgivingDefault for DcRawValue {
 }
 
 impl DcMixedEncode for DcRawValue {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &SharedValueContext::default())
     }
 
-    fn encode_dc_mixed_with_context(
+    fn encode_dc_mixed_to_with_context(
         &self,
-        mst: &mut DcMstring,
+        mst: &mut crate::DcWriter<'_>,
         context: &SharedValueContext,
     ) -> Result<()> {
         match self {
-            Self::String(s) => s.encode_dc_mixed_with_context(mst, context),
+            Self::String(s) => s.encode_dc_mixed_to_with_context(mst, context),
             Self::Binary { format: Some(fmt), bytes, .. } => {
                 let mut metadata = crate::DcString::new();
                 metadata.push(DcChar::from_u128(fmt.dc_id().context("Missing format Dc ID")?));
@@ -442,23 +459,23 @@ impl DcMixedEncode for DcRawValue {
                 mst.push_binary_with_sha256(bytes)
             }
             Self::Binary { format: None, with_sha256: false, bytes } => {
-                mst.push_binary(bytes);
+                mst.push_binary(bytes)?;
                 Ok(())
             }
-            Self::FilePathSegments(segments) => encode_filepath_segments(segments, mst),
-            Self::U16List(units) => units.encode_dc_mixed_with_context(mst, context),
+            Self::FilePathSegments(segments) => encode_filepath_segments_to(segments, mst),
+            Self::U16List(units) => units.encode_dc_mixed_to_with_context(mst, context),
             Self::PartiallyEquivalent(items) => {
-                mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
-                mst.push_char(DC_BEGIN_LIST);
-                mst.push_char(DC_TYPE_ANY);
+                mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS)?;
+                mst.push_char(DC_BEGIN_LIST)?;
+                mst.push_char(DC_TYPE_ANY)?;
                 let mut iter = items.iter().peekable();
                 while let Some(item) = iter.next() {
-                    item.encode_dc_mixed_with_context(mst, context)?;
+                    item.encode_dc_mixed_to_with_context(mst, context)?;
                     if iter.peek().is_some() {
-                        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+                        mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
                     }
                 }
-                mst.push_char(DC_END_LIST);
+                mst.push_char(DC_END_LIST)?;
                 Ok(())
             }
         }
@@ -1228,8 +1245,8 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
 // ----------------------------------------------------------------------------
 
 impl DcMixedEncode for String {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.as_str().encode_dc_mixed(mst)
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.as_str().encode_dc_mixed_to(mst)
     }
 }
 
@@ -1249,23 +1266,23 @@ impl DcMixedDecode for String {
 }
 
 impl DcMixedEncode for str {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DC_BEGIN_LITERAL);
-        mst.push_char(DC_BEGIN_TYPE_DEF);
-        mst.push_char(DC_TYPE_STRING);
-        mst.push_char(DC_END_TYPE_DEF);
-        mst.push_str(self);
-        mst.push_char(DC_END_LITERAL);
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        mst.push_char(DC_BEGIN_LITERAL)?;
+        mst.push_char(DC_BEGIN_TYPE_DEF)?;
+        mst.push_char(DC_TYPE_STRING)?;
+        mst.push_char(DC_END_TYPE_DEF)?;
+        mst.push_str(self)?;
+        mst.push_char(DC_END_LITERAL)?;
         Ok(())
     }
 }
 
 impl DcMixedEncode for bool {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         if *self {
-            mst.push_char(DC_BOOLEAN_TRUE);
+            mst.push_char(DC_BOOLEAN_TRUE)?;
         } else {
-            mst.push_char(DC_BOOLEAN_FALSE);
+            mst.push_char(DC_BOOLEAN_FALSE)?;
         }
         Ok(())
     }
@@ -1293,12 +1310,12 @@ macro_rules! impl_dc_mixed_integer_signed {
     ($($t:ty),*) => {
         $(
             impl DcMixedEncode for $t {
-                fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+                fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
                     let val_i128 = i128::try_from(*self)
                         .map_err(|e| anyhow!("Failed to convert integer to i128: {e}"))?;
                     let chars = crate::dc_number::i128_to_dc_number_chars(val_i128)?;
                     for ch in chars {
-                        mst.push_char(ch);
+                        mst.push_char(ch)?;
                     }
                     Ok(())
                 }
@@ -1321,12 +1338,12 @@ macro_rules! impl_dc_mixed_integer_unsigned {
     ($($t:ty),*) => {
         $(
             impl DcMixedEncode for $t {
-                fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+                fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
                     let val_u128 = u128::try_from(*self)
                         .map_err(|e| anyhow!("Failed to convert integer to u128: {e}"))?;
                     let chars = crate::dc_number::u128_to_dc_number_chars(val_u128)?;
                     for ch in chars {
-                        mst.push_char(ch);
+                        mst.push_char(ch)?;
                     }
                     Ok(())
                 }
@@ -1349,10 +1366,10 @@ impl_dc_mixed_integer_unsigned!(u8, u16, u32, u64, u128, usize);
 impl_dc_mixed_integer_signed!(i8, i16, i32, i64, i128, isize);
 
 impl DcMixedEncode for malachite::Natural {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let chars = crate::dc_number::natural_to_dc_number_chars(self, false)?;
         for ch in chars {
-            mst.push_char(ch);
+            mst.push_char(ch)?;
         }
         Ok(())
     }
@@ -1368,10 +1385,10 @@ impl DcMixedDecode for malachite::Natural {
 }
 
 impl DcMixedEncode for malachite::Integer {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let chars = crate::dc_number::integer_to_dc_number_chars(self)?;
         for ch in chars {
-            mst.push_char(ch);
+            mst.push_char(ch)?;
         }
         Ok(())
     }
@@ -1387,21 +1404,21 @@ impl DcMixedDecode for malachite::Integer {
 }
 
 impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        mst.push_char(DC_BEGIN_KV_PAIR);
-        self.0.encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
-        self.1.encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(DC_END_KV_PAIR);
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
+        mst.push_char(DC_BEGIN_KV_PAIR)?;
+        self.0.encode_dc_mixed_to_with_context(mst, context)?;
+        mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
+        self.1.encode_dc_mixed_to_with_context(mst, context)?;
+        mst.push_char(DC_END_KV_PAIR)?;
         Ok(())
     }
-    fn encode_format_elements_with_context(
+    fn encode_format_elements_to_with_context(
         &self,
         format: DcChar,
-        mst: &mut DcMstring,
+        mst: &mut crate::DcWriter<'_>,
         context: &crate::SharedValueContext,
     ) -> Result<()> {
         let is_seq_len_2 = if let Some(fid) = FormatId::from_dc_id(format.to_u128()) {
@@ -1417,11 +1434,11 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
             false
         };
         if is_seq_len_2 {
-            self.0.encode_dc_mixed_with_context(mst, context)?;
-            self.1.encode_dc_mixed_with_context(mst, context)?;
+            self.0.encode_dc_mixed_to_with_context(mst, context)?;
+            self.1.encode_dc_mixed_to_with_context(mst, context)?;
             Ok(())
         } else {
-            self.encode_dc_mixed_with_context(mst, context)
+            self.encode_dc_mixed_to_with_context(mst, context)
         }
     }
 }
@@ -1500,17 +1517,17 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
 }
 
 impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
         match self {
             Some(val) => {
-                mst.push_char(DC_OPTIONAL_PRESENT);
-                val.encode_dc_mixed_with_context(mst, context)
+                mst.push_char(DC_OPTIONAL_PRESENT)?;
+                val.encode_dc_mixed_to_with_context(mst, context)
             }
             None => {
-                mst.push_char(DC_OPTIONAL_ABSENT);
+                mst.push_char(DC_OPTIONAL_ABSENT)?;
                 Ok(())
             }
         }
@@ -1540,19 +1557,19 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
 }
 
 impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        mst.push_char(DC_BEGIN_LIST);
-        mst.push_char(DC_TYPE_ANY);
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
+        mst.push_char(DC_BEGIN_LIST)?;
+        mst.push_char(DC_TYPE_ANY)?;
         for (idx, item) in self.iter().enumerate() {
             if idx > 0 {
-                mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+                mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
             }
-            item.encode_dc_mixed_with_context(mst, context)?;
+            item.encode_dc_mixed_to_with_context(mst, context)?;
         }
-        mst.push_char(DC_END_LIST);
+        mst.push_char(DC_END_LIST)?;
         Ok(())
     }
 }
@@ -1620,12 +1637,12 @@ fn format_dc_char(fid: FormatId) -> Result<DcChar> {
 }
 
 impl DcMixedEncode for Ipv4Addr {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(format_dc_char(FormatId::IpV4)?);
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+        mst.push_char(format_dc_char(FormatId::IpV4)?)?;
         let octets = u32::from_be_bytes(self.octets());
-        octets.encode_dc_mixed(mst)?;
-        mst.push_char(DC_END_FORMAT_REPRESENTATION);
+        octets.encode_dc_mixed_to(mst)?;
+        mst.push_char(DC_END_FORMAT_REPRESENTATION)?;
         Ok(())
     }
 }
@@ -1649,12 +1666,12 @@ impl DcMixedDecode for Ipv4Addr {
 }
 
 impl DcMixedEncode for Ipv6Addr {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(format_dc_char(FormatId::IpV6)?);
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+        mst.push_char(format_dc_char(FormatId::IpV6)?)?;
         let octets = u128::from_be_bytes(self.octets());
-        octets.encode_dc_mixed(mst)?;
-        mst.push_char(DC_END_FORMAT_REPRESENTATION);
+        octets.encode_dc_mixed_to(mst)?;
+        mst.push_char(DC_END_FORMAT_REPRESENTATION)?;
         Ok(())
     }
 }
@@ -1678,10 +1695,10 @@ impl DcMixedDecode for Ipv6Addr {
 }
 
 impl DcMixedEncode for std::net::IpAddr {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         match self {
-            Self::V4(v4) => v4.encode_dc_mixed(mst),
-            Self::V6(v6) => v6.encode_dc_mixed(mst),
+            Self::V4(v4) => v4.encode_dc_mixed_to(mst),
+            Self::V6(v6) => v6.encode_dc_mixed_to(mst),
         }
     }
 }
@@ -1709,9 +1726,9 @@ impl DcMixedDecode for std::net::IpAddr {
 }
 
 impl DcMixedEncode for ctb_formats_utilities::FormatId {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let dc_id = self.dc_id().context("FormatId missing dc_id")?;
-        mst.push_char(DcChar::from_u128(dc_id));
+        mst.push_char(DcChar::from_u128(dc_id))?;
         Ok(())
     }
 }
@@ -1744,22 +1761,22 @@ where
     K: DcMixedEncode,
     V: DcMixedEncode,
 {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
         let encoding = crate::DcKvMapEncoding::Pairs;
-        encoding.encode_header(mst);
+        encoding.encode_header_to(mst)?;
         let mut first = true;
         for (k, v) in self {
-            encoding.encode_entry_begin(mst, first);
+            encoding.encode_entry_begin_to(mst, first)?;
             first = false;
-            k.encode_dc_mixed_with_context(mst, context)?;
-            mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
-            v.encode_dc_mixed_with_context(mst, context)?;
-            encoding.encode_entry_end(mst);
+            k.encode_dc_mixed_to_with_context(mst, context)?;
+            mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
+            v.encode_dc_mixed_to_with_context(mst, context)?;
+            encoding.encode_entry_end_to(mst)?;
         }
-        encoding.encode_end(mst);
+        encoding.encode_end_to(mst)?;
         Ok(())
     }
 }
@@ -1787,11 +1804,11 @@ where
 }
 
 impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Box<T> {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        (**self).encode_dc_mixed(mst)
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        (**self).encode_dc_mixed_to(mst)
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        (**self).encode_dc_mixed_with_context(mst, context)
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
+        (**self).encode_dc_mixed_to_with_context(mst, context)
     }
 }
 
@@ -1806,11 +1823,11 @@ impl<T: DcMixedDecode> DcMixedDecode for Box<T> {
 }
 
 impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Arc<T> {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        (**self).encode_dc_mixed(mst)
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        (**self).encode_dc_mixed_to(mst)
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        (**self).encode_dc_mixed_with_context(mst, context)
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
+        (**self).encode_dc_mixed_to_with_context(mst, context)
     }
 }
 
@@ -1825,11 +1842,11 @@ impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
 }
 
 impl DcMixedEncode for PathBuf {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let segments: Vec<Vec<u8>> = self.as_os_str().as_encoded_bytes().split(|byte| {
             *byte == b'/' || (cfg!(windows) && *byte == b'\\')
         }).map(<[u8]>::to_vec).collect();
-        encode_filepath_segments(&segments, mst)
+        encode_filepath_segments_to(&segments, mst)
     }
 }
 
@@ -1840,58 +1857,62 @@ impl DcMixedEncode for PathBuf {
 /// Returns an error if the segment list is empty, a segment contains `/`, or
 /// serialization fails. An empty path is represented by one empty segment.
 pub fn encode_filepath_segments(segments: &[Vec<u8>], mst: &mut DcMstring) -> Result<()> {
+    encode_filepath_segments_to(segments, &mut mst.writer())
+}
+
+pub fn encode_filepath_segments_to(segments: &[Vec<u8>], mst: &mut crate::DcWriter<'_>) -> Result<()> {
     ensure!(!segments.is_empty(), "Filepath requires at least one segment");
     ensure!(segments.iter().all(|segment| !segment.contains(&b'/')),
         "Filename segment contains a path delimiter");
     let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
     let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-    mst.push_char(path_format);
-    mst.push_char(DC_BEGIN_LIST);
-    mst.push_char(DC_TYPE_INTERSECTION);
-    mst.push_char(filename_format);
-    mst.push_char(DC_FILE_PATH_DELIMITER);
+    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+    mst.push_char(path_format)?;
+    mst.push_char(DC_BEGIN_LIST)?;
+    mst.push_char(DC_TYPE_INTERSECTION)?;
+    mst.push_char(filename_format)?;
+    mst.push_char(DC_FILE_PATH_DELIMITER)?;
     let mut segments = segments.iter().peekable();
     while let Some(segment) = segments.next() {
         if !segment.is_empty() {
-            mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-            mst.push_char(filename_format);
+            mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+            mst.push_char(filename_format)?;
             if let Ok(text) = std::str::from_utf8(segment) {
-                mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-                mst.push_char(DC_BEGIN_LIST);
-                mst.push_char(DC_TYPE_ANY);
-                text.encode_dc_mixed(mst)?;
-                mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+                mst.push_char(DC_EQUIVALENT_REPRESENTATIONS)?;
+                mst.push_char(DC_BEGIN_LIST)?;
+                mst.push_char(DC_TYPE_ANY)?;
+                text.encode_dc_mixed_to(mst)?;
+                mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
                 mst.push_binary_with_sha256(segment)?;
-                mst.push_char(DC_END_LIST);
+                mst.push_char(DC_END_LIST)?;
             } else {
                 mst.push_binary_with_sha256(segment)?;
             }
-            mst.push_char(DC_END_FORMAT_REPRESENTATION);
+            mst.push_char(DC_END_FORMAT_REPRESENTATION)?;
         }
         if segments.peek().is_some() {
-            mst.push_char(DC_FILE_PATH_DELIMITER);
+            mst.push_char(DC_FILE_PATH_DELIMITER)?;
         }
     }
-    mst.push_char(DC_END_LIST);
-    mst.push_char(DC_END_FORMAT_REPRESENTATION);
+    mst.push_char(DC_END_LIST)?;
+    mst.push_char(DC_END_FORMAT_REPRESENTATION)?;
     Ok(())
 }
 
 impl DcMixedEncode for std::path::Path {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.to_path_buf().encode_dc_mixed(mst)
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.to_path_buf().encode_dc_mixed_to(mst)
     }
 }
 
 /// Encodes a value within the declared format representation boundaries.
 pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
-    value: &T, format: DcChar, mst: &mut DcMstring, context: &crate::SharedValueContext,
+    value: &T, format: DcChar, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext,
 ) -> Result<()> {
-    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-    mst.push_char(format);
-    value.encode_format_elements_with_context(format, mst, context)?;
-    mst.push_char(DC_END_FORMAT_REPRESENTATION);
+    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+    mst.push_char(format)?;
+    value.encode_format_elements_to_with_context(format, mst, context)?;
+    mst.push_char(DC_END_FORMAT_REPRESENTATION)?;
     Ok(())
 }
 
@@ -2290,7 +2311,7 @@ fn system_time_from_signed_nanos(nanos: i128) -> Result<SystemTime> {
 }
 
 impl DcMixedEncode for SystemTime {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         let nanos: i128 = match self.duration_since(std::time::UNIX_EPOCH) {
             Ok(dur) => i128::try_from(dur.as_nanos())?,
             Err(err) => {
@@ -2298,10 +2319,10 @@ impl DcMixedEncode for SystemTime {
                 before.checked_neg().context("Timestamp underflow")?
             }
         };
-        mst.push_char(DC_BEGIN_TIME_MOMENT);
-        mst.push_char(format_dc_char(FormatId::NsSinceEpoch)?);
-        nanos.encode_dc_mixed(mst)?;
-        mst.push_char(DC_END_TIME_MOMENT);
+        mst.push_char(DC_BEGIN_TIME_MOMENT)?;
+        mst.push_char(format_dc_char(FormatId::NsSinceEpoch)?)?;
+        nanos.encode_dc_mixed_to(mst)?;
+        mst.push_char(DC_END_TIME_MOMENT)?;
         Ok(())
     }
 }
@@ -2358,11 +2379,11 @@ impl DcMixedDecode for SystemTime {
 }
 
 impl DcMixedEncode for Duration {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DC_BEGIN_DATE_MAGNITUDE);
-        mst.push_char(format_dc_char(FormatId::Nanosecond)?);
-        self.as_nanos().encode_dc_mixed(mst)?;
-        mst.push_char(DC_END_DATE_MAGNITUDE);
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        mst.push_char(DC_BEGIN_DATE_MAGNITUDE)?;
+        mst.push_char(format_dc_char(FormatId::Nanosecond)?)?;
+        self.as_nanos().encode_dc_mixed_to(mst)?;
+        mst.push_char(DC_END_DATE_MAGNITUDE)?;
         Ok(())
     }
 }
@@ -2422,12 +2443,12 @@ impl DcMixedDecode for Duration {
 }
 
 impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
-    fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
         for elem in self {
-            elem.encode_dc_mixed_with_context(mst, context)?;
+            elem.encode_dc_mixed_to_with_context(mst, context)?;
         }
         Ok(())
     }
@@ -3271,8 +3292,8 @@ mod tests {
     }
 
     impl DcMixedNumber for SampleFlags {
-        fn encode_dc_number(&self, mst: &mut DcMstring) -> Result<()> {
-            self.to_u8().encode_dc_mixed(mst)
+        fn encode_dc_number(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+            self.to_u8().encode_dc_mixed_to(mst)
         }
         fn decode_dc_number(
             ctx: &mut DcProjectionContext<'_, '_>,
@@ -3903,7 +3924,7 @@ mod tests {
         wrapped_pair.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         wrapped_pair.push_char(DC_BEGIN_LIST);
         wrapped_pair.push_char(DC_TYPE_ANY);
-        encode_format_representation(&[-12_i16, 42_i16], fmt, &mut wrapped_pair, &SharedValueContext::default())?;
+        encode_format_representation(&[-12_i16, 42_i16], fmt, &mut wrapped_pair.writer(), &SharedValueContext::default())?;
         wrapped_pair.push_char(DC_END_LIST);
         assert_eq!(wrapped_pair.decode::<(i16, i16)>(&strict)?, pair);
 

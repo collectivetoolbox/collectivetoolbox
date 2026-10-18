@@ -575,21 +575,7 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
-        self.identity.encode_dc_mixed_with_context(mst, context)?;
-        self.metadata.encode_dc_mixed_with_context(mst, context)?;
-        self.kind.encode_dc_mixed_with_context(mst, context)?;
-        for stream in &self.streams {
-            stream.encode_dc_mixed_with_context(mst, context)?;
-        }
-        let size = source.total_size();
-        if size > 0 {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(392));
-            source.seek(std::io::SeekFrom::Start(0))?;
-            mst.push_binary_from_reader(source, size, None)?;
-        }
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(318));
-        Ok(())
+        self.encode_record_to_writer_with_payload_and_context(&mut mst.writer(), source, context)
     }
 
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`)
@@ -621,7 +607,7 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        self.encode_record_to_writer(writer, Some(source), context)
+        self.encode_record_to_writer_with_policy(writer, Some(source), crate::encoding::BodyPolicy::Include, context)
     }
 
     /// Streams metadata and attached bodies without a primary file body.
@@ -630,49 +616,17 @@ impl FileEntity {
         writer: &mut W,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        self.encode_record_to_writer(writer, None, context)
+        self.encode_record_to_writer_with_policy(writer, None, crate::encoding::BodyPolicy::Include, context)
     }
 
-    fn encode_record_to_writer<W: std::io::Write>(
+    pub fn encode_record_to_writer_with_policy<W: std::io::Write>(
         &self,
         writer: &mut W,
         source: Option<&mut dyn crate::payload::PayloadSource>,
+        bodies: crate::encoding::BodyPolicy,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
-        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
-        self.identity.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        self.metadata.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        writer.write_all(prefix_mst.payload_bytes())?;
-        for stream in &self.streams {
-            if crate::streams::FilesystemStreamSource.has_source(stream) {
-                stream.encode_record_to_writer_with_source(writer, &crate::streams::FilesystemStreamSource, context)?;
-            } else {
-                stream.encode_record_to_writer_without_body(writer, context)?;
-            }
-        }
-
-        if let Some(source) = source {
-            let size = source.total_size();
-            if size > 0 {
-                let mut tag = ctb_formats_dcstring::DcMstring::new();
-                tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
-                writer.write_all(tag.payload_bytes())?;
-                source.seek(std::io::SeekFrom::Start(0))?;
-                ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
-                    writer,
-                    source,
-                    size,
-                    None,
-                )?;
-            }
-        }
-
-        let mut suffix = ctb_formats_dcstring::DcMstring::new();
-        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(318));
-        writer.write_all(suffix.payload_bytes())?;
-        Ok(())
+        crate::encoding::encode_entity(self, writer, source, &crate::streams::FilesystemStreamSource, bodies, context)
     }
 
     /// Materializes this entity onto the filesystem within a [`SandboxableDir`].

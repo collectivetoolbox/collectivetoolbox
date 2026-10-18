@@ -544,6 +544,9 @@ impl DcByteSpan {
 /// parsing or tree navigation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinaryPayloadRef<'a> {
+    /// Nonresident bytes identified by a caller-supplied encoding source.
+    /// This handle is never serialized; the encoder writes its actual bytes.
+    Source { source_id: u64, len: u64 },
     /// Zero-copy slice borrowed from an in-memory `.dcmm` buffer.
     Borrowed(&'a [u8]),
     /// Decoded bytes from base64 `DcStr` or small inline payload ($\le 4\text{ KiB}$).
@@ -574,7 +577,7 @@ impl<'a> BinaryPayloadRef<'a> {
                 .expect("Borrowed slice length fits in u64"),
             Self::Inline(bytes) => u64::try_from(bytes.len())
                 .expect("Inline byte buffer length fits in u64"),
-            Self::FileSpan { len, .. } => *len,
+            Self::FileSpan { len, .. } | Self::Source { len, .. } => *len,
         }
     }
 
@@ -590,7 +593,7 @@ impl<'a> BinaryPayloadRef<'a> {
         match self {
             Self::Borrowed(slice) => Some(slice),
             Self::Inline(bytes) => Some(bytes.as_slice()),
-            Self::FileSpan { .. } => None,
+            Self::FileSpan { .. } | Self::Source { .. } => None,
         }
     }
 
@@ -600,6 +603,7 @@ impl<'a> BinaryPayloadRef<'a> {
         mut reader: Option<&mut R>,
     ) -> Result<Cow<'a, [u8]>> {
         match self {
+            Self::Source { .. } => bail!("External binary data requires its encoding source"),
             Self::Borrowed(slice) => Ok(Cow::Borrowed(slice)),
             Self::Inline(bytes) => Ok(Cow::Owned(bytes.clone())),
             Self::FileSpan { file_offset, len, checksum, checksum_action } => {

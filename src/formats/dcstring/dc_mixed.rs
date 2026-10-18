@@ -571,6 +571,11 @@ impl Default for DcMstring {
 }
 
 impl DcMstring {
+    /// Appends through the same encoder used for direct streaming output.
+    pub fn writer(&mut self) -> crate::DcWriter<'_> {
+        crate::DcWriter::new(&mut self.inner)
+    }
+
     /// Creates a new, empty `DcMstring` initialized with the standard 21-byte header.
     #[must_use]
     pub fn new() -> Self {

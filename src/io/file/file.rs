@@ -214,6 +214,7 @@ pub use apple_single_double as apple_double;
 pub mod block_device_size;
 pub mod clean_name;
 pub mod entity;
+pub mod encoding;
 pub mod filesystem;
 pub mod identity;
 pub mod link_path;

@@ -569,19 +569,7 @@ impl AttachedStream {
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
-        if let Some(ref name) = self.name {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
-            name.encode_dc_mixed(mst)?;
-        }
-        self.kind.encode_dc_mixed(mst)?;
-        self.entity.encode_dc_mixed(mst)?;
-        if size > 0 {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(385));
-            mst.push_binary_from_reader(reader, size, None)?;
-        }
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(324));
-        Ok(())
+        self.encode_record_to_writer_with_reader(&mut mst.writer(), reader, size, &ctb_formats_dcstring::SharedValueContext::default())
     }
 
     /// Serializes this `AttachedStream` along with its stream payload data (`Dc 385`)
@@ -617,60 +605,7 @@ impl AttachedStream {
         size: u64,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        let FileEntityKind::Regular { size: expected_size, sha256, .. } = self.entity.kind else {
-            bail!("Attached stream is not a regular payload");
-        };
-        ensure!(size == expected_size, "Stream source size differs from metadata");
-        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
-        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
-        if let Some(ref name) = self.name {
-            prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
-            name.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        }
-        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        writer.write_all(prefix_mst.payload_bytes())?;
-        self.entity.encode_record_to_writer_with_context(writer, context)?;
-
-        let mut checked = StreamDigestReader { reader, digest: Sha256Stream::new() };
-        if size > 0 {
-            let mut tag = ctb_formats_dcstring::DcMstring::new();
-            tag.push_char(ctb_formats_dcstring::DcChar::from_short(385));
-            writer.write_all(tag.payload_bytes())?;
-            ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
-                writer,
-                &mut checked,
-                size,
-                None,
-            )?;
-        }
-        let mut extra = [0_u8; 1];
-        ensure!(std::io::Read::read(&mut checked, &mut extra)? == 0, "Stream grew during encoding");
-        ensure!(checked.digest.finalize() == sha256, "Stream contents changed during encoding");
-
-        let mut suffix = ctb_formats_dcstring::DcMstring::new();
-        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
-        writer.write_all(suffix.payload_bytes())?;
-        Ok(())
-    }
-
-    pub(crate) fn encode_record_to_writer_without_body<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-        context: &ctb_formats_dcstring::SharedValueContext,
-    ) -> Result<()> {
-        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
-        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
-        if let Some(ref name) = self.name {
-            prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
-            name.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        }
-        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        writer.write_all(prefix_mst.payload_bytes())?;
-        self.entity.encode_record_to_writer_with_context(writer, context)?;
-        let mut suffix = ctb_formats_dcstring::DcMstring::new();
-        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
-        writer.write_all(suffix.payload_bytes())?;
-        Ok(())
+        crate::encoding::encode_stream(self, writer, reader, size, context)
     }
 
     /// Discards in-memory payload bytes, retaining stream name, classification,
@@ -678,9 +613,6 @@ impl AttachedStream {
     pub fn strip_body(&mut self) {
         self.data = None;
         self.payload = None;
-        if matches!(self.entity.identity.origin, FileOrigin::Filesystem { .. }) {
-            self.entity.identity.origin = FileOrigin::Synthetic;
-        }
         self.entity.strip_stream_bodies();
     }
 }

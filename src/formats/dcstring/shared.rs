@@ -169,16 +169,20 @@ where
 
 /// Emits a nonempty Unicode identifier using Dc 270..271 framing.
 pub fn encode_identifier(mst: &mut DcMstring, name: &str) -> Result<()> {
+    encode_identifier_to(&mut mst.writer(), name)
+}
+
+pub fn encode_identifier_to(mst: &mut crate::DcWriter<'_>, name: &str) -> Result<()> {
     ensure!(!name.is_empty(), "Identifiers must not be empty");
-    mst.push_char(DC_BEGIN_IDENTIFIER);
+    mst.push_char(DC_BEGIN_IDENTIFIER)?;
     for character in name.chars() {
         let character = DcChar::from_char(character);
         if character == DC_ESCAPE || character == DC_END_IDENTIFIER {
-            mst.push_char(DC_ESCAPE);
+            mst.push_char(DC_ESCAPE)?;
         }
-        mst.push_char(character);
+        mst.push_char(character)?;
     }
-    mst.push_char(DC_END_IDENTIFIER);
+    mst.push_char(DC_END_IDENTIFIER)?;
     Ok(())
 }
 
@@ -196,10 +200,14 @@ pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId)
 
 /// Assigns a field from a lexically bound value using identifiers, not strings.
 pub fn encode_shared_reference(mst: &mut DcMstring, field: &str, binding: &str) -> Result<()> {
-    encode_identifier(mst, field)?;
-    mst.push_char(DC_ASSIGN);
-    mst.push_char(DC_REFERENCE_BOUND_VALUE);
-    encode_identifier(mst, binding)
+    encode_shared_reference_to(&mut mst.writer(), field, binding)
+}
+
+pub fn encode_shared_reference_to(mst: &mut crate::DcWriter<'_>, field: &str, binding: &str) -> Result<()> {
+    encode_identifier_to(mst, field)?;
+    mst.push_char(DC_ASSIGN)?;
+    mst.push_char(DC_REFERENCE_BOUND_VALUE)?;
+    encode_identifier_to(mst, binding)
 }
 
 /// Reads an assignment whose value is a named reference.
