@@ -78,7 +78,9 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Add optional, recommended TOTP step on login
 
-- Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered.
+- Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered (e.g. in checksummed encapsulated binary data regions in Dc documents).
+- Make sure directory traversal has been centralized/DRYed out in io/file/traversal.
+- Make sure csc journal and writing logic is DRY.
 
 - csc archive: Durable destination identity for crash recovery
   Status: Partially Implemented (In Progress)
@@ -108,7 +110,7 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - Are there any remaining redundant/duplicated implementations of filesystem traversal, or is it now all succesfully consolidated to file/traversal?
   Confirmed: all recursive filesystem traversal across `ctb-io` and `ctb-io-csc` is consolidated to `src/io/file/traversal.rs` (`traverse_dir`, `read_dir_safe`, and `discover_directory`).
 
-- [x] csc archive: Added `--recover` (with aliases `--salvage`, `--allow-archive-errors`, `--allow-journal-errors`) to `ctb archive extract` and `ctb archive verify` to restore intact committed members from incomplete archives or archives containing capture diagnostics.
+- csc archive: Added `--recover` (with aliases `--salvage`, `--allow-archive-errors`, `--allow-journal-errors`) to `ctb archive extract` and `ctb archive verify` to restore intact committed members from incomplete archives or archives containing capture diagnostics.
 
 - Regenerate Guix packaging in CI
 
