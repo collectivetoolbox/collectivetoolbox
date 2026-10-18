@@ -98,6 +98,11 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
   Status: Partially Implemented
   - Remaining Gaps & Pending Work: Stream-body warnings inspect only immediate streams in `read_journal_snapshot_with_policy`, not nested stream entities. Calling public `read_v4_journal_snapshot` directly also bypasses that stream-body warning pass. Keep primary-body and stream-body warning coverage consistent across reader entry points.
 
+Medium: Stream writer emits extra document headers. A temporary byte-comparison probe failed. streams.rs:536
+Medium: Unsupported checksums error instead of warning in forgiving mode. Reproduced with MD5. encapsulation.rs:304
+Medium: Directory receipts are renamed without fsync, so crash-durable resume authority is not assured. journal.rs:881
+Medium: Windows ADS capture still buffers entire bodies; end-to-end bounded-memory streaming is incomplete. windows.rs:120
+
 
 - Regenerate Guix packaging in CI
 
