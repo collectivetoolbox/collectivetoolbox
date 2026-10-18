@@ -290,7 +290,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         let bytes = source.source_bytes();
         let mut arena = crate::DcSyntaxArena::new();
         let mut nav = if bytes.starts_with(&crate::DCMM_MAGIC) {
-            match DcMstr::from_bytes(bytes) {
+            match DcMstr::from_bytes_with_policy(bytes, policy) {
                 Ok(mstr) => crate::DcDocumentNavigator::from_mstr(mstr),
                 Err(err) => {
                     return Self {

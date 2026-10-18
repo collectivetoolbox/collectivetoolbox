@@ -343,7 +343,14 @@ impl DcMstr {
     /// # Errors
     /// Returns `DcMixedError` if the byte slice does not conform to the `DcMixed` specification.
     pub fn from_bytes(bytes: &[u8]) -> Result<&Self, DcMixedError> {
-        validate_dcmst(bytes)?;
+        Self::from_bytes_with_policy(bytes, &crate::DcProjectionPolicy::strict())
+    }
+
+    pub(crate) fn from_bytes_with_policy<'a>(
+        bytes: &'a [u8],
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<&'a Self, DcMixedError> {
+        validate_dcmst_with_policy(bytes, policy)?;
         #[expect(
             unsafe_code,
             reason = "DcMstr is #[repr(transparent)] around [u8] and bytes have been fully validated"
@@ -1039,6 +1046,7 @@ fn validate_header(bytes: &[u8]) -> Result<(), DcMixedError> {
 fn validate_encapsulation_region(
     bytes: &[u8],
     enc_start: usize,
+    policy: &crate::DcProjectionPolicy,
 ) -> Result<usize, DcMixedError> {
     let after_dc203 = enc_start.saturating_add(6);
     let Some(&type_byte) = bytes.get(after_dc203) else {
@@ -1121,7 +1129,7 @@ fn validate_encapsulation_region(
 
     if type_byte == TYPE_BINARY_METADATA {
         let (_, metadata) = metadata_region(bytes, size_end)?;
-        crate::encapsulation::validate_metadata(metadata, payload).map_err(|error| {
+        crate::encapsulation::validate_metadata_with_policy(metadata, payload, policy).map_err(|error| {
             DcMixedError::InvalidMetadata { offset: enc_start, message: format!("{error:#}") }
         })?;
     }
@@ -1165,13 +1173,20 @@ fn metadata_region(bytes: &[u8], start: usize) -> Result<(usize, &DcStr), DcMixe
 /// # Errors
 /// Returns `DcMixedError` describing the first encountered validation error.
 pub fn validate_dcmst(bytes: &[u8]) -> Result<(), DcMixedError> {
+    validate_dcmst_with_policy(bytes, &crate::DcProjectionPolicy::strict())
+}
+
+fn validate_dcmst_with_policy(
+    bytes: &[u8],
+    policy: &crate::DcProjectionPolicy,
+) -> Result<(), DcMixedError> {
     validate_header(bytes)?;
 
     let mut offset = DCMM_HEADER_LEN;
     while offset < bytes.len() {
         let Some(slice) = bytes.get(offset..) else { break };
         if slice.starts_with(&DC_203_BYTES) {
-            offset = validate_encapsulation_region(bytes, offset)?;
+            offset = validate_encapsulation_region(bytes, offset, policy)?;
         } else {
             let Some((_val, char_len)) = decode_utf_8e_128_buf(slice) else {
                 return Err(DcMixedError::InvalidUtf8e128 {

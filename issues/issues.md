@@ -78,10 +78,6 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Add optional, recommended TOTP step on login
 
-- Dc encapsulation checksum policy
-  Status: Partially Implemented
-  - Remaining Gaps & Pending Work: Unsupported checksum formats still return an error in forgiving mode instead of warning and retaining the payload (`ChecksumSpec::algorithm_for_digest` propagates the error directly). Reproduced with an MD5-typed checksum on 2026-10-18. All 23 `SupportedHashFormat` algorithms pass mixed/text encapsulation validation and corruption rejection.
-
 - Directory traversal centralization
   Status: Partially Implemented
   - Remaining Gaps & Pending Work: Safe entry discovery is shared, but recursive scheduling remains duplicated in `copy_engine::execute_copy_pipeline` (preflight and copy queues) and archive `plan_sources`; these do not use `file::traverse_dir`. Single-directory filename verification and source inventories also still enumerate directly; decide which belong in a shared raw-entry primitive without applying AppleDouble filtering to physical inventories.

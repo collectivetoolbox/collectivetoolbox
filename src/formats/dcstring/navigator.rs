@@ -203,6 +203,8 @@ pub enum DiagnosticAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DcProjectionPolicy {
     /// Framing or syntax rule violation in Stage 1 (e.g. unclosed frame, bad literal header).
+    /// Unsupported checksum algorithms follow this action; recovery retains
+    /// payload bytes without verifying those checksums.
     pub syntax_error: DiagnosticAction,
     /// Unknown Dc tag encountered inside a container (e.g. forward-compatible field or statement).
     pub unknown_field: DiagnosticAction,
@@ -2025,7 +2027,7 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
         let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
-            let mstr = DcMstr::from_bytes(bytes)?;
+            let mstr = DcMstr::from_bytes_with_policy(bytes, policy)?;
             Self::from_mstr(mstr)
         } else {
             let text = DcStr::from_bytes(bytes)?;
@@ -2046,7 +2048,7 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
         let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
-            let mstr = DcMstr::from_bytes(bytes)?;
+            let mstr = DcMstr::from_bytes_with_policy(bytes, policy)?;
             Self::from_mstr(mstr)
         } else {
             let text = DcStr::from_bytes(bytes)?;
@@ -2922,7 +2924,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 payload_span: Some(pspan),
                 ..
             } => {
-                let algorithm = BinaryChecksum::algorithm_for_digest(&data_type, pspan.len())?;
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest(&data_type, pspan.len(), policy)? else {
+                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                    return Ok((final_end, sequence_id, false));
+                };
                 BinaryChecksum {
                     algorithm,
                     expected_digest: self.read_span_bytes(pspan)?.into_owned(),
@@ -2936,7 +2941,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy)? else {
                     bail!("Section digest requires a typed checksum payload");
                 };
-                let algorithm = BinaryChecksum::algorithm_for_digest(&data_type, payload.len())?;
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest(&data_type, payload.len(), policy)? else {
+                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                    return Ok((final_end, sequence_id, false));
+                };
                 BinaryChecksum { algorithm, expected_digest: payload.materialize_bytes()?.into_owned() }
             }
         };
@@ -4669,6 +4677,110 @@ mod tests {
         file.write_all(&vec![0; usize::try_from(base_offset)?])?;
         file.write_all(bytes)?;
         DcDocumentNavigator::from_dcmm_file(file, base_offset)
+    }
+
+    #[crate::ctb_test]
+    fn unsupported_checksum_preserves_payload_across_backends() -> Result<()> {
+        let metadata = crate::encapsulation::checksum_text(
+            FormatId::Md5.dc_char().context("Missing MD5 type")?,
+            &[0_u8; 16],
+        )?;
+        for length in [0, 7, usize::try_from(INLINE_BINARY_THRESHOLD)?.saturating_add(1)] {
+            let payload = vec![0x5a_u8; length];
+            let mut bytes = DcMstring::new().into_bytes();
+            bytes.extend_from_slice(&crate::dc_mixed::DC_203_BYTES);
+            bytes.push(crate::dc_mixed::TYPE_BINARY_METADATA);
+            bytes.extend_from_slice(&u128::try_from(payload.len())?.to_be_bytes());
+            bytes.extend_from_slice(&u128::try_from(metadata.len())?.to_be_bytes());
+            bytes.extend_from_slice(metadata.as_bytes());
+            bytes.extend_from_slice(&payload);
+            ensure!(DcMstr::from_bytes(&bytes).is_err());
+            let mut text = DcString::new();
+            text.push(DC_START_ENCAPSULATION_BINARY);
+            text.push_dc_str(&metadata);
+            for short in ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(&payload)? {
+                text.push(DcChar::from_short(short));
+            }
+            text.push(DC_END_ENCAPSULATION_BINARY);
+            for action in [DiagnosticAction::Error, DiagnosticAction::Warn, DiagnosticAction::Log, DiagnosticAction::Ignore] {
+                let policy = DcProjectionPolicy { syntax_error: action, ..DcProjectionPolicy::strict() };
+                let truncated = bytes.get(..bytes.len().saturating_sub(1)).context("Missing truncated fixture")?;
+                ensure!(DcDocumentNavigator::parse_document_arena(truncated, &mut DcSyntaxArena::new(), &policy).is_err(), "Unsupported checksum recovery accepted a truncated payload");
+                if action != DiagnosticAction::Error {
+                    let source = DcMstr::from_bytes_with_policy(&bytes, &policy)?;
+                    let inspection = source.inspect_with_policy::<crate::LazyBinaryPayload>(&policy);
+                    let restored = inspection.value().context("Inspection lost unsupported-checksum payload")?;
+                    ensure!(restored.0.materialize_bytes()?.as_ref() == payload);
+                }
+                for source in [text.as_bytes(), bytes.as_slice()] {
+                    let mut arena = DcSyntaxArena::new();
+                    let result = DcDocumentNavigator::parse_document_arena(source, &mut arena, &policy);
+                    if action == DiagnosticAction::Error {
+                        ensure!(result.is_err());
+                    } else {
+                        result?;
+                        let root = *arena.roots().first().context("Missing binary root")?;
+                        let DcSyntaxKind::Binary { payload: restored, .. } = &arena.node(root).context("Missing binary node")?.kind else {
+                            bail!("Expected binary payload");
+                        };
+                        ensure!(restored.materialize_bytes()?.as_ref() == payload);
+                    }
+                }
+                let mut navigator = binary_file_navigator(&bytes, 8)?;
+                let mut arena = DcSyntaxArena::new();
+                let result = navigator.parse_document_into_arena(&mut arena, &policy);
+                if action == DiagnosticAction::Error {
+                    ensure!(result.is_err());
+                } else {
+                    result?;
+                    let root = *arena.roots().first().context("Missing binary root")?;
+                    let DcSyntaxKind::Binary { payload: restored, .. } = &arena.node(root).context("Missing binary node")?.kind else {
+                        bail!("Expected binary payload");
+                    };
+                    match restored {
+                        BinaryPayloadRef::FileSpan { file_offset, len, checksum, .. } => {
+                            ensure!(checksum.is_none());
+                            ensure!(navigator.read_span_bytes(DcByteSpan::new(*file_offset, file_offset.checked_add(*len).context("Payload span overflow")?))?.as_ref() == payload);
+                        }
+                        _ => ensure!(restored.materialize_bytes()?.as_ref() == payload),
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn unsupported_section_checksum_remains_unverified() -> Result<()> {
+        let mut document = DcMstring::new();
+        document.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        document.push_char(DC_BEGIN_IDENTIFIER);
+        document.push_str("member");
+        document.push_char(DC_END_IDENTIFIER);
+        document.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
+        document.push_char(DC_SECTION_DIGEST);
+        document.push_checksum(FormatId::Md5.dc_char().context("Missing MD5 type")?, &[0_u8; 16])?;
+        let text = document.to_dc_string()?;
+        for action in [DiagnosticAction::Error, DiagnosticAction::Warn, DiagnosticAction::Log, DiagnosticAction::Ignore] {
+            let policy = DcProjectionPolicy { syntax_error: action, ..DcProjectionPolicy::strict() };
+            for mut navigator in [
+                DcDocumentNavigator::from_mstr(&document),
+                DcDocumentNavigator::from_dc_str(&text),
+                binary_file_navigator(document.as_bytes(), 8)?,
+            ] {
+                let result = navigator.next_sibling_stub(&policy);
+                if action == DiagnosticAction::Error {
+                    ensure!(result.is_err());
+                } else {
+                    let stub = result?.context("Missing checksummed section")?;
+                    ensure!(matches!(stub.header_info, DcFrameHeaderInfo::ChecksummedSection { digest_valid: false, .. }));
+                    ensure!(navigator.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("unsupported")));
+                    navigator.enter_frame(&stub)?;
+                    ensure!(navigator.next_sibling_stub(&policy)?.is_some(), "Lost section contents");
+                }
+            }
+        }
+        Ok(())
     }
 
     #[crate::ctb_test]
