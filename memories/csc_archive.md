@@ -109,9 +109,11 @@
   modification time. Capture retains it, but restoration is unimplemented;
   `JournalWriter` rejects semantic metadata warnings before committing members.
 - The Windows suite runner now requests elevation with PowerShell `RunAs`,
-  checks the high-integrity token and logs privileges. The elevated Windows 7
-  rerun created file and directory symlinks successfully, removing error 1314;
-  it then failed creating the junction with invalid reparse data (error 4392).
+  checks the high-integrity token and logs privileges. Elevated reruns on both
+  Windows 7 and Windows 11 created file and directory symlinks successfully,
+  removing error 1314; both then failed creating the junction with invalid
+  reparse data (error 4392). UAC consent retries wait for the suite-start marker
+  rather than relying on a single fixed-delay confirmation.
   The runner lives in a separate git repository `ci-logs/vm`, invoked by
   `scripts/vm`; this environment's elevation change is not distributed by
   repository commits. Source-free extraction assertions remain unqualified. Do
