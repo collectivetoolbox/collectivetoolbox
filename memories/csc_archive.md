@@ -104,11 +104,20 @@
 - `windows_native_qualification_reparse_source_free_archive` covers native file
   and directory symlinks and a junction, with exact raw reparse buffer checks.
 - Both were run using `scripts/vm` on Windows 7 and Windows 11. Neither passed:
-  archive capture rejects the existing change-time restoration warning, and
-  symlink fixture creation fails with missing privilege (Windows error 1314).
-  Source-free extraction assertions remain unqualified. Do not suppress the
-  warning or skip the fixtures to claim fidelity; native metadata handling and
-  VM privilege setup need follow-up before these tests can qualify the path.
+  archive capture rejects the existing change-time restoration warning.
+  Windows change time is the metadata-change timestamp, distinct from last
+  modification time. Capture retains it, but restoration is unimplemented;
+  `JournalWriter` rejects semantic metadata warnings before committing members.
+- The Windows suite runner now requests elevation with PowerShell `RunAs`,
+  checks the high-integrity token and logs privileges. The elevated Windows 7
+  rerun created file and directory symlinks successfully, removing error 1314;
+  it then failed creating the junction with invalid reparse data (error 4392).
+  The runner lives in a separate git repository `ci-logs/vm`, invoked by
+  `scripts/vm`; this environment's elevation change is not distributed by
+  repository commits. Source-free extraction assertions remain unqualified. Do
+  not suppress the warning or skip the fixtures to claim fidelity; native
+  metadata handling and junction buffer handling need follow-up before these
+  tests qualify the path.
 - Extraction and verification support `--recover` (aliases: `--salvage`,
   `--allow-archive-errors`, `--allow-journal-errors`). In recover mode,
   `JournalReader` uses forgiving projection and recover scan mode, allows

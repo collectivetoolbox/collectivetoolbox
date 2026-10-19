@@ -143,6 +143,60 @@ vm_cmd_screenshot() {
     fi
 }
 
+vm_cmd_screentext() {
+    local monitor_sock="$1"
+    shift
+    local out_path=""
+    local extra_args=()
+
+    if [[ $# -gt 0 ]]; then
+        if [[ "$1" != -* ]]; then
+            out_path="$1"
+            shift
+        fi
+        extra_args=("$@")
+    fi
+
+    local is_temp="false"
+    local tmp_png=""
+
+    if [[ -z "$out_path" ]]; then
+        is_temp="true"
+        tmp_png="/tmp/vm-screentext-$$.png"
+        out_path="$tmp_png"
+    fi
+
+    if [[ ! -S "$monitor_sock" ]]; then
+        echo "Error: Monitor socket $monitor_sock not found or VM not running." >&2
+        return 1
+    fi
+
+    if ! command -v tesseract >/dev/null 2>&1; then
+        echo "Error: tesseract not found in PATH." >&2
+        return 1
+    fi
+
+    if ! vm_cmd_screenshot "$monitor_sock" "$out_path" >/dev/null; then
+        if [[ "$is_temp" == "true" ]]; then
+            remove_if_exists "$tmp_png"
+        fi
+        return 1
+    fi
+
+    tesseract "$out_path" stdout "${extra_args[@]}" 2>/dev/null || {
+        local status=$?
+        if [[ "$is_temp" == "true" ]]; then
+            remove_if_exists "$tmp_png"
+        fi
+        return $status
+    }
+
+    if [[ "$is_temp" == "true" ]]; then
+        remove_if_exists "$tmp_png"
+    fi
+}
+
+
 vm_cmd_send_keys() {
     local monitor_sock="$1"
     shift

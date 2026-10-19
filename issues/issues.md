@@ -96,6 +96,8 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - "Remaining limits: live Windows ADS/reparse testing is still unverified. Streaming grammar validation retains text and metadata, but not binary bodies."
 
+"ADS archive capture rejects the existing change-time restoration warning." "The warning is about Windows’ metadata-change timestamp, not ADS contents or the normal last-modified timestamp. Capture retains its value, but emits a warning because restoration is unimplemented; the archive’s strict policy rejects that warning before the ADS round-trip can proceed." If it's possible to restore, it should be implemented to restore it; if it's not possible, it should be treated as a non-fatal error similar to ctime in Linux.
+
 - Lazy AppleDouble/AppleSingle conversion remains open
 
 - Live Windows qualification not yet done
