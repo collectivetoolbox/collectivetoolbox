@@ -1164,7 +1164,7 @@ pub fn materialize_entity_with_stream_source(
             warnings.extend(sparse_warnings);
             warnings.extend(source_warnings);
 
-            if options.strict_lossless {
+            let audited_entity = if options.strict_lossless {
                 let mut expected = entity.clone();
                 if let FileEntityKind::Regular { sha256, is_sparse, .. } = &mut expected.kind {
                     *sha256 = computed_sha256;
@@ -1176,11 +1176,13 @@ pub fn materialize_entity_with_stream_source(
                     ignore_flags: true,
                     ignore_atime: !payload_noatime,
                     check_birthtime: options.check_birthtime,
+                    ignore_xattrs: write_companion,
                     ..EntityAuditOptions::default()
                 };
                 let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;
                 anyhow::ensure!(differences.is_empty(), "Staged file failed fidelity verification for {}: {:?}", dest_path.display(), differences);
-            }
+                Some(expected)
+            } else { None };
 
             // Sync temp file and parent directory
             temp_file.sync_all()?;
@@ -1220,6 +1222,14 @@ pub fn materialize_entity_with_stream_source(
             warnings.extend(crate::metadata::check_metadata_replication(
                 &dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
             )?);
+            if write_companion || options.check_atime || options.check_ctime || options.check_birthtime {
+                if let Some(expected) = audited_entity.as_ref() {
+                    crate::verifier::verify_materialized_entity_ext(
+                        &dest_path, expected, true, options.check_atime,
+                        options.check_ctime, options.check_birthtime,
+                    )?;
+                }
+            }
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -1647,6 +1657,40 @@ fn try_update_existing_regular_entity(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn test_default_fidelity_keeps_platform_limits_separate() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::write(&source, b"payload")?;
+        let mut entity = FileEntity::from_filesystem(&source, None)?;
+        entity.identity.relative_path = Some("default".into());
+        let timestamps = entity.metadata.timestamps.as_mut().context("Missing timestamps")?;
+        timestamps.birthtime_sec = Some(-1);
+        timestamps.birthtime_nsec = Some(123);
+        let sandbox = SandboxableDir::open(temporary.path())?;
+        let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
+        materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions::default())?;
+        entity.identity.relative_path = Some("strict-birthtime".into());
+        let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
+        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions {
+            check_birthtime: true, ..Default::default()
+        }).is_err());
+        entity.identity.relative_path = Some("unknown-native".into());
+        entity.metadata.native.as_mut().context("Missing native metadata")?.values.insert(
+            "future.attribute".to_owned(), crate::metadata::NativeMetadataValue::Bytes(vec![1, 2, 3]),
+        );
+        let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
+        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions::default()).is_err());
+        entity.identity.relative_path = Some("best-effort".into());
+        let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
+        let receipt = materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions {
+            strict_lossless: false, ..Default::default()
+        })?;
+        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        Ok(())
+    }
+
     #[crate::ctb_test]
     fn test_file_backed_stream_is_written_before_publication() -> Result<()> {
         let temporary = tempfile::tempdir()?;
@@ -1660,7 +1704,7 @@ mod tests {
             crate::streams::StreamKind::ExtendedAttribute, &source,
         )?);
         let sandbox = SandboxableDir::open(temporary.path())?;
-        let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        let options = MaterializeOptions::default();
         let companion_options = MaterializeOptions {
             apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
             ..options.clone()
@@ -1741,7 +1785,6 @@ mod tests {
         entity.metadata.apple = Some(crate::metadata::AppleMetadata { comment: Some("directory".into()), ..Default::default() });
         let sandbox = SandboxableDir::open(temp.path())?;
         let options = MaterializeOptions {
-            strict_lossless: false,
             apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Netatalk),
             ..Default::default()
         };
@@ -1957,7 +2000,7 @@ mod tests {
             for force_overwrite in [false, true] {
                 let mut source = MemoryPayloadSource::new(bytes.to_vec())?;
                 let result = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
-                    strict_lossless: false, force_overwrite, ..Default::default()
+                    force_overwrite, ..Default::default()
                 });
                 ensure!(result.is_err());
                 let after = fs::metadata(&destination)?;
@@ -1987,7 +2030,7 @@ mod tests {
         let mut source = MemoryPayloadSource::new(b"payload".to_vec())?;
         let sandbox = SandboxableDir::open(temporary.path())?;
         let receipt = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
-            strict_lossless: false, existing_entry_policy: ExistingEntryPolicy::Replace,
+            existing_entry_policy: ExistingEntryPolicy::Replace,
             ..Default::default()
         })?;
         ensure!(!receipt.skipped_identical);
@@ -2294,6 +2337,10 @@ mod tests {
 
         let dest_dir = SandboxableDir::open(temp.path()).unwrap();
         // Materialization should fall back to linear copy and succeed completely without failing
+        let mut strict_payload = DiskPayloadSource::open(&src_path).unwrap();
+        assert!(materializer::materialize_entity(&entity, Some(&mut strict_payload), &dest_dir,
+            &MaterializeOptions::default()).is_err());
+        assert!(!dest_path.exists());
         materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
 
         let read_back = std::fs::read(&dest_path).unwrap();
@@ -2551,6 +2598,10 @@ mod tests {
             metadata: FileMetadata::default(),
             streams: Vec::new(),
         };
+        let mut strict_payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        assert!(materialize_entity(&entity, Some(&mut strict_payload), &dest_dir,
+            &MaterializeOptions::default()).is_err());
+        assert!(!temp.path().join("invalid_sparse.bin").exists());
         let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let options = MaterializeOptions {
             strict_lossless: false,
@@ -2602,6 +2653,17 @@ mod tests {
             metadata: FileMetadata::default(),
             streams: Vec::new(),
         };
+
+        let normal_destination = SandboxableDir::create_or_open(&temp.path().join("normal")).unwrap();
+        let mut normal_payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let normal = materialize_entity(&entity, Some(&mut normal_payload), &normal_destination,
+            &MaterializeOptions::default());
+        if cfg!(windows) {
+            assert!(normal.is_err(), "Normal mode must reject an unrepresentable sparse layout");
+        } else {
+            let receipt = normal.unwrap();
+            assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+        }
 
         // Materialize in best-effort mode
         let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();

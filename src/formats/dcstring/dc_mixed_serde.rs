@@ -899,11 +899,8 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     /// Unwraps equivalent representation containers (`Dc 397` or `Dc 561`) to their primary child.
     pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
         let node = self.node(node_id)?;
-        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if matches!(
-                *opener,
-                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
-            ) {
+        if let DcSyntaxKind::Container { children, .. } = &node.kind {
+            if node.is_representation_set() {
                 for &child_id in children {
                     let child = self.node(child_id)?;
                     if let DcSyntaxKind::Atom(ch) = child.kind {
@@ -915,11 +912,8 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 }
                 bail!("Empty equivalent representations list");
             }
-        } else if let DcSyntaxKind::Tagged { tag, args } = &node.kind {
-            if matches!(
-                *tag,
-                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
-            ) {
+        } else if let DcSyntaxKind::Tagged { args, .. } = &node.kind {
+            if node.is_representation_set() {
                 if let Some(&arg_id) = args.first() {
                     let arg_node = self.node(arg_id)?;
                     if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {

@@ -49,6 +49,7 @@ pub(super) fn populate(resolver: &mut DatasetRuleResolver) {
     populate_trailing_after_closer(resolver);
     populate_infix_rules(resolver);
     populate_named_type_starters(resolver);
+    populate_semantic_equivalents(resolver);
     populate_opaque_containers(resolver);
 }
 
@@ -2453,32 +2454,6 @@ fn populate_named_types(resolver: &mut DatasetRuleResolver) {
         ]),
     );
     resolver.named_types.insert(
-        "representation_separator".to_string(),
-        SyntaxPattern::Sequence(vec![
-            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                SyntaxPattern::Sequence(vec![
-                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(275)), quantifier: Quantifier::ExactOne },
-                ]),
-                SyntaxPattern::Sequence(vec![
-                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(312)), quantifier: Quantifier::ExactOne },
-                ]),
-            ])), quantifier: Quantifier::ExactOne },
-        ]),
-    );
-    resolver.named_types.insert(
-        "representation_set".to_string(),
-        SyntaxPattern::Sequence(vec![
-            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                SyntaxPattern::Sequence(vec![
-                    SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(397) }, quantifier: Quantifier::ExactOne },
-                ]),
-                SyntaxPattern::Sequence(vec![
-                    SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(561) }, quantifier: Quantifier::ExactOne },
-                ]),
-            ])), quantifier: Quantifier::ExactOne },
-        ]),
-    );
-    resolver.named_types.insert(
         "statement".to_string(),
         SyntaxPattern::Sequence(vec![
             SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
@@ -3645,26 +3620,6 @@ fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.named_type_starters.insert(
-        "representation_separator".to_string(),
-        StarterSet {
-            exact_tokens: HashSet::from([
-                1_114_387_u128, 1_114_424_u128,
-            ]),
-            ranges: Vec::new(),
-            scripts: Vec::new(),
-        },
-    );
-    resolver.named_type_starters.insert(
-        "representation_set".to_string(),
-        StarterSet {
-            exact_tokens: HashSet::from([
-                1_114_509_u128, 1_114_673_u128,
-            ]),
-            ranges: Vec::new(),
-            scripts: Vec::new(),
-        },
-    );
-    resolver.named_type_starters.insert(
         "statement".to_string(),
         StarterSet {
             exact_tokens: HashSet::from([
@@ -3769,6 +3724,289 @@ fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
             scripts: Vec::new(),
         },
     );
+}
+
+fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {
+    resolver.semantic_equivalents.insert(0u128, HashSet::from([0u128, 1_114_112_u128]));
+    resolver.semantic_equivalents.insert(1u128, HashSet::from([1u128, 1_114_320_u128]));
+    resolver.semantic_equivalents.insert(2u128, HashSet::from([2u128, 1_114_321_u128]));
+    resolver.semantic_equivalents.insert(3u128, HashSet::from([3u128, 1_114_322_u128]));
+    resolver.semantic_equivalents.insert(4u128, HashSet::from([4u128, 1_114_323_u128]));
+    resolver.semantic_equivalents.insert(5u128, HashSet::from([5u128, 1_114_324_u128]));
+    resolver.semantic_equivalents.insert(6u128, HashSet::from([6u128, 1_114_325_u128]));
+    resolver.semantic_equivalents.insert(7u128, HashSet::from([7u128, 1_114_326_u128]));
+    resolver.semantic_equivalents.insert(8u128, HashSet::from([8u128, 1_114_228_u128]));
+    resolver.semantic_equivalents.insert(9u128, HashSet::from([9u128, 1_114_229_u128]));
+    resolver.semantic_equivalents.insert(10u128, HashSet::from([10u128, 1_114_232_u128]));
+    resolver.semantic_equivalents.insert(11u128, HashSet::from([11u128, 1_114_230_u128]));
+    resolver.semantic_equivalents.insert(12u128, HashSet::from([12u128, 1_114_305_u128]));
+    resolver.semantic_equivalents.insert(13u128, HashSet::from([13u128, 1_114_233_u128]));
+    resolver.semantic_equivalents.insert(14u128, HashSet::from([14u128, 1_114_327_u128]));
+    resolver.semantic_equivalents.insert(15u128, HashSet::from([15u128, 1_114_328_u128]));
+    resolver.semantic_equivalents.insert(16u128, HashSet::from([16u128, 1_114_329_u128]));
+    resolver.semantic_equivalents.insert(17u128, HashSet::from([17u128, 1_114_330_u128]));
+    resolver.semantic_equivalents.insert(18u128, HashSet::from([18u128, 1_114_331_u128]));
+    resolver.semantic_equivalents.insert(19u128, HashSet::from([19u128, 1_114_332_u128]));
+    resolver.semantic_equivalents.insert(20u128, HashSet::from([20u128, 1_114_333_u128]));
+    resolver.semantic_equivalents.insert(21u128, HashSet::from([21u128, 1_114_334_u128]));
+    resolver.semantic_equivalents.insert(22u128, HashSet::from([22u128, 1_114_335_u128]));
+    resolver.semantic_equivalents.insert(23u128, HashSet::from([23u128, 1_114_336_u128]));
+    resolver.semantic_equivalents.insert(24u128, HashSet::from([24u128, 1_114_337_u128]));
+    resolver.semantic_equivalents.insert(25u128, HashSet::from([25u128, 1_114_338_u128]));
+    resolver.semantic_equivalents.insert(26u128, HashSet::from([26u128, 1_114_339_u128]));
+    resolver.semantic_equivalents.insert(27u128, HashSet::from([27u128, 1_114_340_u128]));
+    resolver.semantic_equivalents.insert(28u128, HashSet::from([28u128, 1_114_341_u128]));
+    resolver.semantic_equivalents.insert(29u128, HashSet::from([29u128, 1_114_342_u128]));
+    resolver.semantic_equivalents.insert(30u128, HashSet::from([30u128, 1_114_343_u128]));
+    resolver.semantic_equivalents.insert(31u128, HashSet::from([31u128, 1_114_344_u128]));
+    resolver.semantic_equivalents.insert(32u128, HashSet::from([32u128, 1_114_130_u128]));
+    resolver.semantic_equivalents.insert(33u128, HashSet::from([33u128, 1_114_131_u128]));
+    resolver.semantic_equivalents.insert(34u128, HashSet::from([34u128, 1_114_132_u128]));
+    resolver.semantic_equivalents.insert(35u128, HashSet::from([35u128, 1_114_133_u128]));
+    resolver.semantic_equivalents.insert(36u128, HashSet::from([36u128, 1_114_134_u128]));
+    resolver.semantic_equivalents.insert(37u128, HashSet::from([37u128, 1_114_135_u128]));
+    resolver.semantic_equivalents.insert(38u128, HashSet::from([38u128, 1_114_136_u128]));
+    resolver.semantic_equivalents.insert(39u128, HashSet::from([39u128, 1_114_137_u128]));
+    resolver.semantic_equivalents.insert(40u128, HashSet::from([40u128, 1_114_138_u128]));
+    resolver.semantic_equivalents.insert(41u128, HashSet::from([41u128, 1_114_139_u128]));
+    resolver.semantic_equivalents.insert(42u128, HashSet::from([42u128, 1_114_140_u128]));
+    resolver.semantic_equivalents.insert(43u128, HashSet::from([43u128, 1_114_141_u128]));
+    resolver.semantic_equivalents.insert(44u128, HashSet::from([44u128, 1_114_142_u128]));
+    resolver.semantic_equivalents.insert(45u128, HashSet::from([45u128, 1_114_345_u128]));
+    resolver.semantic_equivalents.insert(46u128, HashSet::from([46u128, 1_114_350_u128]));
+    resolver.semantic_equivalents.insert(47u128, HashSet::from([47u128, 1_114_145_u128]));
+    resolver.semantic_equivalents.insert(48u128, HashSet::from([48u128, 1_114_146_u128]));
+    resolver.semantic_equivalents.insert(49u128, HashSet::from([49u128, 1_114_147_u128]));
+    resolver.semantic_equivalents.insert(50u128, HashSet::from([50u128, 1_114_148_u128]));
+    resolver.semantic_equivalents.insert(51u128, HashSet::from([51u128, 1_114_149_u128]));
+    resolver.semantic_equivalents.insert(52u128, HashSet::from([52u128, 1_114_150_u128]));
+    resolver.semantic_equivalents.insert(53u128, HashSet::from([53u128, 1_114_151_u128]));
+    resolver.semantic_equivalents.insert(54u128, HashSet::from([54u128, 1_114_152_u128]));
+    resolver.semantic_equivalents.insert(55u128, HashSet::from([55u128, 1_114_153_u128]));
+    resolver.semantic_equivalents.insert(56u128, HashSet::from([56u128, 1_114_154_u128]));
+    resolver.semantic_equivalents.insert(57u128, HashSet::from([57u128, 1_114_155_u128]));
+    resolver.semantic_equivalents.insert(58u128, HashSet::from([58u128, 1_114_156_u128]));
+    resolver.semantic_equivalents.insert(59u128, HashSet::from([59u128, 1_114_157_u128]));
+    resolver.semantic_equivalents.insert(60u128, HashSet::from([60u128, 1_114_158_u128]));
+    resolver.semantic_equivalents.insert(61u128, HashSet::from([61u128, 1_114_159_u128]));
+    resolver.semantic_equivalents.insert(62u128, HashSet::from([62u128, 1_114_160_u128]));
+    resolver.semantic_equivalents.insert(63u128, HashSet::from([63u128, 1_114_161_u128]));
+    resolver.semantic_equivalents.insert(64u128, HashSet::from([64u128, 1_114_113_u128]));
+    resolver.semantic_equivalents.insert(65u128, HashSet::from([65u128, 1_114_162_u128]));
+    resolver.semantic_equivalents.insert(66u128, HashSet::from([66u128, 1_114_163_u128]));
+    resolver.semantic_equivalents.insert(67u128, HashSet::from([67u128, 1_114_164_u128]));
+    resolver.semantic_equivalents.insert(68u128, HashSet::from([68u128, 1_114_165_u128]));
+    resolver.semantic_equivalents.insert(69u128, HashSet::from([69u128, 1_114_166_u128]));
+    resolver.semantic_equivalents.insert(70u128, HashSet::from([70u128, 1_114_167_u128]));
+    resolver.semantic_equivalents.insert(71u128, HashSet::from([71u128, 1_114_168_u128]));
+    resolver.semantic_equivalents.insert(72u128, HashSet::from([72u128, 1_114_169_u128]));
+    resolver.semantic_equivalents.insert(73u128, HashSet::from([73u128, 1_114_170_u128]));
+    resolver.semantic_equivalents.insert(74u128, HashSet::from([74u128, 1_114_171_u128]));
+    resolver.semantic_equivalents.insert(75u128, HashSet::from([75u128, 1_114_172_u128]));
+    resolver.semantic_equivalents.insert(76u128, HashSet::from([76u128, 1_114_173_u128]));
+    resolver.semantic_equivalents.insert(77u128, HashSet::from([77u128, 1_114_174_u128]));
+    resolver.semantic_equivalents.insert(78u128, HashSet::from([78u128, 1_114_175_u128]));
+    resolver.semantic_equivalents.insert(79u128, HashSet::from([79u128, 1_114_176_u128]));
+    resolver.semantic_equivalents.insert(80u128, HashSet::from([80u128, 1_114_177_u128]));
+    resolver.semantic_equivalents.insert(81u128, HashSet::from([81u128, 1_114_178_u128]));
+    resolver.semantic_equivalents.insert(82u128, HashSet::from([82u128, 1_114_179_u128]));
+    resolver.semantic_equivalents.insert(83u128, HashSet::from([83u128, 1_114_180_u128]));
+    resolver.semantic_equivalents.insert(84u128, HashSet::from([84u128, 1_114_181_u128]));
+    resolver.semantic_equivalents.insert(85u128, HashSet::from([85u128, 1_114_182_u128]));
+    resolver.semantic_equivalents.insert(86u128, HashSet::from([86u128, 1_114_183_u128]));
+    resolver.semantic_equivalents.insert(87u128, HashSet::from([87u128, 1_114_184_u128]));
+    resolver.semantic_equivalents.insert(88u128, HashSet::from([88u128, 1_114_185_u128]));
+    resolver.semantic_equivalents.insert(89u128, HashSet::from([89u128, 1_114_186_u128]));
+    resolver.semantic_equivalents.insert(90u128, HashSet::from([90u128, 1_114_187_u128]));
+    resolver.semantic_equivalents.insert(91u128, HashSet::from([91u128, 1_114_188_u128]));
+    resolver.semantic_equivalents.insert(92u128, HashSet::from([92u128, 1_114_189_u128]));
+    resolver.semantic_equivalents.insert(93u128, HashSet::from([93u128, 1_114_190_u128]));
+    resolver.semantic_equivalents.insert(94u128, HashSet::from([94u128, 1_114_191_u128]));
+    resolver.semantic_equivalents.insert(95u128, HashSet::from([95u128, 1_114_192_u128]));
+    resolver.semantic_equivalents.insert(96u128, HashSet::from([96u128, 1_114_193_u128]));
+    resolver.semantic_equivalents.insert(97u128, HashSet::from([97u128, 1_114_194_u128]));
+    resolver.semantic_equivalents.insert(98u128, HashSet::from([98u128, 1_114_195_u128]));
+    resolver.semantic_equivalents.insert(99u128, HashSet::from([99u128, 1_114_196_u128]));
+    resolver.semantic_equivalents.insert(100u128, HashSet::from([100u128, 1_114_197_u128]));
+    resolver.semantic_equivalents.insert(101u128, HashSet::from([101u128, 1_114_198_u128]));
+    resolver.semantic_equivalents.insert(102u128, HashSet::from([102u128, 1_114_199_u128]));
+    resolver.semantic_equivalents.insert(103u128, HashSet::from([103u128, 1_114_200_u128]));
+    resolver.semantic_equivalents.insert(104u128, HashSet::from([104u128, 1_114_201_u128]));
+    resolver.semantic_equivalents.insert(105u128, HashSet::from([105u128, 1_114_202_u128]));
+    resolver.semantic_equivalents.insert(106u128, HashSet::from([106u128, 1_114_203_u128]));
+    resolver.semantic_equivalents.insert(107u128, HashSet::from([107u128, 1_114_204_u128]));
+    resolver.semantic_equivalents.insert(108u128, HashSet::from([108u128, 1_114_205_u128]));
+    resolver.semantic_equivalents.insert(109u128, HashSet::from([109u128, 1_114_206_u128]));
+    resolver.semantic_equivalents.insert(110u128, HashSet::from([110u128, 1_114_207_u128]));
+    resolver.semantic_equivalents.insert(111u128, HashSet::from([111u128, 1_114_208_u128]));
+    resolver.semantic_equivalents.insert(112u128, HashSet::from([112u128, 1_114_209_u128]));
+    resolver.semantic_equivalents.insert(113u128, HashSet::from([113u128, 1_114_210_u128]));
+    resolver.semantic_equivalents.insert(114u128, HashSet::from([114u128, 1_114_211_u128]));
+    resolver.semantic_equivalents.insert(115u128, HashSet::from([115u128, 1_114_212_u128]));
+    resolver.semantic_equivalents.insert(116u128, HashSet::from([116u128, 1_114_213_u128]));
+    resolver.semantic_equivalents.insert(117u128, HashSet::from([117u128, 1_114_214_u128]));
+    resolver.semantic_equivalents.insert(118u128, HashSet::from([118u128, 1_114_215_u128]));
+    resolver.semantic_equivalents.insert(119u128, HashSet::from([119u128, 1_114_216_u128]));
+    resolver.semantic_equivalents.insert(120u128, HashSet::from([120u128, 1_114_217_u128]));
+    resolver.semantic_equivalents.insert(121u128, HashSet::from([121u128, 1_114_218_u128]));
+    resolver.semantic_equivalents.insert(122u128, HashSet::from([122u128, 1_114_219_u128]));
+    resolver.semantic_equivalents.insert(123u128, HashSet::from([123u128, 1_114_220_u128]));
+    resolver.semantic_equivalents.insert(124u128, HashSet::from([124u128, 1_114_221_u128]));
+    resolver.semantic_equivalents.insert(125u128, HashSet::from([125u128, 1_114_222_u128]));
+    resolver.semantic_equivalents.insert(126u128, HashSet::from([126u128, 1_114_223_u128]));
+    resolver.semantic_equivalents.insert(127u128, HashSet::from([127u128, 1_114_346_u128]));
+    resolver.semantic_equivalents.insert(133u128, HashSet::from([133u128, 1_114_231_u128]));
+    resolver.semantic_equivalents.insert(8208u128, HashSet::from([8208u128, 1_114_143_u128]));
+    resolver.semantic_equivalents.insert(8232u128, HashSet::from([8232u128, 1_114_406_u128]));
+    resolver.semantic_equivalents.insert(8233u128, HashSet::from([8233u128, 1_114_407_u128]));
+    resolver.semantic_equivalents.insert(8722u128, HashSet::from([8722u128, 1_114_349_u128]));
+    resolver.semantic_equivalents.insert(9917u128, HashSet::from([9917u128, 1_114_393_u128]));
+    resolver.semantic_equivalents.insert(65_024_u128, HashSet::from([65_024_u128, 1_114_234_u128]));
+    resolver.semantic_equivalents.insert(65_025_u128, HashSet::from([65_025_u128, 1_114_235_u128]));
+    resolver.semantic_equivalents.insert(65_026_u128, HashSet::from([65_026_u128, 1_114_236_u128]));
+    resolver.semantic_equivalents.insert(65_027_u128, HashSet::from([65_027_u128, 1_114_237_u128]));
+    resolver.semantic_equivalents.insert(65_028_u128, HashSet::from([65_028_u128, 1_114_238_u128]));
+    resolver.semantic_equivalents.insert(65_533_u128, HashSet::from([65_533_u128, 1_114_318_u128]));
+    resolver.semantic_equivalents.insert(1_114_112_u128, HashSet::from([0u128, 1_114_112_u128]));
+    resolver.semantic_equivalents.insert(1_114_113_u128, HashSet::from([64u128, 1_114_113_u128]));
+    resolver.semantic_equivalents.insert(1_114_130_u128, HashSet::from([32u128, 1_114_130_u128]));
+    resolver.semantic_equivalents.insert(1_114_131_u128, HashSet::from([33u128, 1_114_131_u128]));
+    resolver.semantic_equivalents.insert(1_114_132_u128, HashSet::from([34u128, 1_114_132_u128]));
+    resolver.semantic_equivalents.insert(1_114_133_u128, HashSet::from([35u128, 1_114_133_u128]));
+    resolver.semantic_equivalents.insert(1_114_134_u128, HashSet::from([36u128, 1_114_134_u128]));
+    resolver.semantic_equivalents.insert(1_114_135_u128, HashSet::from([37u128, 1_114_135_u128]));
+    resolver.semantic_equivalents.insert(1_114_136_u128, HashSet::from([38u128, 1_114_136_u128]));
+    resolver.semantic_equivalents.insert(1_114_137_u128, HashSet::from([39u128, 1_114_137_u128]));
+    resolver.semantic_equivalents.insert(1_114_138_u128, HashSet::from([40u128, 1_114_138_u128]));
+    resolver.semantic_equivalents.insert(1_114_139_u128, HashSet::from([41u128, 1_114_139_u128]));
+    resolver.semantic_equivalents.insert(1_114_140_u128, HashSet::from([42u128, 1_114_140_u128]));
+    resolver.semantic_equivalents.insert(1_114_141_u128, HashSet::from([43u128, 1_114_141_u128]));
+    resolver.semantic_equivalents.insert(1_114_142_u128, HashSet::from([44u128, 1_114_142_u128]));
+    resolver.semantic_equivalents.insert(1_114_143_u128, HashSet::from([8208u128, 1_114_143_u128]));
+    resolver.semantic_equivalents.insert(1_114_145_u128, HashSet::from([47u128, 1_114_145_u128]));
+    resolver.semantic_equivalents.insert(1_114_146_u128, HashSet::from([48u128, 1_114_146_u128]));
+    resolver.semantic_equivalents.insert(1_114_147_u128, HashSet::from([49u128, 1_114_147_u128]));
+    resolver.semantic_equivalents.insert(1_114_148_u128, HashSet::from([50u128, 1_114_148_u128]));
+    resolver.semantic_equivalents.insert(1_114_149_u128, HashSet::from([51u128, 1_114_149_u128]));
+    resolver.semantic_equivalents.insert(1_114_150_u128, HashSet::from([52u128, 1_114_150_u128]));
+    resolver.semantic_equivalents.insert(1_114_151_u128, HashSet::from([53u128, 1_114_151_u128]));
+    resolver.semantic_equivalents.insert(1_114_152_u128, HashSet::from([54u128, 1_114_152_u128]));
+    resolver.semantic_equivalents.insert(1_114_153_u128, HashSet::from([55u128, 1_114_153_u128]));
+    resolver.semantic_equivalents.insert(1_114_154_u128, HashSet::from([56u128, 1_114_154_u128]));
+    resolver.semantic_equivalents.insert(1_114_155_u128, HashSet::from([57u128, 1_114_155_u128]));
+    resolver.semantic_equivalents.insert(1_114_156_u128, HashSet::from([58u128, 1_114_156_u128]));
+    resolver.semantic_equivalents.insert(1_114_157_u128, HashSet::from([59u128, 1_114_157_u128]));
+    resolver.semantic_equivalents.insert(1_114_158_u128, HashSet::from([60u128, 1_114_158_u128]));
+    resolver.semantic_equivalents.insert(1_114_159_u128, HashSet::from([61u128, 1_114_159_u128]));
+    resolver.semantic_equivalents.insert(1_114_160_u128, HashSet::from([62u128, 1_114_160_u128]));
+    resolver.semantic_equivalents.insert(1_114_161_u128, HashSet::from([63u128, 1_114_161_u128]));
+    resolver.semantic_equivalents.insert(1_114_162_u128, HashSet::from([65u128, 1_114_162_u128]));
+    resolver.semantic_equivalents.insert(1_114_163_u128, HashSet::from([66u128, 1_114_163_u128]));
+    resolver.semantic_equivalents.insert(1_114_164_u128, HashSet::from([67u128, 1_114_164_u128]));
+    resolver.semantic_equivalents.insert(1_114_165_u128, HashSet::from([68u128, 1_114_165_u128]));
+    resolver.semantic_equivalents.insert(1_114_166_u128, HashSet::from([69u128, 1_114_166_u128]));
+    resolver.semantic_equivalents.insert(1_114_167_u128, HashSet::from([70u128, 1_114_167_u128]));
+    resolver.semantic_equivalents.insert(1_114_168_u128, HashSet::from([71u128, 1_114_168_u128]));
+    resolver.semantic_equivalents.insert(1_114_169_u128, HashSet::from([72u128, 1_114_169_u128]));
+    resolver.semantic_equivalents.insert(1_114_170_u128, HashSet::from([73u128, 1_114_170_u128]));
+    resolver.semantic_equivalents.insert(1_114_171_u128, HashSet::from([74u128, 1_114_171_u128]));
+    resolver.semantic_equivalents.insert(1_114_172_u128, HashSet::from([75u128, 1_114_172_u128]));
+    resolver.semantic_equivalents.insert(1_114_173_u128, HashSet::from([76u128, 1_114_173_u128]));
+    resolver.semantic_equivalents.insert(1_114_174_u128, HashSet::from([77u128, 1_114_174_u128]));
+    resolver.semantic_equivalents.insert(1_114_175_u128, HashSet::from([78u128, 1_114_175_u128]));
+    resolver.semantic_equivalents.insert(1_114_176_u128, HashSet::from([79u128, 1_114_176_u128]));
+    resolver.semantic_equivalents.insert(1_114_177_u128, HashSet::from([80u128, 1_114_177_u128]));
+    resolver.semantic_equivalents.insert(1_114_178_u128, HashSet::from([81u128, 1_114_178_u128]));
+    resolver.semantic_equivalents.insert(1_114_179_u128, HashSet::from([82u128, 1_114_179_u128]));
+    resolver.semantic_equivalents.insert(1_114_180_u128, HashSet::from([83u128, 1_114_180_u128]));
+    resolver.semantic_equivalents.insert(1_114_181_u128, HashSet::from([84u128, 1_114_181_u128]));
+    resolver.semantic_equivalents.insert(1_114_182_u128, HashSet::from([85u128, 1_114_182_u128]));
+    resolver.semantic_equivalents.insert(1_114_183_u128, HashSet::from([86u128, 1_114_183_u128]));
+    resolver.semantic_equivalents.insert(1_114_184_u128, HashSet::from([87u128, 1_114_184_u128]));
+    resolver.semantic_equivalents.insert(1_114_185_u128, HashSet::from([88u128, 1_114_185_u128]));
+    resolver.semantic_equivalents.insert(1_114_186_u128, HashSet::from([89u128, 1_114_186_u128]));
+    resolver.semantic_equivalents.insert(1_114_187_u128, HashSet::from([90u128, 1_114_187_u128]));
+    resolver.semantic_equivalents.insert(1_114_188_u128, HashSet::from([91u128, 1_114_188_u128]));
+    resolver.semantic_equivalents.insert(1_114_189_u128, HashSet::from([92u128, 1_114_189_u128]));
+    resolver.semantic_equivalents.insert(1_114_190_u128, HashSet::from([93u128, 1_114_190_u128]));
+    resolver.semantic_equivalents.insert(1_114_191_u128, HashSet::from([94u128, 1_114_191_u128]));
+    resolver.semantic_equivalents.insert(1_114_192_u128, HashSet::from([95u128, 1_114_192_u128]));
+    resolver.semantic_equivalents.insert(1_114_193_u128, HashSet::from([96u128, 1_114_193_u128]));
+    resolver.semantic_equivalents.insert(1_114_194_u128, HashSet::from([97u128, 1_114_194_u128]));
+    resolver.semantic_equivalents.insert(1_114_195_u128, HashSet::from([98u128, 1_114_195_u128]));
+    resolver.semantic_equivalents.insert(1_114_196_u128, HashSet::from([99u128, 1_114_196_u128]));
+    resolver.semantic_equivalents.insert(1_114_197_u128, HashSet::from([100u128, 1_114_197_u128]));
+    resolver.semantic_equivalents.insert(1_114_198_u128, HashSet::from([101u128, 1_114_198_u128]));
+    resolver.semantic_equivalents.insert(1_114_199_u128, HashSet::from([102u128, 1_114_199_u128]));
+    resolver.semantic_equivalents.insert(1_114_200_u128, HashSet::from([103u128, 1_114_200_u128]));
+    resolver.semantic_equivalents.insert(1_114_201_u128, HashSet::from([104u128, 1_114_201_u128]));
+    resolver.semantic_equivalents.insert(1_114_202_u128, HashSet::from([105u128, 1_114_202_u128]));
+    resolver.semantic_equivalents.insert(1_114_203_u128, HashSet::from([106u128, 1_114_203_u128]));
+    resolver.semantic_equivalents.insert(1_114_204_u128, HashSet::from([107u128, 1_114_204_u128]));
+    resolver.semantic_equivalents.insert(1_114_205_u128, HashSet::from([108u128, 1_114_205_u128]));
+    resolver.semantic_equivalents.insert(1_114_206_u128, HashSet::from([109u128, 1_114_206_u128]));
+    resolver.semantic_equivalents.insert(1_114_207_u128, HashSet::from([110u128, 1_114_207_u128]));
+    resolver.semantic_equivalents.insert(1_114_208_u128, HashSet::from([111u128, 1_114_208_u128]));
+    resolver.semantic_equivalents.insert(1_114_209_u128, HashSet::from([112u128, 1_114_209_u128]));
+    resolver.semantic_equivalents.insert(1_114_210_u128, HashSet::from([113u128, 1_114_210_u128]));
+    resolver.semantic_equivalents.insert(1_114_211_u128, HashSet::from([114u128, 1_114_211_u128]));
+    resolver.semantic_equivalents.insert(1_114_212_u128, HashSet::from([115u128, 1_114_212_u128]));
+    resolver.semantic_equivalents.insert(1_114_213_u128, HashSet::from([116u128, 1_114_213_u128]));
+    resolver.semantic_equivalents.insert(1_114_214_u128, HashSet::from([117u128, 1_114_214_u128]));
+    resolver.semantic_equivalents.insert(1_114_215_u128, HashSet::from([118u128, 1_114_215_u128]));
+    resolver.semantic_equivalents.insert(1_114_216_u128, HashSet::from([119u128, 1_114_216_u128]));
+    resolver.semantic_equivalents.insert(1_114_217_u128, HashSet::from([120u128, 1_114_217_u128]));
+    resolver.semantic_equivalents.insert(1_114_218_u128, HashSet::from([121u128, 1_114_218_u128]));
+    resolver.semantic_equivalents.insert(1_114_219_u128, HashSet::from([122u128, 1_114_219_u128]));
+    resolver.semantic_equivalents.insert(1_114_220_u128, HashSet::from([123u128, 1_114_220_u128]));
+    resolver.semantic_equivalents.insert(1_114_221_u128, HashSet::from([124u128, 1_114_221_u128]));
+    resolver.semantic_equivalents.insert(1_114_222_u128, HashSet::from([125u128, 1_114_222_u128]));
+    resolver.semantic_equivalents.insert(1_114_223_u128, HashSet::from([126u128, 1_114_223_u128]));
+    resolver.semantic_equivalents.insert(1_114_228_u128, HashSet::from([8u128, 1_114_228_u128]));
+    resolver.semantic_equivalents.insert(1_114_229_u128, HashSet::from([9u128, 1_114_229_u128]));
+    resolver.semantic_equivalents.insert(1_114_230_u128, HashSet::from([11u128, 1_114_230_u128]));
+    resolver.semantic_equivalents.insert(1_114_231_u128, HashSet::from([133u128, 1_114_231_u128]));
+    resolver.semantic_equivalents.insert(1_114_232_u128, HashSet::from([10u128, 1_114_232_u128]));
+    resolver.semantic_equivalents.insert(1_114_233_u128, HashSet::from([13u128, 1_114_233_u128]));
+    resolver.semantic_equivalents.insert(1_114_234_u128, HashSet::from([65_024_u128, 1_114_234_u128]));
+    resolver.semantic_equivalents.insert(1_114_235_u128, HashSet::from([65_025_u128, 1_114_235_u128]));
+    resolver.semantic_equivalents.insert(1_114_236_u128, HashSet::from([65_026_u128, 1_114_236_u128]));
+    resolver.semantic_equivalents.insert(1_114_237_u128, HashSet::from([65_027_u128, 1_114_237_u128]));
+    resolver.semantic_equivalents.insert(1_114_238_u128, HashSet::from([65_028_u128, 1_114_238_u128]));
+    resolver.semantic_equivalents.insert(1_114_305_u128, HashSet::from([12u128, 1_114_305_u128]));
+    resolver.semantic_equivalents.insert(1_114_318_u128, HashSet::from([65_533_u128, 1_114_318_u128]));
+    resolver.semantic_equivalents.insert(1_114_320_u128, HashSet::from([1u128, 1_114_320_u128]));
+    resolver.semantic_equivalents.insert(1_114_321_u128, HashSet::from([2u128, 1_114_321_u128]));
+    resolver.semantic_equivalents.insert(1_114_322_u128, HashSet::from([3u128, 1_114_322_u128]));
+    resolver.semantic_equivalents.insert(1_114_323_u128, HashSet::from([4u128, 1_114_323_u128]));
+    resolver.semantic_equivalents.insert(1_114_324_u128, HashSet::from([5u128, 1_114_324_u128]));
+    resolver.semantic_equivalents.insert(1_114_325_u128, HashSet::from([6u128, 1_114_325_u128]));
+    resolver.semantic_equivalents.insert(1_114_326_u128, HashSet::from([7u128, 1_114_326_u128]));
+    resolver.semantic_equivalents.insert(1_114_327_u128, HashSet::from([14u128, 1_114_327_u128]));
+    resolver.semantic_equivalents.insert(1_114_328_u128, HashSet::from([15u128, 1_114_328_u128]));
+    resolver.semantic_equivalents.insert(1_114_329_u128, HashSet::from([16u128, 1_114_329_u128]));
+    resolver.semantic_equivalents.insert(1_114_330_u128, HashSet::from([17u128, 1_114_330_u128]));
+    resolver.semantic_equivalents.insert(1_114_331_u128, HashSet::from([18u128, 1_114_331_u128]));
+    resolver.semantic_equivalents.insert(1_114_332_u128, HashSet::from([19u128, 1_114_332_u128]));
+    resolver.semantic_equivalents.insert(1_114_333_u128, HashSet::from([20u128, 1_114_333_u128]));
+    resolver.semantic_equivalents.insert(1_114_334_u128, HashSet::from([21u128, 1_114_334_u128]));
+    resolver.semantic_equivalents.insert(1_114_335_u128, HashSet::from([22u128, 1_114_335_u128]));
+    resolver.semantic_equivalents.insert(1_114_336_u128, HashSet::from([23u128, 1_114_336_u128]));
+    resolver.semantic_equivalents.insert(1_114_337_u128, HashSet::from([24u128, 1_114_337_u128]));
+    resolver.semantic_equivalents.insert(1_114_338_u128, HashSet::from([25u128, 1_114_338_u128]));
+    resolver.semantic_equivalents.insert(1_114_339_u128, HashSet::from([26u128, 1_114_339_u128]));
+    resolver.semantic_equivalents.insert(1_114_340_u128, HashSet::from([27u128, 1_114_340_u128]));
+    resolver.semantic_equivalents.insert(1_114_341_u128, HashSet::from([28u128, 1_114_341_u128]));
+    resolver.semantic_equivalents.insert(1_114_342_u128, HashSet::from([29u128, 1_114_342_u128]));
+    resolver.semantic_equivalents.insert(1_114_343_u128, HashSet::from([30u128, 1_114_343_u128]));
+    resolver.semantic_equivalents.insert(1_114_344_u128, HashSet::from([31u128, 1_114_344_u128]));
+    resolver.semantic_equivalents.insert(1_114_345_u128, HashSet::from([45u128, 1_114_345_u128]));
+    resolver.semantic_equivalents.insert(1_114_346_u128, HashSet::from([127u128, 1_114_346_u128]));
+    resolver.semantic_equivalents.insert(1_114_349_u128, HashSet::from([8722u128, 1_114_349_u128]));
+    resolver.semantic_equivalents.insert(1_114_350_u128, HashSet::from([46u128, 1_114_350_u128]));
+    resolver.semantic_equivalents.insert(1_114_393_u128, HashSet::from([9917u128, 1_114_393_u128]));
+    resolver.semantic_equivalents.insert(1_114_406_u128, HashSet::from([8232u128, 1_114_406_u128]));
+    resolver.semantic_equivalents.insert(1_114_407_u128, HashSet::from([8233u128, 1_114_407_u128]));
 }
 
 fn populate_opaque_containers(resolver: &mut DatasetRuleResolver) {

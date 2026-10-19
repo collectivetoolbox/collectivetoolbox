@@ -721,16 +721,29 @@ pub struct DcSyntaxNode<'a> {
 }
 
 impl<'a> DcSyntaxNode<'a> {
-    /// Tests a node's leading token against a database-defined named type.
-    #[must_use]
-    pub fn starts_named_type(&self, name: &str) -> bool {
+    fn semantic_token(&self) -> Option<u128> {
         let token = match &self.kind {
             DcSyntaxKind::Container { opener, .. } => opener,
             DcSyntaxKind::Tagged { tag, .. } => tag,
             DcSyntaxKind::Atom(token) => token,
-            _ => return false,
+            _ => return None,
         };
-        default_syntax_resolver().matches_named_type_starter(name, token.to_u128())
+        Some(token.to_u128())
+    }
+
+    /// Recognizes alternative-representation wrappers and equivalent tokens.
+    #[must_use]
+    pub fn is_representation_set(&self) -> bool {
+        self.semantic_token().is_some_and(|token| default_syntax_resolver().is_representation_set(token))
+    }
+
+    /// Recognizes wrapper markers, list headers, and representation separators.
+    #[must_use]
+    pub fn is_representation_scaffolding(&self) -> bool {
+        self.semantic_token().is_some_and(|token| {
+            let resolver = default_syntax_resolver();
+            resolver.is_representation_set(token) || resolver.is_representation_header_or_separator(token)
+        })
     }
 
     /// Returns the child node IDs if this node is a container or tagged construct.
@@ -1567,7 +1580,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         if first_dc == DC_ROUTINE_INVOCATION {
                             last_end = self.scan_trailing_parameter_frames(last_end, policy)?;
                         }
-                        if matches!(first_dc, DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS) {
+                        if resolver.is_representation_set(first_dc.to_u128()) {
                             self.check_equivalent_list_grammar(DcByteSpan::new(after_first, last_end), policy)?;
                         }
                         self.cursor = last_end;
@@ -1580,10 +1593,8 @@ impl<'a> DcDocumentNavigator<'a> {
                             header_info: DcFrameHeaderInfo::None,
                         }));
                     }
-                    if matches!(
-                        first_dc,
-                        DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
-                    ) && after_first < self.active_span.end {
+                    if resolver.is_representation_set(first_dc.to_u128())
+                        && after_first < self.active_span.end {
                         if let Some((DC_BEGIN_LIST, _)) = self.read_token_or_binary_at(after_first)? {
                             self.cursor = after_first;
                             if let Some(arg_stub) = self.next_sibling_stub(policy)? {
@@ -1976,7 +1987,8 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     fn is_transparent_wrapper_tag(ch: DcChar) -> bool {
-        matches!(ch.to_short_dc(), Some(315 | 397 | 561))
+        ch == DC_OPTIONAL_PRESENT
+            || default_syntax_resolver().is_representation_set(ch.to_u128())
     }
 
     fn is_pairable_kind(kind: &DcSyntaxKind<'_>) -> bool {
@@ -3341,13 +3353,11 @@ impl<'a> DcDocumentNavigator<'a> {
         let first = first_dc.to_u128();
 
         // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
-        let is_equiv_wrapper = first_dc == DC_EQUIVALENT_REPRESENTATIONS
-            || first_dc == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS;
+        let is_equiv_wrapper = ctx.resolver.is_representation_set(first);
         let term_targets_equiv = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                t.to_u128() == DC_EQUIVALENT_REPRESENTATIONS.to_u128()
-                    || t.to_u128() == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128()
+                ctx.resolver.is_representation_set(t.to_u128())
             }
             _ => false,
         };

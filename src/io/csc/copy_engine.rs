@@ -1607,6 +1607,10 @@ mod fidelity_tests {
             &journal_path, &temp.path().join("copy.cscdesc"),
             std::slice::from_ref(&source), &destination,
         ).unwrap();
+        let mut strict_payload = ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec()).unwrap();
+        assert!(materialize_entity(&entity, Some(&mut strict_payload), &root,
+            &MaterializeOptions::default()).is_err());
+        assert!(!destination.join("source").exists());
         let mut options = MaterializeOptions { strict_lossless: false, ..Default::default() };
         for expected_identical in [false, true] {
             if expected_identical {
@@ -3280,6 +3284,7 @@ mod tests {
             state,
         );
         args.read_apple_double_alongside = true;
+        args.maybe_write_apple_double = Some(AppleDoubleStyle::Alongside);
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -3333,6 +3338,7 @@ mod tests {
             state,
         );
         args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
 
         let res = run_csc(args).expect("run csc");
         match res {

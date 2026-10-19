@@ -514,7 +514,7 @@ mod tests {
             paths: vec![source.join(""), destination.clone()],
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
-            best_effort_metadata: true, allow_unknown_fs: false, force: false, dry_run: false,
+            best_effort_metadata: false, allow_unknown_fs: true, force: false, dry_run: false,
             full_provenance: false,
         });
         let journal_path = match result {
@@ -575,7 +575,7 @@ mod tests {
             paths: vec![source.join(""), destination.clone()],
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
-            best_effort_metadata: true, allow_unknown_fs: false, force: true, dry_run: false,
+            best_effort_metadata: false, allow_unknown_fs: true, force: true, dry_run: false,
             full_provenance: false,
         }).err().expect("Conflicting destination must refuse the move");
         let message = error.to_string();

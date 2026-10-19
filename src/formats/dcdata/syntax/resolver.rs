@@ -76,6 +76,20 @@ pub trait SyntaxRuleResolver {
     fn matches_named_type_starter(&self, _name: &str, _token: u128) -> bool {
         false
     }
+    /// Checks semantic token equivalence, independently of grammar types.
+    fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
+        token == canonical
+    }
+    /// Classifies full and partial alternative-representation wrappers.
+    fn is_representation_set(&self, token: u128) -> bool {
+        self.is_equivalent_to(token, DC_EQUIVALENT_REPRESENTATIONS.to_u128())
+            || self.is_equivalent_to(token, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128())
+    }
+    /// Classifies list headers and separators in alternative representations.
+    fn is_representation_header_or_separator(&self, token: u128) -> bool {
+        self.is_equivalent_to(token, crate::dc::DC_LIST_ELEMENT_SEPARATOR.to_u128())
+            || self.is_equivalent_to(token, crate::dc::DC_TYPE_ANY.to_u128())
+    }
     /// Returns the opener target if this character token is a closing delimiter.
     fn closing_opener_for(&self, _token: u128) -> Option<&CharTarget> {
         None
@@ -412,6 +426,7 @@ pub struct DatasetRuleResolver {
     pub(super) trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
     pub(super) infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
     pub(super) named_type_starters: HashMap<String, StarterSet>,
+    pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
     pub(super) opaque_containers: HashSet<u128>,
 }
 
@@ -807,23 +822,27 @@ impl DatasetRuleResolver {
                     .map(|target| (defn.dc_id, target))
             })
         }).collect();
-        loop {
-            let mut changed = false;
-            for (token, target) in &equivalents {
-                let Some(source) = dc_defns.iter().find(|defn| defn.dc_id == *token)
-                    .and_then(|defn| defn.short_id)
-                    .and_then(|short_id| u32::try_from(short_id).ok())
-                    .map(CharTarget::Dc) else { continue };
-                for (alias, equivalent) in [(&source, target), (target, &source)] {
-                    if !resolver.rules.contains_key(alias) {
-                        if let Some(rule) = resolver.rules.get(equivalent).cloned() {
-                            resolver.add_rule(alias.clone(), rule);
-                            changed = true;
-                        }
+        let mut graph: HashMap<u128, HashSet<u128>> = HashMap::new();
+        for (source, target) in &equivalents {
+            let source_rule = CharTarget::from_u128(*source).and_then(|key| resolver.rules.get(&key));
+            let target_rule = resolver.rules.get(target);
+            ensure!(source_rule.map(|rule| (&rule.pattern, &rule.action))
+                == target_rule.map(|rule| (&rule.pattern, &rule.action)),
+                "Equivalent tokens {source} and {target:?} have incompatible syntax");
+            graph.entry(*source).or_default().insert(target.to_u128());
+            graph.entry(target.to_u128()).or_default().insert(*source);
+        }
+        for source in graph.keys() {
+            let mut members = HashSet::new();
+            let mut pending = vec![*source];
+            while let Some(token) = pending.pop() {
+                if members.insert(token) {
+                    if let Some(neighbors) = graph.get(&token) {
+                        pending.extend(neighbors);
                     }
                 }
             }
-            if !changed { break; }
+            resolver.semantic_equivalents.insert(*source, members);
         }
         resolver.precompute_derived_tables();
         for starters in resolver.named_type_starters.values_mut() {
@@ -847,6 +866,11 @@ impl DatasetRuleResolver {
 }
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
+    fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
+        token == canonical || self.semantic_equivalents.get(&canonical)
+            .is_some_and(|members| members.contains(&token))
+    }
+
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule> {
         self.rules.get(target)
     }
@@ -969,7 +993,6 @@ mod tests {
         let mut alias = original.clone();
         alias.short_id = Some(9000);
         alias.dc_id = DcChar::from_short(9000).to_u128();
-        alias.syntax = None;
         alias.decompositions = vec!["<equiv>397".to_owned()];
         let mut chained = alias.clone();
         chained.short_id = Some(9001);
@@ -981,10 +1004,17 @@ mod tests {
             &[chained, alias, original.clone()], &[], Some(&named),
         )?;
         for token in [DC_EQUIVALENT_REPRESENTATIONS, DcChar::from_short(9000), DcChar::from_short(9001)] {
-            assert!(resolver.matches_named_type_starter("representation_set", token.to_u128()));
+            assert!(resolver.is_representation_set(token.to_u128()));
+            assert!(resolver.is_equivalent_to(DC_EQUIVALENT_REPRESENTATIONS.to_u128(), token.to_u128()));
         }
-        assert!(!resolver.matches_named_type_starter("representation_set", crate::dc::DC_BEGIN_LIST.to_u128()));
+        assert!(!resolver.is_representation_set(crate::dc::DC_BEGIN_LIST.to_u128()));
         assert!(resolver.resolve_rule(&CharTarget::Dc(9001)).is_some());
+        let mut incompatible = original.clone();
+        incompatible.short_id = Some(9002);
+        incompatible.dc_id = DcChar::from_short(9002).to_u128();
+        incompatible.syntax = None;
+        incompatible.decompositions = vec!["<equiv>397".to_owned()];
+        assert!(DatasetRuleResolver::load_from_dataset(&[incompatible, original.clone()], &[], Some(&named)).is_err());
         Ok(())
     }
 
@@ -999,6 +1029,7 @@ mod tests {
         const STALE: &str = "generated static syntax table diverged from the \
             CSV dataset; regenerate with ./scripts/validate-data-tables";
         assert_eq!(static_table.rules, from_dataset.rules, "{STALE}: rules");
+        assert_eq!(static_table.semantic_equivalents, from_dataset.semantic_equivalents, "{STALE}: semantic_equivalents");
         assert_eq!(
             static_table.named_types, from_dataset.named_types,
             "{STALE}: named_types"

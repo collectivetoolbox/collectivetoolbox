@@ -41,7 +41,7 @@ use windows_sys::Win32::Security::{
     ATTRIBUTE_SECURITY_INFORMATION, DACL_SECURITY_INFORMATION,
     GROUP_SECURITY_INFORMATION, GetFileSecurityW, LABEL_SECURITY_INFORMATION,
     OBJECT_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
-    SACL_SECURITY_INFORMATION, SCOPE_SECURITY_INFORMATION, SetFileSecurityW,
+    SACL_SECURITY_INFORMATION, SCOPE_SECURITY_INFORMATION, SE_SACL_PRESENT, SetFileSecurityW,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_REPARSE_POINT,
@@ -323,6 +323,23 @@ pub fn query_file_change_time(path: &Path) -> Result<filetime::FileTime> {
     filetime_from_windows_ticks(query_handle_change_time(file.as_raw_handle())?)
 }
 
+/// Prevents payload reads through this handle from updating access time.
+#[expect(unsafe_code, reason = "SetFileTime reads an initialized sentinel for an owned live file handle")]
+pub(crate) fn prevent_access_time_updates(file: &std::fs::File) -> Result<()> {
+    use std::os::windows::io::AsRawHandle;
+    let unchanged = windows_sys::Win32::Foundation::FILETIME {
+        dwLowDateTime: u32::MAX,
+        dwHighDateTime: u32::MAX,
+    };
+    let success = unsafe {
+        windows_sys::Win32::Storage::FileSystem::SetFileTime(
+            file.as_raw_handle(), core::ptr::null(), &raw const unchanged, core::ptr::null(),
+        )
+    };
+    anyhow::ensure!(success != 0, "Failed to suppress audit access-time updates: {}", std::io::Error::last_os_error());
+    Ok(())
+}
+
 /// Restores change time without following reparse points or changing other times.
 #[expect(unsafe_code, reason = "SetFileInformationByHandle reads an initialized FILE_BASIC_INFO while its owned handle is live")]
 pub(crate) fn set_file_change_time(path: &Path, time: filetime::FileTime) -> Result<()> {
@@ -583,6 +600,14 @@ pub fn apply_windows_security_metadata(
             | DACL_SECURITY_INFORMATION
             | LABEL_SECURITY_INFORMATION
     };
+    let control = u16::from_le_bytes(
+        descriptor_bytes.get(2..4).context("Security descriptor has no control word")?
+            .try_into().context("Invalid security descriptor control word")?,
+    );
+    let info_flags = if control & SE_SACL_PRESENT == 0 {
+        info_flags & !(SACL_SECURITY_INFORMATION | LABEL_SECURITY_INFORMATION
+            | ATTRIBUTE_SECURITY_INFORMATION | SCOPE_SECURITY_INFORMATION)
+    } else { info_flags };
 
     let wide_path = path_to_wide(dest)?;
 

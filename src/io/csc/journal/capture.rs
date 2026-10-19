@@ -198,8 +198,10 @@ mod tests {
             ensure!(payload.finish().is_err());
             let destination = temporary.path().join("destination");
             let sandbox = ctb_io::file::SandboxableDir::create_or_open(&destination)?;
-            ensure!(ctb_io::file::materialize_entity(&source.entity, Some(&mut payload), &sandbox,
-                &ctb_io::file::MaterializeOptions { strict_lossless: false, ..Default::default() }).is_err());
+            for strict_lossless in [true, false] {
+                ensure!(ctb_io::file::materialize_entity(&source.entity, Some(&mut payload), &sandbox,
+                    &ctb_io::file::MaterializeOptions { strict_lossless, ..Default::default() }).is_err());
+            }
             ensure!(!destination.join("output").exists());
         }
         Ok(())
@@ -294,8 +296,10 @@ mod tests {
         std::fs::write(&path, b"original")?;
         let destination = temporary.path().join("destination");
         let sandbox = ctb_io::file::SandboxableDir::create_or_open(&destination)?;
-        ensure!(ctb_io::file::materialize_entity(&source.entity, Some(&mut payload), &sandbox,
-            &ctb_io::file::MaterializeOptions { strict_lossless: false, ..Default::default() }).is_err());
+        for strict_lossless in [true, false] {
+            ensure!(ctb_io::file::materialize_entity(&source.entity, Some(&mut payload), &sandbox,
+                &ctb_io::file::MaterializeOptions { strict_lossless, ..Default::default() }).is_err());
+        }
         ensure!(!destination.join("output").exists(), "Changed source was published");
         Ok(())
     }

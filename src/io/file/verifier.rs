@@ -458,7 +458,8 @@ pub fn audit_entity_detailed(
 ) -> Result<(Vec<DiffKind>, IgnoredDifferences)> {
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(options.ignore_owner && options.ignore_perms && options.ignore_flags
-        && options.ignore_atime && options.ignore_mtime && options.ignore_ctime && !options.check_sparse,
+        && options.ignore_atime && options.ignore_mtime && options.ignore_ctime
+        && !options.check_birthtime && !options.check_sparse,
         "Native metadata and sparse auditing is not implemented on this platform");
     let mut diffs = Vec::new();
     let mut ignored = IgnoredDifferences::default();
@@ -1139,6 +1140,8 @@ fn audit_file_contents<T>(
     };
     #[cfg(not(any(target_os = "linux", windows)))]
     let mut file = File::open(path)?;
+    #[cfg(windows)]
+    crate::metadata::windows::prevent_access_time_updates(&file)?;
     let original = file.metadata()?;
     let result = read(&mut file, &original);
     let completion = complete_audit_read(&file, &original);
@@ -1444,12 +1447,16 @@ mod tests {
         entity.identity.relative_path = Some(PathBuf::from("restored"));
         let mut payload = MemoryPayloadSource::new(data)?;
         let receipt = entity.materialize_at_path(Some(&mut payload), temp.path(),
-            &MaterializeOptions { strict_lossless: false, ..Default::default() })?;
+            &MaterializeOptions::default())?;
         assert!(!receipt.warnings.iter().any(|warning| warning.contains("change time")), "{:?}", receipt.warnings);
         assert_eq!(crate::metadata::windows::query_file_change_time(&receipt.destination_path)?, change_time);
         let timestamps = entity.metadata.timestamps.as_ref().unwrap();
         assert_eq!(FileTime::from_last_modification_time(&fs::metadata(&receipt.destination_path)?),
             FileTime::from_unix_time(timestamps.mtime_sec, timestamps.mtime_nsec));
+        for _ in 0..2 {
+            verify_materialized_entity(&receipt.destination_path, &entity, true)?;
+            assert_eq!(crate::metadata::windows::query_file_change_time(&receipt.destination_path)?, change_time);
+        }
         Ok(())
     }
 

@@ -88,13 +88,7 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - "When an alias has no syntax of its own, it will inherit the equivalent token’s rule." I'm not convinced about that. It should be something like: if you need to check "Is this a list opener?" in the serde implementation, it should add a new codegen rule that fills in a table/function holding list openers. Would just be one Dc long in many cases, but then if I'm adding a Dc with an <equiv> relationship, it will be treated as *logically equivalent* to the one that was initially targeted. If an <equiv> does *not* have the exact same syntax, I think that should be an *error when running the validation script*, and so this extra rule is not correct.
 
--
-```
-+representation_set,:(397: | 561:),Alternative representations of the same semantic value; a bare list is not a representation set.
-+representation_separator,:(275 | 312),Separators within an alternative-representation list.
-```
-
-????
+- You could use alternative representations basically anywhere. I do see they both show up in one syntax rule, but that looks like a mistake since I'd expect them to be accepted in other cases too. I mean if we have file flags that's one case where they're useful, but once there are multiple date formats supported (in future) I would expect 378 "Timestamp clock resolution" to allow me to fill in :~ [datemagnitude] with, for instance, the value represented in two different time systems, using 397, if I wanted. In other words, it's kind of implied syntax that you can put anywhere it's relevant, just like in 374 "File data extent" `:~ 376 [number:Natural0] 377 [number:Natural0]` it would be valid to write  `374 376 255 377 [some number...] 377 [some number...]`, even though 255 isn't stated to be allowed there, it automatically is because the *point* of it is to allow using Dcs in places where they'd collide with other syntax, like that. Please make sure these cases are handled correctly.
 
 - "The native archive tests use best-effort metadata restoration, so their pass does not establish strict fidelity for every Windows metadata field." There should be at least as thorough tests that run in default mode (similar to strict-lossless mode, but allowing for differences that *literally cannot* be materialized under the target, like ctime on Linux) too. Please check that there aren't other tests being cheated by using best-effort mode when there's not a corresponding normal-mode test. Please also make sure that the three-way distinction between default mode, best-effort mode, and full strict mode is correctly maintained. The use of best-effort mode in archive tests without at least as many corresponding default-mode tests is only present due to LLM cheating the requirements; it does not represent operator intent.
 

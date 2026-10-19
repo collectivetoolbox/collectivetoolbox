@@ -1232,7 +1232,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         copy_fifos_as_regular_files: false,
         one_file_system: false,
         best_effort_metadata: false,
-        allow_unknown_fs: false,
+        allow_unknown_fs: true,
         check_atime: false,
         check_ctime: false,
         check_birthtime: false,
@@ -1521,11 +1521,27 @@ mod tests {
         assert!(csc_args.strict);
         assert!(csc_args.should_check_atime());
         assert!(csc_args.should_check_ctime());
+        assert!(csc_args.should_check_birthtime());
+        assert!(verify_args.to_audit_options().check_birthtime);
 
         let csc_args_ctime = CscArgs::try_parse_from(["csc", "--check-ctime", "src", "dest"]).unwrap();
         assert!(csc_args_ctime.check_ctime);
         assert!(csc_args_ctime.should_check_ctime());
         assert!(!csc_args_ctime.should_check_atime());
+
+        let normal = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
+        assert!(!normal.best_effort_metadata);
+        assert!(!normal.strict);
+        assert_eq!(normal.should_check_birthtime(), cfg!(windows));
+        let birthtime = CscArgs::try_parse_from(["csc", "--check-birthtime", "src", "dest"]).unwrap();
+        assert!(birthtime.should_check_birthtime());
+        assert!(!birthtime.should_check_atime());
+        let permissive = CscVerifyArgs::try_parse_from([
+            "csc-verify", "--strict", "--best-effort", "manifest.cscjournal",
+        ]).unwrap();
+        let audit = permissive.to_audit_options();
+        assert!(!audit.best_effort);
+        assert!(!audit.ignore_atime && !audit.ignore_ctime && audit.check_birthtime);
     }
 
     #[crate::ctb_test]

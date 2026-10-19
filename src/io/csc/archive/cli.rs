@@ -833,6 +833,16 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 Err(error) => return Err(error),
             }
         }
+        if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
+            &destination.join(relative), &member.entity, options.strict_lossless,
+            options.check_atime, options.check_ctime, options.check_birthtime,
+        ) {
+            if recover {
+                warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+            } else {
+                return Err(error);
+            }
+        }
     }
     Ok(())
 }
@@ -1038,7 +1048,7 @@ mod tests {
             ensure!(&archived == bytes, "Raw container bytes changed: {relative}");
         }
         let destination = temporary.path().join("restored");
-        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
+        extract_archive(&reader, &destination, &MaterializeOptions::default(), false)?;
         for (relative, bytes) in &originals {
             ensure!(std::fs::read(destination.join("source").join(relative))? == *bytes);
         }
@@ -1504,9 +1514,7 @@ mod tests {
         std::fs::remove_dir(source)?;
         let reader = JournalReader::new(File::open(&archive)?)?;
         reader.verify()?;
-        extract_archive(&reader, &destination, &MaterializeOptions {
-            strict_lossless: false, ..Default::default()
-        }, false)?;
+        extract_archive(&reader, &destination, &MaterializeOptions::default(), false)?;
         for name in &names {
             ensure!(std::fs::read(destination.join(name).join(name))? == name.as_encoded_bytes());
         }
@@ -1533,7 +1541,7 @@ mod tests {
         let reader = JournalReader::new(File::open(&archive_path)?)?;
         reader.verify()?;
         let destination = temporary.path().join("restored");
-        let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
+        let options = MaterializeOptions { force_overwrite: true, ..Default::default() };
         extract_archive(&reader, &destination, &options, false)?;
         ensure!(std::fs::read(destination.join("source/data"))? == data);
         ensure!(std::fs::read(destination.join("source/empty"))?.is_empty());
@@ -1559,7 +1567,7 @@ mod tests {
             archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false, journal: false,
         } })?;
         let reader = JournalReader::new(File::open(archive)?)?;
-        let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        let options = MaterializeOptions::default();
         ensure!(extract_archive(&reader, &destination, &options, false).is_err());
         ensure!(std::fs::read(destination.join("data"))? == b"original payload");
         ensure!(std::fs::metadata(&destination)?.permissions().mode() & 0o777 == 0o755);
@@ -1713,20 +1721,24 @@ mod tests {
                 Some(ctb_formats_dcstring::BinaryPayloadRef::FileSpan { .. })), "Large ADS was materialized in memory");
         }
         std::fs::remove_file(&source)?;
-        let destination = temporary.path().join("restored");
-        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
-        let restored = destination.join("source.bin");
-        ensure!(std::fs::read(&restored)? == b"primary payload");
-        let streams = ctb_io::file::streams::read_and_hash_streams(&restored)?;
-        ensure!(streams.len() == expected.len());
-        for (name, size, sha256) in expected {
-            let stream = streams.iter().find(|stream| stream.name.as_ref() == Some(&name)).context("ADS name changed during archive round-trip")?;
-            ensure!(stream.data.is_none());
-            ensure!(matches!(stream.entity.kind, FileEntityKind::Regular { size: actual, sha256: digest, .. } if actual == size && digest == sha256));
-            let mut payload = FilesystemStreamSource.open(stream)?;
-            let mut digest = ctb_formats_checksum::Sha256Stream::new();
-            ensure!(std::io::copy(&mut payload, &mut digest)? == size);
-            ensure!(digest.finalize() == sha256);
+        for strict_lossless in [true, false] {
+            let destination = temporary.path().join(if strict_lossless { "default" } else { "best-effort" });
+            let options = MaterializeOptions { strict_lossless, ..Default::default() };
+            extract_archive(&reader, &destination, &options, false)
+                .with_context(|| format!("ADS qualification with strict_lossless={strict_lossless}"))?;
+            let restored = destination.join("source.bin");
+            ensure!(std::fs::read(&restored)? == b"primary payload");
+            let streams = ctb_io::file::streams::read_and_hash_streams(&restored)?;
+            ensure!(streams.len() == expected.len());
+            for (name, size, sha256) in &expected {
+                let stream = streams.iter().find(|stream| stream.name.as_ref() == Some(name)).context("ADS name changed during archive round-trip")?;
+                ensure!(stream.data.is_none());
+                ensure!(matches!(stream.entity.kind, FileEntityKind::Regular { size: actual, sha256: digest, .. } if actual == *size && digest == *sha256));
+                let mut payload = FilesystemStreamSource.open(stream)?;
+                let mut digest = ctb_formats_checksum::Sha256Stream::new();
+                ensure!(std::io::copy(&mut payload, &mut digest)? == *size);
+                ensure!(digest.finalize() == *sha256);
+            }
         }
         Ok(())
     }
@@ -1762,12 +1774,16 @@ mod tests {
         let reader = windows_qualification_archive(&source, &archive)?;
         for name in ["file-link", "dir-link", "junction"] { std::fs::remove_file(source.join(name)).or_else(|_| std::fs::remove_dir(source.join(name)))?; }
         std::fs::remove_dir_all(&source)?;
-        let destination = temporary.path().join("restored");
-        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
-        for (name, kind, bytes) in expected {
-            let restored = FileEntity::from_filesystem(&destination.join("source").join(name), None)?;
-            ensure!(restored.kind == kind, "Reparse target changed: {name}");
-            ensure!(restored.metadata.native.as_ref().and_then(|native| native.values.get("reparse.data")) == Some(&bytes), "Reparse buffer changed: {name}");
+        for strict_lossless in [true, false] {
+            let destination = temporary.path().join(if strict_lossless { "default" } else { "best-effort" });
+            let options = MaterializeOptions { strict_lossless, ..Default::default() };
+            extract_archive(&reader, &destination, &options, false)
+                .with_context(|| format!("Reparse qualification with strict_lossless={strict_lossless}"))?;
+            for (name, kind, bytes) in &expected {
+                let restored = FileEntity::from_filesystem(&destination.join("source").join(name), None)?;
+                ensure!(&restored.kind == kind, "Reparse target changed: {name}");
+                ensure!(restored.metadata.native.as_ref().and_then(|native| native.values.get("reparse.data")) == Some(bytes), "Reparse buffer changed: {name}");
+            }
         }
         Ok(())
     }
@@ -1814,7 +1830,7 @@ mod tests {
             ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive_path.clone(), recover: false } }).is_err());
             let destination = temporary.path().join("refused");
             ensure!(extract_archive(&reader, &destination, &MaterializeOptions {
-                strict_lossless: false, ..Default::default()
+                ..Default::default()
             }, false).is_err());
             ensure!(!destination.exists());
         } else {
@@ -1862,7 +1878,7 @@ mod tests {
     fn assert_links_and_attached_streams_restored(reader: &JournalReader, destination: &Path) -> Result<()> {
         use std::os::unix::fs::MetadataExt;
         reader.verify()?;
-        let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
+        let options = MaterializeOptions { force_overwrite: true, ..Default::default() };
         extract_archive(reader, destination, &options, false)?;
         let data = destination.join("source/data");
         let hardlink = destination.join("source/hardlink");

@@ -591,6 +591,7 @@ pub fn generate_syntax_table_code(resolver: &DatasetRuleResolver) -> String {
     out.push_str("    populate_trailing_after_closer(resolver);\n");
     out.push_str("    populate_infix_rules(resolver);\n");
     out.push_str("    populate_named_type_starters(resolver);\n");
+    out.push_str("    populate_semantic_equivalents(resolver);\n");
     out.push_str("    populate_opaque_containers(resolver);\n");
     out.push_str("}\n\n");
 
@@ -618,6 +619,17 @@ pub fn generate_syntax_table_code(resolver: &DatasetRuleResolver) -> String {
     );
     push_section(&mut out, &emit_infix_rules_section(resolver));
     push_section(&mut out, &emit_named_type_starters_section(resolver));
+    let mut equivalents: Vec<_> = resolver.semantic_equivalents.iter().collect();
+    equivalents.sort_unstable_by_key(|(token, _)| **token);
+    out.push_str("fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {\n");
+    for (token, members) in equivalents {
+        let mut members: Vec<_> = members.iter().copied().collect();
+        members.sort_unstable();
+        let literals: Vec<_> = members.into_iter().map(format_u128_literal).collect();
+        out.push_str(&format!("    resolver.semantic_equivalents.insert({}, HashSet::from([{}]));\n",
+            format_u128_literal(*token), literals.join(", ")));
+    }
+    out.push_str("}\n\n");
     push_section(&mut out, &emit_opaque_containers_section(resolver));
     out
 }
