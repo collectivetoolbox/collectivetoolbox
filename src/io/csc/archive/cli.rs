@@ -1638,6 +1638,118 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(windows)]
+    fn windows_qualification_archive(source: &Path, archive: &Path) -> Result<JournalReader> {
+        let sources = vec![source.to_path_buf()];
+        let plan = plan_sources(&sources, archive)?;
+        let outcome = create_archive(FileArchiveOutput::new(File::create(archive)?), &sources, archive, &plan, false, None, false)?;
+        let completed = outcome.completed;
+        drop(outcome.output);
+        let reader = JournalReader::recover(File::open(archive)?)?;
+        ensure!(completed && reader.errors.is_empty() && reader.warnings.is_empty(),
+            "Windows capture was not clean: errors {:?}, warnings {:?}", reader.errors, reader.warnings);
+        reader.verify_self_contained()?;
+        Ok(reader)
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn windows_native_qualification_large_ads_source_free_archive() -> Result<()> {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        use ctb_io::file::streams::{AttachedStreamSource, FilesystemStreamSource};
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source.bin");
+        std::fs::write(&source, b"primary payload")?;
+        let mut surrogate = vec![58_u16, 0xd800];
+        surrogate.extend(":$DATA".encode_utf16());
+        let names = [
+            ":e\u{301}:$DATA".encode_utf16().collect::<Vec<_>>(),
+            ":\u{e9}:$DATA".encode_utf16().collect::<Vec<_>>(),
+            surrogate,
+        ];
+        let mut expected = Vec::new();
+        for (index, name) in names.into_iter().enumerate() {
+            let mut path = source.as_os_str().encode_wide().collect::<Vec<_>>();
+            path.extend(&name);
+            let path = PathBuf::from(std::ffi::OsString::from_wide(&path));
+            let size = 2_097_169_u64;
+            let byte = u8::try_from(index)?.checked_add(41).context("Fixture byte overflow")?;
+            let mut output = File::create(path)?;
+            ensure!(std::io::copy(&mut std::io::Read::take(std::io::repeat(byte), size), &mut output)? == size);
+            output.sync_all()?;
+            let mut digest = ctb_formats_checksum::Sha256Stream::new();
+            std::io::copy(&mut std::io::Read::take(std::io::repeat(byte), size), &mut digest)?;
+            expected.push((ctb_io::file::StreamName::from_windows_utf16(&name), size, digest.finalize()));
+        }
+        let archive = temporary.path().join("ads.cscarchive");
+        let reader = windows_qualification_archive(&source, &archive)?;
+        let member = reader.members.iter().find(|member| member.entity.identity.relative_path.as_deref() == Some(Path::new("source.bin")))
+            .context("Missing ADS archive member")?;
+        ensure!(member.entity.streams.len() == expected.len());
+        for stream in &member.entity.streams {
+            ensure!(stream.data.is_none() && matches!(stream.payload.as_ref().map(|payload| &payload.0),
+                Some(ctb_formats_dcstring::BinaryPayloadRef::FileSpan { .. })), "Large ADS was materialized in memory");
+        }
+        std::fs::remove_file(&source)?;
+        let destination = temporary.path().join("restored");
+        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
+        let restored = destination.join("source.bin");
+        ensure!(std::fs::read(&restored)? == b"primary payload");
+        let streams = ctb_io::file::streams::read_and_hash_streams(&restored)?;
+        ensure!(streams.len() == expected.len());
+        for (name, size, sha256) in expected {
+            let stream = streams.iter().find(|stream| stream.name.as_ref() == Some(&name)).context("ADS name changed during archive round-trip")?;
+            ensure!(stream.data.is_none());
+            ensure!(matches!(stream.entity.kind, FileEntityKind::Regular { size: actual, sha256: digest, .. } if actual == size && digest == sha256));
+            let mut payload = FilesystemStreamSource.open(stream)?;
+            let mut digest = ctb_formats_checksum::Sha256Stream::new();
+            ensure!(std::io::copy(&mut payload, &mut digest)? == size);
+            ensure!(digest.finalize() == sha256);
+        }
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn windows_native_qualification_reparse_source_free_archive() -> Result<()> {
+        use ctb_io::file::metadata::{NativeMetadataValue, reparse, windows};
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir_all(source.join("target-dir"))?;
+        std::fs::write(source.join("target-file"), b"target payload")?;
+        std::os::windows::fs::symlink_file("target-file", source.join("file-link"))?;
+        std::os::windows::fs::symlink_dir("target-dir", source.join("dir-link"))?;
+        let junction = source.join("junction");
+        std::fs::create_dir(&junction)?;
+        let target = std::fs::canonicalize(source.join("target-dir"))?;
+        let target = target.to_str().context("Fixture target is not Unicode")?;
+        let target = target.strip_prefix(r"\\?\").context("Missing native fixture path prefix")?;
+        let buffer = reparse::build_mount_point_reparse_buffer(&format!(r"\??\{target}"), target)?;
+        let mut native = FileEntity::from_filesystem(&junction, None)?.metadata.native.context("Missing native Windows metadata")?;
+        native.values.insert("reparse.data".into(), NativeMetadataValue::Bytes(buffer));
+        windows::apply_windows_reparse_metadata(&junction, &native, true)?;
+        let mut expected = Vec::new();
+        for name in ["file-link", "dir-link", "junction"] {
+            let entity = FileEntity::from_filesystem(&source.join(name), None)?;
+            ensure!(matches!(entity.kind, FileEntityKind::Symlink { .. }), "Reparse point was not captured as a link: {name}");
+            let native = entity.metadata.native.context("Missing captured reparse metadata")?;
+            let bytes = native.values.get("reparse.data").context("Missing captured reparse buffer")?.clone();
+            expected.push((name, entity.kind, bytes));
+        }
+        let archive = temporary.path().join("reparse.cscarchive");
+        let reader = windows_qualification_archive(&source, &archive)?;
+        for name in ["file-link", "dir-link", "junction"] { std::fs::remove_file(source.join(name)).or_else(|_| std::fs::remove_dir(source.join(name)))?; }
+        std::fs::remove_dir_all(&source)?;
+        let destination = temporary.path().join("restored");
+        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
+        for (name, kind, bytes) in expected {
+            let restored = FileEntity::from_filesystem(&destination.join("source").join(name), None)?;
+            ensure!(restored.kind == kind, "Reparse target changed: {name}");
+            ensure!(restored.metadata.native.as_ref().and_then(|native| native.values.get("reparse.data")) == Some(&bytes), "Reparse buffer changed: {name}");
+        }
+        Ok(())
+    }
+
     #[cfg(unix)]
     #[crate::ctb_test]
     fn archive_links_and_attached_streams_capture_fidelity_contract() -> Result<()> {

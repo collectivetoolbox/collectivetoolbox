@@ -89,10 +89,26 @@
   missing sources, pass empty readers for nonempty bodies, or change filesystem
   origins to synthetic origins to suppress reads. Copy batches and archive
   members share the source-aware file encoder and grammar-validation helper.
-- Streaming grammar validation retains text/type metadata but elides verified
-  binary bodies; it is not constant-memory for arbitrarily large text. Section
-  footers remain withheld on validation failure. Binary-source failure tagging
+- Streaming grammar validation spools exact bytes to an anonymous file and
+  reuses the file-backed navigator, preserving payload types, lengths and section
+  checksums without payload-to-Dc expansion. Temporary disk space scales with
+  record size. Section footers remain withheld on validation failure.
+  Binary-source failure tagging
   must preserve source-only rollback without overriding observed sink failures.
+
+## Pending Native Windows Qualification
+
+- `windows_native_qualification_large_ads_source_free_archive` covers three
+  multi-megabyte native ADS with decomposed, precomposed and lone-surrogate
+  names, lazy archive bodies, source deletion and restored body hashes.
+- `windows_native_qualification_reparse_source_free_archive` covers native file
+  and directory symlinks and a junction, with exact raw reparse buffer checks.
+- Both were run using `scripts/vm` on Windows 7 and Windows 11. Neither passed:
+  archive capture rejects the existing change-time restoration warning, and
+  symlink fixture creation fails with missing privilege (Windows error 1314).
+  Source-free extraction assertions remain unqualified. Do not suppress the
+  warning or skip the fixtures to claim fidelity; native metadata handling and
+  VM privilege setup need follow-up before these tests can qualify the path.
 - Extraction and verification support `--recover` (aliases: `--salvage`,
   `--allow-archive-errors`, `--allow-journal-errors`). In recover mode,
   `JournalReader` uses forgiving projection and recover scan mode, allows

@@ -52,11 +52,13 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
 
 `validate_and_write_dc_record` in `src/formats/dcstring/dc_writer.rs` accepts
 a callback emitting through `DcWriter`. It streams binary bodies, verifies
-their framing and supplied checksums, and retains a payload-elided grammar
-document containing text and binary type metadata. The existing strict
-navigator validates that document before the helper returns success. Memory
-scales with text and metadata, not binary body size. This is not an arbitrary
-byte-stream validator: raw writes through the validating writer are rejected.
+their framing and supplied checksums, and spools the exact emitted bytes to an
+anonymous file. The existing file-backed strict navigator validates that file
+before the helper returns success. Binary bodies are not expanded into Dc
+characters, but temporary disk space scales with record size and disk I/O is
+added. Do not replace bodies with empty encapsulations: that changes length
+constraints and section checksums. This is not an arbitrary byte-stream
+validator: raw writes through the validating writer are rejected.
 
 `DcMixed` derives now generate writer-based encoding. Buffered entrypoints
 delegate to it. A separate `#[dc(encode_only)]` attribute permits borrowed

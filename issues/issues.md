@@ -94,6 +94,8 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - impl ctb_formats_dcstring::DcMixedNumber for FinderLabel { This should be using the derive attribute Dc serialization I think. Ad-hoc serializers aren't permitted, unless there's an *extremely* compelling reason.
 
+- "Remaining limits: live Windows ADS/reparse testing is still unverified. Streaming grammar validation retains text and metadata, but not binary bodies."
+
 - Lazy AppleDouble/AppleSingle conversion remains open
 
 - Live Windows qualification not yet done

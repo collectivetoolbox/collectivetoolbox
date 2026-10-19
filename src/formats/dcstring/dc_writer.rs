@@ -39,7 +39,7 @@ pub struct DcWriter<'output> {
     output: &'output mut dyn Write,
     bytes: u64,
     source: Option<&'output dyn DcBinarySource>,
-    grammar: Option<DcMstring>,
+    grammar: Option<std::io::BufWriter<std::fs::File>>,
 }
 
 impl<'output> DcWriter<'output> {
@@ -111,25 +111,16 @@ impl<'output> DcWriter<'output> {
                 .get(..length)
                 .context("Invalid encoded Dc character length")?,
         )?;
-        if let Some(grammar) = &mut self.grammar {
-            grammar.push_char(character);
-        }
         Ok(())
     }
 
     pub fn push_str(&mut self, text: &str) -> Result<()> {
         self.emit(text.as_bytes())?;
-        if let Some(grammar) = &mut self.grammar {
-            grammar.push_str(text);
-        }
         Ok(())
     }
 
     pub fn push_dc_str(&mut self, text: &DcStr) -> Result<()> {
         self.emit(text.as_bytes())?;
-        if let Some(grammar) = &mut self.grammar {
-            grammar.push_dc_str(text);
-        }
         Ok(())
     }
 
@@ -149,14 +140,6 @@ impl<'output> DcWriter<'output> {
         self.emit(&u128::try_from(metadata.len())?.to_be_bytes())?;
         self.emit(metadata.as_bytes())?;
         self.emit(bytes)?;
-        if let Some(grammar) = &mut self.grammar {
-            let metadata = crate::encapsulation::parse_metadata(metadata)?;
-            if let Some(data_type) = metadata.data_type {
-                grammar.push_binary_with_metadata(&[], data_type)?;
-            } else {
-                grammar.push_binary(&[]);
-            }
-        }
         Ok(())
     }
 
@@ -191,9 +174,6 @@ impl<'output> DcWriter<'output> {
             size,
             sha256,
         )?;
-        if let Some(grammar) = &mut self.grammar {
-            grammar.push_binary(&[]);
-        }
         Ok(())
     }
 
@@ -205,29 +185,35 @@ impl<'output> DcWriter<'output> {
 
 /// Emits a headerless record and validates its grammar before returning.
 ///
-/// Binary bodies are opaque to Dc grammar. Their encoding, lengths and supplied
-/// checksums are checked during emission; only their type metadata is retained
-/// for the existing grammar validator. Memory scales with text and metadata,
-/// not binary body size. Errors can leave partial output; callers must withhold
+/// Binary framing, lengths and supplied checksums are checked during emission.
+/// Exact emitted bytes are spooled to an anonymous file and checked with the
+/// file-backed navigator, without expanding binary payloads into characters.
+/// This bounds memory but requires temporary disk space proportional to the
+/// record size. Errors can leave partial output; callers must withhold
 /// their transaction footer until this function succeeds.
 pub fn validate_and_write_dc_record(
     output: &mut dyn Write,
     source: Option<&dyn DcBinarySource>,
     encode: impl FnOnce(&mut DcWriter<'_>) -> Result<()>,
 ) -> Result<()> {
+    let mut grammar = std::io::BufWriter::new(
+        tempfile::tempfile().context("Cannot create Dc validation spool")?,
+    );
+    grammar.write_all(DcMstring::new().as_bytes())?;
     let mut writer = DcWriter {
         output,
         bytes: 0,
         source,
-        grammar: Some(DcMstring::new()),
+        grammar: Some(grammar),
     };
     encode(&mut writer)?;
-    crate::validate_dc_mixed_strict(
-        writer
-            .grammar
-            .as_ref()
-            .context("Missing encoding grammar")?,
-    )
+    let grammar = writer
+        .grammar
+        .take()
+        .context("Missing encoding grammar")?
+        .into_inner()?;
+    crate::DcDocumentNavigator::from_dcmm_file(grammar, 0)?
+        .validate_document_strict()
 }
 
 impl Write for DcWriter<'_> {
@@ -256,6 +242,11 @@ impl Write for RawOutput<'_, '_> {
                 "Writer returned an invalid byte count",
             ));
         }
+        if let Some(grammar) = &mut writer.grammar {
+            grammar.write_all(bytes.get(..count).ok_or_else(|| {
+                std::io::Error::other("Invalid output byte count")
+            })?)?;
+        }
         writer.bytes = writer
             .bytes
             .checked_add(u64::try_from(count).map_err(std::io::Error::other)?)
@@ -281,6 +272,120 @@ mod tests {
     }
 
     struct PayloadSource(Vec<u8>);
+
+    #[crate::ctb_test]
+    fn byte_backed_grammar_preserves_payload_type_and_length_constraints()
+    -> Result<()> {
+        use ctb_formats_dcdata::syntax::{
+            default_syntax_resolver, parse_dc_syntax,
+        };
+        let resolver = default_syntax_resolver();
+        for size in [0, 31, 32, 33, 128 * 1024] {
+            for typed in [false, true] {
+                let mut metadata = DcString::new();
+                if typed {
+                    metadata.push(ctb_utilities::format_id::DC_SHA256);
+                }
+                let payload = vec![42; size];
+                let mut buffered = DcMstring::new();
+                buffered.push_binary_with_metadata(&payload, &metadata)?;
+                let mut output = Vec::new();
+                let mut grammar =
+                    std::io::BufWriter::new(tempfile::tempfile()?);
+                grammar.write_all(DcMstring::new().as_bytes())?;
+                let mut writer = DcWriter {
+                    output: &mut output,
+                    bytes: 0,
+                    source: None,
+                    grammar: Some(grammar),
+                };
+                writer.push_binary_with_metadata(&payload, &metadata)?;
+                let recorded = writer
+                    .grammar
+                    .take()
+                    .context("Missing validation document")?
+                    .into_inner()?;
+                for constraint in [
+                    ":[data:bytes=32]",
+                    ":[data:Sha256;bytes=32]",
+                    ":[data:bytes=131072]",
+                ] {
+                    let pattern = parse_dc_syntax(constraint)?;
+                    let mut expected =
+                        crate::SyntaxEvalContext::new(&**resolver, None);
+                    let mut actual =
+                        crate::SyntaxEvalContext::new(&**resolver, None);
+                    let expected_match =
+                        crate::DcDocumentNavigator::from_mstr(&buffered)
+                            .eval_pattern(&pattern.pattern, &mut expected)?;
+                    let actual_match =
+                        crate::DcDocumentNavigator::from_dcmm_file(
+                            recorded.try_clone()?,
+                            0,
+                        )?
+                        .eval_pattern(&pattern.pattern, &mut actual)?;
+                    ensure!(
+                        actual_match == expected_match,
+                        "Byte-backed grammar differs for size {size}, typed {typed}, constraint {constraint}"
+                    );
+                    if constraint == ":[data:bytes=32]" {
+                        ensure!(actual_match == (size == 32));
+                    }
+                    if constraint == ":[data:Sha256;bytes=32]" {
+                        ensure!(actual_match == (size == 32 && typed));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn byte_backed_grammar_checks_exact_streamed_section_bytes() -> Result<()> {
+        let payload = vec![42_u8; 128 * 1024];
+        for supplied_digest in [false, true] {
+            let payload_digest =
+                supplied_digest.then(|| ctb_formats_checksum::sha256(&payload));
+            let mut body = Vec::new();
+            DcWriter::new(&mut body).push_binary_from_reader(
+                &mut payload.as_slice(),
+                u64::try_from(payload.len())?,
+                payload_digest,
+            )?;
+            let valid_digest = ctb_formats_checksum::sha256(&body);
+            for digest in [valid_digest, [0_u8; 32]] {
+                let mut output = ShortWriter(Vec::new());
+                let result =
+                    validate_and_write_dc_record(&mut output, None, |writer| {
+                        writer.push_char(dc::DC_BEGIN_CHECKSUMMED_SECTION)?;
+                        writer.push_binary_from_reader(
+                            &mut payload.as_slice(),
+                            u64::try_from(payload.len())?,
+                            payload_digest,
+                        )?;
+                        writer.push_char(dc::DC_END_CHECKSUMMED_SECTION)?;
+                        writer.push_char(dc::DC_SECTION_DIGEST)?;
+                        writer.push_checksum(
+                            ctb_utilities::format_id::DC_SHA256,
+                            &digest,
+                        )
+                    });
+                ensure!(
+                    result.is_ok() == (digest == valid_digest),
+                    "Unexpected streamed section result: {result:?}"
+                );
+                let mut document = DcMstring::new().into_bytes();
+                document.extend_from_slice(&output.0);
+                let document = DcMstring::from_bytes(document)?;
+                ensure!(
+                    crate::navigator::validate_dc_mixed_strict(&document)
+                        .is_ok()
+                        == result.is_ok()
+                );
+            }
+        }
+        Ok(())
+    }
 
     #[derive(crate::DcMixed)]
     #[dc(encode_only)]

@@ -58,10 +58,13 @@ an empty reader for a nonempty payload.
 
 `validate_and_write_dc_record` validates records emitted through this API before
 returning success. It verifies binary framing and supplied checksums while
-writing, retains text and binary type metadata without body bytes, and checks
-that representation with the existing strict grammar validator. Memory usage
-scales with text and metadata, not binary body size. Raw writes are rejected
-inside this helper because they would bypass validation. It is not a validator
+writing and spools the exact emitted bytes to an anonymous file. The existing
+file-backed strict navigator checks those bytes, including real payload types,
+length constraints and checksummed sections, without expanding binary bodies
+into Dc characters. This requires temporary disk space proportional to the
+record size and adds disk I/O; no performance speedup is claimed. Raw writes
+are rejected inside this helper because they would bypass validation. It is
+not a validator
 for arbitrary pre-encoded input; use the navigator or transport validator for
 that purpose. Failed encoding can leave partial output, so transactional
 callers must withhold their commit footer until validation succeeds.
