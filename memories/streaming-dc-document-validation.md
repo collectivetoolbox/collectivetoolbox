@@ -48,8 +48,31 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
 
 ---
 
-### In the Context of [`JournalWriter`](file:///workspaces/ctoolbox/src/io/csc/journal/stream.rs#L131-L157)
+### 3. Validation While Encoding Typed Records
 
-In `stream.rs`:
-- [`write_batch`](file:///workspaces/ctoolbox/src/io/csc/journal/stream.rs#L131-L157) buffers metadata entities into a local `record: DcMstring` and validates them in memory with [`validate_dc_mixed_strict`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs#L4480) before emitting `record.payload_bytes()`.
-- When streaming large entity payloads, [`write_entity_checked`](file:///workspaces/ctoolbox/src/io/csc/journal/stream.rs#L167-L221) avoids in-memory buffering by encoding directly to the writer and validating payload digests incrementally on the fly with [`Sha256Stream`](file:///workspaces/ctoolbox/src/formats/checksum/checksum.rs).
+`validate_and_write_dc_record` in `src/formats/dcstring/dc_writer.rs` accepts
+a callback emitting through `DcWriter`. It streams binary bodies, verifies
+their framing and supplied checksums, and retains a payload-elided grammar
+document containing text and binary type metadata. The existing strict
+navigator validates that document before the helper returns success. Memory
+scales with text and metadata, not binary body size. This is not an arbitrary
+byte-stream validator: raw writes through the validating writer are rejected.
+
+`DcMixed` derives now generate writer-based encoding. Buffered entrypoints
+delegate to it. A separate `#[dc(encode_only)]` attribute permits borrowed
+encoding views without generating decoding implementations. `DcBinarySource`
+supplies readers for nonresident `LazyBinaryPayload` values; missing sources
+and failed length/digest checks are errors.
+
+### CSC Integration
+
+`JournalWriter::write_batch` and `write_entity_checked` both use the derived,
+source-aware file encoder in `src/io/file/encoding.rs`. `BodyPolicy::Omit`
+explicitly omits primary and attached bodies recursively while retaining
+identity metadata. `BodyPolicy::Include` fails on missing attached sources.
+Do not use empty readers or rewrite filesystem origins to request omission.
+
+Validation finishes before the checksummed-section footer is emitted. Encoding
+failures may leave a partial section; existing rollback and failed-writer rules
+still apply. `DcBinarySourceError` classifies source failures, while an observed
+sink failure always prohibits source-only rollback.

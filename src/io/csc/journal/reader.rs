@@ -230,7 +230,7 @@ pub struct JournalPayload {
 }
 
 impl ctb_io::file::streams::AttachedStreamSource for JournalReader {
-    fn open(&self, stream: &ctb_io::file::AttachedStream) -> Result<Box<dyn Read + Send>> {
+    fn open<'source>(&'source self, stream: &'source ctb_io::file::AttachedStream) -> Result<Box<dyn Read + Send + 'source>> {
         Ok(Box::new(self.stream_payload(stream)?))
     }
 }

@@ -36,6 +36,36 @@ textual base64 encapsulations require an owned decoded byte buffer.
 
 ## Format Conversion and Application Serialization
 
+### Streaming Typed Values
+
+`DcMixed` derives generate a single writer-based encoder. `DcMixedEncode`'s
+`encode_dc_mixed_to` and `encode_dc_mixed_to_with_context` append headerless
+records through a fallible `DcWriter`. `write_dc_mixed` emits a complete DcMM
+document, including its header. Buffered methods, including `to_dc_mixed` and
+`encode_dc_mixed`, delegate to the same encoder. Contextual references still
+require their definitions to be persisted by the containing document.
+
+Use a separate `#[dc(encode_only)]` container attribute for borrowed encoding
+views that should not implement decoding. They use the same field attributes
+and encoding generation as owned records; they do not define another format.
+
+`DcWriter::with_binary_source` lets any derived record stream nonresident
+`LazyBinaryPayload` fields. The caller supplies a `DcBinarySource` that resolves
+the payload reference to a reader and optional expected SHA-256 digest. Missing
+sources, truncated or oversized sources, checksum mismatches, and sink errors
+are returned. An absent body must be represented explicitly, not by supplying
+an empty reader for a nonempty payload.
+
+`validate_and_write_dc_record` validates records emitted through this API before
+returning success. It verifies binary framing and supplied checksums while
+writing, retains text and binary type metadata without body bytes, and checks
+that representation with the existing strict grammar validator. Memory usage
+scales with text and metadata, not binary body size. Raw writes are rejected
+inside this helper because they would bypass validation. It is not a validator
+for arbitrary pre-encoded input; use the navigator or transport validator for
+that purpose. Failed encoding can leave partial output, so transactional
+callers must withhold their commit footer until validation succeeds.
+
 Document format conversion must preserve Dc identities and ordering, including
 deprecated characters, without evaluating syntax or applying preference links.
 Changing the transport encoding is not permission to upgrade document syntax.

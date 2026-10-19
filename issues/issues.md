@@ -92,9 +92,11 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
     - Extend AppleDouble/AppleSingle conversion writers to consume nonresident attached bodies through `AttachedStreamSource`. Materialization currently rejects these conversion modes before mutation when bodies are nonresident, rather than silently omitting them. Native stream capture, archive writing, lazy projection, and pre-publication extraction use the streaming path.
     - Native Windows ADS/reparse runtime qualification remains pending. Windows library and test targets cross-check successfully; the portable large-stream regression verifies source-free lazy archive bodies, and the publication regression rejects changed source bodies. These do not replace live NTFS execution. Live ReFS testing is not required.
 
-- Live Windows qualification and lazy AppleDouble/AppleSingle conversion remain open
-
 - impl ctb_formats_dcstring::DcMixedNumber for FinderLabel { This should be using the derive attribute Dc serialization I think. Ad-hoc serializers aren't permitted, unless there's an *extremely* compelling reason.
+
+- Lazy AppleDouble/AppleSingle conversion remains open
+
+- Live Windows qualification not yet done
 
 - Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)? A good practical test (add a test script to run this whole process, probably, so it can be re-tried and variations on it added) would be to create a few files with odd, mangled, and differing-only-in-normalization Unicode filenames, each file having a few large (>512kB) streams with odd, mangled, and differing-only-in-normalization Unicode stream names on FreeBSD, and pack them into a `csc archive` there. Copy that out of FreeBSD and save it as a test fixture. On Linux, extract it using AppleDouble files. Then, `csc archive` that folder, with reading AppleDouble files turned on, re-joining the streams to their files. Copy that archive into Windows 11, and extract it. Confirm that the streams were extracted as ADS. `csc archive` it there. Copy that back out. Unpack it on FreeBSD, then do a `ctoolbox csc-diff` against the original files. The test script should ignore expected differences (inode, ctime) and report anything that got mangled or broken in the process.
 

@@ -1250,6 +1250,20 @@ impl DcMixedEncode for String {
     }
 }
 
+impl<T: DcMixedEncode + ?Sized> DcMixedEncode for &T {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        (**self).encode_dc_mixed_to(mst)
+    }
+
+    fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &SharedValueContext) -> Result<()> {
+        (**self).encode_dc_mixed_to_with_context(mst, context)
+    }
+
+    fn encode_format_elements_to_with_context(&self, format: DcChar, mst: &mut crate::DcWriter<'_>, context: &SharedValueContext) -> Result<()> {
+        (**self).encode_format_elements_to_with_context(format, mst, context)
+    }
+}
+
 impl DcMixedDecode for String {
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
@@ -1907,6 +1921,12 @@ impl DcMixedEncode for std::path::Path {
 
 /// Encodes a value within the declared format representation boundaries.
 pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
+    value: &T, format: DcChar, mst: &mut DcMstring, context: &crate::SharedValueContext,
+) -> Result<()> {
+    encode_format_representation_to(value, format, &mut mst.writer(), context)
+}
+
+pub fn encode_format_representation_to<T: DcMixedEncode + ?Sized>(
     value: &T, format: DcChar, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext,
 ) -> Result<()> {
     mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
@@ -3924,7 +3944,7 @@ mod tests {
         wrapped_pair.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         wrapped_pair.push_char(DC_BEGIN_LIST);
         wrapped_pair.push_char(DC_TYPE_ANY);
-        encode_format_representation(&[-12_i16, 42_i16], fmt, &mut wrapped_pair.writer(), &SharedValueContext::default())?;
+        encode_format_representation(&[-12_i16, 42_i16], fmt, &mut wrapped_pair, &SharedValueContext::default())?;
         wrapped_pair.push_char(DC_END_LIST);
         assert_eq!(wrapped_pair.decode::<(i16, i16)>(&strict)?, pair);
 

@@ -48,7 +48,7 @@ mod encapsulation;
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, eite, utf8};
 pub use dc_char::{DcChar, DcCharExt};
-pub use dc_writer::{DcBinaryReader, DcBinarySource, DcWriter};
+pub use dc_writer::{DcBinaryReader, DcBinarySource, DcBinarySourceError, DcWriter, validate_and_write_dc_record};
 pub use dc_mixed::{
     DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcmmStreamOptions, DcMixed, DcMixedChunk,
     DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,

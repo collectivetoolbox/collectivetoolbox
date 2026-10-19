@@ -706,14 +706,7 @@ impl DcMstring {
     /// # Errors
     /// Returns an error for invalid metadata or a mismatched checksum.
     pub fn push_binary_with_metadata(&mut self, data: &[u8], metadata: &DcStr) -> Result<()> {
-        crate::encapsulation::validate_metadata(metadata, data)?;
-        self.inner.extend_from_slice(&DC_203_BYTES);
-        self.inner.push(TYPE_BINARY_METADATA);
-        self.inner.extend_from_slice(&u128::try_from(data.len())?.to_be_bytes());
-        self.inner.extend_from_slice(&u128::try_from(metadata.len())?.to_be_bytes());
-        self.inner.extend_from_slice(metadata.as_bytes());
-        self.inner.extend_from_slice(data);
-        Ok(())
+        self.writer().push_binary_with_metadata(data, metadata)
     }
 
     /// Appends a type-2 binary payload with a DcUtf SHA-256 checksum.
@@ -721,11 +714,7 @@ impl DcMstring {
     /// # Errors
     /// Returns an error if checksum metadata cannot be encoded.
     pub fn push_binary_with_sha256(&mut self, data: &[u8]) -> Result<()> {
-        let hash = Sha256::digest(data);
-        let mut sha = [0u8; 32];
-        sha.copy_from_slice(hash.as_slice());
-        let metadata = crate::encapsulation::checksum_text(ctb_utilities::format_id::DC_SHA256, &sha)?;
-        self.push_binary_with_metadata(data, &metadata)
+        self.writer().push_binary_with_sha256(data)
     }
 
     /// Appends a typed checksum payload enclosed between `Dc 203` and `Dc 204`.
@@ -737,9 +726,7 @@ impl DcMstring {
     /// # Errors
     /// Returns error if base64 encoding fails.
     pub fn push_checksum(&mut self, format: impl Into<DcChar>, digest: &[u8]) -> Result<()> {
-        let mut metadata = DcString::new();
-        metadata.push(format.into());
-        self.push_binary_with_metadata(digest, &metadata)
+        self.writer().push_checksum(format, digest)
     }
 
     /// Appends a binary payload read directly from a stream (`std::io::Read`).

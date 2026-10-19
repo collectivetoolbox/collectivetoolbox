@@ -470,7 +470,7 @@ impl StreamKind {
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(try_from = AttachedStreamWithPayload, try_into = AttachedStreamWithPayload)]
+#[dc(try_from = AttachedStreamWithPayload, try_into = AttachedStreamEncoding<'_>)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
@@ -510,31 +510,20 @@ impl Default for AttachedStream {
 /// Supplies resident, captured, or archived bytes for an attached stream.
 pub trait AttachedStreamSource {
     /// Opens the stream at its first payload byte.
-    fn open(&self, stream: &AttachedStream) -> Result<Box<dyn std::io::Read + Send>>;
+    fn open<'source>(&'source self, stream: &'source AttachedStream) -> Result<Box<dyn std::io::Read + Send + 'source>>;
 }
 
 /// Reads stream bodies from memory or their recorded filesystem origin.
 pub struct FilesystemStreamSource;
 
-impl FilesystemStreamSource {
-    /// Returns true if this stream has an available payload source in memory,
-    /// in an archive reference, on the filesystem, or is zero-length.
-    pub fn has_source(&self, stream: &AttachedStream) -> bool {
-        stream.data.is_some()
-            || stream.payload.is_some()
-            || matches!(stream.entity.identity.origin, FileOrigin::Filesystem { .. })
-            || matches!(stream.entity.kind, FileEntityKind::Regular { size: 0, .. })
-    }
-}
-
 impl AttachedStreamSource for FilesystemStreamSource {
-    fn open(&self, stream: &AttachedStream) -> Result<Box<dyn std::io::Read + Send>> {
+    fn open<'source>(&'source self, stream: &'source AttachedStream) -> Result<Box<dyn std::io::Read + Send + 'source>> {
         if let Some(data) = &stream.data {
-            return Ok(Box::new(std::io::Cursor::new(data.clone())));
+            return Ok(Box::new(data.as_slice()));
         }
         if let Some(payload) = &stream.payload {
             let bytes = payload.0.as_resident_bytes().context("Archived stream requires its backing reader")?;
-            return Ok(Box::new(std::io::Cursor::new(bytes.to_vec())));
+            return Ok(Box::new(bytes));
         }
         if let FileOrigin::Filesystem { key, canonical_path } = &stream.entity.identity.origin {
             ensure!(crate::identity::query_file_identity(canonical_path)? == *key, "Captured stream identity changed");
@@ -585,19 +574,6 @@ impl AttachedStream {
         self.encode_record_to_writer_with_reader(writer, reader, size, &ctb_formats_dcstring::SharedValueContext::default())
     }
 
-    pub(crate) fn encode_record_to_writer_with_source<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-        source: &dyn AttachedStreamSource,
-        context: &ctb_formats_dcstring::SharedValueContext,
-    ) -> Result<()> {
-        let FileEntityKind::Regular { size, .. } = self.entity.kind else {
-            bail!("Attached stream is not a regular payload");
-        };
-        let mut reader = source.open(self)?;
-        self.encode_record_to_writer_with_reader(writer, &mut reader, size, context)
-    }
-
     fn encode_record_to_writer_with_reader<W: std::io::Write>(
         &self,
         writer: &mut W,
@@ -614,20 +590,6 @@ impl AttachedStream {
         self.data = None;
         self.payload = None;
         self.entity.strip_stream_bodies();
-    }
-}
-
-struct StreamDigestReader<'a> {
-    reader: &'a mut dyn std::io::Read,
-    digest: Sha256Stream,
-}
-
-impl std::io::Read for StreamDigestReader<'_> {
-    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-        let count = self.reader.read(buffer)?;
-        let bytes = buffer.get(..count).ok_or_else(|| std::io::Error::other("Invalid stream read count"))?;
-        self.digest.update(bytes);
-        Ok(count)
     }
 }
 
@@ -893,11 +855,44 @@ impl AttachedStreamWithPayload {
     }
 }
 
-impl TryFrom<&AttachedStream> for AttachedStreamWithPayload {
+#[derive(ctb_formats_dcstring::DcMixed)]
+#[dc(encode_only)]
+#[dc(begin = 323, end = 324)]
+struct AttachedStreamEncoding<'stream> {
+    #[dc(short = 338, omit_default)]
+    name: Option<&'stream StreamName>,
+    #[dc(nested = 379..=384)]
+    kind: &'stream StreamKind,
+    #[dc(nested = 317)]
+    entity: &'stream FileEntity,
+    #[dc(385, default, omit_default)]
+    payload: Option<StreamPayload<'stream>>,
+}
+
+enum StreamPayload<'stream> {
+    Resident(&'stream [u8]),
+    Lazy(&'stream LazyBinaryPayload),
+}
+
+impl DcMixedEncode for StreamPayload<'_> {
+    fn encode_dc_mixed_to(&self, writer: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+        match self {
+            Self::Resident(bytes) => writer.push_binary_with_sha256(bytes),
+            Self::Lazy(payload) => payload.encode_dc_mixed_to(writer),
+        }
+    }
+}
+
+impl<'stream> TryFrom<&'stream AttachedStream> for AttachedStreamEncoding<'stream> {
     type Error = anyhow::Error;
 
-    fn try_from(stream: &AttachedStream) -> Result<Self> {
-        Ok(stream.clone().into_with_payload())
+    fn try_from(stream: &'stream AttachedStream) -> Result<Self> {
+        let payload = if let Some(bytes) = &stream.data {
+            Some(StreamPayload::Resident(bytes))
+        } else {
+            stream.payload.as_ref().map(StreamPayload::Lazy)
+        };
+        Ok(Self { name: stream.name.as_ref(), kind: &stream.kind, entity: &stream.entity, payload })
     }
 }
 

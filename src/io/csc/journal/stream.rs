@@ -136,7 +136,6 @@ impl<W: Write> JournalWriter<W> {
         self.ensure_ready()?;
         self.write_record_durable(
             |writer, context| {
-                let mut record = DcMstring::new();
                 for entity in entities {
                     if let Some(read_time) = entity.metadata.read_time {
                         read_time
@@ -145,11 +144,10 @@ impl<W: Write> JournalWriter<W> {
                                 "Read time timestamp is before Unix epoch",
                             )?;
                     }
-                    entity
-                        .encode_dc_mixed_with_context(&mut record, context)?;
+                    entity.encode_record_to_writer_with_policy(
+                        writer, None, ctb_io::file::encoding::BodyPolicy::Omit, context,
+                    )?;
                 }
-                ctb_formats_dcstring::validate_dc_mixed_strict(&record)?;
-                writer.write_all(record.payload_bytes())?;
                 Ok(())
             },
             durable,
@@ -161,13 +159,14 @@ impl<W: Write> JournalWriter<W> {
         entity: &FileEntity,
         payload: Option<&mut dyn PayloadSource>,
     ) -> Result<()> {
-        self.write_entity_checked(entity, payload, || Ok(()))
+        self.write_entity_checked(entity, payload, ctb_io::file::encoding::BodyPolicy::Include, || Ok(()))
     }
 
     pub fn write_entity_checked(
         &mut self,
         entity: &FileEntity,
         payload: Option<&mut dyn PayloadSource>,
+        bodies: ctb_io::file::encoding::BodyPolicy,
         precommit: impl FnOnce() -> Result<()>,
     ) -> Result<()> {
         self.ensure_ready()?;
@@ -191,9 +190,10 @@ impl<W: Write> JournalWriter<W> {
                     size: *size,
                     failed: &mut source_failed,
                 };
-                entity.encode_record_to_writer_with_payload_and_context(
+                entity.encode_record_to_writer_with_policy(
                     &mut writer,
-                    &mut source,
+                    Some(&mut source),
+                    bodies,
                     context,
                 )?;
                 if source.bytes != *size
@@ -208,7 +208,7 @@ impl<W: Write> JournalWriter<W> {
                     bail!("Source fidelity warnings: {}", warnings.join("; "));
                 }
             } else {
-                entity.encode_record_to_writer_with_context(&mut writer, context)?;
+                entity.encode_record_to_writer_with_policy(&mut writer, None, bodies, context)?;
             }
             if let Err(error) = precommit() {
                 source_failed = true;
@@ -216,7 +216,9 @@ impl<W: Write> JournalWriter<W> {
             }
             Ok(())
         });
-        self.source_failed = result.is_err() && source_failed;
+        self.source_failed = result.as_ref().err().is_some_and(|error| {
+            source_failed || error.is::<ctb_formats_dcstring::DcBinarySourceError>()
+        });
         result
     }
 
@@ -696,7 +698,7 @@ mod tests {
         let checkpoint = writer.output_mut().len();
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.kind = FileEntityKind::Directory;
-        ensure!(writer.write_entity_checked(&entity, None, || bail!("injected source change after encode")).is_err());
+        ensure!(writer.write_entity_checked(&entity, None, ctb_io::file::encoding::BodyPolicy::Include, || bail!("injected source change after encode")).is_err());
         ensure!(writer.sequence() == 0 && writer.source_failed() && !writer.sink_failed());
         ensure!(writer.can_rollback_source_failure());
         let bytes = writer.output_mut();
@@ -704,7 +706,7 @@ mod tests {
         footer.push_char(dc::DC_END_CHECKSUMMED_SECTION);
         ensure!(!bytes.ends_with(footer.payload_bytes()));
         writer.rollback_source_failure(|output| { output.truncate(checkpoint); Ok(()) })?;
-        writer.write_entity_checked(&entity, None, || Ok(()))?;
+        writer.write_entity_checked(&entity, None, ctb_io::file::encoding::BodyPolicy::Include, || Ok(()))?;
         ensure!(writer.sequence() == 1);
         Ok(())
     }

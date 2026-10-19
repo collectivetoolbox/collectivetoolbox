@@ -619,9 +619,9 @@ impl FileEntity {
         self.encode_record_to_writer_with_policy(writer, None, crate::encoding::BodyPolicy::Include, context)
     }
 
-    pub fn encode_record_to_writer_with_policy<W: std::io::Write>(
+    pub fn encode_record_to_writer_with_policy(
         &self,
-        writer: &mut W,
+        writer: &mut dyn std::io::Write,
         source: Option<&mut dyn crate::payload::PayloadSource>,
         bodies: crate::encoding::BodyPolicy,
         context: &ctb_formats_dcstring::SharedValueContext,

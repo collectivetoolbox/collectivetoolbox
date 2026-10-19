@@ -1523,10 +1523,12 @@ mod tests {
         assert!(encoded.decode::<FileEntity>(&DcProjectionPolicy::strict()).is_err());
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
-        entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
+        ensure!(entity.encode_with_payload_and_context(&mut streamed, &mut source, &context).is_err());
+        let mut streamed = DcMstring::new();
+        entity.encode_record_to_writer_with_policy(&mut streamed.writer(), None, crate::encoding::BodyPolicy::Omit, &context)?;
         assert_eq!(streamed, encoded);
-        let mut written = Vec::new();
-        entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
+        let mut written = DcMstring::new().into_bytes();
+        entity.encode_record_to_writer_with_policy(&mut written, None, crate::encoding::BodyPolicy::Omit, &context)?;
         assert_eq!(written, encoded.as_bytes());
         let mut source = crate::payload::MemoryPayloadSource::new(b"environment".to_vec())?;
         let mut streamed = DcMstring::new();

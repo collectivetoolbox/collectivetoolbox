@@ -527,9 +527,6 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         entity.identity.relative_path = Some(member.relative.clone());
         entity.identity.enclosing_path = None;
         if let Some(environment) = &session.environment { attach_environment(&mut entity, environment); }
-        if journal {
-            entity.strip_stream_bodies();
-        }
         persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
         if let Err(error) = crate::journal::stream::ensure_clean_metadata(&entity) {
             persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
@@ -567,10 +564,11 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             ensure!(warnings.is_empty(), "Source changed before commit: {}", warnings.join("; "));
             Ok(())
         };
+        let bodies = if journal { ctb_io::file::encoding::BodyPolicy::Omit } else { ctb_io::file::encoding::BodyPolicy::Include };
         let result = if let Some(payload) = &mut payload {
-            writer.write_entity_checked(&entity, Some(payload.as_mut()), precommit)
+            writer.write_entity_checked(&entity, Some(payload.as_mut()), bodies, precommit)
         } else {
-            writer.write_entity_checked(&entity, None, precommit)
+            writer.write_entity_checked(&entity, None, bodies, precommit)
         };
         if let Err(error) = result {
             if writer.is_failed() {

@@ -81,6 +81,18 @@
 - Raw archive capture/discovery disables Apple interpretation explicitly. Tests
   deliberately inspecting malformed or symlink companions as ordinary files must
   request raw capture; do not weaken interpreted-companion validation to fix them.
+- Dc derives encode through the shared fallible `DcWriter`; buffered encoding
+  delegates to the same implementation. File/stream bodies use the existing
+  derived payload-record schemas, not hand-written Dc framing. Encoding views
+  retain metadata and source handles without copying binary bodies.
+- `BodyPolicy::Omit` is an explicit recursive output choice. Never infer it from
+  missing sources, pass empty readers for nonempty bodies, or change filesystem
+  origins to synthetic origins to suppress reads. Copy batches and archive
+  members share the source-aware file encoder and grammar-validation helper.
+- Streaming grammar validation retains text/type metadata but elides verified
+  binary bodies; it is not constant-memory for arbitrarily large text. Section
+  footers remain withheld on validation failure. Binary-source failure tagging
+  must preserve source-only rollback without overriding observed sink failures.
 - Extraction and verification support `--recover` (aliases: `--salvage`,
   `--allow-archive-errors`, `--allow-journal-errors`). In recover mode,
   `JournalReader` uses forgiving projection and recover scan mode, allows

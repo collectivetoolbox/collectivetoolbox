@@ -127,8 +127,35 @@ const MAX_SHORT_DC: u32 = 1_114_111;
 
 #[proc_macro_derive(DcMixed, attributes(dc))]
 pub fn derive_dc_mixed(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
+    let mut input = parse_macro_input!(input as DeriveInput);
+    let mut encode_only = false;
+    input.attrs.retain(|attribute| {
+        if attribute.path().is_ident("dc")
+            && attribute.parse_args::<syn::Ident>().is_ok_and(|flag| flag == "encode_only")
+        {
+            encode_only = true;
+            false
+        } else {
+            true
+        }
+    });
     match expand_derive_dc_mixed(&input) {
+        Ok(expanded) if encode_only => match syn::parse2::<syn::File>(expanded) {
+            Ok(mut file) => {
+                file.items.retain_mut(|item| {
+                    let syn::Item::Impl(implementation) = item else { return false; };
+                    let Some((_, path, _)) = &implementation.trait_ else {
+                        implementation.items.retain(|item| matches!(item, syn::ImplItem::Fn(method)
+                            if method.sig.ident == "encode_fields" || method.sig.ident == "encode_fields_with_context"));
+                        return !implementation.items.is_empty();
+                    };
+                    let Some(segment) = path.segments.last() else { return false; };
+                    segment.ident == "DcMixedEncode"
+                });
+                TokenStream::from(quote! { #file })
+            }
+            Err(error) => TokenStream::from(error.to_compile_error()),
+        },
         Ok(expanded) => TokenStream::from(expanded),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
@@ -2613,14 +2640,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id))?;
-                                #crate_root::dc_mixed_serde::encode_format_representation(
+                                #crate_root::dc_mixed_serde::encode_format_representation_to(
                                     value, #crate_root::DcChar::from_u128(#format), mst, context)?;
                             }
                         }
                     } else {
                         let enc = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id))?;
-                            #crate_root::dc_mixed_serde::encode_format_representation(
+                            #crate_root::dc_mixed_serde::encode_format_representation_to(
                                 &self.#field_ident, #crate_root::DcChar::from_u128(#format), mst, context)?;
                         };
                         if attr.omit_default {
