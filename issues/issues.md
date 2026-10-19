@@ -90,6 +90,8 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - You could use alternative representations basically anywhere. I do see they both show up in one syntax rule, but that looks like a mistake since I'd expect them to be accepted in other cases too. I mean if we have file flags that's one case where they're useful, but once there are multiple date formats supported (in future) I would expect 378 "Timestamp clock resolution" to allow me to fill in :~ [datemagnitude] with, for instance, the value represented in two different time systems, using 397, if I wanted. In other words, it's kind of implied syntax that you can put anywhere it's relevant, just like in 374 "File data extent" `:~ 376 [number:Natural0] 377 [number:Natural0]` it would be valid to write  `374 376 255 377 [some number...] 377 [some number...]`, even though 255 isn't stated to be allowed there, it automatically is because the *point* of it is to allow using Dcs in places where they'd collide with other syntax, like that. Please make sure these cases are handled correctly.
 
+-"parsing currently accepts negative numbers for Natural0"
+
 - "The native archive tests use best-effort metadata restoration, so their pass does not establish strict fidelity for every Windows metadata field." There should be at least as thorough tests that run in default mode (similar to strict-lossless mode, but allowing for differences that *literally cannot* be materialized under the target, like ctime on Linux) too. Please check that there aren't other tests being cheated by using best-effort mode when there's not a corresponding normal-mode test. Please also make sure that the three-way distinction between default mode, best-effort mode, and full strict mode is correctly maintained. The use of best-effort mode in archive tests without at least as many corresponding default-mode tests is only present due to LLM cheating the requirements; it does not represent operator intent.
 
 ```
@@ -110,6 +112,24 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 ```
 
 Obviously wrong; non-data-driven; using bare Dcs in code.
+
+- should MaterializeOptions have a best-effort option?
+
+- ```
+/// Reads file metadata JSON and rematerializes the file to the given destination path.
+pub fn rematerialize_from_metadata_json(
+    json_str: &str,
+    dest_path: &Path,
+) -> Result<MaterializeReceipt> {
+    let record = FileMetadataJson::from_json_str(json_str)?;
+    let mut options = MaterializeOptions::default();
+    options.force_overwrite = true;
+    options.copy_specials = true;
+    record.rematerialize(dest_path, &options)
+}
+```
+
+Hm, does this correspond to the CLI? Why force_overwrite true? Generally things shouldn't default to forcing overwrite. Are CLI options applied? Copy-specials isn't normally default either I don't think. TBD where this is used. Possibly its callers should just set the options they need.
 
 - csc archive: Bounded-memory attached-stream pipeline
   Status: Partially Implemented

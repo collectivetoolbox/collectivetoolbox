@@ -224,7 +224,6 @@ pub fn rematerialize_from_metadata_json(
 ) -> Result<MaterializeReceipt> {
     let record = FileMetadataJson::from_json_str(json_str)?;
     let mut options = MaterializeOptions::default();
-    options.strict_lossless = false;
     options.force_overwrite = true;
     options.copy_specials = true;
     record.rematerialize(dest_path, &options)

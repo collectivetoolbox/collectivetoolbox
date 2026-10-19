@@ -444,6 +444,53 @@ mod tier2_boundary_corner_cases {
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn implicit_representations_and_ignored_tokens_in_operands() -> Result<()> {
+        for ignored_token in [false, true] {
+            let mut document = DcMstring::new();
+            document.push_char(DcChar::from_short(374));
+            document.push_char(DcChar::from_short(376));
+            if ignored_token {
+                document.push_char(DcChar::from_short(255));
+                document.push_char(DcChar::from_short(377));
+            }
+            document.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+            vec![0u64, 0u64].encode_dc_mixed(&mut document)?;
+            document.push_char(DcChar::from_short(377));
+            16u64.encode_dc_mixed(&mut document)?;
+            validate_dc_mixed_strict(&document)
+                .with_context(|| format!("Implicit operand syntax, ignored_token={ignored_token}"))?;
+        }
+        let mut resolution = DcMstring::new();
+        resolution.push_char(DcChar::from_short(378));
+        resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        vec![std::time::Duration::from_nanos(1), std::time::Duration::from_nanos(1)]
+            .encode_dc_mixed(&mut resolution)?;
+        validate_dc_mixed_strict(&resolution)?;
+        let mut wrong_resolution = DcMstring::new();
+        wrong_resolution.push_char(DcChar::from_short(378));
+        wrong_resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        vec![true, true].encode_dc_mixed(&mut wrong_resolution)?;
+        ensure!(validate_dc_mixed_strict(&wrong_resolution).is_err(), "Representations bypassed datemagnitude operand type");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn numeric_subtype_constraints_apply_to_raw_and_wrapped_operands() -> Result<()> {
+        let mut raw = DcMstring::new();
+        raw.push_char(DcChar::from_short(376));
+        (-1i64).encode_dc_mixed(&mut raw)?;
+        let mut wrapped = DcMstring::new();
+        wrapped.push_char(DcChar::from_short(376));
+        wrapped.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        vec![-1i64, -1i64].encode_dc_mixed(&mut wrapped)?;
+        let raw_accepted = validate_dc_mixed_strict(&raw).is_ok();
+        let wrapped_accepted = validate_dc_mixed_strict(&wrapped).is_ok();
+        ensure!(!raw_accepted && !wrapped_accepted,
+            "Numeric subtype validation is pending: negative Natural0 accepted (raw={raw_accepted}, wrapped={wrapped_accepted})");
+        Ok(())
+    }
+
     /// Verifies that expansion depth limits (`MAX_SYNTAX_EXPANSION_DEPTH` = 32)
     /// prevent infinite recursion or stack exhaustion.
     #[crate::ctb_test]

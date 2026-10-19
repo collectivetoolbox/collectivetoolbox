@@ -1431,7 +1431,15 @@ mod tests {
         let stdout_resume = ArchiveArgs::try_parse_from(["archive", "create", "-", "--resume"])?;
         ensure!(run_archive(&stdout_resume).is_err());
         let extract_recover = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--recover"])?;
-        ensure!(matches!(extract_recover.command, ArchiveCommand::Extract { recover: true, .. }));
+        ensure!(matches!(extract_recover.command, ArchiveCommand::Extract {
+            recover: true, best_effort_metadata: false, strict: false, ..
+        }));
+        let targeted = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--check-birthtime"])?;
+        ensure!(matches!(targeted.command, ArchiveCommand::Extract {
+            check_birthtime: true, check_atime: false, check_ctime: false, best_effort_metadata: false, strict: false, ..
+        }));
+        let full = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--strict", "--best-effort-metadata"])?;
+        ensure!(matches!(full.command, ArchiveCommand::Extract { strict: true, best_effort_metadata: true, .. }));
         let extract_salvage = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--salvage"])?;
         ensure!(matches!(extract_salvage.command, ArchiveCommand::Extract { recover: true, .. }));
         let extract_errors = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--allow-archive-errors"])?;
@@ -1440,6 +1448,36 @@ mod tests {
         ensure!(matches!(extract_jerrors.command, ArchiveCommand::Extract { recover: true, .. }));
         let verify_recover = ArchiveArgs::try_parse_from(["archive", "verify", "test.cscarchive", "--recover"])?;
         ensure!(matches!(verify_recover.command, ArchiveCommand::Verify { recover: true, .. }));
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn archive_directory_timestamp_checks_are_explicit() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        let archive = temporary.path().join("directory.cscarchive");
+        let sources = vec![source];
+        let plan = plan_sources(&sources, &archive)?;
+        let outcome = create_archive(File::create(&archive)?, &sources, &archive, &plan, false, None, false)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
+        let mut reader = JournalReader::new(File::open(&archive)?)?;
+        for member in &mut reader.members {
+            let timestamps = member.entity.metadata.timestamps.as_mut().context("Missing directory times")?;
+            timestamps.ctime_sec = 1;
+            timestamps.ctime_nsec = 0;
+        }
+        extract_archive(&reader, &temporary.path().join("normal"), &MaterializeOptions::default(), false)?;
+        for (name, options) in [
+            ("ctime", MaterializeOptions { check_ctime: true, ..Default::default() }),
+            ("full", MaterializeOptions { check_atime: true, check_ctime: true, check_birthtime: true, ..Default::default() }),
+        ] {
+            let error = extract_archive(&reader, &temporary.path().join(name), &options, false)
+                .err().context("Explicit timestamp checks unexpectedly passed")?;
+            ensure!(format!("{error:#}").contains("Ctime mismatch"), "{error:#}");
+        }
         Ok(())
     }
 

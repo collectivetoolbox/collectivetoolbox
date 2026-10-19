@@ -3346,10 +3346,29 @@ impl<'a> DcDocumentNavigator<'a> {
         term: &SyntaxTerm,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
-        let start_offset = self.cursor;
-        let Some((first_dc, after_first)) = self.read_token_or_binary_at(start_offset)? else {
+        let mut start_offset = self.cursor;
+        let Some((mut first_dc, mut after_first)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
+        let targets_escape = match term {
+            SyntaxTerm::SelfChar => ctx.self_dc == Some(DC_ESCAPE.to_u128()),
+            SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => target.to_u128() == DC_ESCAPE.to_u128(),
+            SyntaxTerm::CharSet { negated: true, .. } => true,
+            SyntaxTerm::CharSet { negated: false, members } => members.iter().any(|target| target.to_u128() == DC_ESCAPE.to_u128()),
+            _ => false,
+        };
+        if !targets_escape && !ctx.self_dc.is_some_and(|token| ctx.resolver.is_opaque_container(token)) {
+            while first_dc == DC_ESCAPE {
+                let Some((_, after_ignored)) = self.read_token_or_binary_at(after_first)? else {
+                    ctx.policy.handle(ctx.policy.syntax_error, format!("Dangling escape Dc 255 at offset {start_offset}"))?;
+                    return Ok(false);
+                };
+                start_offset = after_ignored;
+                let Some(next) = self.read_token_or_binary_at(start_offset)? else { return Ok(false); };
+                (first_dc, after_first) = next;
+            }
+            self.cursor = start_offset;
+        }
         let first = first_dc.to_u128();
 
         // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
@@ -3373,20 +3392,14 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.self_dc = old_self;
                     if matched {
                         let wrapper_end = self.cursor;
-                        if matches!(
+                        if !self.eval_constrained_equivalent_list(
+                            after_first,
+                            wrapper_end,
                             term,
-                            SyntaxTerm::NamedConstruct { name, subtype: Some(_), .. }
-                                if name == "data" || name == "string"
-                        ) {
-                            if !self.eval_constrained_equivalent_list(
-                                after_first,
-                                wrapper_end,
-                                term,
-                                ctx,
-                            )? {
-                                self.cursor = start_offset;
-                                return Ok(false);
-                            }
+                            ctx,
+                        )? {
+                            self.cursor = start_offset;
+                            return Ok(false);
                         }
                         self.cursor = wrapper_end;
                         return Ok(true);

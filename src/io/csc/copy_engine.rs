@@ -2628,14 +2628,13 @@ mod tests {
         let file = src.join("file.txt");
         fs::write(&file, b"Timestamp drift test").expect("write file");
 
-        let mut args = default_test_args(
+        let args = default_test_args(
             vec![
                 PathBuf::from(format!("{}/", src.display())),
                 dest.clone(),
             ],
             state.clone(),
         );
-        args.best_effort_metadata = true;
         run_csc(args).expect("run csc");
 
         let journal_path = find_cscjournal(&state);
