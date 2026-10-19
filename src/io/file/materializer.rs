@@ -293,10 +293,33 @@ pub fn apply_entity_metadata(
     }
 
     if apply_flags {
+        #[cfg(windows)]
+        warnings.extend(apply_windows_change_time(dest, meta, strict_lossless)?);
         warnings.extend(crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?);
     }
 
     Ok(warnings)
+}
+
+#[cfg(windows)]
+fn apply_windows_change_time(dest: &Path, meta: &FileMetadata, strict_lossless: bool) -> Result<Vec<String>> {
+    let Some(timestamps) = &meta.timestamps else {
+        return Ok(Vec::new());
+    };
+    let result = (|| -> Result<()> {
+        let time = crate::metadata::checked_file_time(timestamps.ctime_sec, timestamps.ctime_nsec)?;
+        crate::metadata::windows::set_file_change_time(dest, time)
+    })();
+    if let Err(error) = result {
+        let error = error.context(format!("Failed to restore change time on {}", dest.display()));
+        if strict_lossless {
+            return Err(error);
+        }
+        let warning = format!("{error:#} (proceeding best-effort)");
+        warn_fmt!("{warning}");
+        return Ok(vec![warning]);
+    }
+    Ok(Vec::new())
 }
 
 #[cfg(windows)]
@@ -1155,7 +1178,7 @@ pub fn materialize_entity_with_stream_source(
             #[cfg(unix)]
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
-            // Deferred immutability: apply flags as the very last step!
+            // Deferred immutability: apply flags after publication, before restoring Windows change time.
             let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
             if has_flags {
                 let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
@@ -1168,6 +1191,8 @@ pub fn materialize_entity_with_stream_source(
                     options.strict_lossless,
                 )?;
             }
+            #[cfg(windows)]
+            warnings.extend(apply_windows_change_time(&dest_path, &entity.metadata, options.strict_lossless)?);
             warnings.extend(crate::metadata::check_metadata_replication(
                 &dest_path, &entity.metadata, options.strict_lossless, false,
             )?);
@@ -1545,6 +1570,8 @@ fn try_update_existing_regular_entity(
         )?;
     }
 
+    #[cfg(windows)]
+    warnings.extend(apply_windows_change_time(dest_path, &entity.metadata, options.strict_lossless)?);
     warnings.extend(crate::metadata::check_metadata_replication(
         dest_path, &entity.metadata, options.strict_lossless, false,
     )?);

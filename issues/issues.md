@@ -96,7 +96,13 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - "Remaining limits: live Windows ADS/reparse testing is still unverified. Streaming grammar validation retains text and metadata, but not binary bodies."
 
-"ADS archive capture rejects the existing change-time restoration warning." "The warning is about Windows’ metadata-change timestamp, not ADS contents or the normal last-modified timestamp. Capture retains its value, but emits a warning because restoration is unimplemented; the archive’s strict policy rejects that warning before the ADS round-trip can proceed." If it's possible to restore, it should be implemented to restore it; if it's not possible, it should be treated as a non-fatal error similar to ctime in Linux.
+- Windows ADS/reparse archive qualification
+  Status: Partially Implemented
+  - 2026-10-19: Fixed junction buffers missing UTF-16 terminators (Windows error 4392). Windows change time is restorable through `SetFileInformationByHandle(FileBasicInfo)`; restoration now runs after publication and flags, with readback verification. Removed the unconditional capture warning. Actual restoration failures remain fatal in strict mode and reported warnings in best-effort mode. Three focused restoration regressions pass on Windows 11, including junction/no-follow behavior and unrepresentable timestamps.
+  - Remaining Gaps & Pending Work:
+    - Both `windows_native_qualification_*` archive tests now pass capture but fail extraction: "Sandboxed archive extraction is currently supported only on Unix". Windows archive round-trip qualification remains blocked on that separate implementation gap.
+    - `test_windows_change_time_capture_and_audit` fails its metadata serialization round-trip because `flags: Some([])` decodes as `None`; timestamps are preserved. This separate mismatch remains unresolved.
+    - These fixes have not yet been runtime-qualified on Windows 7.
 
 - Lazy AppleDouble/AppleSingle conversion remains open
 

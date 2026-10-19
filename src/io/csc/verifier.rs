@@ -821,13 +821,13 @@ mod tests {
         let stored = snapshot.committed_entities.get(b"file".as_slice()).unwrap();
         assert_eq!(stored.metadata.timestamps, entity.metadata.timestamps);
         assert_eq!(stored.metadata.warnings, entity.metadata.warnings);
-        assert!(snapshot.warnings.iter().any(|warning| warning.message.contains("change-time restoration is not implemented")));
+        assert!(!snapshot.warnings.iter().any(|warning| warning.message.contains("change-time restoration")));
         let mut args = default_verify_args(journal, None);
         args.best_effort = false;
         let report = verify_directory_against_manifest(&args).unwrap();
         assert!(report.is_clean(), "{}", report.format_human_report());
         assert!(report.caveats.iter().any(|caveat| caveat.contains("Change times (ctime) not verified")));
-        assert!(report.caveats.iter().any(|caveat| caveat.contains("change-time restoration is not implemented")));
+        assert!(!report.caveats.iter().any(|caveat| caveat.contains("change-time restoration")));
         args.check_ctime = true;
         let checked = verify_directory_against_manifest(&args).unwrap();
         assert!(checked.changed_entries.iter().any(|entry| entry.differences.iter()

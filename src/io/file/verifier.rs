@@ -1412,7 +1412,7 @@ mod tests {
         let timestamps = entity.metadata.timestamps.as_ref().unwrap();
         assert_eq!((timestamps.ctime_sec, timestamps.ctime_nsec), (actual.unix_seconds(), actual.nanoseconds()));
         assert_ne!(timestamps.ctime_sec, timestamps.mtime_sec);
-        assert!(entity.metadata.warnings.iter().any(|warning| warning.contains("change-time restoration is not implemented")));
+        assert!(!entity.metadata.warnings.iter().any(|warning| warning.contains("change-time restoration")));
         entity.metadata.environment = None;
         entity.metadata.read_time = None;
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.metadata).unwrap();
@@ -1424,6 +1424,46 @@ mod tests {
         assert!(!differences.iter().any(|difference| matches!(difference, DiffKind::ContentHashMismatch { .. })));
         let ignored = EntityAuditOptions { ignore_ctime: true, ..options };
         assert!(audit_entity(&path, &entity, &ignored).unwrap().is_empty());
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_change_time_restoration_after_publication() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let source = temp.path().join("source");
+        let data = b"native timestamp payload".to_vec();
+        fs::write(&source, &data)?;
+        let change_time = FileTime::from_unix_time(1_000_000_000, 123_456_700);
+        crate::metadata::windows::set_file_change_time(&source, change_time)?;
+        let mut entity = FileEntity::from_filesystem(&source, None)?;
+        entity.identity.relative_path = Some(PathBuf::from("restored"));
+        let mut payload = MemoryPayloadSource::new(data)?;
+        let receipt = entity.materialize_at_path(Some(&mut payload), temp.path(),
+            &MaterializeOptions { strict_lossless: false, ..Default::default() })?;
+        assert!(!receipt.warnings.iter().any(|warning| warning.contains("change time")), "{:?}", receipt.warnings);
+        assert_eq!(crate::metadata::windows::query_file_change_time(&receipt.destination_path)?, change_time);
+        let timestamps = entity.metadata.timestamps.as_ref().unwrap();
+        assert_eq!(FileTime::from_last_modification_time(&fs::metadata(&receipt.destination_path)?),
+            FileTime::from_unix_time(timestamps.mtime_sec, timestamps.mtime_nsec));
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_change_time_restoration_reports_unrepresentable_time() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("timestamp");
+        fs::write(&path, b"payload")?;
+        let mut metadata = FileEntity::from_filesystem(&path, None)?.metadata;
+        metadata.native = None;
+        metadata.timestamps.as_mut().unwrap().ctime_nsec = 1;
+        let strict = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, true);
+        assert!(format!("{:#}", strict.unwrap_err()).contains("sub-100 ns precision"));
+        let warnings = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, false)?;
+        assert!(warnings.iter().any(|warning| warning.contains("sub-100 ns precision")));
+        assert!(crate::metadata::windows::set_file_change_time(&path,
+            FileTime::from_unix_time(-11_644_473_600, 0)).is_err());
+        Ok(())
     }
 
     #[cfg(windows)]

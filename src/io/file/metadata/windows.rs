@@ -48,7 +48,7 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
     FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
     FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES,
-    GetFileInformationByHandle, GetFileInformationByHandleEx, FileBasicInfo,
+    GetFileInformationByHandle, GetFileInformationByHandleEx, SetFileInformationByHandle, FileBasicInfo,
     FILE_BASIC_INFO, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_EXISTING,
 };
 use windows_sys::Win32::System::IO::DeviceIoControl;
@@ -321,6 +321,38 @@ pub fn query_file_change_time(path: &Path) -> Result<filetime::FileTime> {
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
         .open(path).with_context(|| format!("Failed to open {} for change-time query", path.display()))?;
     filetime_from_windows_ticks(query_handle_change_time(file.as_raw_handle())?)
+}
+
+/// Restores change time without following reparse points or changing other times.
+#[expect(unsafe_code, reason = "SetFileInformationByHandle reads an initialized FILE_BASIC_INFO while its owned handle is live")]
+pub(crate) fn set_file_change_time(path: &Path, time: filetime::FileTime) -> Result<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::io::AsRawHandle;
+
+    anyhow::ensure!(time.nanoseconds().checked_rem(100) == Some(0),
+        "Windows change time cannot represent sub-100 ns precision");
+    let ticks = time.unix_seconds().checked_add(11_644_473_600)
+        .and_then(|seconds| seconds.checked_mul(10_000_000))
+        .and_then(|ticks| ticks.checked_add(i64::from(time.nanoseconds()).checked_div(100)?))
+        .context("Windows change-time conversion overflow")?;
+    anyhow::ensure!(ticks > 0, "Windows change time must be positive; zero leaves the timestamp unchanged");
+    let file = std::fs::OpenOptions::new().access_mode(FILE_WRITE_ATTRIBUTES)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
+        .open(path).with_context(|| format!("Failed to open {} to restore change time", path.display()))?;
+    let basic = FILE_BASIC_INFO { ChangeTime: ticks, ..Default::default() };
+    // SAFETY: file owns the live handle; basic is initialized, aligned, and
+    // readable for the supplied size throughout this synchronous call.
+    let success = unsafe {
+        SetFileInformationByHandle(file.as_raw_handle(), FileBasicInfo, (&raw const basic).cast(),
+            u32::try_from(std::mem::size_of_val(&basic))?)
+    };
+    if success == 0 {
+        return Err(std::io::Error::last_os_error()).context("Failed to restore Windows change time");
+    }
+    drop(file);
+    anyhow::ensure!(query_file_change_time(path)? == time,
+        "Filesystem did not retain restored Windows change time for {}", path.display());
+    Ok(())
 }
 
 #[expect(
@@ -714,6 +746,38 @@ fn win32_error_code(err: &std::io::Error) -> u32 {
 mod tests {
     use super::*;
     use crate::*;
+
+    #[crate::ctb_test]
+    fn test_windows_change_time_restoration_on_directory_and_junction() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let target = temporary.path().join("target");
+        let junction = temporary.path().join("junction");
+        std::fs::create_dir(&target)?;
+        std::fs::create_dir(&junction)?;
+        let absolute_target = std::fs::canonicalize(&target)?;
+        let target_name = absolute_target.to_str().context("Non-Unicode fixture path")?
+            .strip_prefix(r"\\?\").context("Missing verbatim fixture path prefix")?;
+        let buffer = super::super::reparse::build_mount_point_reparse_buffer(
+            &format!(r"\??\{target_name}"), target_name)?;
+        let mut native = NativeMetadata { source_os: OsFamily::Windows, values: BTreeMap::new() };
+        native.values.insert("reparse.data".to_owned(), NativeMetadataValue::Bytes(buffer.clone()));
+        apply_windows_reparse_metadata(&junction, &native, true)?;
+        let target_time = filetime::FileTime::from_unix_time(1_000_000_000, 123_456_700);
+        set_file_change_time(&target, target_time)?;
+        let junction_time = filetime::FileTime::from_unix_time(1_100_000_000, 765_432_100);
+        let metadata = std::fs::symlink_metadata(&junction)?;
+        set_file_change_time(&junction, junction_time)?;
+        assert_eq!(query_file_change_time(&junction)?, junction_time);
+        assert_eq!(query_file_change_time(&target)?, target_time);
+        let restored = std::fs::symlink_metadata(&junction)?;
+        assert_eq!(restored.creation_time(), metadata.creation_time());
+        assert_eq!(restored.last_access_time(), metadata.last_access_time());
+        assert_eq!(restored.last_write_time(), metadata.last_write_time());
+        let mut values = BTreeMap::new();
+        capture_windows_metadata(&junction, &restored, &mut values)?;
+        assert_eq!(values.get("reparse.data"), Some(&NativeMetadataValue::Bytes(buffer)));
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_windows_security_descriptor_metadata_tracking() {

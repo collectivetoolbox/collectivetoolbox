@@ -227,9 +227,10 @@ pub fn build_mount_point_reparse_buffer(
     )?;
 
     let sub_offset = 0_u16;
-    let print_offset = sub_len;
-    let path_buffer_len = sub_len
+    let print_offset = sub_len.checked_add(2).context("Print name offset overflow")?;
+    let path_buffer_len = print_offset
         .checked_add(print_len)
+        .and_then(|length| length.checked_add(2))
         .context("Path buffer length overflow")?;
 
     // Header size after standard 8 bytes is 8 bytes (offsets and lengths)
@@ -250,9 +251,11 @@ pub fn build_mount_point_reparse_buffer(
     for unit in &sub_units {
         buf.extend_from_slice(&unit.to_le_bytes());
     }
+    buf.extend_from_slice(&0_u16.to_le_bytes());
     for unit in &print_units {
         buf.extend_from_slice(&unit.to_le_bytes());
     }
+    buf.extend_from_slice(&0_u16.to_le_bytes());
 
     Ok(buf)
 }
@@ -362,6 +365,17 @@ mod tests {
         let sub_name = "\\??\\C:\\Volume{1234}\\junction";
         let print_name = "C:\\junction";
         let buf = build_mount_point_reparse_buffer(sub_name, print_name).unwrap();
+
+        let sub_len = sub_name.encode_utf16().count() * 2;
+        let print_len = print_name.encode_utf16().count() * 2;
+        assert_eq!(usize::from(read_u16_le(&buf, 4).unwrap()), buf.len() - 8);
+        assert_eq!(read_u16_le(&buf, 8).unwrap(), 0);
+        assert_eq!(usize::from(read_u16_le(&buf, 10).unwrap()), sub_len);
+        assert_eq!(usize::from(read_u16_le(&buf, 12).unwrap()), sub_len + 2);
+        assert_eq!(usize::from(read_u16_le(&buf, 14).unwrap()), print_len);
+        assert_eq!(read_u16_le(&buf, 16 + sub_len).unwrap(), 0);
+        assert_eq!(read_u16_le(&buf, 18 + sub_len + print_len).unwrap(), 0);
+        assert_eq!(buf.len(), 20 + sub_len + print_len);
 
         let mut values = BTreeMap::new();
         let tag = parse_reparse_buffer(&buf, &mut values).unwrap();

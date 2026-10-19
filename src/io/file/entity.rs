@@ -784,7 +784,6 @@ impl FileEntity {
                 anyhow::bail!("Windows capture omitted native change time for {}", path.display());
             };
         let change_time = crate::metadata::windows::filetime_from_windows_ticks(*change_time)?;
-        warnings.push("Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal".to_string());
 
         let fs_info = crate::filesystem::query_filesystem_info(path, &sym_meta);
 
