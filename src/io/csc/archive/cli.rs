@@ -64,6 +64,18 @@ pub enum ArchiveCommand {
         /// Report filesystem metadata losses instead of requiring exact restoration.
         #[arg(long)]
         best_effort_metadata: bool,
+        /// Require every timestamp check, including hard platform limits.
+        #[arg(long)]
+        strict: bool,
+        /// Verify restored access times.
+        #[arg(long)]
+        check_atime: bool,
+        /// Verify change times even where the platform cannot restore them.
+        #[arg(long)]
+        check_ctime: bool,
+        /// Verify birth times even where the platform cannot restore them.
+        #[arg(long)]
+        check_birthtime: bool,
         /// Permit restoration of FIFOs and device nodes as special files.
         #[arg(long)]
         copy_specials_as_specials: bool,
@@ -184,14 +196,17 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
             }
         }
         ArchiveCommand::Extract { archive, destination, overwrite, trust_symlink_targets,
-            best_effort_metadata, copy_specials_as_specials, recover } => {
+            best_effort_metadata, strict, check_atime, check_ctime, check_birthtime, copy_specials_as_specials, recover } => {
             let reader = if *recover {
                 JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
             } else {
                 JournalReader::new(File::open(archive)?)?
             };
             let options = MaterializeOptions {
-                strict_lossless: !best_effort_metadata && !*recover,
+                strict_lossless: *strict || !best_effort_metadata,
+                check_atime: *strict || *check_atime,
+                check_ctime: *strict || *check_ctime || cfg!(windows),
+                check_birthtime: *strict || *check_birthtime || cfg!(windows),
                 existing_entry_policy: if *overwrite { ctb_io::file::ExistingEntryPolicy::Replace }
                     else { ctb_io::file::ExistingEntryPolicy::Refuse },
                 force_overwrite: true,
@@ -628,7 +643,7 @@ fn resume_archive(path: &Path, journal: bool) -> Result<()> {
         if matches!(expected.kind, FileEntityKind::Hardlink { .. }) {
             expected.kind = current.kind.clone();
         }
-        ctb_io::file::verify_materialized_entity_ext(source, &expected, true, false, false)
+        ctb_io::file::verify_materialized_entity_ext(source, &expected, true, false, false, cfg!(windows))
             .with_context(|| format!("Committed source changed: {}", source.display()))?;
     }
     file.set_len(recovered.valid_length)?;
@@ -666,7 +681,7 @@ fn validate_members(reader: &JournalReader) -> Result<()> {
 }
 
 fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions, recover: bool) -> Result<()> {
-    ensure!(cfg!(unix), "Sandboxed archive extraction is currently supported only on Unix");
+    ensure!(cfg!(any(unix, windows)), "Sandboxed archive extraction is unsupported on this platform");
     if !recover {
         reader.verify_self_contained()?;
     }
@@ -756,7 +771,7 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             };
             for warning in receipt.warnings { warn_fmt!("{warning}"); }
             if !hardlinks {
-                if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, false, false) {
+                if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, options.check_atime, options.check_ctime, options.check_birthtime) {
                     if recover {
                         warn_fmt!("Materialized member verification failed for {}: {error:#}; continuing in recover mode", relative.display());
                     } else {
@@ -798,7 +813,7 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     }
                 }
             }
-            match ctb_io::file::apply_entity_metadata(destination, None, &member.entity.metadata, false, true, options.strict_lossless) {
+            match ctb_io::file::apply_entity_metadata(destination, None, &member.entity.metadata, false, true, options.strict_lossless, options.check_birthtime) {
                 Ok(warnings) => {
                     for warning in warnings { warn_fmt!("{warning}"); }
                 }
@@ -1382,14 +1397,16 @@ mod tests {
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: false } }).is_err());
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive: archive.clone(), destination: destination.clone(), overwrite: false,
-            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
+            strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: false,
         } }).is_err());
         ensure!(!destination.exists(), "Failed capture modified extraction destination");
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: true } }).is_ok());
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive, destination: destination.clone(), overwrite: false,
-            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
+            strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: true,
         } }).is_ok());
         Ok(())
@@ -1441,14 +1458,16 @@ mod tests {
         let destination = temporary.path().join("restored");
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
-            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
+            strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: false,
         } }).is_err());
         ensure!(!destination.exists());
 
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
-            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
+            strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: true,
         } }).is_ok());
         ensure!(std::fs::read(destination.join("source/first"))? == b"hello first");
@@ -1624,11 +1643,14 @@ mod tests {
         let reader = JournalReader::new(File::open(&path)?)?;
         let destination = temporary.path().join("destination");
         std::fs::create_dir(&destination)?;
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             let outside = temporary.path().join("outside");
             std::fs::create_dir(&outside)?;
+            #[cfg(unix)]
             std::os::unix::fs::symlink(&outside, destination.join("source"))?;
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_dir(&outside, destination.join("source"))?;
             ensure!(extract_archive(&reader, &destination, &MaterializeOptions {
                 existing_entry_policy: ctb_io::file::ExistingEntryPolicy::Replace,
                 ..Default::default()
@@ -1941,7 +1963,11 @@ mod tests {
                 destination: dest.clone(),
                 overwrite: false,
                 trust_symlink_targets: false,
-                best_effort_metadata: true,
+                best_effort_metadata: false,
+                strict: false,
+                check_atime: false,
+                check_ctime: false,
+                check_birthtime: false,
                 copy_specials_as_specials: false,
                 recover: false,
             },

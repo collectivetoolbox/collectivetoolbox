@@ -372,8 +372,12 @@ fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
 }
 
 fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
+    parse_decomposition_target(decompositions, "<prefer>")
+}
+
+fn parse_decomposition_target(decompositions: &[String], marker: &str) -> Option<CharTarget> {
     for item in decompositions {
-        if let Some(rest) = item.trim().strip_prefix("<prefer>") {
+        if let Some(rest) = item.trim().strip_prefix(marker) {
             let trimmed = rest.trim();
             if let Ok(shorthand) = ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
                 return match shorthand {
@@ -797,7 +801,47 @@ impl DatasetRuleResolver {
             }
         }
 
+        let equivalents: Vec<_> = dc_defns.iter().flat_map(|defn| {
+            defn.decompositions.iter().filter_map(move |decomposition| {
+                parse_decomposition_target(std::slice::from_ref(decomposition), "<equiv>")
+                    .map(|target| (defn.dc_id, target))
+            })
+        }).collect();
+        loop {
+            let mut changed = false;
+            for (token, target) in &equivalents {
+                let Some(source) = dc_defns.iter().find(|defn| defn.dc_id == *token)
+                    .and_then(|defn| defn.short_id)
+                    .and_then(|short_id| u32::try_from(short_id).ok())
+                    .map(CharTarget::Dc) else { continue };
+                for (alias, equivalent) in [(&source, target), (target, &source)] {
+                    if !resolver.rules.contains_key(alias) {
+                        if let Some(rule) = resolver.rules.get(equivalent).cloned() {
+                            resolver.add_rule(alias.clone(), rule);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            if !changed { break; }
+        }
         resolver.precompute_derived_tables();
+        for starters in resolver.named_type_starters.values_mut() {
+            loop {
+                let mut changed = false;
+                for (source, target) in &equivalents {
+                    let target = target.to_u128();
+                    for (alias, equivalent) in [(*source, target), (target, *source)] {
+                        if starters.exact_tokens.contains(&equivalent)
+                            || starters.ranges.iter().any(|(start, end)| (*start..=*end).contains(&equivalent))
+                        {
+                            changed |= starters.exact_tokens.insert(alias);
+                        }
+                    }
+                }
+                if !changed { break; }
+            }
+        }
         Ok(resolver)
     }
 }
@@ -916,6 +960,33 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 )]
 mod tests {
     use super::*;
+
+    #[crate::ctb_test]
+    fn test_representation_starters_include_equivalent_spellings() -> Result<()> {
+        let original = crate::lookup::get_all_dc_defns().iter()
+            .find(|defn| defn.dc_id == DC_EQUIVALENT_REPRESENTATIONS.to_u128())
+            .context("Missing equivalent-representations definition")?;
+        let mut alias = original.clone();
+        alias.short_id = Some(9000);
+        alias.dc_id = DcChar::from_short(9000).to_u128();
+        alias.syntax = None;
+        alias.decompositions = vec!["<equiv>397".to_owned()];
+        let mut chained = alias.clone();
+        chained.short_id = Some(9001);
+        chained.dc_id = DcChar::from_short(9001).to_u128();
+        chained.decompositions = vec!["<equiv>9000".to_owned()];
+        let named = crate::get_dc_data_file("README-named-types.csv")
+            .context("Missing named types")?;
+        let resolver = DatasetRuleResolver::load_from_dataset(
+            &[chained, alias, original.clone()], &[], Some(&named),
+        )?;
+        for token in [DC_EQUIVALENT_REPRESENTATIONS, DcChar::from_short(9000), DcChar::from_short(9001)] {
+            assert!(resolver.matches_named_type_starter("representation_set", token.to_u128()));
+        }
+        assert!(!resolver.matches_named_type_starter("representation_set", crate::dc::DC_BEGIN_LIST.to_u128()));
+        assert!(resolver.resolve_rule(&CharTarget::Dc(9001)).is_some());
+        Ok(())
+    }
 
     /// Verifies that the generated static syntax table matches the resolver
     /// built directly from the compiled-in CSV dataset. A failure here means

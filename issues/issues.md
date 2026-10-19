@@ -86,27 +86,45 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
     - Add durable source inventory and per-source deletion/recovery state for interrupted multi-file moves. `run_mv` currently cleans up using in-memory `copied_entities`, without a durable deletion transaction log.
   - Deferred Items: Live ReFS volume testing is outside this review's required scope. The Windows directory identity helper already queries `FileIdInfo` with a 64-bit fallback, and `InodeKey`/receipt serialization supports 128-bit IDs; preserve that extension boundary.
 
+- "When an alias has no syntax of its own, it will inherit the equivalent token’s rule." I'm not convinced about that. It should be something like: if you need to check "Is this a list opener?" in the serde implementation, it should add a new codegen rule that fills in a table/function holding list openers. Would just be one Dc long in many cases, but then if I'm adding a Dc with an <equiv> relationship, it will be treated as *logically equivalent* to the one that was initially targeted. If an <equiv> does *not* have the exact same syntax, I think that should be an *error when running the validation script*, and so this extra rule is not correct.
+
+-
+```
++representation_set,:(397: | 561:),Alternative representations of the same semantic value; a bare list is not a representation set.
++representation_separator,:(275 | 312),Separators within an alternative-representation list.
+```
+
+????
+
+- "The native archive tests use best-effort metadata restoration, so their pass does not establish strict fidelity for every Windows metadata field." There should be at least as thorough tests that run in default mode (similar to strict-lossless mode, but allowing for differences that *literally cannot* be materialized under the target, like ctime on Linux) too. Please check that there aren't other tests being cheated by using best-effort mode when there's not a corresponding normal-mode test. Please also make sure that the three-way distinction between default mode, best-effort mode, and full strict mode is correctly maintained. The use of best-effort mode in archive tests without at least as many corresponding default-mode tests is only present due to LLM cheating the requirements; it does not represent operator intent.
+
+```
+
+                                             #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
+-                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
++                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                             {
+                                                 found = ::std::option::Option::Some(cid);
+                                                 break;
+@@ -3104,7 +3104,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
+                                                 }
+                                             }
+                                             #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
+-                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
++                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                             {
+```
+
+Obviously wrong; non-data-driven; using bare Dcs in code.
+
 - csc archive: Bounded-memory attached-stream pipeline
   Status: Partially Implemented
   - Remaining Gaps & Pending Work:
     - Extend AppleDouble/AppleSingle conversion writers to consume nonresident attached bodies through `AttachedStreamSource`. Materialization currently rejects these conversion modes before mutation when bodies are nonresident, rather than silently omitting them. Native stream capture, archive writing, lazy projection, and pre-publication extraction use the streaming path.
-    - Native Windows ADS/reparse runtime qualification remains pending. Windows library and test targets cross-check successfully; the portable large-stream regression verifies source-free lazy archive bodies, and the publication regression rejects changed source bodies. These do not replace live NTFS execution. Live ReFS testing is not required.
 
 - impl ctb_formats_dcstring::DcMixedNumber for FinderLabel { This should be using the derive attribute Dc serialization I think. Ad-hoc serializers aren't permitted, unless there's an *extremely* compelling reason.
 
-- "Remaining limits: live Windows ADS/reparse testing is still unverified. Streaming grammar validation retains text and metadata, but not binary bodies."
-
-- Windows ADS/reparse archive qualification
-  Status: Partially Implemented
-  - 2026-10-19: Fixed junction buffers missing UTF-16 terminators (Windows error 4392). Windows change time is restorable through `SetFileInformationByHandle(FileBasicInfo)`; restoration now runs after publication and flags, with readback verification. Removed the unconditional capture warning. Actual restoration failures remain fatal in strict mode and reported warnings in best-effort mode. Three focused restoration regressions pass on Windows 11, including junction/no-follow behavior and unrepresentable timestamps.
-  - Remaining Gaps & Pending Work:
-    - Both `windows_native_qualification_*` archive tests now pass capture but fail extraction: "Sandboxed archive extraction is currently supported only on Unix". Windows archive round-trip qualification remains blocked on that separate implementation gap.
-    - `test_windows_change_time_capture_and_audit` fails its metadata serialization round-trip because `flags: Some([])` decodes as `None`; timestamps are preserved. This separate mismatch remains unresolved.
-    - These fixes have not yet been runtime-qualified on Windows 7.
-
 - Lazy AppleDouble/AppleSingle conversion remains open
-
-- Live Windows qualification not yet done
 
 - Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)? A good practical test (add a test script to run this whole process, probably, so it can be re-tried and variations on it added) would be to create a few files with odd, mangled, and differing-only-in-normalization Unicode filenames, each file having a few large (>512kB) streams with odd, mangled, and differing-only-in-normalization Unicode stream names on FreeBSD, and pack them into a `csc archive` there. Copy that out of FreeBSD and save it as a test fixture. On Linux, extract it using AppleDouble files. Then, `csc archive` that folder, with reading AppleDouble files turned on, re-joining the streams to their files. Copy that archive into Windows 11, and extract it. Confirm that the streams were extracted as ADS. `csc archive` it there. Copy that back out. Unpack it on FreeBSD, then do a `ctoolbox csc-diff` against the original files. The test script should ignore expected differences (inode, ctime) and report anything that got mangled or broken in the process.
 

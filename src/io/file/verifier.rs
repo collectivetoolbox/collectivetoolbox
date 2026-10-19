@@ -335,6 +335,8 @@ pub struct EntityAuditOptions {
     pub ignore_mtime: bool,
     /// Skip checking metadata change times (ctime).
     pub ignore_ctime: bool,
+    /// Require birth-time equality, including on platforms unable to set it.
+    pub check_birthtime: bool,
     /// Skip checking owner UID and GID.
     pub ignore_owner: bool,
     /// Skip checking POSIX permission modes.
@@ -358,6 +360,7 @@ impl Default for EntityAuditOptions {
             ignore_atime: true,
             ignore_mtime: false,
             ignore_ctime: true,
+            check_birthtime: cfg!(windows),
             ignore_owner: false,
             ignore_perms: false,
             ignore_flags: false,
@@ -692,7 +695,7 @@ pub fn audit_entity_detailed(
             }
         }
 
-        if let Some(expected_sec) = exp_ts.birthtime_sec {
+        if let Some(expected_sec) = exp_ts.birthtime_sec.filter(|_| options.check_birthtime) {
             let actual = crate::metadata::capture_birthtime(&dest_meta)?;
             let actual_sec = actual.map(|time| time.unix_seconds());
             let actual_nsec = actual.map(|time| time.nanoseconds());
@@ -1174,7 +1177,7 @@ pub fn verify_materialized_entity(
     entity: &FileEntity,
     strict_lossless: bool,
 ) -> Result<()> {
-    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false, false)
+    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false, cfg!(windows), cfg!(windows))
 }
 
 /// Verifies a materialized entity with opt-in control over access time (atime) and change time (ctime) checking.
@@ -1184,11 +1187,13 @@ pub fn verify_materialized_entity_ext(
     strict_lossless: bool,
     check_atime: bool,
     check_ctime: bool,
+    check_birthtime: bool,
 ) -> Result<()> {
     let mut options = EntityAuditOptions::default();
     options.drop_caches = true;
     options.check_sparse = true;
     options.ignore_ctime = !check_ctime;
+    options.check_birthtime = check_birthtime;
     options.ignore_atime = !check_atime;
     options.best_effort = !strict_lossless;
 
@@ -1457,9 +1462,9 @@ mod tests {
         let mut metadata = FileEntity::from_filesystem(&path, None)?.metadata;
         metadata.native = None;
         metadata.timestamps.as_mut().unwrap().ctime_nsec = 1;
-        let strict = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, true);
+        let strict = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, true, true);
         assert!(format!("{:#}", strict.unwrap_err()).contains("sub-100 ns precision"));
-        let warnings = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, false)?;
+        let warnings = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, false, true)?;
         assert!(warnings.iter().any(|warning| warning.contains("sub-100 ns precision")));
         assert!(crate::metadata::windows::set_file_change_time(&path,
             FileTime::from_unix_time(-11_644_473_600, 0)).is_err());
@@ -1625,17 +1630,18 @@ mod tests {
                 existing_entry_policy: crate::sandboxable_dir::ExistingEntryPolicy::Replace,
                 apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
                 apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
+                ..Default::default()
             };
 
             materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
 
             // Destination atime must match and pass verification when checked
-            verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).unwrap();
+            verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false, cfg!(windows)).unwrap();
 
             // When destination atime is modified, verification with check_atime must fail
             let bad_atime = FileTime::from_unix_time(1_700_000_000, 0);
             set_file_times(&dest_path, bad_atime, mtime).unwrap();
-            assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).is_err());
+            assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false, cfg!(windows)).is_err());
         }
     }
 }

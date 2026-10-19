@@ -691,6 +691,13 @@ pub fn apply_windows_reparse_metadata(
     }
 
     let safe_handle = SafeHandle(handle);
+    if std::fs::symlink_metadata(dest)?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        let mut current = BTreeMap::new();
+        capture_reparse_point_from_handle(safe_handle.0, &mut current)?;
+        if current.get("reparse.data") == Some(reparse_val) {
+            return Ok(());
+        }
+    }
     let buf_len =
         u32::try_from(buffer.len()).context("Invalid reparse buffer length")?;
     let mut bytes_returned: u32 = 0;

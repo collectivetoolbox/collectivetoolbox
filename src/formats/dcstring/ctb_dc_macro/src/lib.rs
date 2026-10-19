@@ -3020,16 +3020,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 for &cid in c_children {
                                     if let ::std::result::Result::Ok(cn) = ctx.node(cid) {
                                         match &cn.kind {
-                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, args }
-                                                if matches!(tag.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { args, .. }
+                                                if cn.starts_named_type("representation_set") =>
                                             {
                                                 if let ::std::option::Option::Some(&first_arg) = args.first() {
                                                     found = ::std::option::Option::Some(first_arg);
                                                     break;
                                                 }
                                             }
-                                            #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
-                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
+                                            #crate_root::navigator::DcSyntaxKind::Container { .. }
+                                                if cn.starts_named_type("representation_set") =>
                                             {
                                                 found = ::std::option::Option::Some(cid);
                                                 break;
@@ -3069,7 +3069,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             for &ch_id in target_children {
                                 let ch_node = ctx.node(ch_id)?;
                                 match &ch_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if matches!(ch.to_short_dc(), ::std::option::Option::Some(275 | 312 | 397 | 561)) => {}
+                                    #crate_root::navigator::DcSyntaxKind::Atom(_) if ch_node.starts_named_type("representation_separator") || ch_node.starts_named_type("representation_set") => {}
                                     #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } if tag.to_u128() == #raw_tag => {
                                         let arg_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for raw field `{}`", stringify!(#raw_ident)))?;
                                         let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, arg_id)?;
@@ -3095,16 +3095,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 for &cid in c_children {
                                     if let ::std::result::Result::Ok(cn) = ctx.node(cid) {
                                         match &cn.kind {
-                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, args }
-                                                if matches!(tag.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { args, .. }
+                                                if cn.starts_named_type("representation_set") =>
                                             {
                                                 if let ::std::option::Option::Some(&first_arg) = args.first() {
                                                     found = ::std::option::Option::Some(first_arg);
                                                     break;
                                                 }
                                             }
-                                            #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
-                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
+                                            #crate_root::navigator::DcSyntaxKind::Container { .. }
+                                                if cn.starts_named_type("representation_set") =>
                                             {
                                                 found = ::std::option::Option::Some(cid);
                                                 break;
@@ -3144,7 +3144,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             for &ch_id in target_children {
                                 let ch_node = ctx.node(ch_id)?;
                                 match &ch_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if matches!(ch.to_short_dc(), ::std::option::Option::Some(275 | 312 | 397 | 561)) => {}
+                                    #crate_root::navigator::DcSyntaxKind::Atom(_) if ch_node.starts_named_type("representation_separator") || ch_node.starts_named_type("representation_set") => {}
                                     #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } if tag.to_u128() == #raw_tag => {
                                         let arg_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for raw field `{}`", stringify!(#raw_ident)))?;
                                         let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, arg_id)?;

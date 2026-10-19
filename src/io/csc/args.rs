@@ -133,6 +133,10 @@ pub struct CscArgs {
     #[arg(long)]
     pub check_ctime: bool,
 
+    /// Require birth-time equality even on platforms unable to restore it.
+    #[arg(long)]
+    pub check_birthtime: bool,
+
     /// Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification.
     #[arg(long)]
     pub strict: bool,
@@ -293,7 +297,13 @@ impl CscArgs {
     /// Resolves whether metadata change time checking is active in post-copy verification.
     #[must_use]
     pub fn should_check_ctime(&self) -> bool {
-        self.strict || self.check_ctime
+        self.strict || self.check_ctime || cfg!(windows)
+    }
+
+    /// Whether birth-time fidelity is required on the destination.
+    #[must_use]
+    pub fn should_check_birthtime(&self) -> bool {
+        self.strict || self.check_birthtime || cfg!(windows)
     }
 
     /// Resolves AppleSingle / AppleDouble read options.
@@ -452,6 +462,10 @@ pub struct VerificationCriteriaArgs {
     #[arg(long)]
     pub check_ctime: bool,
 
+    /// Require birth-time equality even on platforms unable to restore it.
+    #[arg(long)]
+    pub check_birthtime: bool,
+
     /// Ignore ownership (UID and GID) differences.
     #[arg(long)]
     pub ignore_owner: bool,
@@ -573,6 +587,7 @@ impl VerificationCriteriaArgs {
             ignore_atime: self.should_ignore_atime(),
             ignore_mtime: self.should_ignore_mtime(),
             ignore_ctime: self.should_ignore_ctime(),
+            check_birthtime: self.strict || self.check_birthtime || cfg!(windows),
             ignore_owner: self.should_ignore_owner(),
             ignore_perms: self.should_ignore_perms(),
             ignore_flags: self.should_ignore_flags(),
@@ -1216,10 +1231,11 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         copy_block_devices_as_regular_files: false,
         copy_fifos_as_regular_files: false,
         one_file_system: false,
-        best_effort_metadata: true,
+        best_effort_metadata: false,
         allow_unknown_fs: false,
         check_atime: false,
         check_ctime: false,
+        check_birthtime: false,
         strict: false,
         delete_manifest_after: false,
         recursive: true,
@@ -1259,6 +1275,7 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
             ignore_mtime: false,
             ignore_ctime: true,
             check_ctime: false,
+            check_birthtime: false,
             ignore_owner: true,
             ignore_perms: false,
             ignore_flags: true,
@@ -1288,6 +1305,7 @@ pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs
             ignore_mtime: false,
             ignore_ctime: true,
             check_ctime: false,
+            check_birthtime: false,
             ignore_owner: false,
             ignore_perms: false,
             ignore_flags: false,

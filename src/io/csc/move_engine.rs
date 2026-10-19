@@ -175,6 +175,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     allow_unknown_fs: args.allow_unknown_fs,
                     check_atime: false,
                     check_ctime: false,
+                    check_birthtime: false,
                     strict: false,
                     delete_manifest_after: true,
                     recursive: true,
@@ -481,7 +482,7 @@ mod tests {
         fs::create_dir(&destination).unwrap();
         fs::write(source.join("new-data"), b"not copied").unwrap();
         let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
-        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, false).unwrap();
+        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, false, cfg!(windows)).unwrap();
         let entries = vec![(source.clone(), destination, entity)];
         assert!(crate::move_engine::remove_copied_sources(&entries, &source, false, true).is_err());
         assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");

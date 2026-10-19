@@ -73,7 +73,8 @@
   materialization writes and verifies attached bodies before atomic publication.
   Nonresident AppleDouble/AppleSingle conversion is explicitly rejected before
   mutation until companion writers accept the same reader interface. Native
-  Windows runtime qualification remains separate from cross-target checking.
+  Windows runtime qualification is recorded below; cross-platform companion
+  conversion remains separate.
 - CapturedTree final validation and pending-warning persistence must precede
   completion. Best-effort validation returning Ok can still retain warnings;
   drain them through the shared visitor before discarding snapshots. Companion
@@ -96,30 +97,39 @@
   Binary-source failure tagging
   must preserve source-only rollback without overriding observed sink failures.
 
-## Pending Native Windows Qualification
+## Native Windows Qualification
 
 - `windows_native_qualification_large_ads_source_free_archive` covers three
   multi-megabyte native ADS with decomposed, precomposed and lone-surrogate
   names, lazy archive bodies, source deletion and restored body hashes.
 - `windows_native_qualification_reparse_source_free_archive` covers native file
   and directory symlinks and a junction, with exact raw reparse buffer checks.
-- Both were run using `scripts/vm` on Windows 7 and Windows 11. Neither passed:
-  archive capture rejects the existing change-time restoration warning.
-  Windows change time is the metadata-change timestamp, distinct from last
-  modification time. Capture retains it, but restoration is unimplemented;
-  `JournalWriter` rejects semantic metadata warnings before committing members.
+- Both archive tests passed on Windows 7 and Windows 11 on 2026-10-19 using
+  `scripts/vm`. They use best-effort metadata restoration; this does not qualify
+  default-mode or full strict metadata fidelity. Corresponding default-mode
+  archive coverage and the three-mode contract remain open in `issues/issues.md`.
+- Windows change time is distinct from modification time and is restored with
+  `SetFileInformationByHandle(FileBasicInfo)` after publication and flags, with
+  readback verification. All four `windows_change_time` tests pass on both OSes,
+  covering capture/audit, publication, directory/junction no-follow handling and
+  unrepresentable timestamps. Empty semantic flag lists must remain `Some([])`:
+  paired-field decoding must not peel bare Dc 310 lists as representation
+  wrappers. The regression covers absent, empty and nonempty flags with and
+  without raw bits.
+- Native reparse creation must use the captured tag and directory attribute;
+  inferring directory kind from a deleted source target loses junction fidelity.
+  Junction buffers require UTF-16 terminators. Avoid resetting identical raw
+  reparse data, which can require privileges unnecessary for symlink creation.
+- Archive extraction now uses the shared Windows materializer. The traversal
+  and symlink-ancestor rejection regression also passes natively on Windows 11.
+  Linux suites passed: file 177, CSC 221 and DcString 160 tests. The six streaming
+  writer tests confirm binary-aware grammar validation described above.
 - The Windows suite runner now requests elevation with PowerShell `RunAs`,
-  checks the high-integrity token and logs privileges. Elevated reruns on both
-  Windows 7 and Windows 11 created file and directory symlinks successfully,
-  removing error 1314; both then failed creating the junction with invalid
-  reparse data (error 4392). UAC consent retries wait for the suite-start marker
-  rather than relying on a single fixed-delay confirmation.
+  checks the high-integrity token and logs privileges. UAC consent retries wait
+  for the suite-start marker rather than relying on one fixed-delay confirmation.
   The runner lives in a separate git repository `ci-logs/vm`, invoked by
   `scripts/vm`; this environment's elevation change is not distributed by
-  repository commits. Source-free extraction assertions remain unqualified. Do
-  not suppress the warning or skip the fixtures to claim fidelity; native
-  metadata handling and junction buffer handling need follow-up before these
-  tests qualify the path.
+  repository commits. Live ReFS testing was excluded from this qualification.
 - Extraction and verification support `--recover` (aliases: `--salvage`,
   `--allow-archive-errors`, `--allow-journal-errors`). In recover mode,
   `JournalReader` uses forgiving projection and recover scan mode, allows

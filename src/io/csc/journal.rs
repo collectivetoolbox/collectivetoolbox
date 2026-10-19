@@ -2264,6 +2264,7 @@ mod tests {
                 false,
                 false,
                 true, // strict_lossless
+                true,
             )
             .unwrap_err();
 

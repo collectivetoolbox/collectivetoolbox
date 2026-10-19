@@ -67,6 +67,12 @@ pub struct MaterializeOptions {
     pub dry_run: bool,
     /// If true, enforce strict zero-data-loss for metadata and streams.
     pub strict_lossless: bool,
+    /// Require access-time equality after materialization and verification.
+    pub check_atime: bool,
+    /// Require change-time equality even on platforms that cannot set it.
+    pub check_ctime: bool,
+    /// Require birth-time equality even on platforms that cannot set it.
+    pub check_birthtime: bool,
     /// Policy for validating symlink targets.
     pub symlink_policy: SymlinkValidationPolicy,
     /// Policy for validating relative entry paths.
@@ -89,6 +95,9 @@ impl Default for MaterializeOptions {
         Self {
             dry_run: false,
             strict_lossless: true,
+            check_atime: false,
+            check_ctime: cfg!(windows),
+            check_birthtime: cfg!(windows),
             symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
@@ -127,6 +136,7 @@ pub fn apply_entity_metadata(
     is_symlink: bool,
     apply_flags: bool,
     strict_lossless: bool,
+    check_birthtime: bool,
 ) -> Result<Vec<String>> {
     if let Some(timestamps) = &meta.timestamps {
         timestamps.validate()?;
@@ -295,7 +305,7 @@ pub fn apply_entity_metadata(
     if apply_flags {
         #[cfg(windows)]
         warnings.extend(apply_windows_change_time(dest, meta, strict_lossless)?);
-        warnings.extend(crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?);
+        warnings.extend(crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false, check_birthtime)?);
     }
 
     Ok(warnings)
@@ -485,19 +495,27 @@ pub fn materialize_entity_with_stream_source(
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
-            if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
+            if options.strict_lossless && options.check_birthtime && !cfg!(windows) && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce symlink birth time on this platform");
             }
             let target_path = target.to_path_buf_for_materialization(options.strict_lossless)?;
             let mut adaptation_warnings = Vec::new();
-            let create = |path: &Path| dest_dir.create_symlink_at(
-                &parent_dir_fd.as_fd(),
-                &file_name,
-                &dest_path,
-                path.as_os_str().as_encoded_bytes(),
-                options.symlink_policy,
-                options.existing_entry_policy,
-            );
+            let create = |path: &Path| {
+                #[cfg(windows)]
+                if let Some(native) = &entity.metadata.native {
+                    if native.source_os == OsFamily::Windows && native.values.contains_key("reparse.data") {
+                        return dest_dir.create_native_reparse_at(&dest_path, path, native, options.symlink_policy, options.existing_entry_policy);
+                    }
+                }
+                dest_dir.create_symlink_at(
+                    &parent_dir_fd.as_fd(),
+                    &file_name,
+                    &dest_path,
+                    path.as_os_str().as_encoded_bytes(),
+                    options.symlink_policy,
+                    options.existing_entry_policy,
+                )
+            };
             if let Err(error) = create(&target_path) {
                 if options.strict_lossless || !crate::link_path::is_destination_encoding_error(&error) {
                     return Err(error);
@@ -518,6 +536,7 @@ pub fn materialize_entity_with_stream_source(
                 true,
                 true,
                 options.strict_lossless,
+                options.check_birthtime,
             )?;
             warnings.extend(adaptation_warnings);
 
@@ -602,6 +621,7 @@ pub fn materialize_entity_with_stream_source(
                 false,
                 true,
                 options.strict_lossless,
+                options.check_birthtime,
             )?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -614,7 +634,7 @@ pub fn materialize_entity_with_stream_source(
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
         | FileEntityKind::BlockDevice { .. } => {
-            if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
+            if options.strict_lossless && options.check_birthtime && !cfg!(windows) && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce special-node birth time on this platform");
             }
             anyhow::ensure!(
@@ -639,6 +659,7 @@ pub fn materialize_entity_with_stream_source(
                 false,
                 true,
                 options.strict_lossless,
+                options.check_birthtime,
             )?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -776,6 +797,7 @@ pub fn materialize_entity_with_stream_source(
                     false,
                     false,
                     options.strict_lossless,
+                    options.check_birthtime,
                 )?;
                 warnings.extend(source_warnings);
 
@@ -1137,6 +1159,7 @@ pub fn materialize_entity_with_stream_source(
                 false,
                 false,
                 options.strict_lossless,
+                options.check_birthtime,
             )?;
             warnings.extend(sparse_warnings);
             warnings.extend(source_warnings);
@@ -1152,6 +1175,7 @@ pub fn materialize_entity_with_stream_source(
                 let audit_options = EntityAuditOptions {
                     ignore_flags: true,
                     ignore_atime: !payload_noatime,
+                    check_birthtime: options.check_birthtime,
                     ..EntityAuditOptions::default()
                 };
                 let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;
@@ -1194,7 +1218,7 @@ pub fn materialize_entity_with_stream_source(
             #[cfg(windows)]
             warnings.extend(apply_windows_change_time(&dest_path, &entity.metadata, options.strict_lossless)?);
             warnings.extend(crate::metadata::check_metadata_replication(
-                &dest_path, &entity.metadata, options.strict_lossless, false,
+                &dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
             )?);
 
             Ok(MaterializeReceipt {
@@ -1551,6 +1575,7 @@ fn try_update_existing_regular_entity(
         false,
         false,
         options.strict_lossless,
+        options.check_birthtime,
     )?;
 
     // 10. Apply final file flags
@@ -1573,15 +1598,16 @@ fn try_update_existing_regular_entity(
     #[cfg(windows)]
     warnings.extend(apply_windows_change_time(dest_path, &entity.metadata, options.strict_lossless)?);
     warnings.extend(crate::metadata::check_metadata_replication(
-        dest_path, &entity.metadata, options.strict_lossless, false,
+        dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
     )?);
 
     // 11. Strict lossless audit
     if options.strict_lossless {
         let audit_opts = EntityAuditOptions {
-            ignore_atime: true,
+            ignore_atime: !options.check_atime,
             ignore_mtime: false,
-            ignore_ctime: true,
+            ignore_ctime: !options.check_ctime,
+            check_birthtime: options.check_birthtime,
             ignore_owner: false,
             ignore_perms: false,
             ignore_flags: false,
@@ -2263,6 +2289,7 @@ mod tests {
             existing_entry_policy: ExistingEntryPolicy::Replace,
             apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
             apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
+            ..Default::default()
         };
 
         let dest_dir = SandboxableDir::open(temp.path()).unwrap();

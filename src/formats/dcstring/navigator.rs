@@ -721,6 +721,18 @@ pub struct DcSyntaxNode<'a> {
 }
 
 impl<'a> DcSyntaxNode<'a> {
+    /// Tests a node's leading token against a database-defined named type.
+    #[must_use]
+    pub fn starts_named_type(&self, name: &str) -> bool {
+        let token = match &self.kind {
+            DcSyntaxKind::Container { opener, .. } => opener,
+            DcSyntaxKind::Tagged { tag, .. } => tag,
+            DcSyntaxKind::Atom(token) => token,
+            _ => return false,
+        };
+        default_syntax_resolver().matches_named_type_starter(name, token.to_u128())
+    }
+
     /// Returns the child node IDs if this node is a container or tagged construct.
     #[must_use]
     pub fn children(&self) -> &[NodeId] {

@@ -9,6 +9,8 @@ identifier,:270:,A nonempty framed name. Naming an object does not itself derefe
 type,:([262:] | [format]),
 format,:[f0..f632],
 list,:[310:],
+representation_set,:(397: | 561:),Alternative representations of the same semantic value; a bare list is not a representation set.
+representation_separator,:(275 | 312),Separators within an alternative-representation list.
 key_value,:(559: | 313:),Ordered key-value array. Dc 559 is canonical; Dc 313 remains readable for existing documents.
 duration,:[395:],
 datemagnitude,:[393:],A positive duration

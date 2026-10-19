@@ -172,12 +172,15 @@ pub fn execute_copy_pipeline(
     let mut uncommitted_count: usize = 0;
     let copy_task = progress.start_task("Copying", None);
 
-    let strict_lossless = !args.best_effort_metadata && !args.allow_unknown_fs;
+    let strict_lossless = args.strict || !args.best_effort_metadata;
     let (apple_write_mode, apple_single_write_extension) = args.resolve_apple_write_mode()?;
     let apple_read_options = args.resolve_apple_read_options();
     let options = MaterializeOptions {
         dry_run: args.dry_run,
         strict_lossless,
+        check_atime: args.should_check_atime(),
+        check_ctime: args.should_check_ctime(),
+        check_birthtime: args.should_check_birthtime(),
         symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
         path_policy: PathTraversalPolicy::StrictSandboxed,
         copy_specials: args.copy_specials_as_specials,
@@ -726,6 +729,7 @@ pub fn execute_copy_pipeline(
                     false,
                     true,
                     strict_lossless,
+                    options.check_birthtime,
                 ) {
                     Ok(warnings) => warnings,
                     Err(e) => {
@@ -749,6 +753,7 @@ pub fn execute_copy_pipeline(
                     strict_lossless,
                     args.should_check_atime(),
                     args.should_check_ctime(),
+                    options.check_birthtime,
                 ) {
                     record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
@@ -818,9 +823,10 @@ pub fn execute_copy_pipeline(
                 if let Err(e) = verify_materialized_entity_ext(
                     src_path,
                     entity,
-                    !args.best_effort_metadata,
+                    strict_lossless,
                     check_atime,
                     args.should_check_ctime(),
+                    options.check_birthtime,
                 ) {
                     let _ = handle_item_error(
                         src_path,
@@ -839,6 +845,7 @@ pub fn execute_copy_pipeline(
                 strict_lossless,
                 check_atime,
                 args.should_check_ctime(),
+                options.check_birthtime,
             ) {
                 let _ = handle_item_error(
                     dest_path,

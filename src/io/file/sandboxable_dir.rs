@@ -889,6 +889,50 @@ impl SandboxableDir {
         })
     }
 
+    #[cfg(windows)]
+    pub fn create_native_reparse_at(
+        &self,
+        destination: &Path,
+        target: &Path,
+        native: &crate::metadata::NativeMetadata,
+        policy: SymlinkValidationPolicy,
+        existing: ExistingEntryPolicy,
+    ) -> Result<()> {
+        use crate::metadata::{NativeMetadataValue, reparse, windows};
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_DIRECTORY;
+
+        validate_symlink_target(&self.root_path, destination, target.as_os_str().as_encoded_bytes(), policy)?;
+        let Some(NativeMetadataValue::Unsigned(tag)) = native.values.get("reparse.tag") else {
+            anyhow::bail!("Native link is missing its reparse tag");
+        };
+        let Some(NativeMetadataValue::Unsigned(attributes)) = native.values.get("attributes") else {
+            anyhow::bail!("Native link is missing its file attributes");
+        };
+        let is_directory = attributes & u64::from(FILE_ATTRIBUTE_DIRECTORY) != 0;
+        anyhow::ensure!(*tag == u64::from(reparse::IO_REPARSE_TAG_SYMLINK)
+            || (*tag == u64::from(reparse::IO_REPARSE_TAG_MOUNT_POINT) && is_directory),
+            "Unsupported native link reparse tag {tag:#x}");
+        replace_node_windows(destination, existing, |path| {
+            if *tag == u64::from(reparse::IO_REPARSE_TAG_MOUNT_POINT) {
+                std::fs::create_dir(path)?;
+            } else if is_directory {
+                std::os::windows::fs::symlink_dir(target, path)?;
+            } else {
+                std::os::windows::fs::symlink_file(target, path)?;
+            }
+            let result = windows::apply_windows_reparse_metadata(path, native, true).and_then(|()| {
+                let actual_target = std::fs::read_link(path)?;
+                validate_symlink_target(&self.root_path, destination, actual_target.as_os_str().as_encoded_bytes(), policy)
+            });
+            if let Err(error) = result {
+                let cleanup = if is_directory { std::fs::remove_dir(path) } else { std::fs::remove_file(path) };
+                cleanup.with_context(|| format!("Failed to clean up native link after {error:#}"))?;
+                return Err(error);
+            }
+            Ok(())
+        })
+    }
+
     /// Creates a symbolic link directly inside `parent_dir_fd`.
     #[cfg(windows)]
     pub fn create_symlink(

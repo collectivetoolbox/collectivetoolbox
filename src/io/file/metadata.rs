@@ -1271,6 +1271,7 @@ pub fn check_metadata_replication(
     metadata: &FileMetadata,
     strict: bool,
     ignore_flags: bool,
+    check_birthtime: bool,
 ) -> Result<Vec<String>> {
     let mut warnings = Vec::new();
     if let Some(ref ts) = metadata.timestamps {
@@ -1285,7 +1286,7 @@ pub fn check_metadata_replication(
             let actual =
                 capture_birthtime(&std::fs::symlink_metadata(destination)?)?;
             let expected = checked_file_time(seconds, nanos)?;
-            if actual != Some(expected) {
+            if check_birthtime && actual != Some(expected) {
                 if strict {
                     anyhow::bail!(
                         "Cannot reproduce birth time {seconds}.{nanos:09} on {}; original metadata must be retained in the journal",
@@ -1496,9 +1497,9 @@ mod tests {
             .unwrap().metadata.timestamps.unwrap();
         timestamps.atime_sec = i64::MIN;
         let metadata = FileMetadata { timestamps: Some(timestamps), ..FileMetadata::default() };
-        let warnings = crate::apply_entity_metadata(&path, None, &metadata, false, false, false).unwrap();
+        let warnings = crate::apply_entity_metadata(&path, None, &metadata, false, false, false, true).unwrap();
         assert!(warnings.iter().any(|warning| warning.contains("native conversion range")));
-        assert!(crate::apply_entity_metadata(&path, None, &metadata, false, false, true).is_err());
+        assert!(crate::apply_entity_metadata(&path, None, &metadata, false, false, true, true).is_err());
     }
 
     #[crate::ctb_test]
@@ -1733,6 +1734,17 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_optional_semantic_flags_roundtrip() -> Result<()> {
+        for flags in [None, Some(Vec::new()), Some(vec![FileFlag::ReadOnly])] {
+            for platform_raw_flags in [None, Some(PlatformRawFlags::from_raw(0))] {
+                let metadata = FileMetadata { flags: flags.clone(), platform_raw_flags, ..Default::default() };
+                ctb_formats_dcstring::assert_dc_roundtrip(&metadata)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_birthtime_replication_policy() {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("file");
@@ -1747,12 +1759,12 @@ mod tests {
             flags: Some(Vec::new()), platform_raw_flags: None, read_time: None, filesystem_type: None,
             environment: None, apple: None, warnings: Vec::new(), errors: Vec::new(),
         };
-        assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
-        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
+        assert!(metadata::check_metadata_replication(&path, &metadata, true, false, true).is_err());
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false, true).is_ok());
         if let Some(ref mut ts) = metadata.timestamps {
             ts.birthtime_sec = None;
         }
-        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_err());
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false, true).is_err());
     }
 
     #[crate::ctb_test]
@@ -1858,8 +1870,8 @@ mod tests {
         entity.metadata.native.as_mut().unwrap().values.insert(
             "future.attribute".to_owned(), metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
-        assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false).is_err());
-        let warnings = metadata::check_metadata_replication(&path, &entity.metadata, false, false).unwrap();
+        assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false, true).is_err());
+        let warnings = metadata::check_metadata_replication(&path, &entity.metadata, false, false, true).unwrap();
         assert!(warnings.iter().any(|warning| warning.contains("future.attribute")));
         entity.identity.relative_path = Some(std::path::PathBuf::from("file"));
         let destination = tempfile::tempdir().unwrap();
@@ -1887,24 +1899,24 @@ mod tests {
         }
         let missing = destination.path().join("missing");
         let warnings = crate::materializer::apply_entity_metadata(
-            &missing, None, &requested, false, false, false,
+            &missing, None, &requested, false, false, false, true,
         ).unwrap();
         assert!(warnings.iter().any(|warning| warning.contains("Failed to set file timestamps")));
         assert!(crate::materializer::apply_entity_metadata(
-            &missing, None, &requested, false, false, true,
+            &missing, None, &requested, false, false, true, true,
         ).is_err());
         #[cfg(windows)]
         {
             requested.mode = Some(0o444);
             let warnings = crate::materializer::apply_entity_metadata(
-                &missing, None, &requested, false, false, false,
+                &missing, None, &requested, false, false, false, true,
             ).unwrap();
             assert!(warnings.iter().any(|warning| warning.contains("read-only permissions")));
             assert!(crate::materializer::apply_entity_metadata(
-                &missing, None, &requested, false, false, true,
+                &missing, None, &requested, false, false, true, true,
             ).unwrap_err().to_string().contains("read-only permissions"));
         }
-        assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false).is_err());
+        assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false, true).is_err());
         let options = EntityAuditOptions { best_effort: false, ..Default::default() };
         assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(|diff|
             matches!(diff, DiffKind::NativeMetadataMismatch { .. })));
