@@ -2184,11 +2184,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     )?;
                 }
             }
-            if target.to_u128() == DC_BEGIN_LIST.to_u128() {
+            if resolver.token_fills_role(target.to_u128(), DcRole::BeginList) {
                 let body_start = self.cursor;
-                self.check_declared_list_length(inner, body_start, policy)?;
+                self.check_declared_list_length(target, inner, body_start, policy)?;
             }
-            if target.to_u128() == DC_BEGIN_FORMAT_REPRESENTATION.to_u128() {
+            if resolver.token_fills_role(target.to_u128(), DcRole::BeginFormatRepresentation) {
                 if let Some((format, _)) = self.read_token_or_binary_at(inner.start)? {
                     if let Some(format_target @ CharTarget::Format(_)) = CharTarget::from_u128(format.to_u128()) {
                         if resolver.resolve_rule(&format_target).is_some() {
@@ -2217,15 +2217,19 @@ impl<'a> DcDocumentNavigator<'a> {
 
     fn check_declared_list_length(
         &mut self,
+        list_target: &CharTarget,
         inner: DcByteSpan,
         body_start: u64,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        let Some((DC_BEGIN_NUMBER, _)) = self.read_token_or_binary_at(inner.start)? else {
+        let Some((first_tok, _)) = self.read_token_or_binary_at(inner.start)? else {
             return Ok(());
         };
         let resolver = default_syntax_resolver();
-        let mut ctx = SyntaxEvalContext::new(&**resolver, Some(DC_BEGIN_LIST.to_u128()));
+        if !resolver.token_fills_role(first_tok.to_u128(), DcRole::BeginNumber) {
+            return Ok(());
+        }
+        let mut ctx = SyntaxEvalContext::new(&**resolver, Some(list_target.to_u128()));
         ctx.policy.clone_from(policy);
         self.cursor = inner.start;
         if !self.eval_number_frame(None, &mut ctx)? {
@@ -2236,26 +2240,31 @@ impl<'a> DcDocumentNavigator<'a> {
         let Ok(expected) = usize::try_from(&length) else {
             return self.syntax_issue(policy, inner.start, "Invalid declared list length".to_owned());
         };
+        let sep_u128 = DcRole::ListElementSeparator
+            .defining_short()
+            .map_or(312u128, |s| DcChar::from_short(s).to_u128());
         let operand = SyntaxTerm::CharSet {
             negated: true,
-            members: vec![CharTarget::from_u128(DC_LIST_ELEMENT_SEPARATOR.to_u128()).context("Missing separator target")?],
+            members: vec![CharTarget::from_u128(sep_u128).context("Missing separator target")?],
         };
         let mut actual = 0_usize;
         let mut in_element = false;
         self.cursor = body_start;
         while self.cursor < inner.end {
             let start = self.cursor;
-            if let Some((DC_LIST_ELEMENT_SEPARATOR, after)) = self.read_token_or_binary_at(start)? {
-                in_element = false;
-                self.cursor = after;
-            } else {
-                if !in_element {
-                    actual = actual.saturating_add(1);
-                    in_element = true;
+            if let Some((tok, after)) = self.read_token_or_binary_at(start)? {
+                if resolver.token_fills_role(tok.to_u128(), DcRole::ListElementSeparator) {
+                    in_element = false;
+                    self.cursor = after;
+                    continue;
                 }
-                if !self.eval_term_single(&operand, &mut ctx)? || self.cursor <= start {
-                    break;
-                }
+            }
+            if !in_element {
+                actual = actual.saturating_add(1);
+                in_element = true;
+            }
+            if !self.eval_term_single(&operand, &mut ctx)? || self.cursor <= start {
+                break;
             }
         }
         if actual != expected {
@@ -5190,7 +5199,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.cursor = start_offset;
                         return Ok(false);
                     };
-                    if !number_satisfies_subtype(&val, sub) {
+                    if !number_satisfies_subtype(&val, sub, ctx.resolver) {
                         self.cursor = start_offset;
                         return Ok(false);
                     }
@@ -5294,62 +5303,152 @@ fn parse_bound(expr: &str) -> Option<malachite::Integer> {
     }
 }
 
-fn number_satisfies_subtype(val: &malachite::Integer, subtype: &str) -> bool {
-    let zero = malachite::Integer::from(0);
+fn number_satisfies_subtype(
+    val: &malachite::Integer,
+    subtype: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
     for raw_part in subtype.split('&') {
         let part = raw_part.trim();
         if part.is_empty() {
             continue;
         }
-        let satisfied = match part {
-            "Natural0" | "NonNegative" | "f200" => val >= &zero,
-            "Natural" | "Natural1" | "Positive" | "f351" | "f201" => val > &zero,
-            "Negative" | "f202" => val < &zero,
-            "Integer" | "f199" | "AbstractNumber" | "f355" => true,
-            "U8" | "f203" => val >= &zero && val <= &malachite::Integer::from(u8::MAX),
-            "I8" | "f204" => {
-                val >= &malachite::Integer::from(i8::MIN)
-                    && val <= &malachite::Integer::from(i8::MAX)
-            }
-            "U16" | "f205" => val >= &zero && val <= &malachite::Integer::from(u16::MAX),
-            "I16" | "f206" => {
-                val >= &malachite::Integer::from(i16::MIN)
-                    && val <= &malachite::Integer::from(i16::MAX)
-            }
-            "U32" | "f207" => val >= &zero && val <= &malachite::Integer::from(u32::MAX),
-            "I32" | "f208" => {
-                val >= &malachite::Integer::from(i32::MIN)
-                    && val <= &malachite::Integer::from(i32::MAX)
-            }
-            "U64" | "f209" => val >= &zero && val <= &malachite::Integer::from(u64::MAX),
-            "I64" | "f210" => {
-                val >= &malachite::Integer::from(i64::MIN)
-                    && val <= &malachite::Integer::from(i64::MAX)
-            }
-            "U128" | "f211" => val >= &zero && val <= &malachite::Integer::from(u128::MAX),
-            "I128" | "f212" => {
-                val >= &malachite::Integer::from(i128::MIN)
-                    && val <= &malachite::Integer::from(i128::MAX)
-            }
-            _ => {
-                if let Some(rest) = part.strip_prefix("<=") {
-                    parse_bound(rest).is_none_or(|b| val <= &b)
-                } else if let Some(rest) = part.strip_prefix('<') {
-                    parse_bound(rest).is_none_or(|b| val < &b)
-                } else if let Some(rest) = part.strip_prefix(">=") {
-                    parse_bound(rest).is_none_or(|b| val >= &b)
-                } else if let Some(rest) = part.strip_prefix('>') {
-                    parse_bound(rest).is_none_or(|b| val > &b)
-                } else {
-                    true
-                }
-            }
-        };
-        if !satisfied {
+        if !check_single_number_subtype(val, part, resolver) {
             return false;
         }
     }
     true
+}
+
+fn check_single_number_subtype(
+    val: &malachite::Integer,
+    part: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    let fmt = FormatId::from_shorthand(part)
+        .or_else(|| FormatId::from_ident(part))
+        .or_else(|| match part {
+            "NonNegative" => Some(FormatId::Natural0),
+            "Natural" => Some(FormatId::Natural1),
+            _ => None,
+        });
+
+    if let Some(fmt) = fmt {
+        if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt)) {
+            if let Some(ok) = check_pattern_number_constraint(&rule.pattern, val, resolver) {
+                return ok;
+            }
+        }
+        eval_format_number_bounds(fmt, val)
+    } else if let Some(rule) = resolver.resolve_named_type(part) {
+        check_pattern_number_constraint(rule, val, resolver).unwrap_or(true)
+    } else if let Some(rest) = part.strip_prefix("<=") {
+        parse_bound(rest).is_none_or(|b| val <= &b)
+    } else if let Some(rest) = part.strip_prefix('<') {
+        parse_bound(rest).is_none_or(|b| val < &b)
+    } else if let Some(rest) = part.strip_prefix(">=") {
+        parse_bound(rest).is_none_or(|b| val >= &b)
+    } else if let Some(rest) = part.strip_prefix('>') {
+        parse_bound(rest).is_none_or(|b| val > &b)
+    } else {
+        true
+    }
+}
+
+fn check_pattern_number_constraint(
+    pattern: &SyntaxPattern,
+    val: &malachite::Integer,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Option<bool> {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => {
+            for element in elements {
+                if let Some(res) = check_term_number_constraint(&element.term, val, resolver) {
+                    return Some(res);
+                }
+            }
+            None
+        }
+        SyntaxPattern::Alternation(branches) => {
+            let mut any_found = false;
+            for branch in branches {
+                if let Some(res) = check_pattern_number_constraint(branch, val, resolver) {
+                    any_found = true;
+                    if res {
+                        return Some(true);
+                    }
+                }
+            }
+            if any_found {
+                Some(false)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn check_term_number_constraint(
+    term: &SyntaxTerm,
+    val: &malachite::Integer,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Option<bool> {
+    match term {
+        SyntaxTerm::NamedConstruct { name, subtype, .. } if name == "number" => {
+            if let Some(sub) = subtype {
+                Some(number_satisfies_subtype(val, sub, resolver))
+            } else {
+                Some(true)
+            }
+        }
+        SyntaxTerm::RuleRef { target } => {
+            if let Some(rule) = resolver.resolve_rule(target) {
+                check_pattern_number_constraint(&rule.pattern, val, resolver)
+            } else {
+                None
+            }
+        }
+        SyntaxTerm::Group(pattern) => {
+            check_pattern_number_constraint(pattern, val, resolver)
+        }
+        _ => None,
+    }
+}
+
+fn eval_format_number_bounds(fmt: FormatId, val: &malachite::Integer) -> bool {
+    let zero = malachite::Integer::from(0);
+    match fmt {
+        FormatId::Natural0 => val >= &zero,
+        FormatId::Natural1 | FormatId::Positive => val > &zero,
+        FormatId::Negative => val < &zero,
+        FormatId::Integer | FormatId::AbstractNumber => true,
+        FormatId::U8 => val >= &zero && val <= &malachite::Integer::from(u8::MAX),
+        FormatId::I8 => {
+            val >= &malachite::Integer::from(i8::MIN)
+                && val <= &malachite::Integer::from(i8::MAX)
+        }
+        FormatId::U16 => val >= &zero && val <= &malachite::Integer::from(u16::MAX),
+        FormatId::I16 => {
+            val >= &malachite::Integer::from(i16::MIN)
+                && val <= &malachite::Integer::from(i16::MAX)
+        }
+        FormatId::U32 => val >= &zero && val <= &malachite::Integer::from(u32::MAX),
+        FormatId::I32 => {
+            val >= &malachite::Integer::from(i32::MIN)
+                && val <= &malachite::Integer::from(i32::MAX)
+        }
+        FormatId::U64 => val >= &zero && val <= &malachite::Integer::from(u64::MAX),
+        FormatId::I64 => {
+            val >= &malachite::Integer::from(i64::MIN)
+                && val <= &malachite::Integer::from(i64::MAX)
+        }
+        FormatId::U128 => val >= &zero && val <= &malachite::Integer::from(u128::MAX),
+        FormatId::I128 => {
+            val >= &malachite::Integer::from(i128::MIN)
+                && val <= &malachite::Integer::from(i128::MAX)
+        }
+        _ => true,
+    }
 }
 
 fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {

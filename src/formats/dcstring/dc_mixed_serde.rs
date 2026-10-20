@@ -570,7 +570,8 @@ impl DcMixedDecode for DcRawValue {
 
         let unwrap_id = ctx.unwrap_transparent(curr_id)?;
         if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
-            if fmt == format_dc_char(FormatId::FilePath)? {
+            let path_fmt = format_dc_char(FormatId::FilePath)?;
+            if ctx.tokens_equivalent(fmt, path_fmt) {
                 let segments = decode_filepath_segments(ctx, unwrap_id)?;
                 return Ok(Self::FilePathSegments(segments));
             }
@@ -1696,7 +1697,7 @@ impl DcMixedDecode for Ipv4Addr {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == ipv4_fmt {
+            if ctx.tokens_equivalent(fmt, ipv4_fmt) {
                 let val = u32::decode_dc_node(ctx, payload_id)?;
                 return Ok(Ipv4Addr::from(val));
             }
@@ -1725,7 +1726,7 @@ impl DcMixedDecode for Ipv6Addr {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == ipv6_fmt {
+            if ctx.tokens_equivalent(fmt, ipv6_fmt) {
                 let val = u128::decode_dc_node(ctx, payload_id)?;
                 return Ok(Ipv6Addr::from(val));
             }
@@ -1753,10 +1754,10 @@ impl DcMixedDecode for std::net::IpAddr {
         let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
         let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == ipv4_fmt {
+            if ctx.tokens_equivalent(fmt, ipv4_fmt) {
                 let val = u32::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V4(Ipv4Addr::from(val)));
-            } else if fmt == ipv6_fmt {
+            } else if ctx.tokens_equivalent(fmt, ipv6_fmt) {
                 let val = u128::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V6(Ipv6Addr::from(val)));
             }

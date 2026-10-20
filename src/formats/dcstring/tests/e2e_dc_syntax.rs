@@ -1508,4 +1508,94 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         Ok(())
     }
+
+    /// Verifies list declared length checking using DcRole-based semantics.
+    #[crate::ctb_test]
+    fn test_declared_list_length_dcrole_validation() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+
+        // Declared length 2 with 2 elements:
+        let mut valid_doc = DcMstring::new();
+        valid_doc.push_char(DC_BEGIN_LIST);
+        2u64.encode_dc_mixed(&mut valid_doc)?;
+        valid_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
+        valid_doc.push_char(ctb_formats_dcdata::dc::DC_BOOLEAN_TRUE);
+        valid_doc.push_char(ctb_formats_dcdata::dc::DC_LIST_ELEMENT_SEPARATOR);
+        valid_doc.push_char(ctb_formats_dcdata::dc::DC_BOOLEAN_FALSE);
+        valid_doc.push_char(ctb_formats_dcdata::dc::DC_END_LIST);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&valid_doc);
+        ensure!(nav.validate_document(&policy).is_ok(), "Declared length 2 with 2 elements must validate");
+
+        // Declared length 3 with 2 elements -> mismatch:
+        let mut bad_doc = DcMstring::new();
+        bad_doc.push_char(DC_BEGIN_LIST);
+        3u64.encode_dc_mixed(&mut bad_doc)?;
+        bad_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
+        bad_doc.push_char(ctb_formats_dcdata::dc::DC_BOOLEAN_TRUE);
+        bad_doc.push_char(ctb_formats_dcdata::dc::DC_LIST_ELEMENT_SEPARATOR);
+        bad_doc.push_char(ctb_formats_dcdata::dc::DC_BOOLEAN_FALSE);
+        bad_doc.push_char(ctb_formats_dcdata::dc::DC_END_LIST);
+
+        let mut bad_nav = DcDocumentNavigator::from_mstr(&bad_doc);
+        ensure!(bad_nav.validate_document(&policy).is_err(), "Declared length 3 with 2 elements must fail strict validation");
+        Ok(())
+    }
+
+    /// Verifies number subtype constraint resolution through SyntaxRuleResolver
+    /// with format shorthands and rule references.
+    #[crate::ctb_test]
+    fn test_number_satisfies_subtype_resolver_driven() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        let mut doc_2 = DcMstring::new();
+        2u64.encode_dc_mixed(&mut doc_2)?;
+
+        // Test shorthand format subtypes
+        let mut nav = DcDocumentNavigator::from_mstr(&doc_2);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        let term_f200 = SyntaxTerm::NamedConstruct {
+            name: "number".to_string(),
+            subtype: Some("f200".to_string()),
+            capture_var: None,
+        };
+        ensure!(nav.eval_term_single(&term_f200, &mut ctx)?, "2 must satisfy f200 (Natural0)");
+
+        let mut nav_u8 = DcDocumentNavigator::from_mstr(&doc_2);
+        let mut ctx_u8 = SyntaxEvalContext::new(&**resolver, None);
+        let term_u8 = SyntaxTerm::NamedConstruct {
+            name: "number".to_string(),
+            subtype: Some("f203".to_string()),
+            capture_var: None,
+        };
+        ensure!(nav_u8.eval_term_single(&term_u8, &mut ctx_u8)?, "2 must satisfy f203 (U8)");
+
+        // Test format rule resolution via resolver (e.g. DcIdentifier: :[number:Natural1 & <(2^128)])
+        let mut nav_rule = DcDocumentNavigator::from_mstr(&doc_2);
+        let mut ctx_rule = SyntaxEvalContext::new(&**resolver, None);
+        let term_ident_rule = SyntaxTerm::NamedConstruct {
+            name: "number".to_string(),
+            subtype: Some("DcIdentifier".to_string()),
+            capture_var: None,
+        };
+        ensure!(nav_rule.eval_term_single(&term_ident_rule, &mut ctx_rule)?, "2 must satisfy DcIdentifier format rule");
+        Ok(())
+    }
+
+    /// Verifies that IP address decoders accept equivalent format tokens.
+    #[crate::ctb_test]
+    fn test_format_token_equivalence_in_mixed_serde() -> Result<()> {
+        use std::net::{IpAddr, Ipv4Addr};
+        let policy = DcProjectionPolicy::strict();
+
+        let mut mst = DcMstring::new();
+        let expected_ip = Ipv4Addr::new(127, 0, 0, 1);
+        expected_ip.encode_dc_mixed(&mut mst)?;
+
+        let decoded: Ipv4Addr = mst.decode::<Ipv4Addr>(&policy)?;
+        ensure!(decoded == expected_ip, "Decoded IPv4 must match 127.0.0.1");
+
+        let decoded_ip: IpAddr = mst.decode::<IpAddr>(&policy)?;
+        ensure!(decoded_ip == IpAddr::V4(expected_ip), "Decoded IpAddr must match 127.0.0.1");
+        Ok(())
+    }
 }
