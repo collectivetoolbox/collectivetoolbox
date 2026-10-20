@@ -40,6 +40,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{DcChar, DcStr, DcString, DcUtfError};
 pub use ctb_formats_utilities::FormatLog;
+use ctb_formats_dcdata::dc_char::DcCharExt;
+use ctb_formats_dcdata::syntax::DcRole;
 use ctb_utilities::format_support::SupportedHashFormat;
 
 /// Magic header bytes for the `DcMixed` format (`DcMM\0`).
@@ -646,7 +648,7 @@ impl DcMstring {
                 None => anyhow::bail!("Missing Dc character"),
             };
             let ch = DcChar(val);
-            if ch == DC_START_ENCAPSULATION_BINARY {
+            if ch.fills_role(DcRole::StartEncapsulationBinary) {
                 let (metadata, data, consumed) = crate::encapsulation::parse_text(remaining)?;
                 mst.push_binary_with_metadata(&data, &metadata)?;
                 offset = offset.saturating_add(consumed);

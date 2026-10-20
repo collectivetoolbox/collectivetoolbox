@@ -46,11 +46,39 @@ pub use ctb_formats_dcdata::dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,
     DC_END_NUMBER, DC_NEGATIVE, DC_POSITIVE,
 };
-pub use ctb_formats_dcdata::dc_char::DcChar;
+pub use ctb_formats_dcdata::dc_char::{DcChar, DcCharExt};
 pub use ctb_formats_dcdata::dc_number_minimal::{
     dc_base64_char_to_digit, dc_base64_digit_to_char,
     is_dc_base64_encapsulation_char,
 };
+use ctb_formats_dcdata::syntax::{DcRole, SyntaxRuleResolver};
+
+fn gid_fills_role(gid: u128, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> bool {
+    if resolver.token_fills_role(gid, role) {
+        return true;
+    }
+    if let Ok(s) = u32::try_from(gid) {
+        if resolver.token_fills_role(DcChar::from_short(s).to_u128(), role) {
+            return true;
+        }
+        if resolver.token_fills_role(DcChar::from_format(s).to_u128(), role) {
+            return true;
+        }
+    }
+    false
+}
+
+fn gid_to_base64_digit(gid: u128, resolver: &dyn SyntaxRuleResolver) -> Option<u8> {
+    if let Some(digit) = resolver.base64_digit_value(gid) {
+        return Some(digit);
+    }
+    if let Ok(s) = u32::try_from(gid) {
+        if let Some(digit) = resolver.base64_digit_value(DcChar::from_short(s).to_u128()) {
+            return Some(digit);
+        }
+    }
+    None
+}
 
 fn base64_char_to_digit(c: char) -> Result<u8> {
     match c {
@@ -148,12 +176,9 @@ pub fn base64_char_to_global_dc(c: char) -> Result<u128> {
 /// Converts a single Global Graph ID (in the Base64 encapsulation range) into
 /// its corresponding standard Base64 character or padding character (`=`).
 pub fn global_dc_to_base64_char(gid: u128) -> Result<char> {
-    let ch = if let Ok(s) = u32::try_from(gid) && ((127..=190).contains(&s) || s == 195) {
-        DcChar::from_short(s)
-    } else {
-        DcChar::from_long(gid)
-    };
-    let digit = dc_base64_char_to_digit(ch)?;
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    let digit = gid_to_base64_digit(gid, &**resolver)
+        .ok_or_else(|| anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc"))?;
     digit_to_base64_char(digit)
 }
 
@@ -296,30 +321,33 @@ pub fn read_dc_number_from_reader<F>(mut next_char: F) -> Result<Integer>
 where
     F: FnMut() -> Result<DcChar>,
 {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     let first = next_char()?;
     ensure!(
-        first == DC_BEGIN_NUMBER,
+        resolver.token_fills_role(first.to_u128(), DcRole::BeginNumber),
         "Expected Dc 6 (Begin number), found {first:?}"
     );
 
     let second = next_char()?;
     ensure!(
-        second == DC_INTEGER,
+        resolver.token_fills_role(second.to_u128(), DcRole::IntegerFormatIndicator),
         "Expected format 199 indicator after Dc 6, found {second:?}"
     );
 
     let mut is_negative = false;
     let mut ch = next_char()?;
-    if ch == DC_NEGATIVE {
+    if resolver.token_fills_role(ch.to_u128(), DcRole::Negative) {
         is_negative = true;
         ch = next_char()?;
-    } else if ch == DC_POSITIVE {
+    } else if resolver.token_fills_role(ch.to_u128(), DcRole::Positive) {
         ch = next_char()?;
     }
 
     let mut b64_str = String::new();
-    while ch != DC_END_NUMBER {
-        let digit = dc_base64_char_to_digit(ch)?;
+    while !resolver.token_fills_role(ch.to_u128(), DcRole::EndNumber) {
+        let digit = resolver
+            .base64_digit_value(ch.to_u128())
+            .ok_or_else(|| anyhow!("Expected Base64 digit Dc, found {ch}"))?;
         let c = digit_to_base64_char(digit)?;
         b64_str.push(c);
         ch = next_char()?;
@@ -338,17 +366,20 @@ where
 /// `DC_POSITIVE` sign indicator, excluding the outer `DC_BEGIN_NUMBER`, format
 /// indicator, and `DC_END_NUMBER` delimiters) into an [`Integer`].
 pub fn parse_dc_number_digits(digits: &[DcChar]) -> Result<Integer> {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     let mut is_negative = false;
     let mut b64_str = String::new();
     for (idx, &ch) in digits.iter().enumerate() {
-        if idx == 0 && ch == DC_NEGATIVE {
+        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Negative) {
             is_negative = true;
             continue;
         }
-        if idx == 0 && ch == DC_POSITIVE {
+        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Positive) {
             continue;
         }
-        let digit = dc_base64_char_to_digit(ch)?;
+        let digit = resolver
+            .base64_digit_value(ch.to_u128())
+            .ok_or_else(|| anyhow!("Expected Base64 digit Dc, found {ch}"))?;
         let c = digit_to_base64_char(digit)?;
         b64_str.push(c);
     }
@@ -363,17 +394,17 @@ pub fn parse_dc_number_digits(digits: &[DcChar]) -> Result<Integer> {
     Ok(Integer::from_sign_and_abs(!is_negative, nat))
 }
 
-
 /// Reads a single Dc number from a slice of short Document Characters (Dcs),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     let first = dcs
         .first()
         .copied()
         .ok_or_else(|| anyhow!("Empty Dc stream"))?;
     let first_dc = DcChar::from_short(first);
     ensure!(
-        first_dc == DC_BEGIN_NUMBER,
+        resolver.token_fills_role(first_dc.to_u128(), DcRole::BeginNumber),
         "Expected Dc 6 (Begin number), found Dc {first}"
     );
 
@@ -381,9 +412,11 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
         .get(1)
         .copied()
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
-    let second_dc = DcChar::from_format(second);
+    let second_format = DcChar::from_format(second);
+    let second_short = DcChar::from_short(second);
     ensure!(
-        second_dc == DC_INTEGER,
+        resolver.token_fills_role(second_format.to_u128(), DcRole::IntegerFormatIndicator)
+            || resolver.token_fills_role(second_short.to_u128(), DcRole::IntegerFormatIndicator),
         "Expected format 199 indicator after Dc 6, found Dc {second}"
     );
 
@@ -392,10 +425,10 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
 
     if let Some(&third) = dcs.get(idx) {
         let third_dc = DcChar::from_short(third);
-        if third_dc == DC_NEGATIVE {
+        if resolver.token_fills_role(third_dc.to_u128(), DcRole::Negative) {
             is_negative = true;
             idx = idx.saturating_add(1);
-        } else if third_dc == DC_POSITIVE {
+        } else if resolver.token_fills_role(third_dc.to_u128(), DcRole::Positive) {
             idx = idx.saturating_add(1);
         }
     }
@@ -408,12 +441,14 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
         idx = idx.saturating_add(1);
 
         let dc = DcChar::from_short(raw_dc);
-        if dc == DC_END_NUMBER {
+        if resolver.token_fills_role(dc.to_u128(), DcRole::EndNumber) {
             found_end = true;
             break;
         }
 
-        let digit = dc_base64_char_to_digit(dc)?;
+        let digit = resolver
+            .base64_digit_value(dc.to_u128())
+            .ok_or_else(|| anyhow!("Expected Base64 digit Dc, found {dc}"))?;
         let ch = digit_to_base64_char(digit)?;
         b64_str.push(ch);
     }
@@ -437,17 +472,13 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
 /// Reads a single Dc number from a slice of Global Graph IDs (`DcList`),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     let first = gids
         .first()
         .copied()
         .ok_or_else(|| anyhow!("Empty GID stream"))?;
-    let first_dc = if let Ok(s) = u32::try_from(first) && s == 6 {
-        DcChar::from_short(s)
-    } else {
-        DcChar::from_long(first)
-    };
     ensure!(
-        first_dc == DC_BEGIN_NUMBER,
+        gid_fills_role(first, DcRole::BeginNumber, &**resolver),
         "Expected GID 1114118 / Dc 6 (Begin number), found {first}"
     );
 
@@ -455,9 +486,8 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         .get(1)
         .copied()
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
-    let second_dc = DcChar::from_long(second);
     ensure!(
-        second_dc == DC_INTEGER,
+        gid_fills_role(second, DcRole::IntegerFormatIndicator, &**resolver),
         "Expected format 199 indicator after Dc 6, found {second}"
     );
 
@@ -465,15 +495,10 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
     let mut is_negative = false;
 
     if let Some(&third) = gids.get(idx) {
-        let third_dc = if let Ok(s) = u32::try_from(third) && (s == 10 || s == 11) {
-            DcChar::from_short(s)
-        } else {
-            DcChar::from_long(third)
-        };
-        if third_dc == DC_NEGATIVE {
+        if gid_fills_role(third, DcRole::Negative, &**resolver) {
             is_negative = true;
             idx = idx.saturating_add(1);
-        } else if third_dc == DC_POSITIVE {
+        } else if gid_fills_role(third, DcRole::Positive, &**resolver) {
             idx = idx.saturating_add(1);
         }
     }
@@ -485,23 +510,13 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         let Some(&gid) = gids.get(idx) else { break };
         idx = idx.saturating_add(1);
 
-        let dc = if let Ok(s) = u32::try_from(gid) && s == 7 {
-            DcChar::from_short(s)
-        } else {
-            DcChar::from_long(gid)
-        };
-        if dc == DC_END_NUMBER {
+        if gid_fills_role(gid, DcRole::EndNumber, &**resolver) {
             found_end = true;
             break;
         }
 
-        let digit = if let Ok(digit) = dc_base64_char_to_digit(dc) {
-            digit
-        } else if let Ok(s) = u32::try_from(gid) {
-            dc_base64_char_to_digit(DcChar::from_short(s))?
-        } else {
-            bail!("Global ID {gid} is not a valid Base64 encapsulation Dc");
-        };
+        let digit = gid_to_base64_digit(gid, &**resolver)
+            .ok_or_else(|| anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc"))?;
         let ch = digit_to_base64_char(digit)?;
         b64_str.push(ch);
     }
@@ -685,5 +700,24 @@ mod tests {
             let nat = parsed_int.unsigned_abs_ref();
             assert_eq!(u128::try_from(nat).unwrap(), tc);
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_number_positive_sign_parsing() {
+        // [6, 199, 10 (positive), 169 ('q'), 7] -> 42
+        let dcs = vec![6, 199, 10, 169, 7];
+        assert_eq!(parse_dc_number_short_i128(&dcs).unwrap(), 42);
+
+        // Global graph GIDs
+        let gids = vec![1_114_118, 2_228_423, 1_114_122, 1_114_281, 1_114_119];
+        assert_eq!(parse_dc_number_global_i128(&gids).unwrap(), 42);
+
+        // parse_dc_number_digits with positive sign Dc 10
+        let digits_pos = vec![DcChar::from_short(10), DcChar::from_short(169)];
+        assert_eq!(i128::try_from(&parse_dc_number_digits(&digits_pos).unwrap()).unwrap(), 42);
+
+        // parse_dc_number_digits with negative sign Dc 11
+        let digits_neg = vec![DcChar::from_short(11), DcChar::from_short(169)];
+        assert_eq!(i128::try_from(&parse_dc_number_digits(&digits_neg).unwrap()).unwrap(), -42);
     }
 }

@@ -288,4 +288,9 @@ In [`src/formats/dcstring/navigator.rs`](file:///workspaces/ctoolbox/src/formats
   - Verifies both token stream splicing (`lang.say` emitting `"Hello, World!"` and `287` into `spliced_tokens`) and CST arena parsing without dropping the inner invocation.
 - **Literal character decoding & Plane 14 mapping**:
   - `decode_literal_span` and `decode_identifier_span` in `src/formats/dcstring/navigator.rs` updated to resolve canonical equivalents via `resolver.canonical_token` and project short Dcs without direct Unicode equivalents to Plane 14 tag characters (`0xE0000 + short_id`).
+- **Phase 4.5 Fixed-Dc Readers refactoring**:
+  - `src/formats/dcstring/dc_number.rs`: All reader routines (`read_dc_number_from_reader`, `parse_dc_number_digits`, `read_dc_number_short`, `read_dc_number_global`, and `global_dc_to_base64_char`) migrated from hardcoded constants (`DC_BEGIN_NUMBER`, `DC_INTEGER`, `DC_NEGATIVE`, `DC_POSITIVE`, `DC_END_NUMBER`) and raw integer range checks to `DcRole` queries (`BeginNumber`, `IntegerFormatIndicator`, `Negative`, `Positive`, `EndNumber`) and `resolver.base64_digit_value`.
+  - `src/formats/dcstring/dc_mixed.rs`: `DcMstring::from_dc_str` migrated from `ch == DC_START_ENCAPSULATION_BINARY` to `ch.fills_role(DcRole::StartEncapsulationBinary)`.
+  - `src/formats/dcstring/converters/dctext.rs`: `dcarray_to_dclist` migrated to `DcRole::Escape` and `DcRole::LongDc`.
+  - `src/formats/dcstring/converters/utf8.rs`: `dclist_to_utf8` migrated from direct constant comparisons to `DcRole::StartEncapsulationUtf8`, `DcRole::EndEncapsulationUtf8`, `DcRole::Base64Digit`, `DcRole::Base64Padding`, and `resolver.base64_digit_value`.
 

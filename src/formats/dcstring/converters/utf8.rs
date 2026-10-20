@@ -35,10 +35,8 @@ use ctb_utilities::*;
 use anyhow::{Result, anyhow};
 use const_default::ConstDefault;
 
-use ctb_formats_eite::dc::{
-    DC_END_ENCAPSULATION_UTF8, DC_START_ENCAPSULATION_UTF8,
-    dc_encapsulated_raw_to_bytes, is_dc_base64_encapsulation_character,
-};
+use ctb_formats_dcdata::syntax::{DcRole, SyntaxRuleResolver};
+use ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes;
 use ctb_formats_eite::encoding::basenb::{
     byte_array_from_basenb_17_utf8, byte_array_to_basenb_17_utf8,
     is_basenb_char,
@@ -124,6 +122,7 @@ pub fn dclist_to_utf8(
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
     let end_uuid_bytes = dcl_basenb_end_uuid_bytes()?;
 
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     let mut i = 0;
     while i < dclist.len() {
         let Some(&dc) = dclist.get(i) else { break };
@@ -157,8 +156,8 @@ pub fn dclist_to_utf8(
                     .map_err(|e| anyhow!("Short Dc overflow: {e}"))?;
 
                 if settings.canonicalize_equivalent_dcs {
-                    // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DC_START_ENCAPSULATION_UTF8 (191)
-                    if dc == DC_START_ENCAPSULATION_UTF8 {
+                    // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DcRole::StartEncapsulationUtf8 (191)
+                    if resolver.token_fills_role(dc, DcRole::StartEncapsulationUtf8) {
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
                         #[expect(
@@ -169,35 +168,26 @@ pub fn dclist_to_utf8(
                             let cur_dc = *dclist.get(j).expect(
                                 "j < dclist.len() guarantees in-bounds access",
                             );
-                            if cur_dc >= SHORT_DC_REGION_START {
-                                let cur_diff =
-                                    cur_dc.saturating_sub(SHORT_DC_REGION_START);
-                                if let Ok(cur_short) = u32::try_from(cur_diff)
-                                {
-                                    if cur_dc == DC_END_ENCAPSULATION_UTF8
-                                    {
-                                        truncated = false;
-                                        break;
-                                    }
-                                    if !is_dc_base64_encapsulation_character(
-                                        cur_short,
-                                    ) {
-                                        break;
-                                    }
-                                } else {
-                                    break;
-                                }
+                            if resolver.token_fills_role(cur_dc, DcRole::EndEncapsulationUtf8) {
+                                truncated = false;
+                                break;
+                            }
+                            if resolver.token_fills_role(cur_dc, DcRole::Base64Digit)
+                                || resolver.token_fills_role(cur_dc, DcRole::Base64Padding)
+                            {
+                                j = j.saturating_add(1);
                             } else {
                                 break;
                             }
-                            j = j.saturating_add(1);
                         }
 
                         if !truncated {
                             let mut inner_dcs = Vec::new();
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
-                                    if let Ok(k_short) = u32::try_from(
+                                    if let Some(digit) = resolver.base64_digit_value(k_dc) {
+                                        inner_dcs.push(ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit).to_short()?);
+                                    } else if let Ok(k_short) = u32::try_from(
                                         k_dc.saturating_sub(SHORT_DC_REGION_START),
                                     ) {
                                         inner_dcs.push(k_short);

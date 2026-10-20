@@ -33,6 +33,7 @@ use crate::utilities::*;
 
 use anyhow::Result;
 use crate::dc_char::DcCharExt;
+use ctb_formats_dcdata::syntax::DcRole;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LONG_DC};
 use crate::dc_number::{
@@ -293,15 +294,15 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
         };
         let dc = DcChar::from_short(raw_dc);
 
-        if dc == DC_ESCAPE {
+        if dc.fills_role(DcRole::Escape) {
             if let Some(&next_raw) = dc_array.get(i.saturating_add(1)) {
                 let next_dc = DcChar::from_short(next_raw);
-                if next_dc == DC_LONG_DC {
+                if next_dc.fills_role(DcRole::LongDc) {
                     list.push(DC_LONG_DC.to_long());
                     i = i.saturating_add(2);
                     continue;
                 }
-                if next_dc == DC_ESCAPE {
+                if next_dc.fills_role(DcRole::Escape) {
                     list.push(DC_ESCAPE.to_long());
                     i = i.saturating_add(2);
                     continue;
@@ -312,7 +313,7 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
             continue;
         }
 
-        if dc == DC_LONG_DC {
+        if dc.fills_role(DcRole::LongDc) {
             if let Some(rest) = dc_array.get(i.saturating_add(1)..) {
                 match read_dc_number_short(rest) {
                     Ok((int_val, consumed)) => {

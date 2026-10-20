@@ -787,8 +787,11 @@ impl DatasetRuleResolver {
                 if let (Ok(id), Some(closer)) = (
                     u32::try_from(short_id), detect_container_closer(&rule.pattern),
                 ) {
-                    if !resolver.closing_delimiters.contains_key(&closer) {
-                        resolver.register_closing_delimiter(closer, CharTarget::Dc(id));
+                    let target = CharTarget::Dc(id);
+                    if !resolver.opener_to_closer.contains_key(&target)
+                        && !resolver.closing_delimiters.contains_key(&closer)
+                    {
+                        resolver.register_closing_delimiter(closer, target);
                     }
                 }
             }
@@ -812,7 +815,9 @@ impl DatasetRuleResolver {
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(target.clone(), rule.clone());
                     if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
-                        if !resolver.closing_delimiters.contains_key(&closer_tok) {
+                        if !resolver.opener_to_closer.contains_key(&target)
+                            && !resolver.closing_delimiters.contains_key(&closer_tok)
+                        {
                             resolver.register_closing_delimiter(closer_tok, target);
                         }
                     }
@@ -1428,7 +1433,7 @@ mod tests {
         let mut target_open = list_open.clone();
         target_open.short_id = Some(950);
         target_open.dc_id = DcChar::from_short(950).to_u128();
-        target_open.is_deprecated = false;
+        target_open.syntax = Some(parse_dc_syntax(":[950:] [type] [element] (312 [element])* 960")?);
         target_open.decompositions.clear();
 
         // Alias opener 100 has lower ID, identical syntax rule, points to 950
