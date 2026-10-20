@@ -153,7 +153,7 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             let mut in_str = false;
             let mut in_hdr = false;
             let mut chars = Vec::new();
-            for &tok in &call_tokens[1..] {
+            for &tok in call_tokens.iter().skip(1) {
                 if tok.fills_role_with(DcRole::LiteralOpener, resolver) {
                     in_str = true;
                     continue;
@@ -1717,7 +1717,7 @@ impl<'a> DcDocumentNavigator<'a> {
             self.cursor = start_offset;
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.policy.clone_from(policy);
-            if !self.eval_number_frame(&mut ctx)? || ctx.has_errors {
+            if !self.eval_number_frame(None, &mut ctx)? || ctx.has_errors {
                 self.syntax_issue(policy, start_offset, format!("Invalid number frame at offset {start_offset}"))?;
             }
             self.cursor = end_offset;
@@ -2010,7 +2010,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut ctx = SyntaxEvalContext::new(&**resolver, Some(DC_BEGIN_LIST.to_u128()));
         ctx.policy.clone_from(policy);
         self.cursor = inner.start;
-        if !self.eval_number_frame(&mut ctx)? {
+        if !self.eval_number_frame(None, &mut ctx)? {
             return Ok(());
         }
         let (_, digits) = self.decode_number_span(DcByteSpan::new(inner.start, self.cursor))?;
@@ -3865,7 +3865,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         if first_dc.fills_role_with(DcRole::NumberOpener, ctx.resolver) {
                             self.cursor = start_offset;
-                            return self.eval_number_frame(ctx);
+                            return self.eval_number_frame(None, ctx);
                         }
                         if let Some(target) = CharTarget::from_u128(first) {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(&target) {
@@ -4001,6 +4001,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 if name == "identifier" {
                     return self.eval_identifier_frame(ctx);
+                }
+                if name == "number" {
+                    return self.eval_number_frame(subtype.as_deref(), ctx);
                 }
                 if ctx.depth >= ctx.max_depth {
                     ctx.has_errors = true;
@@ -4727,7 +4730,11 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(false)
     }
 
-    fn eval_number_frame(&mut self, ctx: &mut SyntaxEvalContext<'_>) -> Result<bool> {
+    fn eval_number_frame(
+        &mut self,
+        subtype: Option<&str>,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
         let start_offset = self.cursor;
         let Some((first_dc, after_6)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
@@ -4749,6 +4756,22 @@ impl<'a> DcDocumentNavigator<'a> {
                 if digit_count == 0 {
                     self.cursor = start_offset;
                     return Ok(false);
+                }
+                if let Some(sub) = subtype {
+                    let Ok((_, digits)) =
+                        self.decode_number_span(DcByteSpan::new(start_offset, next_off))
+                    else {
+                        self.cursor = start_offset;
+                        return Ok(false);
+                    };
+                    let Ok(val) = crate::dc_number::parse_dc_number_digits(&digits) else {
+                        self.cursor = start_offset;
+                        return Ok(false);
+                    };
+                    if !number_satisfies_subtype(&val, sub) {
+                        self.cursor = start_offset;
+                        return Ok(false);
+                    }
                 }
                 self.cursor = next_off;
                 return Ok(true);
@@ -4830,6 +4853,81 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         Ok(Vec::new())
     }
+}
+
+fn parse_bound(expr: &str) -> Option<malachite::Integer> {
+    use malachite::base::num::arithmetic::traits::Pow;
+    let expr = expr.trim().trim_matches(|c| c == '(' || c == ')').trim();
+    if let Some((base_s, exp_s)) = expr.split_once('^') {
+        let base = base_s.trim().parse::<u64>().ok()?;
+        let exp = exp_s.trim().parse::<u32>().ok()?;
+        if exp > 1024 {
+            return None;
+        }
+        let result = malachite::Natural::from(base).pow(u64::from(exp));
+        Some(malachite::Integer::from(result))
+    } else {
+        use std::str::FromStr;
+        malachite::Integer::from_str(expr).ok()
+    }
+}
+
+fn number_satisfies_subtype(val: &malachite::Integer, subtype: &str) -> bool {
+    let zero = malachite::Integer::from(0);
+    for raw_part in subtype.split('&') {
+        let part = raw_part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        let satisfied = match part {
+            "Natural0" | "NonNegative" | "f200" => val >= &zero,
+            "Natural" | "Natural1" | "Positive" | "f351" | "f201" => val > &zero,
+            "Negative" | "f202" => val < &zero,
+            "Integer" | "f199" | "AbstractNumber" | "f355" => true,
+            "U8" | "f203" => val >= &zero && val <= &malachite::Integer::from(u8::MAX),
+            "I8" | "f204" => {
+                val >= &malachite::Integer::from(i8::MIN)
+                    && val <= &malachite::Integer::from(i8::MAX)
+            }
+            "U16" | "f205" => val >= &zero && val <= &malachite::Integer::from(u16::MAX),
+            "I16" | "f206" => {
+                val >= &malachite::Integer::from(i16::MIN)
+                    && val <= &malachite::Integer::from(i16::MAX)
+            }
+            "U32" | "f207" => val >= &zero && val <= &malachite::Integer::from(u32::MAX),
+            "I32" | "f208" => {
+                val >= &malachite::Integer::from(i32::MIN)
+                    && val <= &malachite::Integer::from(i32::MAX)
+            }
+            "U64" | "f209" => val >= &zero && val <= &malachite::Integer::from(u64::MAX),
+            "I64" | "f210" => {
+                val >= &malachite::Integer::from(i64::MIN)
+                    && val <= &malachite::Integer::from(i64::MAX)
+            }
+            "U128" | "f211" => val >= &zero && val <= &malachite::Integer::from(u128::MAX),
+            "I128" | "f212" => {
+                val >= &malachite::Integer::from(i128::MIN)
+                    && val <= &malachite::Integer::from(i128::MAX)
+            }
+            _ => {
+                if let Some(rest) = part.strip_prefix("<=") {
+                    parse_bound(rest).is_none_or(|b| val <= &b)
+                } else if let Some(rest) = part.strip_prefix('<') {
+                    parse_bound(rest).is_none_or(|b| val < &b)
+                } else if let Some(rest) = part.strip_prefix(">=") {
+                    parse_bound(rest).is_none_or(|b| val >= &b)
+                } else if let Some(rest) = part.strip_prefix('>') {
+                    parse_bound(rest).is_none_or(|b| val > &b)
+                } else {
+                    true
+                }
+            }
+        };
+        if !satisfied {
+            return false;
+        }
+    }
+    true
 }
 
 fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {

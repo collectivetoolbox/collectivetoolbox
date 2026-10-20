@@ -1781,7 +1781,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
                             decode_arms.push(quote! {
-                                #crate_root::dc::DC_START_ENCAPSULATION_BINARY.to_u128() => {
+                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BinaryEncapsulationOpener) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1797,7 +1797,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                #crate_root::dc::DC_START_ENCAPSULATION_BINARY.to_u128() => {
+                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BinaryEncapsulationOpener) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -3360,7 +3360,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             }
 
             if !shared_decode_arms.is_empty() {
-                seen_ids.insert(#crate_root::dc::DC_BEGIN_IDENTIFIER.to_u128());
+                seen_ids.insert(1114382);
             }
             let unmatched_decode_arm = if has_catchall_decode_arm {
                 None
@@ -3372,7 +3372,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
-                    #crate_root::dc::DC_BEGIN_IDENTIFIER.to_u128() | #crate_root::dc::DC_ASSIGN.to_u128() => {
+                    _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::IdentifierOpener)
+                        || ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::AssignOperator) => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
                         match field.as_str() {
                             #(#shared_decode_arms)*

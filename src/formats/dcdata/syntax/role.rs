@@ -157,17 +157,17 @@ pub enum DcRole {
     SequenceIdentifierTag,
 
     // Temporal
-    /// Time moment container opening delimiter (`401`).
+    /// Time moment container opening delimiter (`390`).
     TimeMomentOpener,
-    /// Time moment container closing delimiter (`402`).
+    /// Time moment container closing delimiter (`391`).
     TimeMomentCloser,
-    /// Date magnitude container opening delimiter (`490`).
+    /// Date magnitude container opening delimiter (`393`).
     DateMagnitudeOpener,
-    /// Date magnitude container closing delimiter (`491`).
+    /// Date magnitude container closing delimiter (`394`).
     DateMagnitudeCloser,
-    /// Date duration container opening delimiter (`492`).
+    /// Date duration container opening delimiter (`395`).
     DateDurationOpener,
-    /// Date duration container closing delimiter (`493`).
+    /// Date duration container closing delimiter (`396`).
     DateDurationCloser,
 
     // Scopes, Bindings & Calls
@@ -280,12 +280,12 @@ impl DcRole {
             Self::SectionDigestTag => short == Some(545),
             Self::SequenceIdentifierTag => short == Some(546),
 
-            Self::TimeMomentOpener => short == Some(401),
-            Self::TimeMomentCloser => short == Some(402),
-            Self::DateMagnitudeOpener => short == Some(490),
-            Self::DateMagnitudeCloser => short == Some(491),
-            Self::DateDurationOpener => short == Some(492),
-            Self::DateDurationCloser => short == Some(493),
+            Self::TimeMomentOpener => short == Some(390),
+            Self::TimeMomentCloser => short == Some(391),
+            Self::DateMagnitudeOpener => short == Some(393),
+            Self::DateMagnitudeCloser => short == Some(394),
+            Self::DateDurationOpener => short == Some(395),
+            Self::DateDurationCloser => short == Some(396),
 
             Self::IdentifierScopeOpener => short == Some(541),
             Self::IdentifierScopeCloser => short == Some(542),

@@ -35,6 +35,7 @@ use ctb_formats_dcdata::dc::{
     DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LITERAL, DC_END_KV_MAP, DC_END_KV_PAIR,
     DC_LIST_ELEMENT_SEPARATOR,
 };
+use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
 fn append_dc(target: &mut Vec<u8>, ch: DcChar) {

@@ -31,7 +31,7 @@ use ctb_formats_dcdata::dc::{
     DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
 };
 use ctb_formats_dcdata::syntax::{
-    Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    Quantifier, SyntaxElement, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
 };
 
 pub(crate) struct Metadata<'a> {
