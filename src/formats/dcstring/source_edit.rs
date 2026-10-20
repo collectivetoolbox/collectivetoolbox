@@ -91,8 +91,8 @@ impl<'a> SourceView<'a> {
         self.node(id).is_ok_and(|n| match &n.kind {
             DcSyntaxKind::Container { opener, .. } => {
                 let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-                resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapPairsOpener)
-                    || resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapLegacyOpener)
+                resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginKvMap)
+                    || resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap)
             }
             _ => false,
         })
@@ -340,7 +340,7 @@ fn write_node(
         };
         let opener = *opener;
         let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        let encoding = if resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapLegacyOpener) {
+        let encoding = if resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap) {
             crate::DcKvMapEncoding::Legacy
         } else {
             crate::DcKvMapEncoding::Pairs

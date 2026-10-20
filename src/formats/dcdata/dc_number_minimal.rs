@@ -164,7 +164,7 @@ pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
     };
     let first_dc = DcChar::from_u128(first);
     ensure!(
-        first_dc.fills_role(DcRole::NumberOpener),
+        first_dc.fills_role(DcRole::BeginNumber),
         "Expected Dc 6 (Begin number), found {first}"
     );
 
@@ -185,7 +185,7 @@ pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
     while let Some(&gid) = gids.get(idx) {
         idx = idx.saturating_add(1);
         let dc = DcChar::from_u128(gid);
-        if dc.fills_role(DcRole::NumberCloser) {
+        if dc.fills_role(DcRole::EndNumber) {
             found_end = true;
             break;
         }

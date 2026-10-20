@@ -112,7 +112,7 @@ impl<'a> Cursor<'a> {
 
     fn read_length(&mut self) -> Result<Option<usize>> {
         let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::NumberOpener)) {
+        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginNumber)) {
             return Ok(None);
         }
         let length =
@@ -124,7 +124,7 @@ impl<'a> Cursor<'a> {
 
     fn read_checksum(&mut self) -> Result<Option<(&'a DcStr, Option<ChecksumSpec>)>> {
         let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener)) {
+        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::StartEncapsulationBinary)) {
             return Ok(None);
         }
         let start = self.position();
@@ -152,7 +152,7 @@ impl<'a> Cursor<'a> {
         let mut digits = Vec::new();
         loop {
             let ch = self.next()?;
-            if resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationCloser) {
+            if resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::EndEncapsulationBinary) {
                 break;
             }
             ensure!(
@@ -189,12 +189,12 @@ impl<'a> Cursor<'a> {
             let start = self.position();
             let next_ch = self.next()?;
             ensure!(
-                resolver.token_fills_role(next_ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener),
+                resolver.token_fills_role(next_ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::StartEncapsulationBinary),
                 "Expected Dc 203"
             );
             let data_type = self.read_type()?;
             let length = self.read_length()?;
-            if self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener)) {
+            if self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::StartEncapsulationBinary)) {
                 frames.push(PayloadFrame { start, data_type, length });
                 continue;
             }

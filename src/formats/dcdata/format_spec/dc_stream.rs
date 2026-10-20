@@ -257,7 +257,7 @@ fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
 
 /// Returns true if `token` is a closing delimiter ('299' or ')').
 pub(crate) fn is_closing_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> bool {
-    token.fills_role_with(DcRole::GroupClose, resolver)
+    token.fills_role_with(DcRole::EndAssociativityGroup, resolver)
         || matches!(token, DcToken::NamedType(s) if s == ")")
 }
 
@@ -329,14 +329,14 @@ fn decode_recursive(
     };
     *pos = pos.saturating_add(1);
 
-    if token.fills_role_with(DcRole::GroupOpen, resolver) {
+    if token.fills_role_with(DcRole::BeginAssociativityGroup, resolver) {
         // Group start: next token must be operator
         let Some(op_token) = tokens.get(*pos) else {
             bail!("Unexpected end of stream after group start '298': expected operator");
         };
         *pos = pos.saturating_add(1);
 
-        if op_token.fills_role_with(DcRole::TypeParamApplication, resolver) {
+        if op_token.fills_role_with(DcRole::FormatParamApplication, resolver) {
             let target = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
             let params = decode_apply_params(tokens, pos, depth.saturating_add(1), resolver)?;
             return Ok(FormatExpr::Apply {
@@ -469,14 +469,14 @@ fn decode_recursive(
                 }
             }
         }
-    } else if token.fills_role_with(DcRole::TypeParamApplication, resolver) {
+    } else if token.fills_role_with(DcRole::FormatParamApplication, resolver) {
         let target = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
         let params = decode_apply_params(tokens, pos, depth.saturating_add(1), resolver)?;
         Ok(FormatExpr::Apply {
             target: Box::new(target),
             params,
         })
-    } else if token.fills_role_with(DcRole::GroupClose, resolver) {
+    } else if token.fills_role_with(DcRole::EndAssociativityGroup, resolver) {
         bail!("Unexpected closing group '299' without matching opening operator or group");
     } else {
         match token {
@@ -502,7 +502,7 @@ fn decode_apply_params(
             *pos = pos.saturating_add(1);
             break;
         }
-        if tok.fills_role_with(DcRole::ParameterOpener, resolver) {
+        if tok.fills_role_with(DcRole::BeginParameter, resolver) {
             *pos = pos.saturating_add(1);
             let Some(name_tok) = tokens.get(*pos) else {
                 bail!("Unexpected end of stream: expected parameter name after '258'");
@@ -519,8 +519,8 @@ fn decode_apply_params(
             *pos = pos.saturating_add(1);
             let value = match val_tok {
                 DcToken::Dc(sh) => {
-                    if val_tok.fills_role_with(DcRole::GroupOpen, resolver)
-                        || val_tok.fills_role_with(DcRole::TypeParamApplication, resolver)
+                    if val_tok.fills_role_with(DcRole::BeginAssociativityGroup, resolver)
+                        || val_tok.fills_role_with(DcRole::FormatParamApplication, resolver)
                         || format_op_from_token(val_tok, resolver).is_some()
                     {
                         *pos = pos.saturating_sub(1);
@@ -559,7 +559,7 @@ fn decode_apply_params(
             };
             *pos = pos.saturating_add(1);
             ensure!(
-                end_tok.fills_role_with(DcRole::ParameterCloser, resolver),
+                end_tok.fills_role_with(DcRole::EndParameter, resolver),
                 "Expected Dc 259 ('End parameter'), found '{end_tok}'"
             );
 

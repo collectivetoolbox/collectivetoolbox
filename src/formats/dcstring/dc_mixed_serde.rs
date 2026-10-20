@@ -990,7 +990,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node_id = self.unwrap_equivalent_or_self(node_id)?;
         let node = self.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if self.token_fills_role(*opener, DcRole::FormatRepresentationOpener) {
+            if self.token_fills_role(*opener, DcRole::BeginFormatRepresentation) {
                 if let [single_child] = children.as_slice() {
                     let child_node = self.node(*single_child)?;
                     if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
@@ -1153,12 +1153,12 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let (opener, children) = match &node.kind {
             DcSyntaxKind::Container {
                 opener, children, ..
-            } if self.token_fills_role(*opener, DcRole::KvMapPairsOpener)
-                || self.token_fills_role(*opener, DcRole::KvMapLegacyOpener) => (*opener, children),
+            } if self.token_fills_role(*opener, DcRole::BeginKvMap)
+                || self.token_fills_role(*opener, DcRole::BeginLegacyKvMap) => (*opener, children),
             other => bail!("Expected KvMap container (Dc 559 or 313), found {other:?}"),
         };
 
-        let encoding = if self.token_fills_role(opener, DcRole::KvMapPairsOpener) {
+        let encoding = if self.token_fills_role(opener, DcRole::BeginKvMap) {
             crate::DcKvMapEncoding::Pairs
         } else {
             crate::DcKvMapEncoding::Legacy
@@ -1191,7 +1191,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         children: pair_children,
                         unclosed,
                         ..
-                    } if self.token_fills_role(*pair_opener, DcRole::KvPairOpener) => {
+                    } if self.token_fills_role(*pair_opener, DcRole::BeginKvPair) => {
                         if *unclosed {
                             entries.push(Err(anyhow::anyhow!(
                                 "Unclosed key-value pair container (Dc 514)"
@@ -1329,11 +1329,11 @@ impl DcMixedDecode for bool {
         match &node.kind {
             DcSyntaxKind::Atom(ch) => {
                 if ctx.token_fills_role(*ch, DcRole::BooleanTrue)
-                    || ctx.token_fills_role(*ch, DcRole::PositiveSign)
+                    || ctx.token_fills_role(*ch, DcRole::Positive)
                 {
                     Ok(true)
                 } else if ctx.token_fills_role(*ch, DcRole::BooleanFalse)
-                    || ctx.token_fills_role(*ch, DcRole::NegativeSign)
+                    || ctx.token_fills_role(*ch, DcRole::Negative)
                 {
                     Ok(false)
                 } else {
@@ -1518,7 +1518,7 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         let node = ctx.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Container { opener, children, .. } => {
-                let child_slice = if ctx.token_fills_role(*opener, DcRole::FormatRepresentationOpener) && children.len() >= 3 {
+                let child_slice = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation) && children.len() >= 3 {
                     children.get(1..).context("Format representation container missing payload children")?
                 } else {
                     children.as_slice()
@@ -1624,7 +1624,7 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
         }
         let node = ctx.node(node_id)?;
         let children = match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::ListOpener) => children,
+            DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
             other => bail!("Expected List container (Dc 310) for Vec, found {other:?}"),
         };
 
@@ -1976,7 +1976,7 @@ pub fn decode_format_representation<T: DcMixedDecode>(
     }
     let node = ctx.node(node_id)?;
     if let DcSyntaxKind::Container { opener, closer: _, header: _, children, trailing: _, unclosed: _ } = &node.kind {
-        if ctx.token_fills_role(*opener, DcRole::FormatRepresentationOpener)
+        if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
             && let Some(&first_child) = children.first()
         {
             let fmt_node = ctx.node(first_child)?;
@@ -2023,7 +2023,7 @@ pub fn extract_flag_nodes(
     let candidate_children = if let [first_id] = children {
         let first_node = ctx.node(*first_id)?;
         if let DcSyntaxKind::Container { opener, children: lc, .. } = &first_node.kind {
-            if ctx.token_fills_role(*opener, DcRole::ListOpener) {
+            if ctx.token_fills_role(*opener, DcRole::BeginList) {
                 lc.as_slice()
             } else {
                 children
@@ -2067,7 +2067,7 @@ pub fn extract_flag_nodes(
                 result.push((ctx.canonical_token(*tag).to_u128(), item_id));
             }
             DcSyntaxKind::Container { opener, .. } => {
-                if ctx.token_fills_role(*opener, DcRole::ListOpener) {
+                if ctx.token_fills_role(*opener, DcRole::BeginList) {
                     let inner = extract_flag_nodes(ctx, item_id)?;
                     result.extend(inner);
                 } else {
@@ -2149,7 +2149,7 @@ fn decode_filename_bytes(
                     ..
                 } = &ctx.node(*single)?.kind
                 {
-                    if ctx.token_fills_role(*inner_opener, DcRole::ListOpener) {
+                    if ctx.token_fills_role(*inner_opener, DcRole::BeginList) {
                         return decode_equivalent_filename_candidates(ctx, inner_children);
                     }
                 }
@@ -2239,7 +2239,7 @@ pub fn decode_filepath_segments(
 
     let inner_node = ctx.node(inner_id)?;
     let children = match &inner_node.kind {
-        DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::ListOpener) => children,
+        DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
         other => bail!("Expected List container inside FilePath format representation, found {other:?}"),
     };
 
@@ -2380,7 +2380,7 @@ impl DcMixedDecode for SystemTime {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::TimeMomentOpener) {
+            if ctx.token_fills_role(*opener, DcRole::BeginTimeMoment) {
                 let Some(&first_child) = children.first() else {
                     bail!("Empty time moment container (Dc 390..391)");
                 };
@@ -2441,8 +2441,8 @@ impl DcMixedDecode for Duration {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::DateMagnitudeOpener)
-                || ctx.token_fills_role(*opener, DcRole::DateDurationOpener)
+            if ctx.token_fills_role(*opener, DcRole::BeginDateMagnitude)
+                || ctx.token_fills_role(*opener, DcRole::BeginDateDuration)
             {
                 let Some(&first_child) = children.first() else {
                     bail!("Empty duration container ({opener})");
@@ -2509,8 +2509,8 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
         let root = roots.first().copied().context("Empty document cannot be decoded into array")?;
         let local = ctx.node(ctx.unwrap_transparent(root)?)?;
         if matches!(&local.kind, DcSyntaxKind::Container { opener, .. }
-            if ctx.token_fills_role(*opener, DcRole::ListOpener)
-                || ctx.token_fills_role(*opener, DcRole::FormatRepresentationOpener))
+            if ctx.token_fills_role(*opener, DcRole::BeginList)
+                || ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation))
             || matches!(&local.kind, DcSyntaxKind::Tagged { args, .. } if args.len() == N)
         {
             return Ok((Self::decode_dc_node(ctx, root)?, 1));
@@ -2535,10 +2535,10 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::ListOpener)
-                || ctx.token_fills_role(*opener, DcRole::FormatRepresentationOpener)
+            if ctx.token_fills_role(*opener, DcRole::BeginList)
+                || ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
             {
-                let child_slice: &[NodeId] = if ctx.token_fills_role(*opener, DcRole::FormatRepresentationOpener)
+                let child_slice: &[NodeId] = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
                     && children.len() == N.saturating_add(1)
                 {
                     match children.split_first() {

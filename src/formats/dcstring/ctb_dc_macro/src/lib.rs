@@ -1781,7 +1781,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
                             decode_arms.push(quote! {
-                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BinaryEncapsulationOpener) => {
+                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1797,7 +1797,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BinaryEncapsulationOpener) => {
+                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -2317,7 +2317,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let list_id = children[0];
                                 let list_node = ctx.node(list_id)?;
                                  let list_children = match &list_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if ctx.token_fills_role(*opener, #crate_root::syntax::DcRole::ListOpener) => lc,
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if ctx.token_fills_role(*opener, #crate_root::syntax::DcRole::BeginList) => lc,
                                     _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
                                 };
                                 let mut iter = list_children.iter().copied();
@@ -3372,8 +3372,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
-                    _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::IdentifierOpener)
-                        || ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::AssignOperator) => {
+                    _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BeginIdentifier)
+                        || ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::Assign) => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
                         match field.as_str() {
                             #(#shared_decode_arms)*
