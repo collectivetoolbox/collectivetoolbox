@@ -35,6 +35,7 @@ use super::ast::{
     SyntaxTerm,
 };
 use super::parser::parse_dc_syntax;
+use super::role::DcRole;
 use crate::dc::{
     DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_OPTIONAL_ABSENT,
     DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
@@ -76,9 +77,49 @@ pub trait SyntaxRuleResolver {
     fn matches_named_type_starter(&self, _name: &str, _token: u128) -> bool {
         false
     }
+    /// Returns the canonical token in this token's equivalence class,
+    /// or `token` itself if no `<equiv>` alias is defined.
+    fn canonical_token(&self, token: u128) -> u128 {
+        token
+    }
     /// Checks semantic token equivalence, independently of grammar types.
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
-        token == canonical
+        if token == canonical {
+            true
+        } else {
+            self.canonical_token(token) == self.canonical_token(canonical)
+        }
+    }
+    /// Checks whether `token` fills the designated syntactic or semantic role.
+    fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
+        if role.matches_canonical(token) {
+            return true;
+        }
+        let canonical = self.canonical_token(token);
+        if canonical != token && role.matches_canonical(canonical) {
+            return true;
+        }
+        if role == DcRole::TypeToken && self.matches_script(".EL Types", token) {
+            return true;
+        }
+        if role == DcRole::EvaluableExpressionStarter
+            && self.matches_script(".EL Routines", token)
+        {
+            return true;
+        }
+        false
+    }
+    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel (`64`)
+    /// if `token` (or its canonical equivalent) represents a Base64 encapsulation character.
+    fn base64_digit_value(&self, token: u128) -> Option<u8> {
+        if let Some(digit) = DcRole::base64_digit_value(token) {
+            return Some(digit);
+        }
+        let canonical = self.canonical_token(token);
+        if canonical != token {
+            return DcRole::base64_digit_value(canonical);
+        }
+        None
     }
     /// Classifies full and partial alternative-representation wrappers.
     fn is_representation_set(&self, token: u128) -> bool {
@@ -428,6 +469,7 @@ pub struct DatasetRuleResolver {
     pub(super) named_type_starters: HashMap<String, StarterSet>,
     pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
     pub(super) opaque_containers: HashSet<u128>,
+    pub(super) canonical_map: HashMap<u128, u128>,
 }
 
 impl DatasetRuleResolver {
@@ -842,9 +884,51 @@ impl DatasetRuleResolver {
                     }
                 }
             }
+            let canonical = *members.iter().min().unwrap_or(source);
+            for &member in &members {
+                resolver.canonical_map.insert(member, canonical);
+            }
             resolver.semantic_equivalents.insert(*source, members);
         }
         resolver.precompute_derived_tables();
+        for (&canonical, members) in &resolver.semantic_equivalents {
+            for &equiv_token in members {
+                if equiv_token == canonical {
+                    continue;
+                }
+                if let Some(target) = CharTarget::from_u128(canonical) {
+                    if let Some(rule) = resolver.rules.get(&target).cloned() {
+                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
+                            resolver.rules.entry(equiv_target).or_insert(rule);
+                        }
+                    }
+                    if let Some(&closer) = resolver.opener_to_closer.get(&target) {
+                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
+                            resolver.opener_to_closer.entry(equiv_target).or_insert(closer);
+                        }
+                    }
+                    if let Some(headers) = resolver.container_headers.get(&target).cloned() {
+                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
+                            resolver.container_headers.entry(equiv_target).or_insert(headers);
+                        }
+                    }
+                    if let Some(trailing) = resolver.trailing_after_closer.get(&target).cloned() {
+                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
+                            resolver.trailing_after_closer.entry(equiv_target).or_insert(trailing);
+                        }
+                    }
+                }
+                if let Some(opener) = resolver.closing_delimiters.get(&canonical).cloned() {
+                    resolver.closing_delimiters.entry(equiv_token).or_insert(opener);
+                }
+                if let Some(infix) = resolver.infix_rules.get(&canonical).cloned() {
+                    resolver.infix_rules.entry(equiv_token).or_insert(infix);
+                }
+                if resolver.opaque_containers.contains(&canonical) {
+                    resolver.opaque_containers.insert(equiv_token);
+                }
+            }
+        }
         for starters in resolver.named_type_starters.values_mut() {
             loop {
                 let mut changed = false;
@@ -866,9 +950,19 @@ impl DatasetRuleResolver {
 }
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
+    fn canonical_token(&self, token: u128) -> u128 {
+        self.canonical_map.get(&token).copied().unwrap_or(token)
+    }
+
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
-        token == canonical || self.semantic_equivalents.get(&canonical)
-            .is_some_and(|members| members.contains(&token))
+        if token == canonical {
+            return true;
+        }
+        let c1 = self.canonical_token(token);
+        let c2 = self.canonical_token(canonical);
+        c1 == c2
+            || self.semantic_equivalents.get(&canonical)
+                .is_some_and(|members| members.contains(&token))
     }
 
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule> {

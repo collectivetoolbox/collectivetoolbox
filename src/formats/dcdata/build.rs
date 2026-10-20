@@ -160,16 +160,21 @@ pub(crate) mod syntax {
     pub mod parser;
     #[path = "resolver.rs"]
     pub mod resolver;
+    #[path = "role.rs"]
+    pub mod role;
     #[path = "validator.rs"]
     pub mod validator;
 
     #[path = "resolver/codegen.rs"]
     pub mod codegen;
 
-    pub use ast::{CharTarget, DcSyntaxRule};
+    pub use ast::{
+        CharTarget, DcSyntaxRule, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    };
     pub use data_constraint::parse_data_constraint;
     pub use parser::{parse_dc_syntax, parse_target_token};
     pub use resolver::{DatasetRuleResolver, StarterSet};
+    pub use role::DcRole;
     pub use validator::{
         FormatValidationRegistry, build_format_validation_registry,
         validate_dc_syntax,

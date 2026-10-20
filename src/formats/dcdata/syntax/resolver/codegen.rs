@@ -591,6 +591,7 @@ pub fn generate_syntax_table_code(resolver: &DatasetRuleResolver) -> String {
     out.push_str("    populate_trailing_after_closer(resolver);\n");
     out.push_str("    populate_infix_rules(resolver);\n");
     out.push_str("    populate_named_type_starters(resolver);\n");
+    out.push_str("    populate_canonical_map(resolver);\n");
     out.push_str("    populate_semantic_equivalents(resolver);\n");
     out.push_str("    populate_opaque_containers(resolver);\n");
     out.push_str("}\n\n");
@@ -619,6 +620,14 @@ pub fn generate_syntax_table_code(resolver: &DatasetRuleResolver) -> String {
     );
     push_section(&mut out, &emit_infix_rules_section(resolver));
     push_section(&mut out, &emit_named_type_starters_section(resolver));
+    let mut canonicals: Vec<_> = resolver.canonical_map.iter().collect();
+    canonicals.sort_unstable_by_key(|(token, _)| **token);
+    out.push_str("fn populate_canonical_map(resolver: &mut DatasetRuleResolver) {\n");
+    for (token, canonical) in canonicals {
+        out.push_str(&format!("    resolver.canonical_map.insert({}, {});\n",
+            format_u128_literal(*token), format_u128_literal(*canonical)));
+    }
+    out.push_str("}\n\n");
     let mut equivalents: Vec<_> = resolver.semantic_equivalents.iter().collect();
     equivalents.sort_unstable_by_key(|(token, _)| **token);
     out.push_str("fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {\n");

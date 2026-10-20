@@ -34,6 +34,7 @@ use std::sync::{Arc, LazyLock};
 pub mod ast;
 pub mod parser;
 pub mod resolver;
+pub mod role;
 pub mod validator;
 
 #[path = "syntax/resolver/codegen.rs"]
@@ -51,6 +52,7 @@ pub use ast::{
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{parse_dc_syntax, parse_target_token};
 pub use resolver::{DatasetRuleResolver, StarterSet, SyntaxRuleResolver};
+pub use role::DcRole;
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
     build_format_validation_registry, validate_dc_syntax,

@@ -40,7 +40,8 @@ use crate::shared::{
     validate_cross_table_uniqueness, validate_general_category,
 };
 use crate::syntax::{
-    CharTarget, FormatValidationRegistry, build_format_validation_registry,
+    CharTarget, DcSyntaxRule, FormatValidationRegistry, SyntaxElement,
+    SyntaxPattern, SyntaxTerm, build_format_validation_registry,
     parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
 use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
@@ -1208,6 +1209,50 @@ pub fn validate_dc_category_file(
     rows
 }
 
+/// Normalizes a syntax pattern by converting explicit references to the defining
+/// character's Short ID into `SyntaxTerm::SelfChar` (`~`).
+fn normalize_syntax_pattern(
+    pattern: &SyntaxPattern,
+    self_short: Option<u32>,
+) -> SyntaxPattern {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => {
+            SyntaxPattern::Sequence(
+                elements
+                    .iter()
+                    .map(|elem| {
+                        let term = match &elem.term {
+                            SyntaxTerm::CharRef(CharTarget::Dc(id))
+                                if self_short == Some(*id) =>
+                            {
+                                SyntaxTerm::SelfChar
+                            }
+                            SyntaxTerm::Group(group_pat) => {
+                                SyntaxTerm::Group(normalize_syntax_pattern(
+                                    group_pat, self_short,
+                                ))
+                            }
+                            other => other.clone(),
+                        };
+                        SyntaxElement {
+                            term,
+                            quantifier: elem.quantifier,
+                        }
+                    })
+                    .collect(),
+            )
+        }
+        SyntaxPattern::Alternation(branches) => {
+            SyntaxPattern::Alternation(
+                branches
+                    .iter()
+                    .map(|b| normalize_syntax_pattern(b, self_short))
+                    .collect(),
+            )
+        }
+    }
+}
+
 /// Validates target references strictly (Dc short IDs, lowercase Unicode `uXXXX`, Formats `fXX`).
 fn collect_format_ids_from_expr(
     expr: &crate::format_spec::FormatExpr,
@@ -1549,6 +1594,26 @@ where
         }
     }
 
+    let dc_lookup_by_short: HashMap<
+        usize,
+        (
+            &Option<DcSyntaxRule>,
+            &Option<ctb_storage_minimal::shorthand::DcShorthand>,
+            &str,
+            usize,
+        ),
+    > = all_rows
+        .iter()
+        .filter_map(|r| {
+            r.short_id.map(|sid| {
+                (
+                    sid,
+                    (&r.syntax, &r.closes, r.source_file.as_str(), r.line_number),
+                )
+            })
+        })
+        .collect();
+
     // Second pass: Validate cross-references, decompositions, and syntax rules
     for row in &all_rows {
         for xref in &row.cross_references {
@@ -1610,6 +1675,120 @@ where
                     known_format_ids,
                     report,
                 );
+            }
+
+            if tag_name == "equiv" {
+                let tokens: Vec<&str> = payload.split_whitespace().collect();
+                if tokens.len() > 1 {
+                    if row.syntax.is_some() || row.closes.is_some() {
+                        report.add_error(
+                            &row.source_file,
+                            Some(row.line_number),
+                            Some("Aliases (decomposition)"),
+                            format!(
+                                "Document Character has multi-token <equiv> decomposition '{payload}' but defines a syntax rule or @closes"
+                            ),
+                            Some("Multi-token decompositions cannot define single-token syntax rules or @closes"),
+                        );
+                    }
+                } else if let Some(&target_token) = tokens.first() {
+                    if let Ok(shorthand) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_token) {
+                        match shorthand {
+                            ctb_storage_minimal::shorthand::DcShorthand::Short(target_sid) => {
+                                let sid_usize = usize::try_from(target_sid).ok();
+                                if let Some((target_syntax, target_closes, _target_file, _target_line)) =
+                                    sid_usize.and_then(|sid| dc_lookup_by_short.get(&sid))
+                                {
+                                    let s_has_syntax = row.syntax.is_some();
+                                    let t_has_syntax = target_syntax.is_some();
+                                    if s_has_syntax != t_has_syntax {
+                                        report.add_error(
+                                            &row.source_file,
+                                            Some(row.line_number),
+                                            Some("Aliases (decomposition)"),
+                                            format!(
+                                                "Document Character has <equiv> relationship with '{target_token}' but their syntax rules do not match: one defines a syntax rule and the other does not"
+                                            ),
+                                            Some("Ensure equivalent characters define identical syntax rules or omit them consistently"),
+                                        );
+                                    } else if let (Some(s_rule), Some(t_rule)) = (&row.syntax, target_syntax.as_ref()) {
+                                        let s_self = row.short_id.and_then(|id| u32::try_from(id).ok());
+                                        let t_self = u32::try_from(target_sid).ok();
+                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self);
+                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, t_self);
+                                        if s_norm != t_norm || s_rule.action != t_rule.action {
+                                            report.add_error(
+                                                &row.source_file,
+                                                Some(row.line_number),
+                                                Some("Aliases (decomposition)"),
+                                                format!(
+                                                    "Document Character has <equiv> relationship with '{target_token}' but their syntax rules differ: '{}' vs '{}'",
+                                                    s_rule.raw, t_rule.raw
+                                                ),
+                                                Some("Ensure equivalent characters define identical syntax rules"),
+                                            );
+                                        }
+                                    }
+
+                                    let s_has_closes = row.closes.is_some();
+                                    let t_has_closes = target_closes.is_some();
+                                    if s_has_closes != t_has_closes {
+                                        report.add_error(
+                                            &row.source_file,
+                                            Some(row.line_number),
+                                            Some("Aliases (decomposition)"),
+                                            format!(
+                                                "Document Character has <equiv> relationship with '{target_token}' but their @closes declarations do not match"
+                                            ),
+                                            Some("Ensure equivalent characters define identical @closes targets or omit them consistently"),
+                                        );
+                                    } else if let (Some(s_c), Some(t_c)) = (&row.closes, target_closes.as_ref()) {
+                                        if s_c != t_c {
+                                            report.add_error(
+                                                &row.source_file,
+                                                Some(row.line_number),
+                                                Some("Aliases (decomposition)"),
+                                                format!(
+                                                    "Document Character has <equiv> relationship with '{target_token}' but their @closes targets differ: {s_c:?} vs {t_c:?}"
+                                                ),
+                                                Some("Ensure equivalent characters close the same construct"),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            ctb_storage_minimal::shorthand::DcShorthand::Unicode(_) => {
+                                if row.syntax.is_some() || row.closes.is_some() {
+                                    report.add_error(
+                                        &row.source_file,
+                                        Some(row.line_number),
+                                        Some("Aliases (decomposition)"),
+                                        format!(
+                                            "Document Character has <equiv> relationship with Unicode codepoint '{target_token}' but defines a syntax rule or @closes"
+                                        ),
+                                        Some("Unicode codepoints cannot define syntax rules or @closes"),
+                                    );
+                                }
+                            }
+                            ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id) => {
+                                let target_has_syntax = known_format_with_syntax
+                                    .is_some_and(|set| set.contains(&fmt_id));
+                                if row.syntax.is_some() != target_has_syntax {
+                                    report.add_error(
+                                        &row.source_file,
+                                        Some(row.line_number),
+                                        Some("Aliases (decomposition)"),
+                                        format!(
+                                            "Document Character has <equiv> relationship with Format '{target_token}' but their syntax rules do not match: one defines a syntax rule and the other does not"
+                                        ),
+                                        Some("Ensure equivalent characters define identical syntax rules or omit them consistently"),
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
 
@@ -3006,5 +3185,91 @@ mod tests {
             &mut report_ok,
         );
         assert!(!report_ok.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_equiv_syntax_parity_validation() {
+        let known_formats: HashSet<usize> = HashSet::new();
+        let mut known_named_types: HashSet<String> = HashSet::new();
+        known_named_types.insert("string".to_string());
+
+        // 1. Matching syntax passes validation
+        let mut report_ok = ValidationReport::default();
+        let csv_ok = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Base,0,BN,,Cc,Controls,:~ [string],\n1114113,1,Equiv,0,BN,,Po,Controls,\"<equiv>0, :~ [string]\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_ok[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_ok,
+        );
+        assert!(!report_ok.has_errors(), "Expected success but got: {}", report_ok.format_report());
+
+        // 2. Mismatched syntax (one has rule, one has None) fails validation
+        let mut report_missing = ValidationReport::default();
+        let csv_missing = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Base,0,BN,,Cc,Controls,:~ [string],\n1114113,1,Equiv,0,BN,,Po,Controls,<equiv>0,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_missing[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_missing,
+        );
+        assert!(report_missing.has_errors());
+        assert!(
+            report_missing
+                .format_report()
+                .contains("their syntax rules do not match")
+        );
+
+        // 3. Incompatible syntax rules fail validation
+        let mut report_diff = ValidationReport::default();
+        let csv_diff = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Base,0,BN,,Cc,Controls,:~ [string],\n1114113,1,Equiv,0,BN,,Po,Controls,\"<equiv>0, :~ 0\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_diff[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_diff,
+        );
+        assert!(report_diff.has_errors());
+        assert!(
+            report_diff
+                .format_report()
+                .contains("their syntax rules differ")
+        );
+
+        // 4. Mismatched @closes declarations fail validation
+        let mut report_closes = ValidationReport::default();
+        let csv_closes = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Opener,0,BN,,Cc,Controls,,\n1114113,1,CloserA,0,BN,,Po,Controls,@closes(0),\n1114114,2,CloserB,0,BN,,Po,Controls,<equiv>1,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_closes[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_closes,
+        );
+        assert!(report_closes.has_errors());
+        assert!(
+            report_closes
+                .format_report()
+                .contains("their @closes declarations do not match")
+        );
     }
 }
