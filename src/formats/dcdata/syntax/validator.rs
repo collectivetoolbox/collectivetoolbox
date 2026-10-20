@@ -42,6 +42,10 @@ pub struct FormatValidationInfo {
     pub nicknames: Vec<String>,
     pub has_import_support: bool,
     pub has_export_support: bool,
+    pub is_deprecated: bool,
+    pub syntax: Option<DcSyntaxRule>,
+    pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
+    pub decompositions: Vec<String>,
 }
 
 /// Registry of format definitions and support levels for syntax validation.
@@ -153,6 +157,10 @@ pub fn build_format_validation_registry(format_rows: &[crate::DcDefn]) -> Format
                 nicknames,
                 has_import_support,
                 has_export_support,
+                is_deprecated: row.is_deprecated,
+                syntax: row.syntax.clone(),
+                closes: row.closes.clone(),
+                decompositions: row.decompositions.clone(),
             });
         }
     }

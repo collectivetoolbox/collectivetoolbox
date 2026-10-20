@@ -1316,6 +1316,7 @@ fn validate_target_token(
     deprecated_dc_ids: Option<&HashSet<u32>>,
     tag_name: Option<&str>,
     known_format_ids: &HashSet<usize>,
+    deprecated_format_ids: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) {
     let trimmed = token.trim();
@@ -1346,6 +1347,18 @@ fn validate_target_token(
                                 "Ensure referenced format ID is defined in formats category files",
                             ),
                         );
+                    } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
+                        if dep_fmts.contains(&fmt_id) {
+                            report.add_error(
+                                source_file,
+                                Some(line_no),
+                                Some(col_name),
+                                format!(
+                                    "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Format ID 'f{fmt_id}'"
+                                ),
+                                Some("Canonical equivalencies and approximations must target active, non-deprecated Formats"),
+                            );
+                        }
                     }
                 }
                 return;
@@ -1395,6 +1408,19 @@ fn validate_target_token(
                     format!("Referenced Format ID '{shorthand}' does not exist in formats registry"),
                     Some("Ensure referenced format ID is defined in formats category files"),
                 );
+            } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
+                if short_id.is_some_and(|id| dep_fmts.contains(&id)) {
+                    let shorthand = fmt_id.shorthand();
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!(
+                            "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Format ID '{shorthand}'"
+                        ),
+                        Some("Canonical equivalencies and approximations must target active, non-deprecated Formats"),
+                    );
+                }
             }
         }
         CharTarget::Unicode(cp) => {
@@ -1548,6 +1574,16 @@ where
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
+    let deprecated_format_ids: HashSet<usize> = format_registry
+        .map(|reg| {
+            reg.formats_by_id
+                .values()
+                .filter(|f| f.is_deprecated)
+                .map(|f| f.short_id)
+                .collect()
+        })
+        .unwrap_or_default();
+
     let mut known_syntax_targets: HashSet<CharTarget> = all_rows
         .iter()
         .filter(|r| r.syntax.is_some())
@@ -1625,6 +1661,93 @@ where
         })
         .collect();
 
+    // Build equivalence connected components for normalizing equivalent opener targets
+    let mut equiv_graph: HashMap<u128, HashSet<u128>> = HashMap::new();
+    for r in &all_rows {
+        for decomp in &r.decompositions {
+            if let Some((tag_raw, payload)) = decomp.split_once('>') {
+                if tag_raw.trim_start_matches('<').trim() == "equiv" {
+                    let tokens: Vec<&str> = payload.split_whitespace().collect();
+                    if tokens.len() == 1 {
+                        if let Some(&target_tok) = tokens.first() {
+                            if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_tok) {
+                                if let Ok(target_gid) = sh.to_global_id() {
+                                    equiv_graph.entry(r.dc_id).or_default().insert(target_gid);
+                                    equiv_graph.entry(target_gid).or_default().insert(r.dc_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(reg) = format_registry {
+        for fmt_info in reg.formats_by_id.values() {
+            if let Ok(fmt_sh) = ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_info.short_id).to_global_id() {
+                for decomp in &fmt_info.decompositions {
+                    if let Some((tag_raw, payload)) = decomp.split_once('>') {
+                        if tag_raw.trim_start_matches('<').trim() == "equiv" {
+                            let tokens: Vec<&str> = payload.split_whitespace().collect();
+                            if tokens.len() == 1 {
+                                if let Some(&target_tok) = tokens.first() {
+                                    if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_tok) {
+                                        if let Ok(target_gid) = sh.to_global_id() {
+                                            equiv_graph.entry(fmt_sh).or_default().insert(target_gid);
+                                            equiv_graph.entry(target_gid).or_default().insert(fmt_sh);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut canonical_map: HashMap<u128, u128> = HashMap::new();
+    let mut visited_equiv: HashSet<u128> = HashSet::new();
+    for &node in equiv_graph.keys() {
+        if visited_equiv.contains(&node) {
+            continue;
+        }
+        let mut component: Vec<u128> = Vec::new();
+        let mut queue: Vec<u128> = vec![node];
+        visited_equiv.insert(node);
+        while let Some(curr) = queue.pop() {
+            component.push(curr);
+            if let Some(neighbors) = equiv_graph.get(&curr) {
+                for &neighbor in neighbors {
+                    if visited_equiv.insert(neighbor) {
+                        queue.push(neighbor);
+                    }
+                }
+            }
+        }
+        if let Some(&canonical) = component.iter().min() {
+            for member in component {
+                canonical_map.insert(member, canonical);
+            }
+        }
+    }
+
+    let are_openers_equivalent = |s: &ctb_storage_minimal::shorthand::DcShorthand,
+                                  t: &ctb_storage_minimal::shorthand::DcShorthand|
+     -> bool {
+        if s == t {
+            return true;
+        }
+        match (s.to_global_id(), t.to_global_id()) {
+            (Ok(s_gid), Ok(t_gid)) => {
+                let s_canon = canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                let t_canon = canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
+                s_canon == t_canon
+            }
+            _ => false,
+        }
+    };
+
     // Second pass: Validate cross-references, decompositions, and syntax rules
     for row in &all_rows {
         for xref in &row.cross_references {
@@ -1642,6 +1765,7 @@ where
                 None,
                 None,
                 known_format_ids,
+                None,
                 report,
             );
         }
@@ -1673,6 +1797,11 @@ where
             } else {
                 None
             };
+            let dep_fmt_opt = if enforce_deprecation {
+                Some(&deprecated_format_ids)
+            } else {
+                None
+            };
 
             for token in payload.split_whitespace() {
                 validate_target_token(
@@ -1684,6 +1813,7 @@ where
                     dep_opt,
                     tag_opt,
                     known_format_ids,
+                    dep_fmt_opt,
                     report,
                 );
             }
@@ -1754,7 +1884,7 @@ where
                                             Some("Ensure equivalent characters define identical @closes targets or omit them consistently"),
                                         );
                                     } else if let (Some(s_c), Some(t_c)) = (&row.closes, target_closes.as_ref()) {
-                                        if s_c != t_c {
+                                        if !are_openers_equivalent(s_c, t_c) {
                                             report.add_error(
                                                 &row.source_file,
                                                 Some(row.line_number),
@@ -1782,18 +1912,95 @@ where
                                 }
                             }
                             ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id) => {
-                                let target_has_syntax = known_format_with_syntax
-                                    .is_some_and(|set| set.contains(&fmt_id));
-                                if row.syntax.is_some() != target_has_syntax {
-                                    report.add_error(
-                                        &row.source_file,
-                                        Some(row.line_number),
-                                        Some("Aliases (decomposition)"),
-                                        format!(
-                                            "Document Character has <equiv> relationship with Format '{target_token}' but their syntax rules do not match: one defines a syntax rule and the other does not"
-                                        ),
-                                        Some("Ensure equivalent characters define identical syntax rules or omit them consistently"),
-                                    );
+                                if let Some(fmt_info) = format_registry.and_then(|r| r.formats_by_id.get(&fmt_id)) {
+                                    if fmt_info.is_deprecated {
+                                        let already_flagged = report.diagnostics.iter().any(|d| {
+                                            d.file_path == row.source_file
+                                                && d.row_number == Some(row.line_number)
+                                                && d.message.contains("references deprecated Format ID")
+                                        });
+                                        if !already_flagged {
+                                            report.add_error(
+                                                &row.source_file,
+                                                Some(row.line_number),
+                                                Some("Aliases (decomposition)"),
+                                                format!(
+                                                    "Canonical equivalency relationship '<equiv>' references deprecated Format ID 'f{fmt_id}'"
+                                                ),
+                                                Some("Canonical equivalencies must target active, non-deprecated Formats"),
+                                            );
+                                        }
+                                    }
+
+                                    let s_has_syntax = row.syntax.is_some();
+                                    let t_has_syntax = fmt_info.syntax.is_some();
+                                    if s_has_syntax != t_has_syntax {
+                                        report.add_error(
+                                            &row.source_file,
+                                            Some(row.line_number),
+                                            Some("Aliases (decomposition)"),
+                                            format!(
+                                                "Document Character has <equiv> relationship with Format '{target_token}' but their syntax rules do not match: one defines a syntax rule and the other does not"
+                                            ),
+                                            Some("Ensure equivalent characters define identical syntax rules or omit them consistently"),
+                                        );
+                                    } else if let (Some(s_rule), Some(t_rule)) = (&row.syntax, fmt_info.syntax.as_ref()) {
+                                        let s_self = row.short_id.and_then(|id| u32::try_from(id).ok());
+                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self);
+                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, None);
+                                        if s_norm != t_norm || s_rule.action != t_rule.action {
+                                            report.add_error(
+                                                &row.source_file,
+                                                Some(row.line_number),
+                                                Some("Aliases (decomposition)"),
+                                                format!(
+                                                    "Document Character has <equiv> relationship with Format '{target_token}' but their syntax rules differ: '{}' vs '{}'",
+                                                    s_rule.raw, t_rule.raw
+                                                ),
+                                                Some("Ensure equivalent characters define identical syntax rules"),
+                                            );
+                                        }
+                                    }
+
+                                    let s_has_closes = row.closes.is_some();
+                                    let t_has_closes = fmt_info.closes.is_some();
+                                    if s_has_closes != t_has_closes {
+                                        report.add_error(
+                                            &row.source_file,
+                                            Some(row.line_number),
+                                            Some("Aliases (decomposition)"),
+                                            format!(
+                                                "Document Character has <equiv> relationship with Format '{target_token}' but their @closes declarations do not match"
+                                            ),
+                                            Some("Ensure equivalent characters define identical @closes targets or omit them consistently"),
+                                        );
+                                    } else if let (Some(s_c), Some(t_c)) = (&row.closes, fmt_info.closes.as_ref()) {
+                                        if !are_openers_equivalent(s_c, t_c) {
+                                            report.add_error(
+                                                &row.source_file,
+                                                Some(row.line_number),
+                                                Some("Aliases (decomposition)"),
+                                                format!(
+                                                    "Document Character has <equiv> relationship with Format '{target_token}' but their @closes targets differ: {s_c:?} vs {t_c:?}"
+                                                ),
+                                                Some("Ensure equivalent characters close the same construct"),
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    let target_has_syntax = known_format_with_syntax
+                                        .is_some_and(|set| set.contains(&fmt_id));
+                                    if row.syntax.is_some() != target_has_syntax {
+                                        report.add_error(
+                                            &row.source_file,
+                                            Some(row.line_number),
+                                            Some("Aliases (decomposition)"),
+                                            format!(
+                                                "Document Character has <equiv> relationship with Format '{target_token}' but their syntax rules do not match: one defines a syntax rule and the other does not"
+                                            ),
+                                            Some("Ensure equivalent characters define identical syntax rules or omit them consistently"),
+                                        );
+                                    }
                                 }
                             }
                             _ => {}
@@ -2727,6 +2934,7 @@ mod tests {
             nicknames: vec!["sha256".to_string()],
             has_import_support: true,
             has_export_support: true,
+            ..Default::default()
         });
         fmt_registry.add_format(crate::syntax::FormatValidationInfo {
             short_id: 99,
@@ -2735,6 +2943,7 @@ mod tests {
             nicknames: vec![],
             has_import_support: true,
             has_export_support: false,
+            ..Default::default()
         });
 
         // [data:hash] rejects category name
@@ -2998,6 +3207,58 @@ mod tests {
             &mut report_valid,
         );
         assert!(!report_valid.has_errors());
+
+        // 7. <equiv> referencing deprecated Format ID
+        let mut report_equiv_fmt = ValidationReport::default();
+        let mut fmt_registry = FormatValidationRegistry::new();
+        fmt_registry.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 20,
+            ident: Some("DeprecatedFormat".to_string()),
+            category: "archive".to_string(),
+            is_deprecated: true,
+            ..Default::default()
+        });
+        let mut known_formats_with_20 = HashSet::new();
+        known_formats_with_20.insert(20);
+        let csv_equiv_fmt = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<equiv>f20,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_equiv_fmt[..])],
+            "test",
+            &known_formats_with_20,
+            None,
+            None,
+            None,
+            None,
+            Some(&fmt_registry),
+            &mut report_equiv_fmt,
+        );
+        assert!(report_equiv_fmt.has_errors());
+        assert!(
+            report_equiv_fmt
+                .format_report()
+                .contains("references deprecated Format ID 'f20'")
+        );
+
+        // 8. <approx> referencing deprecated Format ID
+        let mut report_approx_fmt = ValidationReport::default();
+        let csv_approx_fmt = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<approx>f20,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_approx_fmt[..])],
+            "test",
+            &known_formats_with_20,
+            None,
+            None,
+            None,
+            None,
+            Some(&fmt_registry),
+            &mut report_approx_fmt,
+        );
+        assert!(report_approx_fmt.has_errors());
+        assert!(
+            report_approx_fmt
+                .format_report()
+                .contains("references deprecated Format ID 'f20'")
+        );
     }
 
     #[crate::ctb_test]
@@ -3281,6 +3542,91 @@ mod tests {
             report_closes
                 .format_report()
                 .contains("their @closes declarations do not match")
+        );
+
+        // 5. Normalized equivalent opener targets in @closes succeed
+        let mut report_norm_closes = ValidationReport::default();
+        let csv_norm_closes = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,OpenerA,0,BN,,Cc,Controls,,\n1114113,1,OpenerAEquiv,0,BN,,Cc,Controls,<equiv>0,\n1114114,2,CloserA,0,BN,,Po,Controls,@closes(0),\n1114115,3,CloserB,0,BN,,Po,Controls,\"<equiv>2, @closes(1)\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_norm_closes[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_norm_closes,
+        );
+        assert!(!report_norm_closes.has_errors(), "Expected normalized @closes to pass: {}", report_norm_closes.format_report());
+
+        // 6. Truly mismatched @closes targets still fail validation
+        let mut report_mismatched_target = ValidationReport::default();
+        let csv_mismatched_target = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,OpenerA,0,BN,,Cc,Controls,,\n1114113,1,OpenerB,0,BN,,Cc,Controls,,\n1114114,2,CloserA,0,BN,,Po,Controls,@closes(0),\n1114115,3,CloserB,0,BN,,Po,Controls,\"<equiv>2, @closes(1)\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_mismatched_target[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_mismatched_target,
+        );
+        assert!(report_mismatched_target.has_errors());
+        assert!(
+            report_mismatched_target
+                .format_report()
+                .contains("their @closes targets differ")
+        );
+
+        // 7. Format ID <equiv> with matching syntax passes
+        let mut report_fmt_ok = ValidationReport::default();
+        let mut fmt_registry_syntax = FormatValidationRegistry::new();
+        let string_syntax = parse_dc_syntax(":~ [string]").unwrap();
+        fmt_registry_syntax.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 10,
+            ident: Some("TestFormat".to_string()),
+            category: "text".to_string(),
+            syntax: Some(string_syntax.clone()),
+            ..Default::default()
+        });
+        let known_formats_10 = HashSet::from([10]);
+        let known_fmts_syntax_10 = HashSet::from([10]);
+        let csv_fmt_ok = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,\"<equiv>f10, :~ [string]\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_fmt_ok[..])],
+            "test",
+            &known_formats_10,
+            None,
+            Some(&known_named_types),
+            None,
+            Some(&known_fmts_syntax_10),
+            Some(&fmt_registry_syntax),
+            &mut report_fmt_ok,
+        );
+        assert!(!report_fmt_ok.has_errors(), "Expected format equiv to pass: {}", report_fmt_ok.format_report());
+
+        // 8. Format ID <equiv> with mismatched syntax rules fails
+        let mut report_fmt_diff = ValidationReport::default();
+        let csv_fmt_diff = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,\"<equiv>f10, :~ 0\",\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_fmt_diff[..])],
+            "test",
+            &known_formats_10,
+            None,
+            Some(&known_named_types),
+            None,
+            Some(&known_fmts_syntax_10),
+            Some(&fmt_registry_syntax),
+            &mut report_fmt_diff,
+        );
+        assert!(report_fmt_diff.has_errors());
+        assert!(
+            report_fmt_diff
+                .format_report()
+                .contains("their syntax rules differ")
         );
     }
 }
