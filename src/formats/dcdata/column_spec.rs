@@ -88,6 +88,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub magic_names: Vec<String>,
     /// Opening target character closed by this character, extracted from `@closes(...)`.
     pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
+    /// Indicates whether this character is declared as defining a semantic or syntactic role via `@roleDef()`.
+    pub role_def: bool,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -829,13 +831,37 @@ fn process_column_item(
                     Some("Ensure '@closes(...)' closes with a parenthesis"),
                 );
             }
+        } else if item_trimmed == "@roleDef()" {
+            parsed.role_def = true;
+        } else if let Some(inner) = item_trimmed.strip_prefix("@roleDef(") {
+            if inner.trim() == ")" {
+                parsed.role_def = true;
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@roleDef()': directive takes no parameters in '{item_trimmed}'"),
+                    Some("Use '@roleDef()' without arguments"),
+                );
+                parsed.role_def = true;
+            }
+        } else if item_trimmed == "@roleDef" {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some(col_name),
+                format!("Malformed '@roleDef': missing parentheses in '{item_trimmed}'"),
+                Some("Use '@roleDef()' with empty parentheses"),
+            );
+            parsed.role_def = true;
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', '@varies(...)', and '@closes(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', '@varies(...)', '@closes(...)', and '@roleDef()'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -1272,5 +1298,32 @@ mod tests {
         );
         assert!(err_report.has_errors());
         assert!(err_report.format_report().contains("Empty '@magic_name()'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_role_def_directive() {
+        let mut report = ValidationReport::new();
+        let parsed = parse_aliases_or_base_column(
+            r#"@ident("Escape"), @roleDef()"#,
+            "test_category.csv",
+            1,
+            &mut report,
+            false,
+        );
+        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(parsed.role_def);
+        assert_eq!(parsed.rust_ident.as_deref(), Some("Escape"));
+
+        let mut err_report = ValidationReport::new();
+        let parsed_err = parse_aliases_or_base_column(
+            r#"@ident("Escape"), @roleDef(foo)"#,
+            "test_category.csv",
+            1,
+            &mut err_report,
+            false,
+        );
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("Malformed '@roleDef()'"));
+        assert!(parsed_err.role_def);
     }
 }

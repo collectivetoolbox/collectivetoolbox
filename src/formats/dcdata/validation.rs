@@ -1179,10 +1179,21 @@ pub fn validate_dc_category_file(
             (category.clone(), None)
         };
 
+        if parsed_col.role_def && parsed_col.rust_ident.is_none() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                format!("Document Character has '@roleDef()' but is missing an '@ident(\"...\")' declaration"),
+                Some("Add an '@ident(\"...\")' declaration to define the role variant name"),
+            );
+        }
+
         rows.push(DcDefn {
             dc_id,
             short_id,
             ident: parsed_col.rust_ident,
+            role_def: parsed_col.role_def,
             title: parsed_col.title,
             name,
             category: row_category,

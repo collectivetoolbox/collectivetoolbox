@@ -105,6 +105,10 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
   - `@ident("TarGz")`
   - `@ident("Utf8")`
 
+#### `@roleDef()`
+- **Purpose**: Marks this Document Character as the defining Dc for a syntactic or semantic role (`DcRole`). The variant name in `pub enum DcRole` is taken from the character's `@ident(...)` declaration.
+- **Syntax**: `@roleDef()` (takes no parameters).
+
 #### `@nick("...")`
 - **Purpose**: Short CLI argument or invocation alias.
 - **Syntax**: `@nick("<nickname>")`.
@@ -145,16 +149,17 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
 When records are generated or serialized, directives and items in Column 9 are arranged in the following deterministic order:
 1. **Formal Name Aliases**: `@formalAliasCorrection(...)`, `@formalAliasControl(...)`, `@formalAliasAlternate(...)`, `@formalAliasFigment(...)`, `@formalAliasAbbreviation(...)`
 2. **Rust Identifier**: `@ident(...)`
-3. **Nicknames**: `@nick(...)`
-4. **Informal Aliases**: Bare alias strings
-5. **Cross-References**: `@xref(...)`
-6. **Decompositions**: `<tag>...`
-7. **Annotations**: `@annotation(...)`
-8. **Syntax Rules**: `:<syntax>`
-9. **Chain DSL**: `@chain(...)`
-10. **Lineage / Implies**: `@based_on(...)`, `@implies(...)`
-11. **OS Associations**: `@os(...)`
-12. **Magic Names**: `@magic_name(...)`
+3. **Role Definition**: `@roleDef()`
+4. **Nicknames**: `@nick(...)`
+5. **Informal Aliases**: Bare alias strings
+6. **Cross-References**: `@xref(...)`
+7. **Decompositions**: `<tag>...`
+8. **Annotations**: `@annotation(...)`
+9. **Syntax Rules**: `:<syntax>`
+10. **Chain DSL**: `@chain(...)`
+11. **Lineage / Implies**: `@based_on(...)`, `@implies(...)`
+12. **OS Associations**: `@os(...)`
+13. **Magic Names**: `@magic_name(...)`
 
 ---
 

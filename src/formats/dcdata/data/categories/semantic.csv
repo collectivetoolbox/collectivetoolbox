@@ -3,19 +3,19 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114115,3,End separator,0,BN,,!Cx,.Semantic,,End a DCE separator string.
 1114116,4,Range,0,BN,,!Cx,.Semantic,,The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
 1114117,5,Record summation,0,BN,,!Cx,.Semantic,,Used to denote the union of two records. See the wiki for more information.
-1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber"")",Begin a DCE number.
-1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber""), @closes(6)",End a DCE number.
+1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber""), @roleDef()",Begin a DCE number.
+1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber""), @roleDef(), @closes(6)",End a DCE number.
 1114120,8,Unknown value,0,BN,,!Cx,.Semantic,,Substitution character for an unknown value.
 1114121,9,Gregorian calendar identifier,0,BN,,!Cx,.Formats:calendar,,Internal DCE calendar identifier for the Gregorian calendar.
-1114122,10,Positive,0,BN,,!Cx,.Semantic,"@ident(""Positive"")",Positive value (syntactical representation — This is not the + character)
-1114123,11,Negative,0,BN,,!Cx,.Semantic,"@ident(""Negative"")",Negative (syntactical representation — This is not the − character)
+1114122,10,Positive,0,BN,,!Cx,.Semantic,"@ident(""Positive""), @roleDef()",Positive value (syntactical representation — This is not the + character)
+1114123,11,Negative,0,BN,,!Cx,.Semantic,"@ident(""Negative""), @roleDef()",Negative (syntactical representation — This is not the − character)
 1114226,114,Begin unbounded content,0,BN,,!Cx,.Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"
 1114227,115,End unbounded content,0,BN,,!Cx,.Semantic,,
 1114347,235,Begin document,0,BN,,!Cx,.Semantic,,Beginning of a document
 1114348,236,End document,0,BN,,!Cx,.Semantic,,
-1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
-1114411,299,End associativity group,0,BN,,!Cx,.Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
-1114412,300,Type union,0,BN,,!Cx,.Semantic,"@ident(""TypeUnion""), :~ (([type] [type]) | [list:type])","Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
+1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,"@ident(""BeginAssociativityGroup""), @roleDef()",Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
+1114411,299,End associativity group,0,BN,,!Cx,.Semantic,"@ident(""EndAssociativityGroup""), @roleDef(), @closes(298)",Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
+1114412,300,Type union,0,BN,,!Cx,.Semantic,"@ident(""TypeUnion""), @roleDef(), :~ (([type] [type]) | [list:type])","Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
 1114413,301,Type transformation,0,BN,,!Cx,.Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
 1114414,302,Type conversion,0,BN,,!Cx,.Semantic,:~ [type] [type],Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
 1114415,303,Type transmutation,0,BN,,!Cx,.Semantic,:~ [type] [type],Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
@@ -42,8 +42,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
 1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
-1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [^341]* 341",Begins an execution environment snapshot.
-1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @closes(340)",Terminates an execution environment snapshot.
+1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), @roleDef(), :~ [^341]* 341",Begins an execution environment snapshot.
+1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @roleDef(), @closes(340)",Terminates an execution environment snapshot.
 1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ ([formats:os] | [string]),Host operating system description.
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.
@@ -90,16 +90,16 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389",Begins a collection of semantic file flags attached to a file.
-1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @closes(388)",Terminates a collection of semantic file flags attached to a file.
-1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,"@ident(""BeginTimeMoment""), :~ [formats:date] [^391]+ 391",Begins a time moment description.
-1114503,391,End time moment description,0,BN,,!Cx,.Semantic,"@ident(""EndTimeMoment"")",Terminates a time moment description.
+1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), @roleDef(), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389",Begins a collection of semantic file flags attached to a file.
+1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @roleDef(), @closes(388)",Terminates a collection of semantic file flags attached to a file.
+1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,"@ident(""BeginTimeMoment""), @roleDef(), :~ [formats:date] [^391]+ 391",Begins a time moment description.
+1114503,391,End time moment description,0,BN,,!Cx,.Semantic,"@ident(""EndTimeMoment""), @roleDef()",Terminates a time moment description.
 1114504,392,File data,0,BN,,!Cx,.Semantic,:~ [data],File contents
-1114505,393,Begin date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateMagnitude""), :~ [formats:duration] [^394]+ 394",A positive date duration
-1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""EndDateMagnitude"")",
-1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateDuration""), :~ [formats:duration] [^396]+ 396",
-1114508,396,End date duration description,0,BN,,!Cx,.Semantic,"@ident(""EndDateDuration"")",
-1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), :~ [list]",Indicates that all values within the list have the same underlying meaning.
+1114505,393,Begin date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateMagnitude""), @roleDef(), :~ [formats:duration] [^394]+ 394",A positive date duration
+1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""EndDateMagnitude""), @roleDef()",
+1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateDuration""), @roleDef(), :~ [formats:duration] [^396]+ 396",
+1114508,396,End date duration description,0,BN,,!Cx,.Semantic,"@ident(""EndDateDuration""), @roleDef()",
+1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), @roleDef(), :~ [list]",Indicates that all values within the list have the same underlying meaning.
 1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,.Semantic,:~ [string],File comment string.
@@ -199,12 +199,12 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114620,508,File flag: alias,0,BN,,!Cx,.Semantic:fileflag,alias,Mac OS object is an alias file.
 1114621,509,File flag: extended flags invalid,0,BN,,!Cx,.Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
 1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:] 512,Mac OS Finder folder window bounds rectangle coordinates.
-1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""BeginFormatRepresentation""), :~ [format] [^512]+ [512]",E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
-1114624,512,End Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""EndFormatRepresentation""), @closes(511)",
-1114625,513,File path delimiter,0,BN,,!Cx,.Semantic,"@ident(""FilePathDelimiter"")",
-1114628,516,Type intersection,0,BN,,!Cx,.Semantic,"@ident(""TypeIntersection""), :~ (([type] [type]) | [list:type])","Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
-1114629,517,Boolean true,0,BN,,!Cx,.Semantic,"@ident(""BooleanTrue"")",
-1114630,518,Boolean false,0,BN,,!Cx,.Semantic,"@ident(""BooleanFalse"")",
+1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""BeginFormatRepresentation""), @roleDef(), :~ [format] [^512]+ [512]",E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
+1114624,512,End Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""EndFormatRepresentation""), @roleDef(), @closes(511)",
+1114625,513,File path delimiter,0,BN,,!Cx,.Semantic,"@ident(""FilePathDelimiter""), @roleDef()",
+1114628,516,Type intersection,0,BN,,!Cx,.Semantic,"@ident(""TypeIntersection""), @roleDef(), :~ (([type] [type]) | [list:type])","Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
+1114629,517,Boolean true,0,BN,,!Cx,.Semantic,"@ident(""BooleanTrue""), @roleDef()",
+1114630,518,Boolean false,0,BN,,!Cx,.Semantic,"@ident(""BooleanFalse""), @roleDef()",
 1114631,519,Server system clock offset nanoseconds,0,BN,,!Cx,.Semantic,:~ [number:Integer],Difference between server time and system time in nanoseconds.
 1114632,520,Execution environment is an application built with release configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in release mode with optimizations.
 1114633,521,Execution environment is an application built with debug configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in debug mode with debug assertions enabled.
@@ -221,28 +221,28 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is executing on a local machine.
 1114645,533,Host kernel version string,0,BN,,!Cx,.Semantic,:~ [string],Kernel version or release string of execution environment host.
 1114646,534,File origin: FIFO,0,BN,,!Cx,.Semantic,,
-1114647,535,Format parameter application,0,BN,,!Cx,.Semantic,"@ident(""FormatParamApplication"")",Applies typed parameter bindings to a format in a format specification expression.
+1114647,535,Format parameter application,0,BN,,!Cx,.Semantic,"@ident(""FormatParamApplication""), @roleDef()",Applies typed parameter bindings to a format in a format specification expression.
 1114648,536,File warning,0,BN,,!Cx,.Semantic,:~ [string],Operational warning or fidelity notice observed for a file entity.
 1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.
 1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist."
 1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,"@ident(""RawFileFlags""), :~ [data]",Raw file flag bitmask with an unparsed-bits indicator.
-1114655,543,Begin checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""BeginChecksummedSection""), :~ [^544]+ 544 [545:]",Begins a delimited section of a document or stream verified by an end checksum.
-1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection""), @closes(543)",Terminates a checksummed section.
-1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), :~ [checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
-1114658,546,Sequence identifier,0,BN,,!Cx,.Semantic,"@ident(""SequenceIdentifier""), :~ [number:Integer]",Monotonically increasing sequence or batch counter.
-1114659,547,Begin operation session description,0,BN,,!Cx,.Semantic,"@ident(""BeginOperationSession""), :~ [^548]+ 548",Begins a record describing the parameters source destination and execution of an operation task or session.
-1114660,548,End operation session description,0,BN,,!Cx,.Semantic,"@ident(""EndOperationSession""), @closes(547)",Terminates an operation session record.
-1114661,549,Source path,0,BN,,!Cx,.Semantic,"@ident(""SourcePath""), :~ [filepath]",Path designating a source directory file or origin root of an operation.
-1114662,550,Destination path,0,BN,,!Cx,.Semantic,"@ident(""DestinationPath""), :~ [filepath]",Path designating a target or destination directory file or storage root.
-1114663,551,Operation completed marker,0,BN,,!Cx,.Semantic,"@ident(""OperationCompleted"")",Indicates that an operation or session completed its primary intended task.
-1114664,552,Begin error record,0,BN,,!Cx,.Semantic,"@ident(""BeginErrorRecord""), :~ [^553]+ 553",Begins a structured error incident record.
-1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @closes(552)",Terminates a structured error record.
-1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), :~ [^555]+ 555",Begins a structured warning incident record.
-1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @closes(554)",Terminates a structured warning record.
-1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
-1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
-1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
-1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
+1114655,543,Begin checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""BeginChecksummedSection""), @roleDef(), :~ [^544]+ 544 [545:]",Begins a delimited section of a document or stream verified by an end checksum.
+1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection""), @roleDef(), @closes(543)",Terminates a checksummed section.
+1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), @roleDef(), :~ [checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
+1114658,546,Sequence identifier,0,BN,,!Cx,.Semantic,"@ident(""SequenceIdentifier""), @roleDef(), :~ [number:Integer]",Monotonically increasing sequence or batch counter.
+1114659,547,Begin operation session description,0,BN,,!Cx,.Semantic,"@ident(""BeginOperationSession""), @roleDef(), :~ [^548]+ 548",Begins a record describing the parameters source destination and execution of an operation task or session.
+1114660,548,End operation session description,0,BN,,!Cx,.Semantic,"@ident(""EndOperationSession""), @roleDef(), @closes(547)",Terminates an operation session record.
+1114661,549,Source path,0,BN,,!Cx,.Semantic,"@ident(""SourcePath""), @roleDef(), :~ [filepath]",Path designating a source directory file or origin root of an operation.
+1114662,550,Destination path,0,BN,,!Cx,.Semantic,"@ident(""DestinationPath""), @roleDef(), :~ [filepath]",Path designating a target or destination directory file or storage root.
+1114663,551,Operation completed marker,0,BN,,!Cx,.Semantic,"@ident(""OperationCompleted""), @roleDef()",Indicates that an operation or session completed its primary intended task.
+1114664,552,Begin error record,0,BN,,!Cx,.Semantic,"@ident(""BeginErrorRecord""), @roleDef(), :~ [^553]+ 553",Begins a structured error incident record.
+1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @roleDef(), @closes(552)",Terminates a structured error record.
+1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), @roleDef(), :~ [^555]+ 555",Begins a structured warning incident record.
+1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @roleDef(), @closes(554)",Terminates a structured warning record.
+1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), @roleDef(), :~ [string]",Human-readable explanatory or diagnostic log message.
+1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), @roleDef(), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
+1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), @roleDef(), :~ [number:Integer]",Numeric status or return code associated with an operation.
+1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), @roleDef(), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
 1114674,562,Mac OS extended Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]* 389),Extended Mac OS Finder flags (FXInfo fdXFlags / DXInfo frXFlags).
 1114675,563,File data format,0,BN,,!Cx,.Semantic,:~ [format],Data format of the file identified by the enclosing descriptor.
 1114676,564,Archive member position,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Zero-based position of a member within the archive identified by the enclosing origin descriptor.

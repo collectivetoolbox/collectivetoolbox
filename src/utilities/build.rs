@@ -40,10 +40,15 @@ fn main() -> Result<()> {
     )?;
 
     println!("cargo:rerun-if-changed=../formats/dcdata/data/categories");
+    println!("cargo:rerun-if-changed=../formats/dcdata/syntax/role.generated.rs");
+    println!("cargo:rerun-if-changed=../formats/dcdata/dc.generated.rs");
     ctb_build_support::format_id_codegen::generate_format_id_file(
         &manifest_dir,
     )?;
     ctb_build_support::dc_codegen::generate_dc_file(
+        &manifest_dir,
+    )?;
+    ctb_build_support::dc_codegen::generate_role_file(
         &manifest_dir,
     )?;
     ctb_build_support::extension_codegen::generate_extension_data_file(

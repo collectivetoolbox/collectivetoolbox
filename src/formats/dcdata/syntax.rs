@@ -34,6 +34,7 @@ use std::sync::{Arc, LazyLock};
 pub mod ast;
 pub mod parser;
 pub mod resolver;
+#[path = "syntax/role.generated.rs"]
 pub mod role;
 pub mod validator;
 

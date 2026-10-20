@@ -3070,6 +3070,7 @@ fn populate_closing_delimiters(resolver: &mut DatasetRuleResolver) {
     resolver.closing_delimiters.insert(1_114_373_u128, CharTarget::Dc(260));
     resolver.closing_delimiters.insert(1_114_375_u128, CharTarget::Dc(262));
     resolver.closing_delimiters.insert(1_114_383_u128, CharTarget::Dc(270));
+    resolver.closing_delimiters.insert(1_114_411_u128, CharTarget::Dc(298));
     resolver.closing_delimiters.insert(1_114_423_u128, CharTarget::Dc(310));
     resolver.closing_delimiters.insert(1_114_426_u128, CharTarget::Dc(313));
     resolver.closing_delimiters.insert(1_114_430_u128, CharTarget::Dc(317));
@@ -3107,6 +3108,7 @@ fn populate_opener_to_closer(resolver: &mut DatasetRuleResolver) {
     resolver.opener_to_closer.insert(CharTarget::Dc(260), 1_114_373_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(262), 1_114_375_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(270), 1_114_383_u128);
+    resolver.opener_to_closer.insert(CharTarget::Dc(298), 1_114_411_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(310), 1_114_423_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(313), 1_114_426_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(317), 1_114_430_u128);
@@ -4296,5 +4298,6 @@ fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {
 fn populate_opaque_containers(resolver: &mut DatasetRuleResolver) {
     resolver.opaque_containers.extend([
         1_114_118_u128, 1_114_312_u128, 1_114_315_u128, 1_114_358_u128, 1_114_361_u128, 1_114_372_u128, 1_114_374_u128, 1_114_382_u128,
+        1_114_410_u128,
     ]);
 }

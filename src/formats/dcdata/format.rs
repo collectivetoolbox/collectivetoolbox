@@ -460,6 +460,7 @@ pub fn validate_formats_category_file(
             } else {
                 Some(clean_ident.to_string())
             },
+            role_def: parsed.role_def,
             title: parsed.title,
             name: clean_label.to_string(),
             category: formatted_category,

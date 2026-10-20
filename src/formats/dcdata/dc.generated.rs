@@ -106,6 +106,10 @@ pub const DC_TYPE_NUMBER: DcChar = DcChar::from_short(278);
 pub const DC_ROUTINE_INVOCATION: DcChar = DcChar::from_short(279);
 /// Built-in type identifier: Routine (Dc 280).
 pub const DC_TYPE_ROUTINE: DcChar = DcChar::from_short(280);
+/// Equivalent to an opening parenthesis in many languages or in arithmetic expressions. (Dc 298).
+pub const DC_BEGIN_ASSOCIATIVITY_GROUP: DcChar = DcChar::from_short(298);
+/// Equivalent to a closing parenthesis in many languages or in arithmetic expressions. (Dc 299).
+pub const DC_END_ASSOCIATIVITY_GROUP: DcChar = DcChar::from_short(299);
 /// Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”. (Dc 300).
 pub const DC_TYPE_UNION: DcChar = DcChar::from_short(300);
 /// Subtype of string (Dc 306).

@@ -135,6 +135,18 @@ fn main() -> ExitCode {
         }
     }
 
+    match ctb_build_support::dc_codegen::generate_role_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated dcdata/syntax/role.generated.rs from category tables with @roleDef annotations.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating dcdata/syntax/role.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
     match ctb_build_support::extension_codegen::generate_extension_data_file(&repo_root) {
         Ok(updated) => {
             if updated {
