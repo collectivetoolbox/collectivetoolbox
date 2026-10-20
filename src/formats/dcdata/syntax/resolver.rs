@@ -874,61 +874,178 @@ impl DatasetRuleResolver {
             graph.entry(*source).or_default().insert(target.to_u128());
             graph.entry(target.to_u128()).or_default().insert(*source);
         }
-        for source in graph.keys() {
+        let equiv_sources: HashSet<u128> = equivalents.iter().map(|(s, _)| *s).collect();
+        let equiv_targets: HashSet<u128> = equivalents.iter().map(|(_, t)| t.to_u128()).collect();
+
+        // Find connected equivalence components
+        let mut visited = HashSet::new();
+        let mut components: Vec<HashSet<u128>> = Vec::new();
+        for &node in graph.keys() {
+            if visited.contains(&node) {
+                continue;
+            }
             let mut members = HashSet::new();
-            let mut pending = vec![*source];
+            let mut pending = vec![node];
             while let Some(token) = pending.pop() {
                 if members.insert(token) {
+                    visited.insert(token);
                     if let Some(neighbors) = graph.get(&token) {
                         pending.extend(neighbors);
                     }
                 }
             }
-            let canonical = *members.iter().min().unwrap_or(source);
-            for &member in &members {
+            components.push(members);
+        }
+
+        for members in &components {
+            let is_dep = |token: u128| -> bool {
+                CharTarget::from_u128(token).is_some_and(|ct| resolver.is_deprecated(&ct))
+            };
+
+            let terminal_targets: Vec<u128> = members
+                .iter()
+                .copied()
+                .filter(|m| equiv_targets.contains(m) && !equiv_sources.contains(m) && !is_dep(*m))
+                .collect();
+            let non_dep_targets: Vec<u128> = members
+                .iter()
+                .copied()
+                .filter(|m| equiv_targets.contains(m) && !is_dep(*m))
+                .collect();
+            let non_dep_members: Vec<u128> = members
+                .iter()
+                .copied()
+                .filter(|m| !is_dep(*m))
+                .collect();
+            let any_targets: Vec<u128> = members
+                .iter()
+                .copied()
+                .filter(|m| equiv_targets.contains(m))
+                .collect();
+
+            let canonical = terminal_targets
+                .into_iter()
+                .min()
+                .or_else(|| non_dep_targets.into_iter().min())
+                .or_else(|| non_dep_members.into_iter().min())
+                .or_else(|| any_targets.into_iter().min())
+                .or_else(|| members.iter().copied().min())
+                .context("Equivalence component cannot be empty")?;
+
+            for &member in members {
                 resolver.canonical_map.insert(member, canonical);
+                resolver.semantic_equivalents.insert(member, members.clone());
             }
-            resolver.semantic_equivalents.insert(*source, members);
         }
+
+        // Expand rules across equivalent tokens
+        for members in &components {
+            let rule = members.iter().find_map(|m| {
+                CharTarget::from_u128(*m).and_then(|target| resolver.rules.get(&target))
+            }).cloned();
+            if let Some(rule) = rule {
+                for &m in members {
+                    if let Some(target) = CharTarget::from_u128(m) {
+                        resolver.rules.entry(target).or_insert_with(|| rule.clone());
+                    }
+                }
+            }
+        }
+
+        // Expand closing delimiters and opener_to_closer across equivalent tokens
+        let mut delimiter_pairs: Vec<(CharTarget, u128)> = Vec::new();
+        for (opener, &closer) in &resolver.opener_to_closer {
+            delimiter_pairs.push((opener.clone(), closer));
+        }
+        for (&closer, opener) in &resolver.closing_delimiters {
+            delimiter_pairs.push((opener.clone(), closer));
+        }
+
+        let empty_set = HashSet::new();
+        for (opener, closer) in delimiter_pairs {
+            let opener_u128 = opener.to_u128();
+            let canonical_opener_u128 = resolver.canonical_token(opener_u128);
+            let canonical_opener_target =
+                CharTarget::from_u128(canonical_opener_u128).unwrap_or(opener);
+            let canonical_closer = resolver.canonical_token(closer);
+
+            let opener_members = resolver
+                .semantic_equivalents
+                .get(&opener_u128)
+                .unwrap_or(&empty_set);
+            let closer_members = resolver
+                .semantic_equivalents
+                .get(&closer)
+                .unwrap_or(&empty_set);
+
+            resolver
+                .opener_to_closer
+                .insert(canonical_opener_target.clone(), canonical_closer);
+            for &o in opener_members {
+                if let Some(target) = CharTarget::from_u128(o) {
+                    resolver.opener_to_closer.insert(target, canonical_closer);
+                }
+            }
+
+            resolver
+                .closing_delimiters
+                .insert(canonical_closer, canonical_opener_target.clone());
+            for &c in closer_members {
+                resolver.closing_delimiters.insert(c, canonical_opener_target.clone());
+            }
+        }
+
+        // Expand script_chars across equivalent tokens
+        for members in &components {
+            for set in resolver.script_chars.values_mut() {
+                if members.iter().any(|m| set.contains(m)) {
+                    for &m in members {
+                        set.insert(m);
+                    }
+                }
+            }
+        }
+
         resolver.precompute_derived_tables();
-        for (&canonical, members) in &resolver.semantic_equivalents {
-            for &equiv_token in members {
-                if equiv_token == canonical {
-                    continue;
-                }
-                if let Some(target) = CharTarget::from_u128(canonical) {
-                    if let Some(rule) = resolver.rules.get(&target).cloned() {
-                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
-                            resolver.rules.entry(equiv_target).or_insert(rule);
-                        }
-                    }
-                    if let Some(&closer) = resolver.opener_to_closer.get(&target) {
-                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
-                            resolver.opener_to_closer.entry(equiv_target).or_insert(closer);
-                        }
-                    }
-                    if let Some(headers) = resolver.container_headers.get(&target).cloned() {
-                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
-                            resolver.container_headers.entry(equiv_target).or_insert(headers);
-                        }
-                    }
-                    if let Some(trailing) = resolver.trailing_after_closer.get(&target).cloned() {
-                        if let Some(equiv_target) = CharTarget::from_u128(equiv_token) {
-                            resolver.trailing_after_closer.entry(equiv_target).or_insert(trailing);
-                        }
+
+        // Ensure derived tables are fully closed across equivalent tokens
+        for members in &components {
+            let headers = members.iter().find_map(|m| {
+                CharTarget::from_u128(*m).and_then(|target| resolver.container_headers.get(&target))
+            }).cloned();
+            if let Some(headers) = headers {
+                for &m in members {
+                    if let Some(target) = CharTarget::from_u128(m) {
+                        resolver.container_headers.entry(target).or_insert_with(|| headers.clone());
                     }
                 }
-                if let Some(opener) = resolver.closing_delimiters.get(&canonical).cloned() {
-                    resolver.closing_delimiters.entry(equiv_token).or_insert(opener);
+            }
+
+            let trailing = members.iter().find_map(|m| {
+                CharTarget::from_u128(*m).and_then(|target| resolver.trailing_after_closer.get(&target))
+            }).cloned();
+            if let Some(trailing) = trailing {
+                for &m in members {
+                    if let Some(target) = CharTarget::from_u128(m) {
+                        resolver.trailing_after_closer.entry(target).or_insert_with(|| trailing.clone());
+                    }
                 }
-                if let Some(infix) = resolver.infix_rules.get(&canonical).cloned() {
-                    resolver.infix_rules.entry(equiv_token).or_insert(infix);
+            }
+
+            let infix = members.iter().find_map(|m| resolver.infix_rules.get(m)).cloned();
+            if let Some(infix) = infix {
+                for &m in members {
+                    resolver.infix_rules.entry(m).or_insert_with(|| infix.clone());
                 }
-                if resolver.opaque_containers.contains(&canonical) {
-                    resolver.opaque_containers.insert(equiv_token);
+            }
+
+            if members.iter().any(|m| resolver.opaque_containers.contains(m)) {
+                for &m in members {
+                    resolver.opaque_containers.insert(m);
                 }
             }
         }
+
         for starters in resolver.named_type_starters.values_mut() {
             loop {
                 let mut changed = false;
@@ -1256,5 +1373,150 @@ mod tests {
             .is_some());
         assert!(resolver
             .matches_named_type_starter("value", DC_OPTIONAL_PRESENT.to_u128()));
+    }
+
+    #[crate::ctb_test]
+    fn test_canonical_selection_prefers_nondeprecated_target_over_lower_id() -> Result<()> {
+        let defns = crate::lookup::get_all_dc_defns();
+        let original = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
+            .context("Missing DC_BEGIN_LIST")?;
+
+        // Target with higher short ID (950) that is non-deprecated
+        let mut target_open = original.clone();
+        target_open.short_id = Some(950);
+        target_open.dc_id = DcChar::from_short(950).to_u128();
+        target_open.is_deprecated = false;
+        target_open.decompositions.clear();
+
+        // Alias with lower short ID (100) that is deprecated and points to 950
+        let mut alias_open = original.clone();
+        alias_open.short_id = Some(100);
+        alias_open.dc_id = DcChar::from_short(100).to_u128();
+        alias_open.is_deprecated = true;
+        alias_open.decompositions = vec!["<equiv>950".to_owned()];
+
+        let resolver = DatasetRuleResolver::load_from_dataset(
+            &[alias_open, target_open],
+            &[],
+            None,
+        )?;
+
+        let tok_100 = DcChar::from_short(100).to_u128();
+        let tok_950 = DcChar::from_short(950).to_u128();
+
+        // Canonical token must be the non-deprecated target (950), NOT min(100, 950)
+        assert_eq!(resolver.canonical_token(tok_100), tok_950);
+        assert_eq!(resolver.canonical_token(tok_950), tok_950);
+        assert!(resolver.is_equivalent_to(tok_100, tok_950));
+        assert!(resolver.is_equivalent_to(tok_950, tok_100));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_rule_and_delimiter_pairing_when_non_canonical_or_target_owns_rule() -> Result<()> {
+        let defns = crate::lookup::get_all_dc_defns();
+        let list_open = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
+            .context("Missing DC_BEGIN_LIST")?;
+        let list_close = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_END_LIST.to_u128())
+            .context("Missing DC_END_LIST")?;
+
+        // Target opener 950 owns the rule and @closes closer 960
+        let mut target_open = list_open.clone();
+        target_open.short_id = Some(950);
+        target_open.dc_id = DcChar::from_short(950).to_u128();
+        target_open.is_deprecated = false;
+        target_open.decompositions.clear();
+
+        // Alias opener 100 has lower ID, identical syntax rule, points to 950
+        let mut alias_open = list_open.clone();
+        alias_open.short_id = Some(100);
+        alias_open.dc_id = DcChar::from_short(100).to_u128();
+        alias_open.is_deprecated = true;
+        alias_open.syntax = target_open.syntax.clone();
+        alias_open.decompositions = vec!["<equiv>950".to_owned()];
+
+        // Target closer 960 closes 950
+        let mut target_close = list_close.clone();
+        target_close.short_id = Some(960);
+        target_close.dc_id = DcChar::from_short(960).to_u128();
+        target_close.is_deprecated = false;
+        target_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
+        target_close.decompositions.clear();
+
+        // Alias closer 110 has lower ID, points to 960
+        let mut alias_close = list_close.clone();
+        alias_close.short_id = Some(110);
+        alias_close.dc_id = DcChar::from_short(110).to_u128();
+        alias_close.is_deprecated = true;
+        alias_close.closes = None;
+        alias_close.decompositions = vec!["<equiv>960".to_owned()];
+
+        let resolver = DatasetRuleResolver::load_from_dataset(
+            &[alias_open, target_open, alias_close, target_close],
+            &[],
+            None,
+        )?;
+
+        let tok_100 = DcChar::from_short(100).to_u128();
+        let tok_950 = DcChar::from_short(950).to_u128();
+        let tok_110 = DcChar::from_short(110).to_u128();
+        let tok_960 = DcChar::from_short(960).to_u128();
+
+        // 1. Syntax rule propagated to alias opener 100 even though 100 owned no rule
+        assert!(resolver.resolve_rule(&CharTarget::Dc(100)).is_some());
+        assert!(resolver.resolve_rule(&CharTarget::Dc(950)).is_some());
+
+        // 2. Both openers map to canonical closer 960
+        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(100)), Some(tok_960));
+        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(950)), Some(tok_960));
+
+        // 3. Both closers map to canonical opener 950 in closing_delimiters
+        assert_eq!(resolver.closing_opener_for(tok_110), Some(&CharTarget::Dc(950)));
+        assert_eq!(resolver.closing_opener_for(tok_960), Some(&CharTarget::Dc(950)));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_script_chars_expanded_for_equivalent_tokens() -> Result<()> {
+        let defns = crate::lookup::get_all_dc_defns();
+        let list_open = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
+            .context("Missing DC_BEGIN_LIST")?;
+
+        let mut target = list_open.clone();
+        target.short_id = Some(950);
+        target.dc_id = DcChar::from_short(950).to_u128();
+        target.script = ".CustomTestScript".to_string();
+        target.decompositions.clear();
+
+        let mut alias = list_open.clone();
+        alias.short_id = Some(100);
+        alias.dc_id = DcChar::from_short(100).to_u128();
+        alias.script.clear();
+        alias.decompositions = vec!["<equiv>950".to_owned()];
+
+        let resolver = DatasetRuleResolver::load_from_dataset(
+            &[alias, target],
+            &[],
+            None,
+        )?;
+
+        let tok_100 = DcChar::from_short(100).to_u128();
+        let tok_950 = DcChar::from_short(950).to_u128();
+
+        // Both target and alias must match the script
+        assert!(resolver.matches_script("CustomTestScript", tok_950));
+        assert!(resolver.matches_script("CustomTestScript", tok_100));
+
+        // Dataset check: ASCII exclamation (33) matches Punctuation via <equiv> from Dc 19
+        let default_resolver = DatasetRuleResolver::load();
+        assert!(default_resolver.matches_script("Punctuation", 33));
+
+        Ok(())
     }
 }
