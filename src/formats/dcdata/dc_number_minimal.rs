@@ -35,7 +35,8 @@ use anyhow::{Result, anyhow, bail};
 use crate::dc::{
     DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER,
 };
-use crate::dc_char::DcChar;
+use crate::dc_char::{DcChar, DcCharExt};
+use crate::syntax::{DcRole, SyntaxRuleResolver};
 use ctb_utilities::DC_INTEGER;
 
 /// Converts a 6-bit Base64 numeral value (0..=63) or padding sentinel (64) into
@@ -66,16 +67,8 @@ pub fn dc_base64_digit_to_char(val: u8) -> DcChar {
 /// # Errors
 /// Returns an error if `ch` is not a valid Base64 encapsulation character.
 pub fn dc_base64_char_to_digit(ch: DcChar) -> Result<u8> {
-    if ch == DC_BASE64_PADDING {
-        return Ok(64);
-    }
-    let short_id = ch.to_short()?;
-    let start = DC_BASE64_START.to_short()?;
-    let end = start.saturating_add(63);
-    if (start..=end).contains(&short_id) {
-        let offset = short_id.saturating_sub(start);
-        u8::try_from(offset)
-            .map_err(|e| anyhow!("Failed to convert base64 digit to u8: {e}"))
+    if let Some(digit) = crate::syntax::default_syntax_resolver().base64_digit_value(ch.to_u128()) {
+        Ok(digit)
     } else {
         bail!("DcChar({ch}) is not a Base64 encapsulation digit or padding")
     }
@@ -84,21 +77,7 @@ pub fn dc_base64_char_to_digit(ch: DcChar) -> Result<u8> {
 /// Returns `true` if `ch` is a Base64 encapsulation digit (127..=190) or padding (195).
 #[must_use]
 pub fn is_dc_base64_encapsulation_char(ch: DcChar) -> bool {
-    if ch == DC_BASE64_PADDING {
-        return true;
-    }
-    let Ok(short_id) = ch.to_short() else {
-        return false;
-    };
-    #[expect(
-        clippy::expect_used,
-        reason = "DC_BASE64_START is a compile-time short Dc constant (Short Dc 127)"
-    )]
-    let start = DC_BASE64_START
-        .to_short()
-        .expect("DC_BASE64_START is Short Dc 127");
-    let end = start.saturating_add(63);
-    (start..=end).contains(&short_id)
+    ch.fills_role(DcRole::Base64Digit) || ch.fills_role(DcRole::Base64Padding)
 }
 
 /// Encodes an unsigned 128-bit integer into a sequence of `DcChar`s.
@@ -184,10 +163,8 @@ pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
         bail!("Empty GID stream");
     };
     let first_dc = DcChar::from_u128(first);
-    let is_begin = first_dc == DC_BEGIN_NUMBER
-        || (if let Ok(s) = first_dc.to_short() { s == 6 } else { first == 6 });
     ensure!(
-        is_begin,
+        first_dc.fills_role(DcRole::NumberOpener),
         "Expected Dc 6 (Begin number), found {first}"
     );
 
@@ -195,10 +172,8 @@ pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
         bail!("Unexpected end of stream after Dc 6");
     };
     let second_dc = DcChar::from_u128(second);
-    let is_integer = second_dc == DC_INTEGER
-        || (if let Ok(f) = second_dc.to_format() { f == 199 } else { second == 199 });
     ensure!(
-        is_integer,
+        second_dc.fills_role(DcRole::IntegerFormatIndicator),
         "Expected Format 199 (DC_INTEGER) after Dc 6, found {second}"
     );
 
@@ -210,20 +185,12 @@ pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
     while let Some(&gid) = gids.get(idx) {
         idx = idx.saturating_add(1);
         let dc = DcChar::from_u128(gid);
-        let is_end = dc == DC_END_NUMBER
-            || (if let Ok(s) = dc.to_short() { s == 7 } else { gid == 7 });
-        if is_end {
+        if dc.fills_role(DcRole::NumberCloser) {
             found_end = true;
             break;
         }
 
-        let digit = if let Ok(d) = dc_base64_char_to_digit(dc) {
-            d
-        } else if let Ok(s) = u32::try_from(gid) {
-            dc_base64_char_to_digit(DcChar::from_short(s))?
-        } else {
-            bail!("Token {gid} is not a valid Base64 encapsulation Dc");
-        };
+        let digit = dc_base64_char_to_digit(dc)?;
 
         ensure!(digit < 64, "Padding character not permitted in integer numeral");
         val = val

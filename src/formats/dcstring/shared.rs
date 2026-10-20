@@ -218,7 +218,7 @@ pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: N
             let val_node = ctx.node(*value)?;
             match &val_node.kind {
                 crate::navigator::DcSyntaxKind::Tagged { tag, args }
-                    if *tag == DC_REFERENCE_BOUND_VALUE =>
+                    if ctx.token_fills_role(*tag, ctb_formats_dcdata::syntax::DcRole::ReferenceBoundValue) =>
                 {
                     let target_id = args.first().copied().context("Missing reference target identifier")?;
                     let target_name = decode_identifier(ctx, target_id)?;

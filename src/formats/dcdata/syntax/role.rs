@@ -29,6 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_utilities::dc_char::{FORMAT_REGION_END, FORMAT_REGION_START};
 use serde::{Deserialize, Serialize};
 
 /// Classification of syntactic framing and semantic roles for Document
@@ -108,16 +109,10 @@ pub enum DcRole {
     TypeRoutine,
     /// Routine name type indicator (`267`).
     TypeRoutineName,
-    /// Type union operator (`301`).
+    /// Type union operator (`300`).
     TypeUnion,
-    /// Type intersection operator (`300`).
+    /// Type intersection operator (`516`).
     TypeIntersection,
-    /// Type conversion operator (`302`).
-    TypeConvert,
-    /// Type transmute operator (`303`).
-    TypeTransmute,
-    /// Type transformation operator (`516`).
-    TypeTransform,
     /// Parametric type application operator (`535`).
     TypeParamApplication,
     /// Type grouping opening parenthesis (`298`).
@@ -258,22 +253,22 @@ impl DcRole {
             Self::TypeNumber => short == Some(265),
             Self::TypeRoutine => short == Some(266),
             Self::TypeRoutineName => short == Some(267),
-            Self::TypeUnion => short == Some(301),
-            Self::TypeIntersection => short == Some(300),
-            Self::TypeConvert => short == Some(302),
-            Self::TypeTransmute => short == Some(303),
-            Self::TypeTransform => short == Some(516),
+            Self::TypeUnion => short == Some(300),
+            Self::TypeIntersection => short == Some(516),
             Self::TypeParamApplication => short == Some(535),
             Self::GroupOpen => short == Some(298),
             Self::GroupClose => short == Some(299),
-            Self::TypeToken => crate::dc_char::is_type_token(token),
+            Self::TypeToken => {
+                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
+                    || matches!(short, Some(264 | 265 | 266 | 267 | 275 | 300 | 513 | 516 | 535))
+            }
 
             Self::OptionalPresent => short == Some(315),
             Self::OptionalAbsent => short == Some(316),
             Self::BooleanTrue => short == Some(517),
             Self::BooleanFalse => short == Some(518),
             Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
-            Self::DomainValueAtom => matches!(short, Some(316 | 513 | 517 | 518)),
+            Self::DomainValueAtom => matches!(short, Some(316 | 513 | 517 | 518 | 379..=384 | 482..=489)),
             Self::FilePathDelimiter => short == Some(513),
 
             Self::EquivalentRepresentations => short == Some(397),

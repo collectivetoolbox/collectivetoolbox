@@ -111,7 +111,8 @@ impl<'a> Cursor<'a> {
     }
 
     fn read_length(&mut self) -> Result<Option<usize>> {
-        if self.peek() != Some(crate::dc_number::DC_BEGIN_NUMBER) {
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::NumberOpener)) {
             return Ok(None);
         }
         let length =
@@ -122,7 +123,8 @@ impl<'a> Cursor<'a> {
     }
 
     fn read_checksum(&mut self) -> Result<Option<(&'a DcStr, Option<ChecksumSpec>)>> {
-        if self.peek() != Some(DC_START_ENCAPSULATION_BINARY) {
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener)) {
             return Ok(None);
         }
         let start = self.position();
@@ -146,19 +148,19 @@ impl<'a> Cursor<'a> {
     }
 
     fn read_body(&mut self, length: Option<usize>) -> Result<Vec<u8>> {
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         let mut digits = Vec::new();
         loop {
             let ch = self.next()?;
-            if ch == DC_END_ENCAPSULATION_BINARY {
+            if resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationCloser) {
                 break;
             }
-            let short = ch.to_short()?;
             ensure!(
-                ctb_formats_eite::dc::is_dc_base64_encapsulation_character(
-                    short
-                ),
+                resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Digit)
+                    || resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Padding),
                 "Expected base64 Dc in binary encapsulation"
             );
+            let short = ch.to_short()?;
             digits.push(short);
         }
         let data = ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&digits)?;
@@ -174,6 +176,7 @@ impl<'a> Cursor<'a> {
     /// a raised caller budget cannot exhaust the call stack on adversarial
     /// input. The nesting budget is checked once per payload level entered.
     fn read_payload(&mut self) -> Result<(Metadata<'a>, Vec<u8>)> {
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         let mut frames: Vec<PayloadFrame<'a>> = Vec::new();
         let mut level = loop {
             #[cfg(test)]
@@ -184,13 +187,14 @@ impl<'a> Cursor<'a> {
                 self.max_depth
             );
             let start = self.position();
+            let next_ch = self.next()?;
             ensure!(
-                self.next()? == DC_START_ENCAPSULATION_BINARY,
+                resolver.token_fills_role(next_ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener),
                 "Expected Dc 203"
             );
             let data_type = self.read_type()?;
             let length = self.read_length()?;
-            if self.peek() == Some(DC_START_ENCAPSULATION_BINARY) {
+            if self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BinaryEncapsulationOpener)) {
                 frames.push(PayloadFrame { start, data_type, length });
                 continue;
             }

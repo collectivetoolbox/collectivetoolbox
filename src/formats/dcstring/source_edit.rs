@@ -89,7 +89,9 @@ impl<'a> SourceView<'a> {
     fn is_map(&self, id: NodeId) -> bool {
         self.node(id).is_ok_and(|n| match &n.kind {
             DcSyntaxKind::Container { opener, .. } => {
-                matches!(*opener, DC_BEGIN_LEGACY_KV_MAP | DC_BEGIN_KV_MAP)
+                let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+                resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapPairsOpener)
+                    || resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapLegacyOpener)
             }
             _ => false,
         })
@@ -336,7 +338,8 @@ fn write_node(
             bail!("Expected container node for map");
         };
         let opener = *opener;
-        let encoding = if opener == DC_BEGIN_LEGACY_KV_MAP {
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let encoding = if resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::KvMapLegacyOpener) {
             crate::DcKvMapEncoding::Legacy
         } else {
             crate::DcKvMapEncoding::Pairs

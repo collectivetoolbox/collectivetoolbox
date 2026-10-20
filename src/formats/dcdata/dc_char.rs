@@ -36,28 +36,14 @@ use crate::dc::{
     DC_FILE_PATH_DELIMITER, DC_TYPE_ANY, DC_TYPE_INTERSECTION, DC_TYPE_NUMBER,
     DC_TYPE_ROUTINE, DC_TYPE_ROUTINE_NAME, DC_TYPE_STRING, DC_TYPE_UNION,
 };
+use crate::syntax::SyntaxRuleResolver;
 
 /// Returns whether the given token (u128 character code) represents a type
 /// token in Document Character syntax.
-///
-/// This includes:
-/// - Format identifiers (`FORMAT_REGION_START..=FORMAT_REGION_END`)
-/// - Built-in EL Type identifiers (Dc 264, 275, 278, 280, 306)
-/// - Type path delimiter ([`DC_FILE_PATH_DELIMITER`], Dc 513)
-/// - Type constructors: Type union ([`DC_TYPE_UNION`], Dc 300) and Type intersection ([`DC_TYPE_INTERSECTION`], Dc 516)
 #[must_use]
 pub fn is_type_token(token: u128) -> bool {
-    if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token) {
-        return true;
-    }
-    token == DC_FILE_PATH_DELIMITER.to_u128()
-        || token == DC_TYPE_UNION.to_u128()
-        || token == DC_TYPE_INTERSECTION.to_u128()
-        || token == DC_TYPE_STRING.to_u128()
-        || token == DC_TYPE_ANY.to_u128()
-        || token == DC_TYPE_NUMBER.to_u128()
-        || token == DC_TYPE_ROUTINE.to_u128()
-        || token == DC_TYPE_ROUTINE_NAME.to_u128()
+    crate::syntax::default_syntax_resolver()
+        .token_fills_role(token, crate::syntax::DcRole::TypeToken)
 }
 
 /// Extension methods for [`DcChar`] specific to document formats and serialization.
@@ -65,6 +51,20 @@ pub trait DcCharExt {
     /// Returns whether this character represents a type token.
     #[must_use]
     fn is_type_token(self) -> bool;
+
+    /// Returns whether this character fills the specified syntactic or semantic role
+    /// using the default compiled syntax resolver.
+    #[must_use]
+    fn fills_role(self, role: crate::syntax::DcRole) -> bool;
+
+    /// Returns whether this character fills the specified syntactic or semantic role
+    /// according to the provided resolver.
+    #[must_use]
+    fn fills_role_with(
+        self,
+        role: crate::syntax::DcRole,
+        resolver: &dyn crate::syntax::SyntaxRuleResolver,
+    ) -> bool;
 
     /// Converts this character into a sequence of short Document Character IDs.
     #[must_use]
@@ -87,6 +87,16 @@ pub trait DcCharExt {
 impl DcCharExt for DcChar {
     fn is_type_token(self) -> bool {
         is_type_token(self.0)
+    }
+    fn fills_role(self, role: crate::syntax::DcRole) -> bool {
+        crate::syntax::default_syntax_resolver().token_fills_role(self.0, role)
+    }
+    fn fills_role_with(
+        self,
+        role: crate::syntax::DcRole,
+        resolver: &dyn crate::syntax::SyntaxRuleResolver,
+    ) -> bool {
+        resolver.token_fills_role(self.0, role)
     }
     fn to_short_vec(self) -> Vec<u32> {
         #[expect(

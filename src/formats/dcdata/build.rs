@@ -173,12 +173,18 @@ pub(crate) mod syntax {
     };
     pub use data_constraint::parse_data_constraint;
     pub use parser::{parse_dc_syntax, parse_target_token};
-    pub use resolver::{DatasetRuleResolver, StarterSet};
+    pub use resolver::{DatasetRuleResolver, StarterSet, SyntaxRuleResolver};
     pub use role::DcRole;
     pub use validator::{
         FormatValidationRegistry, build_format_validation_registry,
         validate_dc_syntax,
     };
+
+    pub fn default_syntax_resolver() -> &'static std::sync::Arc<DatasetRuleResolver> {
+        static INSTANCE: std::sync::LazyLock<std::sync::Arc<DatasetRuleResolver>> =
+            std::sync::LazyLock::new(|| std::sync::Arc::new(DatasetRuleResolver::new()));
+        &INSTANCE
+    }
 }
 
 fn main() -> Result<()> {

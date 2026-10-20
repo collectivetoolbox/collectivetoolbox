@@ -51,9 +51,10 @@ use ctb_formats_dcdata::dc::{
     DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
     DC_TYPE_ANY, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
 };
+use ctb_formats_dcdata::dc_char::DcCharExt;
 use ctb_formats_dcdata::syntax::{
-    CharTarget, Quantifier, SyntaxDiagnostic, SyntaxElement, SyntaxPattern,
-    SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
+    CharTarget, DcRole, Quantifier, SyntaxDiagnostic, SyntaxElement,
+    SyntaxPattern, SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
     parse_data_constraint, parse_dc_syntax,
 };
 use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
@@ -72,6 +73,125 @@ pub const MAX_SYNTAX_EXPANSION_DEPTH: usize = 32;
 
 /// Default maximum container and wrapper nesting depth during arena building and projection.
 pub const DEFAULT_MAX_PROJECTION_DEPTH: usize = 64;
+
+/// Requirement for a value position in Document Character syntax.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValueRequirement<'a> {
+    /// A named construct from README-named-types.csv, e.g. `("string", None)` or `("number", Some("Natural0"))`.
+    NamedConstruct {
+        /// Name of the construct.
+        name: &'a str,
+        /// Optional subtype constraint.
+        subtype: Option<&'a str>,
+    },
+    /// A specific format or type token.
+    TypeToken(DcChar),
+    /// A specific container or tagged construct opener (up to `<equiv>`).
+    ConstructOpener(DcChar),
+}
+
+/// Result of evaluating an expression in a value position.
+#[derive(Debug, Clone)]
+pub enum DcEvaluatedValue {
+    /// Evaluated DcMstring / token sequence that can be spliced or validated against any syntax rule.
+    Document(DcMstring),
+    /// Direct typed shared value from SharedValueContext.
+    SharedBinding {
+        /// Name of the shared binding.
+        name: String,
+    },
+}
+
+/// Trait for evaluating expressions (e.g. Lisp/Scheme-like expressions or stream splicing) in Dc streams.
+pub trait DcExpressionEvaluator: Send + Sync {
+    /// Evaluates an expression node when encountered in a value position.
+    ///
+    /// # Errors
+    /// Returns an error if expression evaluation fails.
+    fn eval_expression_for_requirement(
+        &self,
+        expr_tokens: &[DcChar],
+        requirement: &ValueRequirement<'_>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<DcEvaluatedValue>>;
+
+    /// Evaluates a stream-splicing invocation (such as `256 lang.say(String)`) and returns
+    /// the DcChar tokens to splice into the navigator's active stream.
+    ///
+    /// # Errors
+    /// Returns an error if evaluating the splice invocation fails.
+    fn eval_stream_splice(
+        &self,
+        call_tokens: &[DcChar],
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<Vec<DcChar>>>;
+}
+
+/// Default built-in expression evaluator supporting `256 lang.say` and equivalent representations.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DefaultDcExpressionEvaluator;
+
+impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
+    fn eval_expression_for_requirement(
+        &self,
+        _expr_tokens: &[DcChar],
+        _requirement: &ValueRequirement<'_>,
+        _resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<DcEvaluatedValue>> {
+        Ok(None)
+    }
+
+    fn eval_stream_splice(
+        &self,
+        call_tokens: &[DcChar],
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<Vec<DcChar>>> {
+        let Some(first) = call_tokens.first() else {
+            return Ok(None);
+        };
+        if first.fills_role_with(DcRole::StreamSayInvocation, resolver) {
+            let mut in_str = false;
+            let mut in_hdr = false;
+            let mut chars = Vec::new();
+            for &tok in &call_tokens[1..] {
+                if tok.fills_role_with(DcRole::LiteralOpener, resolver) {
+                    in_str = true;
+                    continue;
+                }
+                if tok.fills_role_with(DcRole::LiteralCloser, resolver) {
+                    in_str = false;
+                    continue;
+                }
+                if in_str {
+                    if tok.fills_role_with(DcRole::TypeDefOpener, resolver) {
+                        in_hdr = true;
+                        continue;
+                    }
+                    if tok.fills_role_with(DcRole::TypeDefCloser, resolver) {
+                        in_hdr = false;
+                        continue;
+                    }
+                    if !in_hdr {
+                        chars.push(tok);
+                    }
+                }
+            }
+            return Ok(Some(chars));
+        }
+        Ok(None)
+    }
+}
+
+/// Checkpoint holding cursor and spliced token state for backtracking in [`DcDocumentNavigator`].
+#[derive(Debug, Clone)]
+pub struct NavigatorCheckpoint {
+    /// Byte offset cursor in the backend stream.
+    pub cursor: u64,
+    /// Active span for the current container level.
+    pub active_span: DcByteSpan,
+    /// Spliced in-memory token buffer.
+    pub spliced_tokens: std::collections::VecDeque<DcChar>,
+}
 
 /// Execution context for evaluating [`SyntaxPattern`] rules directly over a [`DcDocumentNavigator`].
 #[derive(Clone)]
@@ -92,6 +212,8 @@ pub struct SyntaxEvalContext<'r> {
     pub diagnostics: Vec<SyntaxDiagnostic>,
     /// True if any framing or constraint error occurred during evaluation.
     pub has_errors: bool,
+    /// Optional expression evaluator for dynamic/Scheme/Lisp-like expression resolution.
+    pub evaluator: Option<Arc<dyn DcExpressionEvaluator>>,
     policy: DcProjectionPolicy,
 }
 
@@ -108,8 +230,15 @@ impl<'r> SyntaxEvalContext<'r> {
             validate_interiors: false,
             diagnostics: Vec::new(),
             has_errors: false,
+            evaluator: Some(Arc::new(DefaultDcExpressionEvaluator)),
             policy: DcProjectionPolicy::strict(),
         }
+    }
+
+    /// Returns true if `token` fills `role` under the context resolver.
+    #[must_use]
+    pub fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
+        self.resolver.token_fills_role(token, role)
     }
 }
 
@@ -838,7 +967,7 @@ impl<'a> DcSyntaxArena<'a> {
         for &id in nodes {
             if self
                 .get(id)
-                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch == DC_LIST_ELEMENT_SEPARATOR))
+                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.fills_role(DcRole::ListElementSeparator)))
             {
                 result.push(std::mem::take(&mut current));
             } else {
@@ -870,8 +999,8 @@ impl<'a> DcSyntaxArena<'a> {
             bail!("Expected key-value map container, found {:?}", node.kind);
         };
         ensure!(!*unclosed, "Unclosed key-value map container ({opener})");
-        let is_pairs = *opener == DC_BEGIN_KV_MAP;
-        let is_legacy = *opener == DC_BEGIN_LEGACY_KV_MAP;
+        let is_pairs = opener.fills_role(DcRole::KvMapPairsOpener);
+        let is_legacy = opener.fills_role(DcRole::KvMapLegacyOpener);
         ensure!(
             is_pairs || is_legacy,
             "Expected map container (Dc 559 or Dc 313), found opener {opener}"
@@ -881,7 +1010,7 @@ impl<'a> DcSyntaxArena<'a> {
             ensure!(
                 header.iter().all(|&child| {
                     self.get(child).is_some_and(
-                        |cn| matches!(cn.kind, DcSyntaxKind::Atom(ch) if ch == DC_TYPE_ANY),
+                        |cn| matches!(cn.kind, DcSyntaxKind::Atom(ch) if ch.fills_role(DcRole::TypeAny)),
                     )
                 }),
                 "Source-backed typed map editing requires uncounted Object/Object headers"
@@ -893,7 +1022,9 @@ impl<'a> DcSyntaxArena<'a> {
                         matches!(
                             cn.kind,
                             DcSyntaxKind::Atom(ch)
-                                if ch == DC_TYPE_ANY || ctb_formats_dcdata::is_type_token(ch.0)
+                                if ch.fills_role(DcRole::TypeAny)
+                                    || ch.fills_role(DcRole::TypeToken)
+                                    || ctb_formats_dcdata::is_type_token(ch.0)
                         )
                     })
                 }),
@@ -929,7 +1060,7 @@ impl<'a> DcSyntaxArena<'a> {
                     other => bail!("Expected explicitly framed map entry (Dc 514), found {other:?}"),
                 };
                 ensure!(
-                    pair_opener == DC_BEGIN_KV_PAIR && !pair_unclosed,
+                    pair_opener.fills_role(DcRole::KvPairOpener) && !pair_unclosed,
                     "Expected explicitly framed map entry (Dc 514..515)"
                 );
                 let operands = self.split_operands(pair_children);
@@ -1054,6 +1185,7 @@ pub struct DcDocumentNavigator<'a> {
     active_span: DcByteSpan,
     level_stack: Vec<(DcByteSpan, u64)>,
     diagnostics: Vec<SyntaxDiagnostic>,
+    spliced_tokens: std::collections::VecDeque<DcChar>,
 }
 
 impl<'b> DcBinaryResolver for DcDocumentNavigator<'b> {
@@ -1086,6 +1218,7 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(start, end),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
+            spliced_tokens: std::collections::VecDeque::new(),
         }
     }
 
@@ -1104,6 +1237,7 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(0, end),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
+            spliced_tokens: std::collections::VecDeque::new(),
         }
     }
 
@@ -1111,6 +1245,96 @@ impl<'a> DcDocumentNavigator<'a> {
     #[must_use]
     pub fn cursor(&self) -> u64 {
         self.cursor
+    }
+
+    /// Returns true if the next token fills `role` under `resolver`.
+    ///
+    /// # Errors
+    /// Returns an error if reading the next token fails.
+    pub fn peek_fills_role(&mut self, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> Result<bool> {
+        if let Some(ch) = self.spliced_tokens.front() {
+            return Ok(resolver.token_fills_role(ch.to_u128(), role));
+        }
+        if let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? {
+            Ok(resolver.token_fills_role(ch.to_u128(), role))
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Advances and returns the next token if it fills `role` under `resolver`.
+    ///
+    /// # Errors
+    /// Returns an error if reading the next token fails.
+    pub fn next_if_fills_role(&mut self, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> Result<Option<DcChar>> {
+        if let Some(ch) = self.spliced_tokens.front().copied() {
+            if resolver.token_fills_role(ch.to_u128(), role) {
+                self.spliced_tokens.pop_front();
+                return Ok(Some(ch));
+            }
+            return Ok(None);
+        }
+        if let Some((ch, next_offset)) = self.read_token_or_binary_at(self.cursor)? {
+            if resolver.token_fills_role(ch.to_u128(), role) {
+                self.cursor = next_offset;
+                return Ok(Some(ch));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Peeks the next token in the stream without advancing the cursor.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the stream fails.
+    pub fn peek_token(&mut self) -> Result<Option<DcChar>> {
+        if let Some(ch) = self.spliced_tokens.front() {
+            return Ok(Some(*ch));
+        }
+        if let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? {
+            Ok(Some(ch))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Consumes and returns the next token from the spliced buffer or backend stream.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the stream fails.
+    pub fn read_next_token(&mut self) -> Result<Option<DcChar>> {
+        if let Some(ch) = self.spliced_tokens.pop_front() {
+            return Ok(Some(ch));
+        }
+        if let Some((ch, next_offset)) = self.read_token_or_binary_at(self.cursor)? {
+            self.cursor = next_offset;
+            return Ok(Some(ch));
+        }
+        Ok(None)
+    }
+
+    /// Splices tokens into the front of the navigator's stream buffer.
+    pub fn push_spliced_tokens<I: IntoIterator<Item = DcChar>>(&mut self, tokens: I) {
+        for tok in tokens {
+            self.spliced_tokens.push_back(tok);
+        }
+    }
+
+    /// Saves the current cursor and spliced token state into a checkpoint.
+    #[must_use]
+    pub fn save_checkpoint(&self) -> NavigatorCheckpoint {
+        NavigatorCheckpoint {
+            cursor: self.cursor,
+            active_span: self.active_span,
+            spliced_tokens: self.spliced_tokens.clone(),
+        }
+    }
+
+    /// Restores a previously saved checkpoint.
+    pub fn restore_checkpoint(&mut self, checkpoint: NavigatorCheckpoint) {
+        self.cursor = checkpoint.cursor;
+        self.active_span = checkpoint.active_span;
+        self.spliced_tokens = checkpoint.spliced_tokens;
     }
 
     /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
@@ -1152,6 +1376,7 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(header_end, file_len),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
+            spliced_tokens: std::collections::VecDeque::new(),
         })
     }
 
@@ -1334,7 +1559,7 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(elements) = rhs_rule.take() {
                 self.check_infix_operand(stub.outer_span, elements, policy)?;
             }
-            if stub.head_dc == DC_BEGIN_IDENTIFIER && stub.closer_dc == Some(DC_END_IDENTIFIER) {
+            if stub.head_dc.fills_role(DcRole::IdentifierOpener) && stub.closer_dc.is_some_and(|c| c.fills_role(DcRole::IdentifierCloser)) {
                 if let Some((operator, after_op)) = self.read_token_or_binary_at(stub.outer_span.end)? {
                     if let Some((lhs, rhs)) = resolver.resolve_infix_rule(operator.to_u128()) {
                         self.check_infix_operand(stub.outer_span, lhs, policy)?;
@@ -1394,7 +1619,7 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         // 0. Escape sequence (Dc 255 + escaped character)
-        if first_dc == DC_ESCAPE {
+        if first_dc.fills_role(DcRole::Escape) {
             let Some((escaped_dc, after_escaped)) = self.read_token_or_binary_at(after_first)? else {
                 policy.handle(
                     policy.syntax_error,
@@ -1420,12 +1645,12 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         // 1. Check if this is a raw or textual binary encapsulation (Dc 203)
-        if first_dc == DC_START_ENCAPSULATION_BINARY {
+        if first_dc.fills_role(DcRole::BinaryEncapsulationOpener) {
             let (end_offset, header_info) = self.scan_binary_at(start_offset, policy)?;
             self.cursor = end_offset;
             return Ok(Some(DcFrameStub {
-                head_dc: DC_START_ENCAPSULATION_BINARY,
-                closer_dc: Some(DC_END_ENCAPSULATION_BINARY),
+                head_dc: first_dc,
+                closer_dc: Some(ctb_formats_dcdata::dc::DC_END_ENCAPSULATION_BINARY),
                 outer_span: DcByteSpan::new(start_offset, end_offset),
                 inner_span: None,
                 header_info,
@@ -1434,18 +1659,31 @@ impl<'a> DcDocumentNavigator<'a> {
 
         let resolver = default_syntax_resolver();
 
+        // 1.5. Stream say invocation (Dc 256)
+        if first_dc.fills_role(DcRole::StreamSayInvocation) {
+            let (end_offset, _) = self.scan_say_frame_at(start_offset, policy)?;
+            self.cursor = end_offset;
+            return Ok(Some(DcFrameStub {
+                head_dc: first_dc,
+                closer_dc: None,
+                outer_span: DcByteSpan::new(start_offset, end_offset),
+                inner_span: Some(DcByteSpan::new(after_first, end_offset)),
+                header_info: DcFrameHeaderInfo::None,
+            }));
+        }
+
         // 2. Check if this is a literal (260..261) or identifier (270..271)
-        if first_dc == DC_BEGIN_LITERAL || first_dc == DC_BEGIN_IDENTIFIER {
-            let closer = if first_dc == DC_BEGIN_LITERAL {
-                DC_END_LITERAL
+        if first_dc.fills_role(DcRole::LiteralOpener) || first_dc.fills_role(DcRole::IdentifierOpener) {
+            let closer = if first_dc.fills_role(DcRole::LiteralOpener) {
+                ctb_formats_dcdata::dc::DC_END_LITERAL
             } else {
-                DC_END_IDENTIFIER
+                ctb_formats_dcdata::dc::DC_END_IDENTIFIER
             };
             let end_offset = self.scan_escaped_text_frame(after_first, closer, policy)?;
             self.cursor = start_offset;
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.policy.clone_from(policy);
-            let matched = if first_dc == DC_BEGIN_LITERAL {
+            let matched = if first_dc.fills_role(DcRole::LiteralOpener) {
                 self.eval_literal_frame(None, &mut ctx)?
             } else {
                 self.eval_identifier_frame(&mut ctx)?
@@ -1453,13 +1691,13 @@ impl<'a> DcDocumentNavigator<'a> {
             if !matched || ctx.has_errors {
                 self.syntax_issue(policy, start_offset, format!("Invalid text frame {first_dc:?} at offset {start_offset}"))?;
             }
-            if first_dc == DC_BEGIN_IDENTIFIER {
+            if first_dc.fills_role(DcRole::IdentifierOpener) {
                 if end_offset
-                    == after_first.saturating_add(dc_char_utf8e128_len(DC_END_IDENTIFIER))
+                    == after_first.saturating_add(dc_char_utf8e128_len(ctb_formats_dcdata::dc::DC_END_IDENTIFIER))
                 {
                     policy.handle(
                         policy.syntax_error,
-                        format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
+                        format!("Empty identifier frame at offset {start_offset}"),
                     )?;
                 }
             }
@@ -1474,8 +1712,8 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         // 3. Check if this is a number (6..7)
-        if first_dc == DC_BEGIN_NUMBER {
-            let end_offset = self.scan_until_token(after_first, DC_END_NUMBER, policy)?;
+        if first_dc.fills_role(DcRole::NumberOpener) {
+            let end_offset = self.scan_until_token(after_first, ctb_formats_dcdata::dc::DC_END_NUMBER, policy)?;
             self.cursor = start_offset;
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.policy.clone_from(policy);
@@ -1484,8 +1722,8 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             self.cursor = end_offset;
             return Ok(Some(DcFrameStub {
-                head_dc: DC_BEGIN_NUMBER,
-                closer_dc: Some(DC_END_NUMBER),
+                head_dc: first_dc,
+                closer_dc: Some(ctb_formats_dcdata::dc::DC_END_NUMBER),
                 outer_span: DcByteSpan::new(start_offset, end_offset),
                 inner_span: None,
                 header_info: DcFrameHeaderInfo::None,
@@ -1531,7 +1769,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
                 // Handle trailing elements after closer (e.g. [545:] after 544 for Dc 543)
                 let trailing_elems = resolver.trailing_after_closer(&target);
-                if !trailing_elems.is_empty() && first_dc == DC_BEGIN_CHECKSUMMED_SECTION {
+                if !trailing_elems.is_empty() && first_dc.fills_role(DcRole::ChecksummedSectionOpener) {
                     let (final_end, seq_id, digest_ok) =
                         self.verify_checksummed_section(inner_span, after_closer, policy)?;
                     outer_end = final_end;
@@ -1540,7 +1778,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         body_span: inner_span,
                         digest_valid: digest_ok,
                     };
-                } else if first_dc == DC_BEGIN_FORMAT_REPRESENTATION {
+                } else if first_dc.fills_role(DcRole::FormatRepresentationOpener) {
                     if let Ok(Some((fmt_dc, _))) = self.read_token_or_binary_at(after_first) {
                         header_info = DcFrameHeaderInfo::FormatRepresentation { format: fmt_dc };
                     }
@@ -1577,7 +1815,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     let matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
                     if matched && !ctx.has_errors {
                         let mut last_end = self.cursor;
-                        if first_dc == DC_ROUTINE_INVOCATION {
+                        if first_dc.fills_role(DcRole::RoutineInvocation) {
                             last_end = self.scan_trailing_parameter_frames(last_end, policy)?;
                         }
                         if resolver.is_representation_set(first_dc.to_u128()) {
@@ -1595,27 +1833,29 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     if resolver.is_representation_set(first_dc.to_u128())
                         && after_first < self.active_span.end {
-                        if let Some((DC_BEGIN_LIST, _)) = self.read_token_or_binary_at(after_first)? {
-                            self.cursor = after_first;
-                            if let Some(arg_stub) = self.next_sibling_stub(policy)? {
-                                return Ok(Some(DcFrameStub {
-                                    head_dc: first_dc,
-                                    closer_dc: None,
-                                    outer_span: DcByteSpan::new(start_offset, arg_stub.outer_span.end),
-                                    inner_span: Some(DcByteSpan::new(after_first, arg_stub.outer_span.end)),
-                                    header_info: DcFrameHeaderInfo::None,
-                                }));
+                        if let Some((tok, _)) = self.read_token_or_binary_at(after_first)? {
+                            if tok.fills_role(DcRole::ListOpener) {
+                                self.cursor = after_first;
+                                if let Some(arg_stub) = self.next_sibling_stub(policy)? {
+                                    return Ok(Some(DcFrameStub {
+                                        head_dc: first_dc,
+                                        closer_dc: None,
+                                        outer_span: DcByteSpan::new(start_offset, arg_stub.outer_span.end),
+                                        inner_span: Some(DcByteSpan::new(after_first, arg_stub.outer_span.end)),
+                                        header_info: DcFrameHeaderInfo::None,
+                                    }));
+                                }
                             }
                         }
                     }
-                    if first_dc == DC_OPTIONAL_PRESENT && after_first < self.active_span.end {
+                    if first_dc.fills_role(DcRole::OptionalPresent) && after_first < self.active_span.end {
                         let mut probe = after_first;
                         let mut depth = 0usize;
                         while probe < self.active_span.end && depth < policy.max_depth {
                             let Some((tok, next_off)) = self.read_token_or_binary_at(probe)? else {
                                 break;
                             };
-                            if tok == DC_OPTIONAL_PRESENT {
+                            if tok.fills_role(DcRole::OptionalPresent) {
                                 probe = next_off;
                                 depth = depth.saturating_add(1);
                             } else {
@@ -1813,14 +2053,21 @@ impl<'a> DcDocumentNavigator<'a> {
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
         let result = (|| -> Result<()> {
-            let Some((DC_BEGIN_LIST, after_open)) = self.read_token_or_binary_at(span.start)? else {
+            let Some((list_open, after_open)) = self.read_token_or_binary_at(span.start)? else {
                 return self.syntax_issue(policy, span.start, "Equivalent representations require a list".to_owned());
             };
-            let body_end = span.end.checked_sub(dc_char_utf8e128_len(DC_END_LIST)).context("Invalid equivalent list span")?;
+            if !list_open.fills_role(DcRole::ListOpener) {
+                return self.syntax_issue(policy, span.start, "Equivalent representations require a list".to_owned());
+            }
+            let list_closer = resolver
+                .closer_for_opener(&CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?)
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+            let body_end = span.end.checked_sub(dc_char_utf8e128_len(list_closer)).context("Invalid equivalent list span")?;
             self.active_span = DcByteSpan::new(after_open, body_end);
             self.cursor = after_open;
-            let target = CharTarget::from_u128(DC_BEGIN_LIST.to_u128()).context("Missing list target")?;
-            let mut ctx = SyntaxEvalContext::new(&**resolver, Some(DC_BEGIN_LIST.to_u128()));
+            let target = CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?;
+            let mut ctx = SyntaxEvalContext::new(&**resolver, Some(list_open.to_u128()));
             ctx.policy.clone_from(policy);
             if !self.eval_pattern(&SyntaxPattern::Sequence(resolver.container_header_elements(&target).to_vec()), &mut ctx)? || ctx.has_errors {
                 return self.syntax_issue(policy, after_open, "Equivalent list header mismatch".to_owned());
@@ -1831,7 +2078,7 @@ impl<'a> DcDocumentNavigator<'a> {
             while self.cursor < body_end {
                 let start = self.cursor;
                 let Some((head, after)) = self.read_token_or_binary_at(start)? else { break; };
-                if head == DC_LIST_ELEMENT_SEPARATOR {
+                if head.fills_role(DcRole::ListElementSeparator) {
                     previous_was_separator = true;
                     self.cursor = after;
                     continue;
@@ -1871,14 +2118,19 @@ impl<'a> DcDocumentNavigator<'a> {
         mut offset: u64,
         policy: &DcProjectionPolicy,
     ) -> Result<u64> {
+        let resolver = default_syntax_resolver();
         while let Some((next_dc, after_open)) = self.read_token_or_binary_at(offset)? {
-            if next_dc != DC_BEGIN_PARAMETER {
+            if !next_dc.fills_role(DcRole::ParameterOpener) {
                 break;
             }
+            let closer = CharTarget::from_u128(next_dc.to_u128())
+                .and_then(|t| resolver.closer_for_opener(&t))
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_PARAMETER);
             let (_, after_close) = self.scan_balanced_container(
                 after_open,
-                DC_BEGIN_PARAMETER,
-                DC_END_PARAMETER,
+                next_dc,
+                closer,
                 policy,
             )?;
             offset = after_close;
@@ -1974,20 +2226,24 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     fn is_separator(ch: DcChar) -> bool {
-        matches!(ch.to_short_dc(), Some(255 | 275 | 312 | 513))
+        ch.fills_role(DcRole::ListElementSeparator)
+            || ch.fills_role(DcRole::TypeAny)
+            || ch.fills_role(DcRole::Escape)
+            || ch.fills_role(DcRole::FilePathDelimiter)
     }
 
     fn is_primitive_value_atom(ch: DcChar) -> bool {
-        matches!(ch.to_short_dc(), Some(10 | 11 | 316 | 517 | 518))
+        ch.fills_role(DcRole::PrimitiveValueAtom)
+            || ch.fills_role(DcRole::PositiveSign)
+            || ch.fills_role(DcRole::NegativeSign)
     }
 
     fn is_value_atom(ch: DcChar) -> bool {
-        Self::is_primitive_value_atom(ch)
-            || matches!(ch.to_short_dc(), Some(379..=384 | 482..=489))
+        Self::is_primitive_value_atom(ch) || ch.fills_role(DcRole::DomainValueAtom)
     }
 
     fn is_transparent_wrapper_tag(ch: DcChar) -> bool {
-        ch == DC_OPTIONAL_PRESENT
+        ch.fills_role(DcRole::OptionalPresent)
             || default_syntax_resolver().is_representation_set(ch.to_u128())
     }
 
@@ -2125,11 +2381,11 @@ impl<'a> DcDocumentNavigator<'a> {
                              arena: &mut DcSyntaxArena<'a>|
          -> Result<StubStep> {
             let head = stub.head_dc;
-            if head == DC_START_ENCAPSULATION_BINARY {
+            if head.fills_role(DcRole::BinaryEncapsulationOpener) {
                 let node = nav.parse_binary_arena_node(stub.outer_span, policy)?;
                 return Ok(StubStep::Leaf(arena.alloc(stub.outer_span, node)));
             }
-            if head == DC_BEGIN_LITERAL {
+            if head.fills_role(DcRole::LiteralOpener) {
                 let (type_header, decoded) = nav.decode_literal_span(stub.outer_span, policy)?;
                 return Ok(StubStep::Leaf(arena.alloc(
                     stub.outer_span,
@@ -2139,19 +2395,19 @@ impl<'a> DcDocumentNavigator<'a> {
                     },
                 )));
             }
-            if head == DC_BEGIN_IDENTIFIER {
+            if head.fills_role(DcRole::IdentifierOpener) {
                 let name = nav.decode_identifier_span(stub.outer_span, policy)?;
                 return Ok(StubStep::Leaf(
                     arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name }),
                 ));
             }
-            if head == DC_BEGIN_NUMBER {
+            if head.fills_role(DcRole::NumberOpener) {
                 let (format, digits) = nav.decode_number_span(stub.outer_span)?;
                 return Ok(StubStep::Leaf(
                     arena.alloc(stub.outer_span, DcSyntaxKind::Number { format, digits }),
                 ));
             }
-            if head == DC_ASSIGN {
+            if head.fills_role(DcRole::AssignOperator) {
                 if let Some(inner) = stub.inner_span {
                     if current_depth >= policy.max_depth {
                         let msg = format!(
@@ -2174,7 +2430,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     let ident_span = DcByteSpan::new(
                         stub.outer_span.start,
-                        inner.start.saturating_sub(dc_char_utf8e128_len(DC_ASSIGN)),
+                        inner.start.saturating_sub(dc_char_utf8e128_len(head)),
                     );
                     let ident = nav.decode_identifier_span(ident_span, policy)?;
                     nav.enter_frame(stub)?;
@@ -2186,7 +2442,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             if let Some(closer) = stub.closer_dc {
-                if head == DC_BEGIN_LEGACY_KV_MAP {
+                if head.fills_role(DcRole::KvMapLegacyOpener) {
                     policy.handle(
                         policy.deprecated_syntax,
                         "Deprecated Dc 313..314 key-value map syntax; prefer Dc 559..560",
@@ -2350,10 +2606,8 @@ impl<'a> DcDocumentNavigator<'a> {
                             unclosed,
                             children,
                         } => {
-                            let is_format_or_temporal = matches!(
-                                opener.to_short_dc(),
-                                Some(511)
-                            );
+                            let is_format_or_temporal =
+                                opener.fills_role(DcRole::FormatRepresentationOpener);
                             let normalized_children = if is_format_or_temporal {
                                 children
                             } else {
@@ -2693,10 +2947,10 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut depth = 0usize;
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             offset = next_offset;
-            if ch == DC_START_ENCAPSULATION_BINARY {
+            if ch.fills_role(DcRole::BinaryEncapsulationOpener) {
                 depth = depth.saturating_add(1);
-            } else if ch == DC_END_ENCAPSULATION_BINARY {
-                depth = depth.checked_sub(1).context("Unexpected Dc 204")?;
+            } else if ch.fills_role(DcRole::BinaryEncapsulationCloser) {
+                depth = depth.checked_sub(1).context("Unexpected binary encapsulation closer (Dc 204)")?;
                 if depth == 0 {
                     return Ok((
                         offset,
@@ -2719,11 +2973,12 @@ impl<'a> DcDocumentNavigator<'a> {
         closer: DcChar,
         policy: &DcProjectionPolicy,
     ) -> Result<u64> {
+        let resolver = default_syntax_resolver();
         let mut offset = after_opener;
-        if closer == DC_END_LITERAL {
+        if closer.fills_role(DcRole::LiteralCloser) {
             if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-                if ch == DC_BEGIN_TYPE_DEF {
-                    offset = self.scan_until_token(next_off, DC_END_TYPE_DEF, policy)?;
+                if ch.fills_role(DcRole::TypeDefOpener) {
+                    offset = self.scan_until_token(next_off, ctb_formats_dcdata::dc::DC_END_TYPE_DEF, policy)?;
                 } else {
                     policy.handle(
                         policy.syntax_error,
@@ -2740,7 +2995,7 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             offset = next_offset;
-            if ch == DC_ESCAPE {
+            if ch.fills_role(DcRole::Escape) {
                 if let Some((_, after_escaped)) = self.read_token_or_binary_at(offset)? {
                     offset = after_escaped;
                 } else {
@@ -2750,7 +3005,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     )?;
                     return Ok(offset);
                 }
-            } else if ch == closer {
+            } else if ch == closer || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128()) {
                 return Ok(offset);
             }
         }
@@ -2767,10 +3022,11 @@ impl<'a> DcDocumentNavigator<'a> {
         closer: DcChar,
         policy: &DcProjectionPolicy,
     ) -> Result<u64> {
+        let resolver = default_syntax_resolver();
         let mut offset = start;
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             offset = next_offset;
-            if ch == closer {
+            if ch == closer || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128()) {
                 return Ok(offset);
             }
         }
@@ -2779,6 +3035,77 @@ impl<'a> DcDocumentNavigator<'a> {
             format!("Unclosed frame starting at {start}: missing closer {closer:?}"),
         )?;
         Ok(offset)
+    }
+
+    fn scan_say_frame_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+    ) -> Result<(u64, Vec<DcChar>)> {
+        let Some((say_dc, after_say)) = self.read_token_or_binary_at(start_offset)? else {
+            bail!("Unexpected end of stream at say invocation");
+        };
+        ensure!(
+            say_dc.fills_role(DcRole::StreamSayInvocation),
+            "Expected StreamSayInvocation (Dc 256), found {say_dc}"
+        );
+        let Some((param_open, after_open)) = self.read_token_or_binary_at(after_say)? else {
+            bail!("Unexpected end of stream after Dc 256: expected parameter opener");
+        };
+        ensure!(
+            param_open.fills_role(DcRole::ParameterOpener),
+            "Expected parameter opener (Dc 258) after Dc 256, found {param_open}"
+        );
+        let Some((lit_open, after_lit_open)) = self.read_token_or_binary_at(after_open)? else {
+            bail!("Unexpected end of stream: expected literal opener after parameter opener");
+        };
+        ensure!(
+            lit_open.fills_role(DcRole::LiteralOpener),
+            "Expected literal opener (Dc 260), found {lit_open}"
+        );
+        let lit_end = self.scan_escaped_text_frame(
+            after_lit_open,
+            ctb_formats_dcdata::dc::DC_END_LITERAL,
+            policy,
+        )?;
+        let Some((param_close, after_param_close)) = self.read_token_or_binary_at(lit_end)? else {
+            bail!("Unexpected end of stream: expected parameter closer after literal");
+        };
+        ensure!(
+            param_close.fills_role(DcRole::ParameterCloser),
+            "Expected parameter closer (Dc 259), found {param_close}"
+        );
+
+        let mut chars = Vec::new();
+        let mut curr = after_lit_open;
+        if let Some((hdr_open, after_hdr_open)) = self.read_token_or_binary_at(curr)? {
+            if hdr_open.fills_role(DcRole::TypeDefOpener) {
+                curr = self.scan_until_token(
+                    after_hdr_open,
+                    ctb_formats_dcdata::dc::DC_END_TYPE_DEF,
+                    policy,
+                )?;
+            }
+        }
+        while curr < lit_end {
+            let Some((ch, next_curr)) = self.read_token_or_binary_at(curr)? else {
+                break;
+            };
+            if ch.fills_role(DcRole::LiteralCloser) {
+                break;
+            }
+            if ch.fills_role(DcRole::Escape) {
+                if let Some((escaped, after_esc)) = self.read_token_or_binary_at(next_curr)? {
+                    chars.push(escaped);
+                    curr = after_esc;
+                    continue;
+                }
+            }
+            chars.push(ch);
+            curr = next_curr;
+        }
+
+        Ok((after_param_close, chars))
     }
 
     fn scan_balanced_container(
@@ -2800,7 +3127,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             let token_start = offset;
-            if ch == DC_ESCAPE {
+            if ch.fills_role(DcRole::Escape) {
                 if let Some((_, after_escaped)) = self.read_token_or_binary_at(next_offset)? {
                     offset = after_escaped;
                     continue;
@@ -2821,21 +3148,39 @@ impl<'a> DcDocumentNavigator<'a> {
                 offset = next_offset;
                 continue;
             }
-            if ch == DC_START_ENCAPSULATION_BINARY {
+            if ch.fills_role(DcRole::StreamSayInvocation) {
+                if let Ok((after_say, spliced)) = self.scan_say_frame_at(token_start, policy) {
+                    for tok in spliced {
+                        if closer_stack.last().is_some_and(|(expected, _)| *expected == tok) {
+                            closer_stack.pop();
+                            if closer_stack.is_empty() {
+                                return Ok((token_start, after_say));
+                            }
+                        } else if let Some(target) = CharTarget::from_u128(tok.to_u128()) {
+                            if let Some(inner_closer) = resolver.closer_for_opener(&target) {
+                                closer_stack.push((DcChar::from_u128(inner_closer), resolver.is_opaque_container(tok.to_u128())));
+                            }
+                        }
+                    }
+                    offset = after_say;
+                    continue;
+                }
+            }
+            if ch.fills_role(DcRole::BinaryEncapsulationOpener) {
                 let (after_bin, _) = self.scan_binary_at(token_start, policy)?;
                 offset = after_bin;
                 continue;
             }
-            if ch == DC_BEGIN_LITERAL {
-                offset = self.scan_escaped_text_frame(next_offset, DC_END_LITERAL, policy)?;
+            if ch.fills_role(DcRole::LiteralOpener) {
+                offset = self.scan_escaped_text_frame(next_offset, ctb_formats_dcdata::dc::DC_END_LITERAL, policy)?;
                 continue;
             }
-            if ch == DC_BEGIN_IDENTIFIER {
-                offset = self.scan_escaped_text_frame(next_offset, DC_END_IDENTIFIER, policy)?;
+            if ch.fills_role(DcRole::IdentifierOpener) {
+                offset = self.scan_escaped_text_frame(next_offset, ctb_formats_dcdata::dc::DC_END_IDENTIFIER, policy)?;
                 continue;
             }
-            if ch == DC_BEGIN_NUMBER {
-                offset = self.scan_until_token(next_offset, DC_END_NUMBER, policy)?;
+            if ch.fills_role(DcRole::NumberOpener) {
+                offset = self.scan_until_token(next_offset, ctb_formats_dcdata::dc::DC_END_NUMBER, policy)?;
                 continue;
             }
             if closer_stack.last().is_some_and(|(expected, _)| *expected == ch) {
@@ -2896,10 +3241,10 @@ impl<'a> DcDocumentNavigator<'a> {
         // Parse optional leading 546 SequenceIdentifier inside body_span
         let mut sequence_id = None;
         if let Ok(Some((first_in_body, after_tag))) = self.read_token_or_binary_at(body_span.start) {
-            if first_in_body == DC_SEQUENCE_IDENTIFIER {
+            if first_in_body.fills_role(DcRole::SequenceIdentifierTag) {
                 if let Ok(Some((num_open, after_num_open))) = self.read_token_or_binary_at(after_tag) {
-                    if num_open == DC_BEGIN_NUMBER {
-                        if let Ok(num_end) = self.scan_until_token(after_num_open, DC_END_NUMBER, policy) {
+                    if num_open.fills_role(DcRole::NumberOpener) {
+                        if let Ok(num_end) = self.scan_until_token(after_num_open, ctb_formats_dcdata::dc::DC_END_NUMBER, policy) {
                             if let Ok((_, digits)) = self.decode_number_span(DcByteSpan::new(after_tag, num_end)) {
                                 if let Ok(int_val) = crate::dc_number::parse_dc_number_digits(&digits) {
                                     sequence_id = u64::try_from(&int_val).ok();
@@ -2919,7 +3264,7 @@ impl<'a> DcDocumentNavigator<'a> {
             )?;
             return Ok((after_closer, sequence_id, false));
         };
-        if digest_tag != DC_SECTION_DIGEST {
+        if !digest_tag.fills_role(DcRole::SectionDigestTag) {
             policy.handle(
                 policy.syntax_error,
                 format!("Expected Dc 545 (SectionDigest) after Dc 544, found {digest_tag:?}"),
@@ -3121,18 +3466,18 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty literal span");
         };
-        ensure!(first == DC_BEGIN_LITERAL, "Expected Dc 260");
+        ensure!(first.fills_role(DcRole::LiteralOpener), "Expected literal opener (Dc 260), found {first}");
         offset = after_first;
         let mut type_header = Vec::new();
         if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch == DC_BEGIN_TYPE_DEF {
+            if ch.fills_role(DcRole::TypeDefOpener) {
                 offset = next_off;
                 while offset < span.end {
                     let Some((tch, after_tch)) = self.read_token_or_binary_at(offset)? else {
                         break;
                     };
                     offset = after_tch;
-                    if tch == DC_END_TYPE_DEF {
+                    if tch.fills_role(DcRole::TypeDefCloser) {
                         break;
                     }
                     type_header.push(tch);
@@ -3145,10 +3490,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             };
             offset = next_off;
-            if ch == DC_END_LITERAL {
+            if ch.fills_role(DcRole::LiteralCloser) {
                 break;
             }
-            if ch == DC_ESCAPE {
+            if ch.fills_role(DcRole::Escape) {
                 if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
                     ch = escaped;
                     offset = after_esc;
@@ -3176,7 +3521,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty identifier span");
         };
-        ensure!(first == DC_BEGIN_IDENTIFIER, "Expected Dc 270");
+        ensure!(first.fills_role(DcRole::IdentifierOpener), "Expected identifier opener (Dc 270), found {first}");
         offset = after_first;
         let mut name = String::new();
         while offset < span.end {
@@ -3184,10 +3529,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             };
             offset = next_off;
-            if ch == DC_END_IDENTIFIER {
+            if ch.fills_role(DcRole::IdentifierCloser) {
                 break;
             }
-            if ch == DC_ESCAPE {
+            if ch.fills_role(DcRole::Escape) {
                 if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
                     ch = escaped;
                     offset = after_esc;
@@ -3211,7 +3556,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty number span");
         };
-        ensure!(first == DC_BEGIN_NUMBER, "Expected Dc 6");
+        ensure!(first.fills_role(DcRole::NumberOpener), "Expected number opener (Dc 6), found {first}");
         offset = after_first;
         let Some((format, after_fmt)) = self.read_token_or_binary_at(offset)? else {
             bail!("Truncated number format");
@@ -3223,7 +3568,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             };
             offset = next_off;
-            if ch == DC_END_NUMBER {
+            if ch.fills_role(DcRole::NumberCloser) {
                 break;
             }
             digits.push(ch);
@@ -3351,14 +3696,14 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         };
         let targets_escape = match term {
-            SyntaxTerm::SelfChar => ctx.self_dc == Some(DC_ESCAPE.to_u128()),
-            SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => target.to_u128() == DC_ESCAPE.to_u128(),
+            SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| ctx.token_fills_role(t, DcRole::Escape)),
+            SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => ctx.token_fills_role(target.to_u128(), DcRole::Escape),
             SyntaxTerm::CharSet { negated: true, .. } => true,
-            SyntaxTerm::CharSet { negated: false, members } => members.iter().any(|target| target.to_u128() == DC_ESCAPE.to_u128()),
+            SyntaxTerm::CharSet { negated: false, members } => members.iter().any(|target| ctx.token_fills_role(target.to_u128(), DcRole::Escape)),
             _ => false,
         };
         if !targets_escape && !ctx.self_dc.is_some_and(|token| ctx.resolver.is_opaque_container(token)) {
-            while first_dc == DC_ESCAPE {
+            while first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
                 let Some((_, after_ignored)) = self.read_token_or_binary_at(after_first)? else {
                     ctx.policy.handle(ctx.policy.syntax_error, format!("Dangling escape Dc 255 at offset {start_offset}"))?;
                     return Ok(false);
@@ -3413,14 +3758,18 @@ impl<'a> DcDocumentNavigator<'a> {
         let term_targets_opt_present = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                t.to_u128() == DC_OPTIONAL_PRESENT.to_u128()
+                ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
             }
             _ => false,
         };
-        if first_dc == DC_OPTIONAL_PRESENT && !term_targets_opt_present {
+        if first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver) && !term_targets_opt_present {
             self.cursor = after_first;
-            while let Some((DC_OPTIONAL_PRESENT, next)) = self.read_token_or_binary_at(self.cursor)? {
-                self.cursor = next;
+            while let Some((next_tok, next)) = self.read_token_or_binary_at(self.cursor)? {
+                if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
+                    self.cursor = next;
+                } else {
+                    break;
+                }
             }
             if self.eval_term_single(term, ctx)? {
                 return Ok(true);
@@ -3430,11 +3779,11 @@ impl<'a> DcDocumentNavigator<'a> {
         let term_targets_opt_absent = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                t.to_u128() == DC_OPTIONAL_ABSENT.to_u128()
+                ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
             }
             _ => false,
         };
-        if first_dc == DC_OPTIONAL_ABSENT && !term_targets_opt_absent {
+        if first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver) && !term_targets_opt_absent {
             self.cursor = after_first;
             return Ok(true);
         }
@@ -3442,7 +3791,7 @@ impl<'a> DcDocumentNavigator<'a> {
         match term {
             SyntaxTerm::SelfChar => {
                 if let Some(self_id) = ctx.self_dc {
-                    if first == self_id {
+                    if first == self_id || ctx.resolver.is_equivalent_to(first, self_id) {
                         self.cursor = after_first;
                         Ok(true)
                     } else {
@@ -3454,7 +3803,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             SyntaxTerm::CharRef(target) => {
-                if first == target.to_u128() {
+                if first == target.to_u128() || ctx.resolver.is_equivalent_to(first, target.to_u128()) {
                     self.cursor = after_first;
                     Ok(true)
                 } else {
@@ -3470,7 +3819,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             SyntaxTerm::CharSet { negated, members } => {
-                let in_set = members.iter().any(|m| m.to_u128() == first);
+                let in_set = members.iter().any(|m| m.to_u128() == first || ctx.resolver.is_equivalent_to(first, m.to_u128()));
                 if !*negated {
                     if in_set {
                         self.cursor = after_first;
@@ -3482,10 +3831,10 @@ impl<'a> DcDocumentNavigator<'a> {
                     let in_opaque = ctx
                         .self_dc
                         .is_some_and(|s| ctx.resolver.is_opaque_container(s));
-                    if in_set && !(in_opaque && first_dc == DC_ESCAPE) {
+                    if in_set && !(in_opaque && first_dc.fills_role_with(DcRole::Escape, ctx.resolver)) {
                         return Ok(false);
                     }
-                    if first_dc == DC_ESCAPE {
+                    if first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
                         let Some((_, after_esc)) = self.read_token_or_binary_at(after_first)? else {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
@@ -3499,22 +3848,22 @@ impl<'a> DcDocumentNavigator<'a> {
                         return Ok(true);
                     }
                     if !in_opaque {
-                        if first_dc == DC_START_ENCAPSULATION_BINARY {
+                        if first_dc.fills_role_with(DcRole::BinaryEncapsulationOpener, ctx.resolver) {
                             if let Ok((after_bin, _)) = self.scan_binary_at(start_offset, &ctx.policy) {
                                 self.cursor = after_bin;
                                 return Ok(true);
                             }
                             return Ok(false);
                         }
-                        if first_dc == DC_BEGIN_LITERAL {
+                        if first_dc.fills_role_with(DcRole::LiteralOpener, ctx.resolver) {
                             self.cursor = start_offset;
                             return self.eval_literal_frame(None, ctx);
                         }
-                        if first_dc == DC_BEGIN_IDENTIFIER {
+                        if first_dc.fills_role_with(DcRole::IdentifierOpener, ctx.resolver) {
                             self.cursor = start_offset;
                             return self.eval_identifier_frame(ctx);
                         }
-                        if first_dc == DC_BEGIN_NUMBER {
+                        if first_dc.fills_role_with(DcRole::NumberOpener, ctx.resolver) {
                             self.cursor = start_offset;
                             return self.eval_number_frame(ctx);
                         }
@@ -3576,14 +3925,14 @@ impl<'a> DcDocumentNavigator<'a> {
                                 return Ok(true);
                             }
                         }
-                        if name == "type" && first_dc == DC_BEGIN_TYPE_DEF {
+                        if name == "type" && first_dc.fills_role_with(DcRole::TypeDefOpener, ctx.resolver) {
                             if let Some((inner_dc, after_inner)) =
                                 self.read_token_or_binary_at(after_first)?
                             {
                                 if let Some((close_dc, after_close)) =
                                     self.read_token_or_binary_at(after_inner)?
                                 {
-                                    if close_dc == DC_END_TYPE_DEF {
+                                    if close_dc.fills_role_with(DcRole::TypeDefCloser, ctx.resolver) {
                                         let inner_u128 = inner_dc.to_u128();
                                         let fmt_match = FormatId::from_shorthand(sub)
                                             .or_else(|| FormatId::from_ident(sub))
@@ -3604,10 +3953,22 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(false);
                 }
                 if name == "type" && subtype.is_none() {
-                    if first_dc == DC_BEGIN_TYPE_DEF
-                        || first_dc == DC_TYPE_INTERSECTION
-                        || first_dc == DC_TYPE_UNION
-                    {
+                    let is_constructor = first_dc.fills_role_with(DcRole::TypeDefOpener, ctx.resolver)
+                        || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
+                        || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver);
+                    if is_constructor {
+                        if ctx.depth >= ctx.max_depth {
+                            ctx.has_errors = true;
+                            ctx.diagnostics.push(SyntaxDiagnostic {
+                                message: format!(
+                                    "Syntax expansion depth limit reached ({}) for type constructor",
+                                    ctx.max_depth
+                                ),
+                                token_offset: start_offset,
+                                is_error: true,
+                            });
+                            return Ok(false);
+                        }
                         return self.eval_type_constructor(ctx);
                     }
                     let is_format_token =
@@ -3666,10 +4027,30 @@ impl<'a> DcDocumentNavigator<'a> {
                     let matched = self.eval_pattern(&pattern, ctx)?;
                     ctx.depth = ctx.depth.saturating_sub(1);
                     ctx.call_stack.pop();
-                    if !matched {
-                        self.cursor = start_offset;
+                    if matched {
+                        return Ok(true);
                     }
-                    return Ok(matched);
+                    self.cursor = start_offset;
+                }
+
+                if let Some(evaluator) = &ctx.evaluator {
+                    if first_dc.fills_role_with(DcRole::EvaluableExpressionStarter, ctx.resolver) {
+                        let checkpoint = self.save_checkpoint();
+                        if let Ok(Some(stub)) = self.next_sibling_stub(&ctx.policy) {
+                            let expr_tokens = self.read_tokens_in_span(stub.outer_span).unwrap_or_default();
+                            let expr_dc_chars: Vec<DcChar> = expr_tokens.into_iter().map(DcChar::from_u128).collect();
+                            let req = ValueRequirement::NamedConstruct { name: name.as_str(), subtype: subtype.as_deref() };
+                            if let Ok(Some(DcEvaluatedValue::Document(doc))) = evaluator.eval_expression_for_requirement(&expr_dc_chars, &req, ctx.resolver) {
+                                let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
+                                let mut sub_ctx = ctx.clone();
+                                if let Ok(true) = sub_nav.eval_term_single(term, &mut sub_ctx) {
+                                    self.cursor = stub.outer_span.end;
+                                    return Ok(true);
+                                }
+                            }
+                        }
+                        self.restore_checkpoint(checkpoint);
+                    }
                 }
                 Ok(false)
             }
@@ -3697,7 +4078,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.depth = ctx.depth.saturating_add(1);
 
                     let has_fmt_token = matches!(target, CharTarget::Format(_))
-                        && first == target.to_u128();
+                        && (first == target.to_u128() || ctx.resolver.is_equivalent_to(first, target.to_u128()));
                     if has_fmt_token && !rule.pattern.starts_with_self() {
                         self.cursor = after_first;
                     }
@@ -3737,7 +4118,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.cursor = start_offset;
                     return Ok(false);
                 }
-                if first == target.to_u128() {
+                if first == target.to_u128() || ctx.resolver.is_equivalent_to(first, target.to_u128()) {
                     self.cursor = after_first;
                     Ok(true)
                 } else {
@@ -3772,7 +4153,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     Frame::Term(term) => {
                         let token = self.read_token_or_binary_at(self.cursor)?.map(|(ch, _)| ch);
                         let constructor = matches!(&term, SyntaxTerm::NamedConstruct { name, subtype: None, .. } if name == "type")
-                            && token.is_some_and(|ch| ch == DC_BEGIN_TYPE_DEF || ch == DC_TYPE_UNION || ch == DC_TYPE_INTERSECTION);
+                            && token.is_some_and(|ch| ch.fills_role_with(DcRole::TypeDefOpener, ctx.resolver) || ch.fills_role_with(DcRole::TypeUnion, ctx.resolver) || ch.fills_role_with(DcRole::TypeIntersection, ctx.resolver));
                         let pattern = if constructor {
                             token.and_then(|ch| CharTarget::from_u128(ch.to_u128()))
                                 .and_then(|target| ctx.resolver.resolve_rule(&target))
@@ -3919,10 +4300,14 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(false);
         };
-        if list_open != DC_BEGIN_LIST {
+        if !list_open.fills_role_with(DcRole::ListOpener, ctx.resolver) {
             return Ok(false);
         }
-        let close_len = dc_char_utf8e128_len(DC_END_LIST);
+        let list_closer = CharTarget::from_u128(list_open.to_u128())
+            .and_then(|t| ctx.resolver.closer_for_opener(&t))
+            .map(DcChar::from_u128)
+            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+        let close_len = dc_char_utf8e128_len(list_closer);
         if wrapper_end < after_list_open.saturating_add(close_len) {
             return Ok(false);
         }
@@ -3965,7 +4350,7 @@ impl<'a> DcDocumentNavigator<'a> {
             let Some((tok, after_tok)) = self.read_token_or_binary_at(elem_start)? else {
                 break;
             };
-            if tok == DC_LIST_ELEMENT_SEPARATOR {
+            if tok.fills_role_with(DcRole::ListElementSeparator, ctx.resolver) {
                 self.cursor = after_tok;
                 continue;
             }
@@ -4007,7 +4392,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, _)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DC_START_ENCAPSULATION_BINARY {
+        if !first_dc.fills_role_with(DcRole::BinaryEncapsulationOpener, ctx.resolver) {
             return Ok(false);
         }
         let constraint = if let Some(sub) = subtype {
@@ -4044,7 +4429,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     let actual_id = data_type.as_ref().and_then(|dt| {
                         let mut chars = dt.chars();
                         let first_ch = chars.next()?;
-                        if first_ch == DC_BEGIN_TYPE_DEF {
+                        if first_ch.fills_role_with(DcRole::TypeDefOpener, ctx.resolver) {
                             chars.next().map(DcChar::to_u128)
                         } else {
                             Some(first_ch.to_u128())
@@ -4064,7 +4449,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(true);
         }
 
-        let Some(target_203) = CharTarget::from_u128(DC_START_ENCAPSULATION_BINARY.to_u128())
+        let Some(target_203) = CharTarget::from_u128(first_dc.to_u128())
         else {
             return Ok(false);
         };
@@ -4072,7 +4457,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         };
         let old_self = ctx.self_dc;
-        ctx.self_dc = Some(DC_START_ENCAPSULATION_BINARY.to_u128());
+        ctx.self_dc = Some(first_dc.to_u128());
         let matched = self.eval_pattern(&rule_203.pattern, ctx)?;
         ctx.self_dc = old_self;
         if !matched {
@@ -4088,7 +4473,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     .or_else(|| FormatId::from_ident(fmt_str))
                     .and_then(|f| f.dc_id());
                 let actual_id =
-                    if tokens.get(1).copied() == Some(DC_BEGIN_TYPE_DEF.to_u128()) {
+                    if tokens.get(1).is_some_and(|&t| ctx.token_fills_role(t, DcRole::TypeDefOpener)) {
                         tokens.get(2).copied()
                     } else {
                         tokens.get(1).copied()
@@ -4130,7 +4515,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, _)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DC_START_ENCAPSULATION_BINARY {
+        if !first_dc.fills_role_with(DcRole::BinaryEncapsulationOpener, ctx.resolver) {
             return Ok(false);
         }
         if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, .. })) =
@@ -4170,7 +4555,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, after_260)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DC_BEGIN_LITERAL {
+        if !first_dc.fills_role_with(DcRole::LiteralOpener, ctx.resolver) {
             return Ok(false);
         }
         let Some((hdr_open, after_262)) = self.read_token_or_binary_at(after_260)? else {
@@ -4182,7 +4567,7 @@ impl<'a> DcDocumentNavigator<'a> {
             });
             return Ok(false);
         };
-        if hdr_open != DC_BEGIN_TYPE_DEF {
+        if !hdr_open.fills_role_with(DcRole::TypeDefOpener, ctx.resolver) {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: format!("Literal at offset {start_offset} is missing Dc 262..263 type header"),
@@ -4203,14 +4588,14 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             return Ok(false);
         };
-        if hdr_close != DC_END_TYPE_DEF {
+        if !hdr_close.fills_role_with(DcRole::TypeDefCloser, ctx.resolver) {
             ctx.has_errors = true;
             return Ok(false);
         }
 
         let mut decoded_payload = Vec::new();
         while let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch == DC_ESCAPE {
+            if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
                 let Some((escaped, after_esc)) = self.read_token_or_binary_at(next_off)? else {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
@@ -4225,7 +4610,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     decoded_payload.push(escaped);
                 }
                 offset = after_esc;
-            } else if ch == DC_END_LITERAL {
+            } else if ch.fills_role_with(DcRole::LiteralCloser, ctx.resolver) {
                 if let Some(sub_str) = subtype {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;
@@ -4296,12 +4681,12 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, mut offset)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DC_BEGIN_IDENTIFIER {
+        if !first_dc.fills_role_with(DcRole::IdentifierOpener, ctx.resolver) {
             return Ok(false);
         }
         let mut char_count = 0usize;
         while let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch == DC_ESCAPE {
+            if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
                 let Some((_, after_esc)) = self.read_token_or_binary_at(next_off)? else {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
@@ -4314,7 +4699,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 };
                 char_count = char_count.saturating_add(1);
                 offset = after_esc;
-            } else if ch == DC_END_IDENTIFIER {
+            } else if ch.fills_role_with(DcRole::IdentifierCloser, ctx.resolver) {
                 if char_count == 0 {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
@@ -4347,7 +4732,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, after_6)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DC_BEGIN_NUMBER {
+        if !first_dc.fills_role_with(DcRole::NumberOpener, ctx.resolver) {
             return Ok(false);
         }
         let Some((fmt_dc, mut offset)) = self.read_token_or_binary_at(after_6)? else {
@@ -4360,7 +4745,7 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         let mut digit_count = 0usize;
         while let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch == DC_END_NUMBER {
+            if ch.fills_role_with(DcRole::NumberCloser, ctx.resolver) {
                 if digit_count == 0 {
                     self.cursor = start_offset;
                     return Ok(false);
@@ -4428,7 +4813,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some(stub) = self.next_sibling_stub(policy)? else {
             return Ok(Vec::new());
         };
-        if stub.head_dc == DC_START_ENCAPSULATION_BINARY {
+        if stub.head_dc.fills_role(DcRole::BinaryEncapsulationOpener) {
             self.parse_binary_arena_node(stub.outer_span, policy)?;
         }
         if let Some(inner) = stub.inner_span {
