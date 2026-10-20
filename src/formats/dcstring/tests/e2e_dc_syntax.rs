@@ -1367,7 +1367,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let roots = arena.roots();
         ensure!(roots.len() == 1, "Expected 1 root node in arena, found {}", roots.len());
 
-        let root_node = arena.get(roots[0]).context("Root node missing")?;
+        let root_id = *roots.first().context("Root node missing")?;
+        let root_node = arena.get(root_id).context("Root node missing")?;
         match &root_node.kind {
             DcSyntaxKind::Container {
                 opener,
@@ -1380,24 +1381,130 @@ mod tier4_expression_evaluation_and_stream_splicing {
                 ensure!(*closer == DcChar::from_short(287), "Closer must be 287, got {closer}");
                 ensure!(!unclosed, "Container must not be marked unclosed");
                 ensure!(
-                    !children.is_empty(),
-                    "Container children must not be empty (inner lang.say content dropped!)"
+                    children.len() == 13,
+                    "Expected 13 spliced children for 'Hello, World!', got {}",
+                    children.len()
                 );
 
-                let child_node = arena.get(children[0]).context("Child node missing")?;
-                let child_head = match &child_node.kind {
-                    DcSyntaxKind::Tagged { tag, .. } => *tag,
-                    DcSyntaxKind::Container { opener, .. } => *opener,
-                    DcSyntaxKind::Atom(ch) => *ch,
-                    other => bail!("Unexpected child kind for lang.say: {other:?}"),
-                };
-                ensure!(
-                    child_head == DcChar::from_short(256),
-                    "Child node must be Dc 256 lang.say, found {child_head}"
-                );
+                let expected_text = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
+                for (i, &expected_id) in expected_text.iter().enumerate() {
+                    let node_id = *children.get(i).context("Child index out of bounds")?;
+                    let child_node = arena.get(node_id).context("Child node missing")?;
+                    match &child_node.kind {
+                        DcSyntaxKind::Atom(ch) => {
+                            ensure!(
+                                *ch == DcChar::from_short(expected_id),
+                                "Child {i} expected {expected_id}, got {ch}"
+                            );
+                        }
+                        other => bail!("Child {i} expected Atom, got {other:?}"),
+                    }
+                }
             }
             other => bail!("Root node must be Container, got {other:?}"),
         }
+
+        Ok(())
+    }
+
+    /// Verifies that `lang.say` inside a container where the closer (Dc 287) is outside
+    /// the `lang.say` call correctly splices the 13 characters into the container.
+    #[crate::ctb_test]
+    fn test_lang_say_external_closer_stream_splicing() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+
+        // 286 (Begin italicized text)
+        // 256 (void lang.say(String))
+        // 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 261 259
+        // 287 (End italicized text - outside lang.say)
+        let token_ids: [u32; 23] = [
+            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
+            261, 259, 287,
+        ];
+        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let doc = create_test_mstring(&chars);
+
+        let mut arena_nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena = DcSyntaxArena::new();
+        arena_nav.parse_document_into_arena(&mut arena, &policy)?;
+
+        let roots = arena.roots();
+        ensure!(roots.len() == 1, "Expected 1 root node in arena, found {}", roots.len());
+
+        let root_id = *roots.first().context("Root node missing")?;
+        let root_node = arena.get(root_id).context("Root node missing")?;
+        match &root_node.kind {
+            DcSyntaxKind::Container {
+                opener,
+                closer,
+                unclosed,
+                children,
+                ..
+            } => {
+                ensure!(*opener == DcChar::from_short(286), "Opener must be 286, got {opener}");
+                ensure!(*closer == DcChar::from_short(287), "Closer must be 287, got {closer}");
+                ensure!(!unclosed, "Container must not be marked unclosed");
+                ensure!(
+                    children.len() == 13,
+                    "Expected 13 spliced children for 'Hello, World!', got {}",
+                    children.len()
+                );
+
+                let expected_text = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
+                for (i, &expected_id) in expected_text.iter().enumerate() {
+                    let node_id = *children.get(i).context("Child index out of bounds")?;
+                    let child_node = arena.get(node_id).context("Child node missing")?;
+                    match &child_node.kind {
+                        DcSyntaxKind::Atom(ch) => {
+                            ensure!(
+                                *ch == DcChar::from_short(expected_id),
+                                "Child {i} expected {expected_id}, got {ch}"
+                            );
+                        }
+                        other => bail!("Child {i} expected Atom, got {other:?}"),
+                    }
+                }
+            }
+            other => bail!("Root node must be Container, got {other:?}"),
+        }
+
+        Ok(())
+    }
+
+    /// Verifies that `eval_term_single` handles `lang.say` stream splicing
+    /// during grammar validation.
+    #[crate::ctb_test]
+    fn test_eval_term_single_lang_say_stream_splicing() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let resolver = default_syntax_resolver();
+
+        // 256 (void lang.say(String))
+        // 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 261 259
+        let token_ids: [u32; 21] = [
+            256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
+            261, 259,
+        ];
+        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let doc = create_test_mstring(&chars);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+
+        // Term matching 'H' (Dc 57)
+        let term_h = SyntaxTerm::CharRef(CharTarget::Dc(57));
+        let matched = nav.eval_term_single(&term_h, &mut ctx)?;
+        ensure!(
+            matched,
+            "eval_term_single must splice lang.say and match first spliced character 'H'"
+        );
+
+        // Term matching 'e' (Dc 86)
+        let term_e = SyntaxTerm::CharRef(CharTarget::Dc(86));
+        let matched_e = nav.eval_term_single(&term_e, &mut ctx)?;
+        ensure!(
+            matched_e,
+            "eval_term_single must match next spliced character 'e'"
+        );
 
         Ok(())
     }
