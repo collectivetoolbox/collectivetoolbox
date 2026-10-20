@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! category CSV data tables.
 
 use anyhow::{Context, Result, ensure};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -234,6 +234,37 @@ pub fn generate_dc_file(base_dir: &Path) -> Result<bool> {
     write_if_changed(&target_file, &code)
 }
 
+/// Formats a set of short Dc IDs as a compact Rust match pattern, collapsing
+/// contiguous integer spans into `start..=end` ranges.
+fn format_short_id_pattern(ids: &BTreeSet<u32>) -> String {
+    let mut parts = Vec::new();
+    let id_list: Vec<u32> = ids.iter().copied().collect();
+    let mut i = 0;
+    while i < id_list.len() {
+        let Some(&start) = id_list.get(i) else {
+            break;
+        };
+        let mut end = start;
+        while let Some(&next) = id_list.get(i.saturating_add(1)) {
+            if next == end.saturating_add(1) {
+                end = next;
+                i = i.saturating_add(1);
+            } else {
+                break;
+            }
+        }
+        if end > start.saturating_add(1) {
+            parts.push(format!("{start}..={end}"));
+        } else if end == start.saturating_add(1) {
+            parts.push(format!("{start} | {end}"));
+        } else {
+            parts.push(format!("{start}"));
+        }
+        i = i.saturating_add(1);
+    }
+    parts.join(" | ")
+}
+
 /// Generates the contents of `role.generated.rs` from category CSV files.
 ///
 /// # Errors
@@ -248,6 +279,13 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
 
     let mut records: Vec<RoleRowData> = Vec::new();
     let mut seen_idents = HashSet::new();
+
+    let mut base64_digits: BTreeSet<u32> = BTreeSet::new();
+    let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
+    let mut primitive_atoms: BTreeSet<u32> = BTreeSet::new();
+    let mut domain_atoms: BTreeSet<u32> = BTreeSet::new();
+    let mut evaluable_starters: BTreeSet<u32> = BTreeSet::new();
+    let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
 
     if categories_dir.is_dir() {
         let mut entries = Vec::new();
@@ -281,29 +319,95 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
                         let get = |idx: usize| -> String {
                             record.get(idx).unwrap_or("").trim().to_string()
                         };
-                        let aliases = get(8);
-                        if !aliases.contains("@roleDef()") {
-                            continue;
-                        }
                         let Ok(short_id) = get(1).parse::<u32>() else {
                             continue;
                         };
-                        let Some(ident) = extract_ident_annotation(&aliases) else {
-                            continue;
-                        };
-                        if seen_idents.contains(&ident) {
-                            continue;
-                        }
-                        seen_idents.insert(ident.clone());
-                        let name = get(2).trim_start_matches('!').trim().to_string();
+                        let name_raw = get(2);
+                        let name = name_raw.trim_start_matches('!').trim().to_string();
+                        let bidi = get(4);
+                        let cat = get(6);
+                        let script = get(7);
+                        let aliases = get(8);
                         let desc = get(9).trim().to_string();
+                        let ident_opt = extract_ident_annotation(&aliases);
 
-                        records.push(RoleRowData {
-                            short_id,
-                            ident,
-                            name,
-                            description: desc,
-                        });
+                        if aliases.contains("@roleDef()") {
+                            if let Some(ref ident) = ident_opt {
+                                if seen_idents.insert(ident.clone()) {
+                                    records.push(RoleRowData {
+                                        short_id,
+                                        ident: ident.clone(),
+                                        name: name.clone(),
+                                        description: desc,
+                                    });
+                                }
+                            }
+                        }
+
+                        if script == ".Encapsulation"
+                            && name.starts_with("Base 64 encapsulation digit")
+                        {
+                            base64_digits.insert(short_id);
+                        }
+
+                        if script == ".EL Types"
+                            || ident_opt.as_deref().is_some_and(|id| {
+                                matches!(
+                                    id,
+                                    "TypeUnion"
+                                        | "TypeIntersection"
+                                        | "FormatParamApplication"
+                                        | "FilePathDelimiter"
+                                )
+                            })
+                        {
+                            type_tokens.insert(short_id);
+                        }
+
+                        if ident_opt.as_deref().is_some_and(|id| {
+                            matches!(id, "OptionalAbsent" | "BooleanTrue" | "BooleanFalse")
+                        }) {
+                            primitive_atoms.insert(short_id);
+                        }
+
+                        if ident_opt.as_deref().is_some_and(|id| {
+                            matches!(
+                                id,
+                                "OptionalAbsent"
+                                    | "BooleanTrue"
+                                    | "BooleanFalse"
+                                    | "FilePathDelimiter"
+                            )
+                        }) || ((name.starts_with("Stream kind:")
+                            || name.starts_with("Mac OS Finder label"))
+                            && !aliases.contains(":~"))
+                        {
+                            domain_atoms.insert(short_id);
+                        }
+
+                        if script == ".EL Routines"
+                            || ident_opt.as_deref().is_some_and(|id| {
+                                matches!(
+                                    id,
+                                    "ReferenceBoundValue"
+                                        | "ReferenceNamedObject"
+                                        | "RoutineInvocation"
+                                        | "EquivalentRepresentations"
+                                        | "PartiallyEquivalentRepresentations"
+                                        | "BeginFormatRepresentation"
+                                )
+                            })
+                        {
+                            evaluable_starters.insert(short_id);
+                        }
+
+                        if ident_opt.as_deref().is_some_and(|id| id == "ListElementSeparator")
+                            || (script == ".Punctuation"
+                                && (cat == "Zl" || cat == "Zp" || bidi == "B")
+                                && aliases.contains("<equiv>u"))
+                        {
+                            structural_seps.insert(short_id);
+                        }
                     }
                 }
             }
@@ -311,6 +415,16 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
     }
 
     records.sort_by_key(|r| r.short_id);
+
+    let base64_digits_pat = format_short_id_pattern(&base64_digits);
+    let type_tokens_pat = format_short_id_pattern(&type_tokens);
+    let primitive_atoms_pat = format_short_id_pattern(&primitive_atoms);
+    let domain_atoms_pat = format_short_id_pattern(&domain_atoms);
+    let evaluable_starters_pat = format_short_id_pattern(&evaluable_starters);
+    let structural_seps_pat = format_short_id_pattern(&structural_seps);
+
+    let base64_min = base64_digits.first().copied().unwrap_or(127);
+    let base64_max = base64_digits.last().copied().unwrap_or(190);
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
@@ -348,7 +462,7 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
 
     out.push_str(
         "    // Composite semantic roles\n\
-    /// Integer format indicator (`FormatId::Integer` `f199` or `8`).\n\
+    /// Integer format indicator (`FormatId::Integer` `f199`).\n\
     IntegerFormatIndicator,\n\
     /// Base64 encapsulation digit (`127..=190`).\n\
     Base64Digit,\n\
@@ -407,46 +521,45 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
             r.ident, r.short_id
         ));
     }
-    out.push_str(
-        "            Self::IntegerFormatIndicator => {\n\
-                short == Some(8)\n\
-                    || (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
-                        && ctb_utilities::format_id::FormatId::from_dc_id(token)\n\
-                            == Some(ctb_utilities::format_id::FormatId::Integer)\n\
-            }\n\
-            Self::Base64Digit => short.is_some_and(|s| (127..=190).contains(&s)),\n\
-            Self::TypeToken => {\n\
+    out.push_str(&format!(
+        "            Self::IntegerFormatIndicator => {{\n\
                 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
-                    || matches!(short, Some(264 | 265 | 266 | 267 | 275 | 300 | 513 | 516 | 535))\n\
-            }\n\
-            Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),\n\
-            Self::DomainValueAtom => matches!(short, Some(316 | 513 | 517 | 518 | 379..=384 | 482..=489)),\n\
-            Self::EvaluableExpressionStarter => {\n\
-                matches!(short, Some(540 | 276 | 279 | 256 | 397 | 561 | 511))\n\
-            }\n\
-            Self::StructuralSeparator => {\n\
-                matches!(short, Some(312 | 119 | 120 | 121 | 294 | 295))\n\
-            }\n\
-        }\n\
-    }\n\n",
-    );
+                    && ctb_utilities::format_id::FormatId::from_dc_id(token)\n\
+                        == Some(ctb_utilities::format_id::FormatId::Integer)\n\
+            }}\n\
+            Self::Base64Digit => matches!(short, Some({base64_digits_pat})),\n\
+            Self::TypeToken => {{\n\
+                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
+                    || matches!(short, Some({type_tokens_pat}))\n\
+            }}\n\
+            Self::PrimitiveValueAtom => matches!(short, Some({primitive_atoms_pat})),\n\
+            Self::DomainValueAtom => matches!(short, Some({domain_atoms_pat})),\n\
+            Self::EvaluableExpressionStarter => {{\n\
+                matches!(short, Some({evaluable_starters_pat}))\n\
+            }}\n\
+            Self::StructuralSeparator => {{\n\
+                matches!(short, Some({structural_seps_pat}))\n\
+            }}\n\
+        }}\n\
+    }}\n\n"
+    ));
 
-    out.push_str(
+    out.push_str(&format!(
         "    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel\n\
         /// (`64`) if `token` represents a Base64 encapsulation character.\n\
         #[must_use]\n\
-        pub fn base64_digit_value(token: u128) -> Option<u8> {\n\
+        pub fn base64_digit_value(token: u128) -> Option<u8> {{\n\
             let short = DcChar::from_u128(token).to_short().ok()?;\n\
-            if short == 195 {\n\
+            if short == 195 {{\n\
                 Some(64)\n\
-            } else if (127..=190).contains(&short) {\n\
-                u8::try_from(short.saturating_sub(127)).ok()\n\
-            } else {\n\
+            }} else if ({base64_min}..={base64_max}).contains(&short) {{\n\
+                u8::try_from(short.saturating_sub({base64_min})).ok()\n\
+            }} else {{\n\
                 None\n\
-            }\n\
-        }\n\
-}\n",
-    );
+            }}\n\
+        }}\n\
+}}\n"
+    ));
 
     Ok(out)
 }

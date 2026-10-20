@@ -173,7 +173,7 @@ pub enum DcRole {
     /// Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others. (`561`).
     PartiallyEquivalentRepresentations,
     // Composite semantic roles
-/// Integer format indicator (`FormatId::Integer` `f199` or `8`).
+/// Integer format indicator (`FormatId::Integer` `f199`).
 IntegerFormatIndicator,
 /// Base64 encapsulation digit (`127..=190`).
 Base64Digit,
@@ -347,23 +347,22 @@ match self {
             Self::EndKvMap => short == Some(560),
             Self::PartiallyEquivalentRepresentations => short == Some(561),
             Self::IntegerFormatIndicator => {
-short == Some(8)
-|| (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
+(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)
 == Some(ctb_utilities::format_id::FormatId::Integer)
 }
-Self::Base64Digit => short.is_some_and(|s| (127..=190).contains(&s)),
+Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 265 | 266 | 267 | 275 | 300 | 513 | 516 | 535))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535))
 }
 Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
-Self::DomainValueAtom => matches!(short, Some(316 | 513 | 517 | 518 | 379..=384 | 482..=489)),
+Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),
 Self::EvaluableExpressionStarter => {
-matches!(short, Some(540 | 276 | 279 | 256 | 397 | 561 | 511))
+matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561))
 }
 Self::StructuralSeparator => {
-matches!(short, Some(312 | 119 | 120 | 121 | 294 | 295))
+matches!(short, Some(119..=121 | 294 | 295 | 312))
 }
 }
 }
