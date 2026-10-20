@@ -42,8 +42,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
 1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
-1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), @roleDef(), :~ [^341]* 341",Begins an execution environment snapshot.
-1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @roleDef(), @closes(340)",Terminates an execution environment snapshot.
+1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [^341]* 341",Begins an execution environment snapshot.
+1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @closes(340)",Terminates an execution environment snapshot.
 1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ ([formats:os] | [string]),Host operating system description.
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.
@@ -90,8 +90,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), @roleDef(), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389",Begins a collection of semantic file flags attached to a file.
-1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @roleDef(), @closes(388)",Terminates a collection of semantic file flags attached to a file.
+1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389",Begins a collection of semantic file flags attached to a file.
+1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @closes(388)",Terminates a collection of semantic file flags attached to a file.
 1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,"@ident(""BeginTimeMoment""), @roleDef(), :~ [formats:date] [^391]+ 391",Begins a time moment description.
 1114503,391,End time moment description,0,BN,,!Cx,.Semantic,"@ident(""EndTimeMoment""), @roleDef()",Terminates a time moment description.
 1114504,392,File data,0,BN,,!Cx,.Semantic,:~ [data],File contents
@@ -230,18 +230,18 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection""), @roleDef(), @closes(543)",Terminates a checksummed section.
 1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), @roleDef(), :~ [checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
 1114658,546,Sequence identifier,0,BN,,!Cx,.Semantic,"@ident(""SequenceIdentifier""), @roleDef(), :~ [number:Integer]",Monotonically increasing sequence or batch counter.
-1114659,547,Begin operation session description,0,BN,,!Cx,.Semantic,"@ident(""BeginOperationSession""), @roleDef(), :~ [^548]+ 548",Begins a record describing the parameters source destination and execution of an operation task or session.
-1114660,548,End operation session description,0,BN,,!Cx,.Semantic,"@ident(""EndOperationSession""), @roleDef(), @closes(547)",Terminates an operation session record.
-1114661,549,Source path,0,BN,,!Cx,.Semantic,"@ident(""SourcePath""), @roleDef(), :~ [filepath]",Path designating a source directory file or origin root of an operation.
-1114662,550,Destination path,0,BN,,!Cx,.Semantic,"@ident(""DestinationPath""), @roleDef(), :~ [filepath]",Path designating a target or destination directory file or storage root.
-1114663,551,Operation completed marker,0,BN,,!Cx,.Semantic,"@ident(""OperationCompleted""), @roleDef()",Indicates that an operation or session completed its primary intended task.
-1114664,552,Begin error record,0,BN,,!Cx,.Semantic,"@ident(""BeginErrorRecord""), @roleDef(), :~ [^553]+ 553",Begins a structured error incident record.
-1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @roleDef(), @closes(552)",Terminates a structured error record.
-1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), @roleDef(), :~ [^555]+ 555",Begins a structured warning incident record.
-1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @roleDef(), @closes(554)",Terminates a structured warning record.
-1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), @roleDef(), :~ [string]",Human-readable explanatory or diagnostic log message.
-1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), @roleDef(), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
-1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), @roleDef(), :~ [number:Integer]",Numeric status or return code associated with an operation.
+1114659,547,Begin operation session description,0,BN,,!Cx,.Semantic,"@ident(""BeginOperationSession""), :~ [^548]+ 548",Begins a record describing the parameters source destination and execution of an operation task or session.
+1114660,548,End operation session description,0,BN,,!Cx,.Semantic,"@ident(""EndOperationSession""), @closes(547)",Terminates an operation session record.
+1114661,549,Source path,0,BN,,!Cx,.Semantic,"@ident(""SourcePath""), :~ [filepath]",Path designating a source directory file or origin root of an operation.
+1114662,550,Destination path,0,BN,,!Cx,.Semantic,"@ident(""DestinationPath""), :~ [filepath]",Path designating a target or destination directory file or storage root.
+1114663,551,Operation completed marker,0,BN,,!Cx,.Semantic,"@ident(""OperationCompleted"")",Indicates that an operation or session completed its primary intended task.
+1114664,552,Begin error record,0,BN,,!Cx,.Semantic,"@ident(""BeginErrorRecord""), :~ [^553]+ 553",Begins a structured error incident record.
+1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @closes(552)",Terminates a structured error record.
+1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), :~ [^555]+ 555",Begins a structured warning incident record.
+1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @closes(554)",Terminates a structured warning record.
+1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
+1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
+1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
 1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), @roleDef(), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
 1114674,562,Mac OS extended Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]* 389),Extended Mac OS Finder flags (FXInfo fdXFlags / DXInfo frXFlags).
 1114675,563,File data format,0,BN,,!Cx,.Semantic,:~ [format],Data format of the file identified by the enclosing descriptor.

@@ -120,14 +120,6 @@ pub enum DcRole {
     OptionalPresent,
     /// Indicates an optional value is absent. (`316`).
     OptionalAbsent,
-    /// Begins an execution environment snapshot. (`340`).
-    BeginEnvironmentDescription,
-    /// Terminates an execution environment snapshot. (`341`).
-    EndEnvironmentDescription,
-    /// Begins a collection of semantic file flags attached to a file. (`388`).
-    BeginFileFlagsDescription,
-    /// Terminates a collection of semantic file flags attached to a file. (`389`).
-    EndFileFlagsDescription,
     /// Begins a time moment description. (`390`).
     BeginTimeMoment,
     /// Terminates a time moment description. (`391`).
@@ -174,30 +166,6 @@ pub enum DcRole {
     SectionDigest,
     /// Monotonically increasing sequence or batch counter. (`546`).
     SequenceIdentifier,
-    /// Begins a record describing the parameters source destination and execution of an operation task or session. (`547`).
-    BeginOperationSession,
-    /// Terminates an operation session record. (`548`).
-    EndOperationSession,
-    /// Path designating a source directory file or origin root of an operation. (`549`).
-    SourcePath,
-    /// Path designating a target or destination directory file or storage root. (`550`).
-    DestinationPath,
-    /// Indicates that an operation or session completed its primary intended task. (`551`).
-    OperationCompleted,
-    /// Begins a structured error incident record. (`552`).
-    BeginErrorRecord,
-    /// Terminates a structured error record. (`553`).
-    EndErrorRecord,
-    /// Begins a structured warning incident record. (`554`).
-    BeginWarningRecord,
-    /// Terminates a structured warning record. (`555`).
-    EndWarningRecord,
-    /// Human-readable explanatory or diagnostic log message. (`556`).
-    LogMessage,
-    /// Identifier correlating related operations log entries or distributed traces. (`557`).
-    TraceIdentifier,
-    /// Numeric status or return code associated with an operation. (`558`).
-    OperationStatusCode,
     /// Begins an ordered key-value associative map of adjacent explicitly closed Dc 514 pairs. No Dc 312 occurs between pairs. The optional length counts pairs. The declared key and value types apply to each pair; inherited declarations must accompany independently extracted fragments. Invalid pair framing must not be reinterpreted as the legacy Dc 313 form. (`559`).
     BeginKvMap,
     /// Terminates an ordered key-value associative map begun by Dc 559. (`560`).
@@ -268,10 +236,6 @@ match self {
             Self::EndLegacyKvMap => Some(314),
             Self::OptionalPresent => Some(315),
             Self::OptionalAbsent => Some(316),
-            Self::BeginEnvironmentDescription => Some(340),
-            Self::EndEnvironmentDescription => Some(341),
-            Self::BeginFileFlagsDescription => Some(388),
-            Self::EndFileFlagsDescription => Some(389),
             Self::BeginTimeMoment => Some(390),
             Self::EndTimeMoment => Some(391),
             Self::BeginDateMagnitude => Some(393),
@@ -295,18 +259,6 @@ match self {
             Self::EndChecksummedSection => Some(544),
             Self::SectionDigest => Some(545),
             Self::SequenceIdentifier => Some(546),
-            Self::BeginOperationSession => Some(547),
-            Self::EndOperationSession => Some(548),
-            Self::SourcePath => Some(549),
-            Self::DestinationPath => Some(550),
-            Self::OperationCompleted => Some(551),
-            Self::BeginErrorRecord => Some(552),
-            Self::EndErrorRecord => Some(553),
-            Self::BeginWarningRecord => Some(554),
-            Self::EndWarningRecord => Some(555),
-            Self::LogMessage => Some(556),
-            Self::TraceIdentifier => Some(557),
-            Self::OperationStatusCode => Some(558),
             Self::BeginKvMap => Some(559),
             Self::EndKvMap => Some(560),
             Self::PartiallyEquivalentRepresentations => Some(561),
@@ -368,10 +320,6 @@ match self {
             Self::EndLegacyKvMap => short == Some(314),
             Self::OptionalPresent => short == Some(315),
             Self::OptionalAbsent => short == Some(316),
-            Self::BeginEnvironmentDescription => short == Some(340),
-            Self::EndEnvironmentDescription => short == Some(341),
-            Self::BeginFileFlagsDescription => short == Some(388),
-            Self::EndFileFlagsDescription => short == Some(389),
             Self::BeginTimeMoment => short == Some(390),
             Self::EndTimeMoment => short == Some(391),
             Self::BeginDateMagnitude => short == Some(393),
@@ -395,18 +343,6 @@ match self {
             Self::EndChecksummedSection => short == Some(544),
             Self::SectionDigest => short == Some(545),
             Self::SequenceIdentifier => short == Some(546),
-            Self::BeginOperationSession => short == Some(547),
-            Self::EndOperationSession => short == Some(548),
-            Self::SourcePath => short == Some(549),
-            Self::DestinationPath => short == Some(550),
-            Self::OperationCompleted => short == Some(551),
-            Self::BeginErrorRecord => short == Some(552),
-            Self::EndErrorRecord => short == Some(553),
-            Self::BeginWarningRecord => short == Some(554),
-            Self::EndWarningRecord => short == Some(555),
-            Self::LogMessage => short == Some(556),
-            Self::TraceIdentifier => short == Some(557),
-            Self::OperationStatusCode => short == Some(558),
             Self::BeginKvMap => short == Some(559),
             Self::EndKvMap => short == Some(560),
             Self::PartiallyEquivalentRepresentations => short == Some(561),
