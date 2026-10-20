@@ -69,12 +69,13 @@ pub use kv_map::DcKvMapEncoding;
 pub use navigator::{
     BinaryPayloadRef, DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
     DEFAULT_MAX_PROJECTION_DEPTH, DcBinaryResolver,
-    DcByteSpan, DcDocumentNavigator, DcForgivingDefault, DcFrameHeaderInfo,
-    DcFrameStub, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
+    DcByteSpan, DcDocumentNavigator, DcEvaluatedValue, DcExpressionEvaluator,
+    DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy,
+    DcSyntaxArena, DcSyntaxKind, DcSyntaxNode, DefaultDcExpressionEvaluator,
     DiagnosticAction, FormatSyntaxRule, INLINE_BINARY_THRESHOLD,
     MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
-    SyntaxRuntimeRegistry, SyntaxRuntimeResolver, validate_dc_mixed_strict,
-    validate_dc_str_strict, validate_dc_tokens_strict,
+    SyntaxRuntimeRegistry, SyntaxRuntimeResolver, ValueRequirement,
+    validate_dc_mixed_strict, validate_dc_str_strict, validate_dc_tokens_strict,
 };
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};

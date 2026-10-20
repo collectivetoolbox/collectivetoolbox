@@ -275,3 +275,17 @@ In [`src/formats/dcstring/navigator.rs`](file:///workspaces/ctoolbox/src/formats
 3. **Lisp/Scheme Value Evaluation & Stream-Splicing Tests (`cargo test -p ctb-formats-dcstring`)**:
    - **Stream-Splicing Test**: Verify that `286 256 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 287 261 259` parses and evaluates `256` (`lang.say`), splices `"Hello, World!"` + `287` into `spliced_tokens`, and cleanly closes the outer `286..287` italicized span.
    - **Typed Value Expression Test**: Verify that syntax requirements like `[string]` and `[number:Natural0]` (and `#[derive(DcMixed)]` struct fields) are satisfied by evaluable Dc expressions (bound value reference `540`, alternative representation `397`, or custom `DcExpressionEvaluator` call) when they evaluate to a valid `string` or `Natural0`, and rejected when the evaluated value violates the subtype requirement (e.g., a negative number for `Natural0`).
+
+### Verification Status & Implemented Coverage
+- **`<equiv>` resolver propagation test**:
+  - `test_static_syntax_table_matches_csv_dataset` updated to assert `static_table.canonical_map == from_dataset.canonical_map`.
+  - Added `test_load_from_dataset_multi_character_equivalence_expansion` in `src/formats/dcdata/syntax/resolver.rs` asserting canonical token mapping, transitive equivalence, opener-to-closer propagation, closing delimiter propagation, container headers, and syntax rules propagation across 3-character chains.
+- **Typed value expression evaluation test**:
+  - Implemented in `tier4_expression_evaluation_and_stream_splicing::test_typed_expression_evaluation_and_subtype_constraints` in `src/formats/dcstring/tests/e2e_dc_syntax.rs`.
+  - Verifies `[string]` and `[number:Natural0]` satisfied by evaluable expressions, and rejects expressions returning negative numbers violating `Natural0`.
+- **`lang.say` stream-splicing end-to-end test**:
+  - Implemented in `tier4_expression_evaluation_and_stream_splicing::test_lang_say_stream_splicing_end_to_end` in `src/formats/dcstring/tests/e2e_dc_syntax.rs`.
+  - Verifies both token stream splicing (`lang.say` emitting `"Hello, World!"` and `287` into `spliced_tokens`) and CST arena parsing without dropping the inner invocation.
+- **Literal character decoding & Plane 14 mapping**:
+  - `decode_literal_span` and `decode_identifier_span` in `src/formats/dcstring/navigator.rs` updated to resolve canonical equivalents via `resolver.canonical_token` and project short Dcs without direct Unicode equivalents to Plane 14 tag characters (`0xE0000 + short_id`).
+

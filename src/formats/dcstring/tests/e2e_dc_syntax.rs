@@ -32,23 +32,26 @@ use ctb_utilities::*;
 use anyhow::{Context, Result, ensure};
 use ctb_formats_checksum::sha256;
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP,
-    DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_OPERATION_SESSION,
-    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_END_CHECKSUMMED_SECTION,
-    DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_KV_PAIR,
-    DC_END_LEGACY_KV_MAP, DC_END_LIST, DC_END_OPERATION_SESSION,
-    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_LIST_ELEMENT_SEPARATOR,
-    DC_LOG_MESSAGE, DC_OPERATION_STATUS_CODE, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER,
+    DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST,
+    DC_BEGIN_OPERATION_SESSION, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
+    DC_END_CHECKSUMMED_SECTION, DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER,
+    DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST,
+    DC_END_OPERATION_SESSION, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
+    DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE, DC_OPERATION_STATUS_CODE,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
 };
 use ctb_formats_dcdata::syntax::{
-    CharTarget, DatasetRuleResolver, SyntaxRuleResolver, default_syntax_resolver,
+    CharTarget, DatasetRuleResolver, DcRole, SyntaxPattern, SyntaxRuleResolver,
+    SyntaxTerm, default_syntax_resolver,
 };
 use ctb_formats_dcstring::dc_mixed_serde::encode_format_representation;
 use ctb_formats_dcstring::{
-    DcByteSpan, DcChar, DcDocumentNavigator, DcFrameHeaderInfo, DcFrameStub,
-    DcMixedEncode, DcMstring, DcProjectionPolicy, DcStr, DcString, DcSyntaxArena,
-    DcSyntaxKind, MAX_SYNTAX_EXPANSION_DEPTH, SyntaxEvalContext,
+    DcByteSpan, DcChar, DcDocumentNavigator, DcEvaluatedValue, DcExpressionEvaluator,
+    DcFrameHeaderInfo, DcFrameStub, DcMixedEncode, DcMstring, DcProjectionPolicy,
+    DcStr, DcString, DcSyntaxArena, DcSyntaxKind, DefaultDcExpressionEvaluator,
+    MAX_SYNTAX_EXPANSION_DEPTH, SyntaxEvalContext, ValueRequirement,
     validate_dc_mixed_strict, validate_dc_str_strict,
 };
 
@@ -963,6 +966,225 @@ mod tier5_adversarial_hardening {
         ensure!(child3.is_some(), "Navigator must advance to next child");
 
         nav.exit_frame()?;
+        Ok(())
+    }
+}
+
+// ============================================================================
+// TIER 4: EXPRESSION EVALUATION & STREAM SPLICING
+// ============================================================================
+
+mod tier4_expression_evaluation_and_stream_splicing {
+    use super::*;
+    use std::sync::Arc;
+
+    /// Mock expression evaluator that resolves bound references (`540`) to a mock document.
+    struct MockExpressionEvaluator {
+        mock_doc: DcMstring,
+    }
+
+    impl DcExpressionEvaluator for MockExpressionEvaluator {
+        fn eval_expression_for_requirement(
+            &self,
+            expr_tokens: &[DcChar],
+            _requirement: &ValueRequirement<'_>,
+            resolver: &dyn SyntaxRuleResolver,
+        ) -> Result<Option<DcEvaluatedValue>> {
+            if let Some(first) = expr_tokens.first() {
+                if resolver.token_fills_role(first.to_u128(), DcRole::EvaluableExpressionStarter) {
+                    return Ok(Some(DcEvaluatedValue::Document(self.mock_doc.clone())));
+                }
+            }
+            Ok(None)
+        }
+
+        fn eval_stream_splice(
+            &self,
+            _call_tokens: &[DcChar],
+            _resolver: &dyn SyntaxRuleResolver,
+        ) -> Result<Option<Vec<DcChar>>> {
+            Ok(None)
+        }
+    }
+
+    /// Verifies that syntax requirements `[string]` and `[number:Natural0]` are satisfied
+    /// by evaluable Dc expressions returning that type, and that subtype violations
+    /// (e.g., negative numbers for `Natural0`) are rejected.
+    #[crate::ctb_test]
+    fn test_typed_expression_evaluation_and_subtype_constraints() -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 1. [string] satisfied by an expression returning a string
+        let mut string_doc = DcMstring::new();
+        "Hello from expression".to_string().encode_dc_mixed(&mut string_doc)?;
+
+        let string_evaluator = Arc::new(MockExpressionEvaluator {
+            mock_doc: string_doc,
+        });
+
+        // Document containing an expression (bound value reference Dc 540 + identifier "var")
+        let mut expr_doc = DcMstring::new();
+        expr_doc.push_char(DcChar::from_short(540));
+        expr_doc.push_char(DC_BEGIN_IDENTIFIER);
+        expr_doc.push_str("var");
+        expr_doc.push_char(DC_END_IDENTIFIER);
+        let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.evaluator = Some(string_evaluator);
+
+        let string_term = SyntaxTerm::NamedConstruct {
+            name: "string".to_string(),
+            subtype: None,
+            capture_var: None,
+        };
+        let string_matched = nav.eval_term_single(&string_term, &mut ctx)?;
+        ensure!(string_matched, "[string] must be satisfied by expression evaluating to string");
+
+        // 2. [number:Natural0] satisfied by an expression returning a non-negative number
+        let mut natural_doc = DcMstring::new();
+        42u64.encode_dc_mixed(&mut natural_doc)?;
+
+        let natural_evaluator = Arc::new(MockExpressionEvaluator {
+            mock_doc: natural_doc,
+        });
+
+        let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.evaluator = Some(natural_evaluator);
+
+        let natural_term = SyntaxTerm::NamedConstruct {
+            name: "number".to_string(),
+            subtype: Some("Natural0".to_string()),
+            capture_var: None,
+        };
+        let natural_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
+        ensure!(natural_matched, "[number:Natural0] must be satisfied by expression evaluating to non-negative number");
+
+        // 3. [number:Natural0] rejected when the expression returns a negative number
+        let mut negative_doc = DcMstring::new();
+        (-42i64).encode_dc_mixed(&mut negative_doc)?;
+
+        let negative_evaluator = Arc::new(MockExpressionEvaluator {
+            mock_doc: negative_doc,
+        });
+
+        let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.evaluator = Some(negative_evaluator);
+
+        let negative_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
+        ensure!(!negative_matched, "[number:Natural0] must reject expression evaluating to negative number");
+
+        Ok(())
+    }
+
+    /// Verifies end-to-end stream splicing of `lang.say` (Dc 256):
+    /// `286 256 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 287 261 259`
+    ///
+    /// 1. Splicing execution: evaluates `lang.say`, splices `"Hello, World!"` + `287` into `spliced_tokens`,
+    ///    and cleanly closes the outer `286..287` italicized text span.
+    /// 2. CST Arena parsing: parses into the arena without dropping the inner `lang.say` invocation.
+    #[crate::ctb_test]
+    fn test_lang_say_stream_splicing_end_to_end() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let resolver = default_syntax_resolver();
+
+        // 286 (Begin italicized text)
+        // 256 (void lang.say(String))
+        // 258 (param opener)
+        // 260 (literal opener)
+        // 262 (type header opener)
+        // 264 (f8 UTF-8 format)
+        // 263 (type header closer)
+        // 57 86 93 93 96 30 18 72 96 99 93 85 19 ("Hello, World!")
+        // 287 (End italicized text)
+        // 261 (literal closer)
+        // 259 (param closer)
+        let token_ids: [u32; 23] = [
+            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
+            287, 261, 259,
+        ];
+        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let doc = create_test_mstring(&chars);
+
+        // --- Part 1: Stream Splicing Verification ---
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+
+        // Step 1: Open italic span (Dc 286)
+        let first = nav.read_next_token()?.context("Missing opening Dc 286")?;
+        ensure!(first == DcChar::from_short(286), "Expected Dc 286, found {first}");
+
+        // Step 2: Next token is Dc 256 (lang.say)
+        let evaluator = DefaultDcExpressionEvaluator;
+        let spliced = nav.splice_stream_invocation(&evaluator, &**resolver, &policy)?;
+        ensure!(spliced, "splice_stream_invocation must succeed on Dc 256");
+
+        // Verify spliced_tokens queue contains "Hello, World!" followed by 287
+        let expected_spliced: Vec<DcChar> = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19, 287]
+            .iter()
+            .map(|&id| DcChar::from_short(id))
+            .collect();
+        let actual_spliced: Vec<DcChar> = nav.spliced_tokens().iter().copied().collect();
+        ensure!(
+            actual_spliced == expected_spliced,
+            "Spliced tokens queue mismatch: expected {expected_spliced:?}, got {actual_spliced:?}"
+        );
+
+        // Step 3: Consume tokens from stream, encountering "Hello, World!" and then 287
+        let payload_len = expected_spliced.len().saturating_sub(1);
+        let payload = expected_spliced.get(..payload_len).context("Missing payload slice")?;
+        for &expected_char in payload {
+            let ch = nav.read_next_token()?.context("Missing spliced character")?;
+            ensure!(ch == expected_char, "Character mismatch: expected {expected_char}, got {ch}");
+        }
+
+        // Cleanly encounter closing 287 (End italicized text)
+        let closer = nav.read_next_token()?.context("Missing closing Dc 287")?;
+        ensure!(closer == DcChar::from_short(287), "Expected Dc 287, found {closer}");
+
+        // Stream is cleanly consumed at end
+        ensure!(nav.read_next_token()?.is_none(), "Stream must be exhausted after closing 287");
+
+        // --- Part 2: CST Arena Parsing Verification ---
+        let mut arena_nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena = DcSyntaxArena::new();
+        arena_nav.parse_document_into_arena(&mut arena, &policy)?;
+
+        let roots = arena.roots();
+        ensure!(roots.len() == 1, "Expected 1 root node in arena, found {}", roots.len());
+
+        let root_node = arena.get(roots[0]).context("Root node missing")?;
+        match &root_node.kind {
+            DcSyntaxKind::Container {
+                opener,
+                closer,
+                unclosed,
+                children,
+                ..
+            } => {
+                ensure!(*opener == DcChar::from_short(286), "Opener must be 286, got {opener}");
+                ensure!(*closer == DcChar::from_short(287), "Closer must be 287, got {closer}");
+                ensure!(!unclosed, "Container must not be marked unclosed");
+                ensure!(
+                    !children.is_empty(),
+                    "Container children must not be empty (inner lang.say content dropped!)"
+                );
+
+                let child_node = arena.get(children[0]).context("Child node missing")?;
+                let child_head = match &child_node.kind {
+                    DcSyntaxKind::Tagged { tag, .. } => *tag,
+                    DcSyntaxKind::Container { opener, .. } => *opener,
+                    DcSyntaxKind::Atom(ch) => *ch,
+                    other => bail!("Unexpected child kind for lang.say: {other:?}"),
+                };
+                ensure!(
+                    child_head == DcChar::from_short(256),
+                    "Child node must be Dc 256 lang.say, found {child_head}"
+                );
+            }
+            other => bail!("Root node must be Container, got {other:?}"),
+        }
+
         Ok(())
     }
 }

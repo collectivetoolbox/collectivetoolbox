@@ -32,6 +32,7 @@
 - **Moving a module into a subcrate**: Keep this mechanical: move the files using a tool/script (do not regenerate them), copy and trim `Cargo.toml`, update the package name, replace `mod` with `use`, and register the crate in the root `Cargo.toml`. Ask before doing anything beyond this.
 - **Repository memory**: Write important long-term architectural or debugging notes to the `memories/` folder in the repository; these are reviewed and versioned as part of the codebase.
 - **Sub-agent models**: Never use models provided by Anthropic (e.g., when spawning sub-agents). `GPT-6.1 Sol` with short context is a good option, or `GPT-6 Luna` for lightweight work.
+- **Context window**: If you are running in Antigravity, note that there is a harness quirk that seems to report context to you as 1M tokens, but your real context limit is ~85K-150K tokens, beyond which you'll hit compaction, degrading performance. Budget your token window as if it is 850K-915K *lower* than reported!
 
 ## Reporting, Status Tracking, and Scope Honesty
 - **Lead responses with what is left, broken, or deferred**:

@@ -670,7 +670,7 @@ impl DatasetRuleResolver {
                 if pattern_is_opaque_container(&rule.pattern, closer_tok) {
                     self.opaque_containers.insert(opener.to_u128());
                 }
-            } else {
+            } else if !self.matches_script(".Styling", opener.to_u128()) {
                 self.opaque_containers.insert(opener.to_u128());
             }
         }
@@ -1112,6 +1112,76 @@ mod tests {
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn test_load_from_dataset_multi_character_equivalence_expansion() -> Result<()> {
+        let defns = crate::lookup::get_all_dc_defns();
+        let list_open = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
+            .context("Missing DC_BEGIN_LIST definition")?;
+        let list_close = defns.iter()
+            .find(|d| d.dc_id == crate::dc::DC_END_LIST.to_u128())
+            .context("Missing DC_END_LIST definition")?;
+
+        let mut alias_open = list_open.clone();
+        alias_open.short_id = Some(9100);
+        alias_open.dc_id = DcChar::from_short(9100).to_u128();
+        alias_open.decompositions = vec!["<equiv>310".to_owned()];
+
+        let mut chained_open = alias_open.clone();
+        chained_open.short_id = Some(9101);
+        chained_open.dc_id = DcChar::from_short(9101).to_u128();
+        chained_open.decompositions = vec!["<equiv>9100".to_owned()];
+
+        let mut alias_close = list_close.clone();
+        alias_close.short_id = Some(9110);
+        alias_close.dc_id = DcChar::from_short(9110).to_u128();
+        alias_close.decompositions = vec!["<equiv>311".to_owned()];
+
+        let named = crate::get_dc_data_file("README-named-types.csv")
+            .context("Missing named types")?;
+
+        let resolver = DatasetRuleResolver::load_from_dataset(
+            &[chained_open, alias_open, list_open.clone(), alias_close, list_close.clone()],
+            &[],
+            Some(&named),
+        )?;
+
+        let open_canonical = crate::dc::DC_BEGIN_LIST.to_u128();
+        let close_canonical = crate::dc::DC_END_LIST.to_u128();
+        let tok_9100 = DcChar::from_short(9100).to_u128();
+        let tok_9101 = DcChar::from_short(9101).to_u128();
+        let tok_9110 = DcChar::from_short(9110).to_u128();
+
+        // 1. Canonical map resolution
+        assert_eq!(resolver.canonical_token(tok_9100), open_canonical);
+        assert_eq!(resolver.canonical_token(tok_9101), open_canonical);
+        assert_eq!(resolver.canonical_token(tok_9110), close_canonical);
+
+        // 2. Pairwise and transitive equivalence
+        assert!(resolver.is_equivalent_to(open_canonical, tok_9100));
+        assert!(resolver.is_equivalent_to(tok_9100, tok_9101));
+        assert!(resolver.is_equivalent_to(open_canonical, tok_9101));
+        assert!(resolver.is_equivalent_to(close_canonical, tok_9110));
+
+        // 3. Opener-to-closer propagation across equivalence chain
+        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(9100)), Some(close_canonical));
+        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(9101)), Some(close_canonical));
+
+        // 4. Closing delimiter propagation
+        assert_eq!(resolver.closing_opener_for(tok_9110), Some(&CharTarget::Dc(310)));
+
+        // 5. Container headers propagation
+        let expected_headers = resolver.container_header_elements(&CharTarget::Dc(310));
+        assert_eq!(resolver.container_header_elements(&CharTarget::Dc(9100)), expected_headers);
+        assert_eq!(resolver.container_header_elements(&CharTarget::Dc(9101)), expected_headers);
+
+        // 6. Syntax rules propagation
+        assert!(resolver.resolve_rule(&CharTarget::Dc(9100)).is_some());
+        assert!(resolver.resolve_rule(&CharTarget::Dc(9101)).is_some());
+
+        Ok(())
+    }
+
     /// Verifies that the generated static syntax table matches the resolver
     /// built directly from the compiled-in CSV dataset. A failure here means
     /// `syntax_table.generated.rs` is stale or diverged; regenerate it with
@@ -1123,6 +1193,10 @@ mod tests {
         const STALE: &str = "generated static syntax table diverged from the \
             CSV dataset; regenerate with ./scripts/validate-data-tables";
         assert_eq!(static_table.rules, from_dataset.rules, "{STALE}: rules");
+        assert_eq!(
+            static_table.canonical_map, from_dataset.canonical_map,
+            "{STALE}: canonical_map"
+        );
         assert_eq!(static_table.semantic_equivalents, from_dataset.semantic_equivalents, "{STALE}: semantic_equivalents");
         assert_eq!(
             static_table.named_types, from_dataset.named_types,
