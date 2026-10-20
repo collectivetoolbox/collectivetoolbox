@@ -68,6 +68,8 @@ use crate::navigator::{
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
 
+// STYLE NOTE TO LLM TOOLS: This file (tests excepted) MUST use Dc roles for parsing, not consts or numbers, so that aliases and expressions are resolved correctly.
+
 /// Serializes values to DcMM through a shared, fallible streaming encoder.
 pub trait DcMixedEncode {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
@@ -492,13 +494,13 @@ impl DcMixedDecode for DcRawValue {
         let mut curr_id = node_id;
         while let Ok(node) = ctx.node(curr_id) {
             match &node.kind {
-                DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
+                DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
                     let Some(&first_arg) = args.first() else {
                         bail!("Empty optional tagged construct (Dc 315)");
                     };
                     curr_id = first_arg;
                 }
-                DcSyntaxKind::Container { opener, children, .. } if *opener == DC_OPTIONAL_PRESENT => {
+                DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
                     let Some(&first_child) = children.first() else {
                         bail!("Empty optional container (Dc 315)");
                     };
@@ -511,7 +513,7 @@ impl DcMixedDecode for DcRawValue {
         let node = ctx.node(curr_id)?;
         let candidate_children: Option<Vec<NodeId>> = match &node.kind {
             DcSyntaxKind::Container { opener, children, .. }
-                if *opener == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS =>
+                if ctx.token_fills_role(*opener, DcRole::PartiallyEquivalentRepresentations) =>
             {
                 if children.len() == 1 {
                     let Some(&first_id) = children.first() else {
@@ -519,7 +521,7 @@ impl DcMixedDecode for DcRawValue {
                     };
                     let first_child = ctx.node(first_id)?;
                     if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_child.kind {
-                        if *child_opener == DC_BEGIN_LIST {
+                        if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
                             Some(inner.clone())
                         } else {
                             Some(children.clone())
@@ -532,12 +534,12 @@ impl DcMixedDecode for DcRawValue {
                 }
             }
             DcSyntaxKind::Tagged { tag, args }
-                if *tag == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS =>
+                if ctx.token_fills_role(*tag, DcRole::PartiallyEquivalentRepresentations) =>
             {
                 if let Some(&first_arg) = args.first() {
                     let first_node = ctx.node(first_arg)?;
                     if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_node.kind {
-                        if *child_opener == DC_BEGIN_LIST {
+                        if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
                             Some(inner.clone())
                         } else {
                             Some(args.clone())
@@ -587,7 +589,7 @@ impl DcMixedDecode for DcRawValue {
                     bytes,
                 })
             }
-            DcSyntaxKind::Container { opener, .. } if *opener == DC_BEGIN_LIST => {
+            DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => {
                 let units = Vec::<u16>::decode_dc_node(ctx, unwrap_id)?;
                 Ok(Self::U16List(units))
             }
