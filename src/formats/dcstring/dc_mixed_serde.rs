@@ -62,8 +62,8 @@ use ctb_formats_dcdata::syntax::{default_syntax_resolver, DcRole, SyntaxRuleReso
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstr, DcMstring};
 use crate::dc_source::DcFieldAnnotation;
 use crate::navigator::{
-    DcBinaryResolver, DcDocumentNavigator, DcForgivingDefault, DcProjectionPolicy,
-    DcSyntaxArena, DcSyntaxKind, NodeId,
+    DcBinaryResolver, DcDocumentNavigator, DcExpressionEvaluator, DcForgivingDefault,
+    DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, NodeId,
 };
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
@@ -371,7 +371,9 @@ impl DcMixedDecode for BinaryPayload {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+            ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Binary { .. }))
+        })?;
         let payload = match &ctx.node(node_id)?.kind {
             DcSyntaxKind::Binary { payload, .. } => payload.clone(),
             other => bail!("Expected Binary node for BinaryPayload, found {other:?}"),
@@ -396,7 +398,9 @@ impl DcMixedEncode for LazyBinaryPayload {
 impl DcMixedDecode for LazyBinaryPayload {
     fn decode_dc_node(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<Self> {
         use crate::navigator::BinaryPayloadRef;
-        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+            ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Binary { .. }))
+        })?;
         let payload = match &ctx.node(node_id)?.kind {
             DcSyntaxKind::Binary { payload, .. } => payload,
             other => bail!("Expected binary payload, found {other:?}"),
@@ -607,7 +611,9 @@ fn decode_integer_node(
     ctx: &DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<malachite::Integer> {
-    let node_id = ctx.unwrap_transparent(node_id)?;
+    let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+        ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Number { .. }))
+    })?;
     let node = ctx.node(node_id)?;
     match &node.kind {
         DcSyntaxKind::Number { digits, .. } => {
@@ -647,6 +653,10 @@ pub struct DcProjectionContext<'a, 'ctx> {
     diagnostics: Vec<ctb_formats_dcdata::syntax::SyntaxDiagnostic>,
     /// Optional stream-backed resolver for `DeferredStream` binary payloads.
     pub binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
+    /// Optional syntax rule resolver overlay for character classification and equivalence.
+    pub resolver: Option<&'a dyn SyntaxRuleResolver>,
+    /// Optional expression evaluator for dynamic/Scheme/Lisp-like expression resolution.
+    pub evaluator: Option<&'a dyn DcExpressionEvaluator>,
 }
 
 impl fmt::Debug for DcProjectionContext<'_, '_> {
@@ -662,6 +672,8 @@ impl fmt::Debug for DcProjectionContext<'_, '_> {
             .field("current_position", &self.current_position)
             .field("diagnostics", &self.diagnostics)
             .field("has_binary_resolver", &self.binary_resolver.is_some())
+            .field("has_resolver", &self.resolver.is_some())
+            .field("has_evaluator", &self.evaluator.is_some())
             .finish()
     }
 }
@@ -681,13 +693,49 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver: None,
+            resolver: None,
+            evaluator: None,
         }
     }
 
     /// Returns the active syntax rule resolver.
     #[must_use]
     pub fn resolver(&self) -> &dyn SyntaxRuleResolver {
-        default_syntax_resolver().as_ref()
+        if let Some(r) = self.resolver {
+            r
+        } else {
+            default_syntax_resolver().as_ref()
+        }
+    }
+
+    /// Returns the active expression evaluator, if configured.
+    #[must_use]
+    pub fn evaluator(&self) -> Option<&dyn DcExpressionEvaluator> {
+        self.evaluator
+    }
+
+    /// Sets a custom syntax rule resolver on this projection context.
+    #[must_use]
+    pub fn with_syntax_resolver(mut self, resolver: &'a dyn SyntaxRuleResolver) -> Self {
+        self.resolver = Some(resolver);
+        self
+    }
+
+    /// Sets an expression evaluator on this projection context.
+    #[must_use]
+    pub fn with_evaluator(mut self, evaluator: &'a dyn DcExpressionEvaluator) -> Self {
+        self.evaluator = Some(evaluator);
+        self
+    }
+
+    /// Sets a custom syntax rule resolver on this context in-place.
+    pub fn set_syntax_resolver(&mut self, resolver: &'a dyn SyntaxRuleResolver) {
+        self.resolver = Some(resolver);
+    }
+
+    /// Sets an expression evaluator on this context in-place.
+    pub fn set_evaluator(&mut self, evaluator: &'a dyn DcExpressionEvaluator) {
+        self.evaluator = Some(evaluator);
     }
 
     /// Returns the canonical token representation for `token`.
@@ -737,6 +785,58 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver,
+            resolver: None,
+            evaluator: None,
+        }
+    }
+
+    /// Creates a new projection context with full shared context, binary resolver,
+    /// syntax rule resolver, and optional expression evaluator.
+    #[must_use]
+    pub fn with_all_resolvers(
+        arena: &'a DcSyntaxArena<'a>,
+        policy: &'ctx DcProjectionPolicy,
+        shared_context: Option<&'ctx SharedValueContext>,
+        binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
+        resolver: Option<&'a dyn SyntaxRuleResolver>,
+        evaluator: Option<&'a dyn DcExpressionEvaluator>,
+    ) -> Self {
+        Self {
+            arena,
+            policy,
+            shared_context,
+            reference_scope: SharedValueContext::default(),
+            annotations: Vec::new(),
+            annotating: false,
+            record_depth: 0,
+            current_position: 0,
+            diagnostics: Vec::new(),
+            binary_resolver,
+            resolver,
+            evaluator,
+        }
+    }
+
+    /// Creates a projection context inheriting the resolver and evaluator from a [`crate::navigator::SyntaxEvalContext`].
+    #[must_use]
+    pub fn from_eval_context(
+        arena: &'a DcSyntaxArena<'a>,
+        eval_ctx: &'a crate::navigator::SyntaxEvalContext<'a>,
+        policy: &'ctx DcProjectionPolicy,
+    ) -> Self {
+        Self {
+            arena,
+            policy,
+            shared_context: None,
+            reference_scope: SharedValueContext::default(),
+            annotations: Vec::new(),
+            annotating: false,
+            record_depth: 0,
+            current_position: 0,
+            diagnostics: Vec::new(),
+            binary_resolver: None,
+            resolver: Some(eval_ctx.resolver),
+            evaluator: eval_ctx.evaluator.as_deref(),
         }
     }
 
@@ -925,53 +1025,249 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         }
     }
 
-    /// Unwraps equivalent representation containers (`Dc 397` or `Dc 561`) to their primary child.
-    pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
-        let node = self.node(node_id)?;
-        if let DcSyntaxKind::Container { children, .. } = &node.kind {
-            if node.is_representation_set() {
-                for &child_id in children {
-                    let child = self.node(child_id)?;
-                    if let DcSyntaxKind::Atom(ch) = child.kind {
-                        if self.token_fills_role(ch, DcRole::TypeAny)
-                            || self.token_fills_role(ch, DcRole::ListElementSeparator)
-                        {
-                            continue;
-                        }
-                    }
-                    return Ok(child_id);
+    /// Returns true if `token` represents a full or partial alternative-representation wrapper.
+    #[must_use]
+    pub fn is_representation_set_token(&self, token: u128) -> bool {
+        self.resolver().is_representation_set(token)
+            || self.token_fills_role(DcChar::from_u128(token), DcRole::EquivalentRepresentations)
+            || self.token_fills_role(DcChar::from_u128(token), DcRole::PartiallyEquivalentRepresentations)
+    }
+
+    /// Returns true if `node` is an alternative-representation container or tagged construct.
+    #[must_use]
+    pub fn is_representation_set_node(&self, node: &crate::navigator::DcSyntaxNode<'_>) -> bool {
+        let Some(token) = (match &node.kind {
+            DcSyntaxKind::Container { opener, .. } => Some(opener.to_u128()),
+            DcSyntaxKind::Tagged { tag, .. } => Some(tag.to_u128()),
+            DcSyntaxKind::Atom(tok) => Some(tok.to_u128()),
+            _ => None,
+        }) else {
+            return false;
+        };
+        self.is_representation_set_token(token)
+    }
+
+    /// Finds an assignment declaration (`ident = value`) in the arena by its identifier name,
+    /// searching in reverse document order to honor lexical shadowing.
+    #[must_use]
+    pub fn find_bound_assignment(&self, name: &str) -> Option<NodeId> {
+        for node in self.arena.nodes().iter().rev() {
+            if let DcSyntaxKind::Assignment { ident, value } = &node.kind {
+                if ident == name {
+                    return Some(*value);
                 }
-                bail!("Empty equivalent representations list");
             }
-        } else if let DcSyntaxKind::Tagged { args, .. } = &node.kind {
-            if node.is_representation_set() {
-                if let Some(&arg_id) = args.first() {
+        }
+        None
+    }
+
+    /// Resolves an expression node (`DcRole::ReferenceBoundValue`, `DcRole::ReferenceNamedObject`,
+    /// or `DcRole::RoutineInvocation`) to the evaluated value's CST `NodeId` in the arena if possible.
+    pub fn resolve_expression_node(&self, node_id: NodeId) -> Result<Option<NodeId>> {
+        let node = self.node(node_id)?;
+        // 1. Bound value reference (`Dc 540`) or named object reference (`Dc 276`)
+        if let Some(ident_name) = self.unwrap_bound_reference(node_id)? {
+            if let Some(assigned_id) = self.find_bound_assignment(&ident_name) {
+                return Ok(Some(assigned_id));
+            }
+        }
+        // 2. Routine invocation (`Dc 279`, `Dc 256`, `Dc 265`)
+        let (tag_or_opener, args) = match &node.kind {
+            DcSyntaxKind::Tagged { tag, args } => (Some(*tag), args.as_slice()),
+            DcSyntaxKind::Container { opener, children, .. } => (Some(*opener), children.as_slice()),
+            _ => (None, &[][..]),
+        };
+        if let Some(tok) = tag_or_opener {
+            if self.token_fills_role(tok, DcRole::RoutineInvocation)
+                || self.token_fills_role(tok, DcRole::LangSay)
+            {
+                // In a routine invocation, arguments follow the routine identifier (or are trailing parameter containers).
+                // If an argument payload exists (e.g. `lang.say "payload"` or routine(param)), resolve to it.
+                let candidate_arg = args
+                    .iter()
+                    .skip(if self.token_fills_role(tok, DcRole::RoutineInvocation) { 1 } else { 0 })
+                    .find(|&&id| {
+                        if let Ok(child) = self.node(id) {
+                            !matches!(child.kind, DcSyntaxKind::Identifier { .. })
+                        } else {
+                            false
+                        }
+                    })
+                    .copied()
+                    .or_else(|| args.get(1).copied())
+                    .or_else(|| args.first().copied());
+
+                if let Some(arg_id) = candidate_arg {
                     let arg_node = self.node(arg_id)?;
-                    if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
-                        for &child_id in children {
-                            let child = self.node(child_id)?;
-                            if let DcSyntaxKind::Atom(ch) = child.kind {
-                                if self.token_fills_role(ch, DcRole::TypeAny)
-                                    || self.token_fills_role(ch, DcRole::ListElementSeparator)
-                                {
-                                    continue;
-                                }
+                    if let DcSyntaxKind::Container { opener, children, .. } = &arg_node.kind {
+                        if self.token_fills_role(*opener, DcRole::BeginParameter) {
+                            if let Some(&param_child) = children.first() {
+                                return Ok(Some(param_child));
                             }
-                            return Ok(child_id);
                         }
                     }
-                    return Ok(arg_id);
+                    if !matches!(arg_node.kind, DcSyntaxKind::Identifier { .. }) {
+                        return Ok(Some(arg_id));
+                    }
                 }
-                bail!("Empty equivalent representations tagged construct");
+            }
+        }
+        Ok(None)
+    }
+
+    /// Resolves an expression node to its target `NodeId`, or returns `node_id` unchanged.
+    pub fn resolve_expression_or_self(&self, node_id: NodeId) -> Result<NodeId> {
+        if let Some(resolved) = self.resolve_expression_node(node_id)? {
+            if resolved != node_id {
+                return Ok(resolved);
             }
         }
         Ok(node_id)
     }
 
+    /// Extracts all candidate representation node IDs from an equivalent or partially
+    /// equivalent representations container (`Dc 397` or `Dc 398`), filtering out
+    /// type headers and list element separators.
+    ///
+    /// If `node_id` is not an equivalent representation set, returns a single-element
+    /// vector containing `node_id`.
+    pub fn equivalent_candidates(&self, node_id: NodeId) -> Result<Vec<NodeId>> {
+        let node_id = self.resolve_expression_or_self(node_id)?;
+        let node = self.node(node_id)?;
+        if self.is_representation_set_node(node) {
+            let mut candidates = Vec::new();
+            let raw_children = match &node.kind {
+                DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                DcSyntaxKind::Tagged { args, .. } => {
+                    if let Some(&first_arg) = args.first() {
+                        let arg_node = self.node(first_arg)?;
+                        if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                            children.as_slice()
+                        } else {
+                            args.as_slice()
+                        }
+                    } else {
+                        &[]
+                    }
+                }
+                _ => &[],
+            };
+            for &child_id in raw_children {
+                let child = self.node(child_id)?;
+                if let DcSyntaxKind::Atom(ch) = child.kind {
+                    if self.token_fills_role(ch, DcRole::TypeAny)
+                        || self.token_fills_role(ch, DcRole::ListElementSeparator)
+                        || self.resolver().is_representation_header_or_separator(ch.to_u128())
+                    {
+                        continue;
+                    }
+                }
+                candidates.push(child_id);
+            }
+            ensure!(!candidates.is_empty(), "Empty equivalent representations list");
+            Ok(candidates)
+        } else {
+            Ok(vec![node_id])
+        }
+    }
+
+    /// Unwraps equivalent representation containers (`Dc 397` or `Dc 398`) to a child
+    /// matching the predicate, or the first valid candidate if none or no predicate given.
+    pub fn unwrap_equivalent_matching<F>(
+        &self,
+        node_id: NodeId,
+        mut predicate: F,
+    ) -> Result<NodeId>
+    where
+        F: FnMut(NodeId) -> bool,
+    {
+        let candidates = self.equivalent_candidates(node_id)?;
+        for &cand_id in &candidates {
+            if predicate(cand_id) {
+                return Ok(cand_id);
+            }
+        }
+        candidates
+            .first()
+            .copied()
+            .context("Empty equivalent representations list")
+    }
+
+    /// Unwraps equivalent representation containers (`Dc 397` or `Dc 398`) or expression
+    /// nodes (`Dc 540`, `Dc 276`, `Dc 279`) to their primary child.
+    pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
+        let node_id = self.resolve_expression_or_self(node_id)?;
+        let candidates = self.equivalent_candidates(node_id)?;
+        candidates
+            .first()
+            .copied()
+            .context("Empty equivalent representations list")
+    }
+
+    /// Attempts to decode a typed value from an equivalent representation set by
+    /// testing candidate representation children in sequence and selecting the first
+    /// candidate that decodes cleanly without error.
+    pub fn decode_equivalent<T, F>(
+        &mut self,
+        node_id: NodeId,
+        mut decode_fn: F,
+    ) -> Result<T>
+    where
+        F: FnMut(&mut Self, NodeId) -> Result<T>,
+    {
+        let candidates = self.equivalent_candidates(node_id)?;
+        if candidates.is_empty() {
+            bail!("Empty equivalent representations candidate set");
+        }
+        if candidates.len() == 1 {
+            let target_id = *candidates.first().context("Candidate set is non-empty")?;
+            return decode_fn(self, target_id);
+        }
+        let mut last_err = None;
+        for &cand_id in &candidates {
+            match decode_fn(self, cand_id) {
+                Ok(val) => return Ok(val),
+                Err(err) => last_err = Some(err),
+            }
+        }
+        if let Some(err) = last_err {
+            Err(err)
+        } else {
+            bail!("Empty equivalent representations candidate set")
+        }
+    }
+
+    /// Transparently decodes a target type from `node_id`, unwrapping optionals (`Dc 315`),
+    /// resolving bound references (`Dc 540`, `Dc 276`) and routine invocations (`Dc 279`),
+    /// and selecting a candidate from equivalent or partially equivalent representation sets
+    /// (`Dc 397`, `Dc 398`) that decodes cleanly.
+    pub fn decode_transparent<T, F>(
+        &mut self,
+        node_id: NodeId,
+        mut decode_fn: F,
+    ) -> Result<T>
+    where
+        F: FnMut(&mut Self, NodeId) -> Result<T>,
+    {
+        let unwrapped_id = self.unwrap_transparent(node_id)?;
+        self.decode_equivalent(unwrapped_id, decode_fn)
+    }
+
     /// Unwraps an optional marker (`Dc 315` or `Dc 316`).
     /// Returns `Ok(None)` for absent, `Ok(Some(inner_id))` for present.
     pub fn unwrap_optional_node(&self, node_id: NodeId) -> Result<Option<NodeId>> {
-        let node_id = self.unwrap_equivalent_or_self(node_id)?;
+        let node_id = self.unwrap_equivalent_matching(node_id, |cand_id| {
+            if let Ok(cand) = self.node(cand_id) {
+                match &cand.kind {
+                    DcSyntaxKind::Atom(ch) => self.token_fills_role(*ch, DcRole::OptionalAbsent),
+                    DcSyntaxKind::Tagged { tag, .. } => self.token_fills_role(*tag, DcRole::OptionalPresent),
+                    DcSyntaxKind::Container { opener, .. } => self.token_fills_role(*opener, DcRole::OptionalPresent),
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        })?;
         let node = self.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Atom(ch) if self.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
@@ -990,7 +1286,17 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     /// Unwraps a format representation container (`511 [format] [payload] 512`).
     /// Returns `Ok(Some((format, payload_id)))` if this is a format representation.
     pub fn unwrap_format_representation(&self, node_id: NodeId) -> Result<Option<(DcChar, NodeId)>> {
-        let node_id = self.unwrap_equivalent_or_self(node_id)?;
+        let node_id = self.unwrap_equivalent_matching(node_id, |cand_id| {
+            if let Ok(cand) = self.node(cand_id) {
+                if let DcSyntaxKind::Container { opener, .. } = &cand.kind {
+                    self.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        })?;
         let node = self.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
             if self.token_fills_role(*opener, DcRole::BeginFormatRepresentation) {
@@ -1091,8 +1397,17 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         }
     }
 
-    /// Repeatedly unwraps transparent wrappers (`397`/`561` equivalent lists and `315` optionals).
-    pub fn unwrap_transparent(&self, mut node_id: NodeId) -> Result<NodeId> {
+    /// Repeatedly unwraps transparent wrappers (`397`/`398`/`561` equivalent lists,
+    /// `315` optionals, and `540`/`276`/`279` expression nodes), using `predicate`
+    /// to select a preferred candidate child from representation sets.
+    pub fn unwrap_transparent_matching<F>(
+        &self,
+        mut node_id: NodeId,
+        mut predicate: F,
+    ) -> Result<NodeId>
+    where
+        F: FnMut(NodeId) -> bool,
+    {
         let mut visited = Vec::new();
         loop {
             if visited.contains(&node_id) {
@@ -1102,9 +1417,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             let node = self.node(node_id)?;
             let next_id = match &node.kind {
                 DcSyntaxKind::Container { opener, .. }
-                    if self.resolver().is_representation_set(opener.to_u128()) =>
+                    if self.is_representation_set_token(opener.to_u128()) =>
                 {
-                    let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
+                    let unwrapped = self.unwrap_equivalent_matching(node_id, &mut predicate)?;
                     ensure!(
                         unwrapped != node_id,
                         "Empty equivalent representation container (Dc {opener})"
@@ -1112,9 +1427,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     unwrapped
                 }
                 DcSyntaxKind::Tagged { tag, .. }
-                    if self.resolver().is_representation_set(tag.to_u128()) =>
+                    if self.is_representation_set_token(tag.to_u128()) =>
                 {
-                    let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
+                    let unwrapped = self.unwrap_equivalent_matching(node_id, &mut predicate)?;
                     ensure!(
                         unwrapped != node_id,
                         "Empty equivalent representation tagged construct (Dc {tag})"
@@ -1128,15 +1443,33 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         .first()
                         .context("Empty optional container (Dc 315)")?
                 }
-                DcSyntaxKind::Tagged { tag, args } if self.token_fills_role(*tag, DcRole::OptionalPresent) => {
+                DcSyntaxKind::Tagged { tag, args }
+                    if self.token_fills_role(*tag, DcRole::OptionalPresent) =>
+                {
                     *args
                         .first()
                         .context("Empty optional tagged construct (Dc 315)")?
                 }
-                _ => return Ok(node_id),
+                _ => {
+                    if let Some(resolved) = self.resolve_expression_node(node_id)? {
+                        if resolved != node_id {
+                            resolved
+                        } else {
+                            return Ok(node_id);
+                        }
+                    } else {
+                        return Ok(node_id);
+                    }
+                }
             };
             node_id = next_id;
         }
+    }
+
+    /// Repeatedly unwraps transparent wrappers (`397`/`398`/`561` equivalent lists,
+    /// `315` optionals, and `540`/`276`/`279` expression nodes).
+    pub fn unwrap_transparent(&self, node_id: NodeId) -> Result<NodeId> {
+        self.unwrap_transparent_matching(node_id, |_| false)
     }
 
     /// Extracts key-value map entries from a `Dc 559..560` or legacy `Dc 313..314`
@@ -1289,7 +1622,14 @@ impl DcMixedDecode for String {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+            ctx.node(id).is_ok_and(|n| {
+                matches!(
+                    n.kind,
+                    DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. }
+                )
+            })
+        })?;
         let node = ctx.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
@@ -1327,7 +1667,18 @@ impl DcMixedDecode for bool {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+            ctx.node(id).is_ok_and(|n| {
+                matches!(
+                    &n.kind,
+                    DcSyntaxKind::Atom(ch)
+                        if ctx.token_fills_role(*ch, DcRole::BooleanTrue)
+                            || ctx.token_fills_role(*ch, DcRole::BooleanFalse)
+                            || ctx.token_fills_role(*ch, DcRole::Positive)
+                            || ctx.token_fills_role(*ch, DcRole::Negative)
+                )
+            })
+        })?;
         let node = ctx.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Atom(ch) => {
@@ -1581,20 +1932,22 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
-            DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
-                let inner = args.first().copied().context("Missing value after Dc 315")?;
-                T::decode_dc_node(ctx, inner).map(Some)
+        ctx.decode_equivalent(node_id, |ctx, cand_id| {
+            let node_id = ctx.unwrap_equivalent_or_self(cand_id)?;
+            let node = ctx.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
+                DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
+                    let inner = args.first().copied().context("Missing value after Dc 315")?;
+                    T::decode_dc_node(ctx, inner).map(Some)
+                }
+                DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
+                    let inner = children.first().copied().context("Missing value in Dc 315 container")?;
+                    T::decode_dc_node(ctx, inner).map(Some)
+                }
+                _ => bail!("Expected Option marker (Dc 315 or 316), found {:?}", node.kind),
             }
-            DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
-                let inner = children.first().copied().context("Missing value in Dc 315 container")?;
-                T::decode_dc_node(ctx, inner).map(Some)
-            }
-            _ => bail!("Expected Option marker (Dc 315 or 316), found {:?}", node.kind),
-        }
+        })
     }
 }
 
@@ -1621,7 +1974,11 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mut node_id = ctx.unwrap_transparent(node_id)?;
+        let mut node_id = ctx.unwrap_transparent_matching(node_id, |id| {
+            ctx.node(id).is_ok_and(|n| {
+                matches!(&n.kind, DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, DcRole::BeginList))
+            })
+        })?;
         if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
             node_id = ctx.unwrap_transparent(payload_id)?;
         }

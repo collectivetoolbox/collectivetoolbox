@@ -1598,4 +1598,221 @@ mod tier4_expression_evaluation_and_stream_splicing {
         ensure!(decoded_ip == IpAddr::V4(expected_ip), "Decoded IpAddr must match 127.0.0.1");
         Ok(())
     }
+
+    struct CustomMockResolver {
+        fallback: std::sync::Arc<DatasetRuleResolver>,
+    }
+
+    impl SyntaxRuleResolver for CustomMockResolver {
+        fn is_equivalent_to(&self, a: u128, b: u128) -> bool {
+            if (a == 999999 && b == 888888) || (a == 888888 && b == 999999) {
+                return true;
+            }
+            self.fallback.is_equivalent_to(a, b)
+        }
+
+        fn canonical_token(&self, token: u128) -> u128 {
+            if token == 999999 {
+                return 888888;
+            }
+            self.fallback.canonical_token(token)
+        }
+
+        fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
+            self.fallback.token_fills_role(token, role)
+        }
+
+        fn resolve_rule(&self, target: &ctb_formats_dcdata::CharTarget) -> Option<&ctb_formats_dcdata::DcSyntaxRule> {
+            self.fallback.resolve_rule(target)
+        }
+
+        fn resolve_named_type(&self, name: &str) -> Option<&ctb_formats_dcdata::DcSyntaxExpr> {
+            self.fallback.resolve_named_type(name)
+        }
+
+        fn matches_script(&self, script: &str, codepoint: u128) -> bool {
+            self.fallback.matches_script(script, codepoint)
+        }
+    }
+
+    /// Verifies threading custom SyntaxRuleResolver and DcExpressionEvaluator into DcProjectionContext.
+    #[crate::ctb_test]
+    fn test_projection_context_custom_resolver_and_evaluator_threading() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let arena = DcSyntaxArena::new();
+        let fallback = default_syntax_resolver().clone();
+        let custom_resolver = CustomMockResolver { fallback };
+        let custom_evaluator = DefaultDcExpressionEvaluator;
+
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        // Default resolver is default_syntax_resolver
+        ensure!(!ctx.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
+        ensure!(ctx.evaluator().is_none());
+
+        // Thread custom resolver and evaluator
+        ctx = ctx.with_syntax_resolver(&custom_resolver).with_evaluator(&custom_evaluator);
+        ensure!(ctx.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
+        ensure!(ctx.canonical_token(DcChar::from_u128(999999)).to_u128() == 888888);
+        ensure!(ctx.evaluator().is_some());
+
+        // Test from_eval_context
+        let mut eval_ctx = SyntaxEvalContext::new(&custom_resolver, None);
+        eval_ctx.evaluator = Some(std::sync::Arc::new(DefaultDcExpressionEvaluator));
+        let ctx2 = ctb_formats_dcstring::DcProjectionContext::from_eval_context(&arena, &eval_ctx, &policy);
+        ensure!(ctx2.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
+        ensure!(ctx2.evaluator().is_some());
+        Ok(())
+    }
+
+    /// Verifies unwrap_equivalent_or_self and unwrap_transparent resolving 398 and expression nodes (540, 276, 279).
+    #[crate::ctb_test]
+    fn test_unwrap_equivalent_and_expression_nodes() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+
+        // 1. Partially equivalent representations container (398)
+        let mut doc_398 = DcMstring::new();
+        doc_398.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        doc_398.push_char(DC_BEGIN_LIST);
+        doc_398.push_char(DC_TYPE_ANY);
+        42u64.encode_dc_mixed(&mut doc_398)?;
+        doc_398.push_char(DC_END_LIST);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc_398);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let root = *arena.roots().first().context("Missing root for 398")?;
+        let ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let unwrapped = ctx.unwrap_equivalent_or_self(root)?;
+        let num_node = ctx.node(unwrapped)?;
+        ensure!(matches!(num_node.kind, DcSyntaxKind::Number { .. }), "398 must unwrap to Number");
+
+        // 2. Bound value reference (540) to an assignment in the arena
+        let mut doc_assign = DcMstring::new();
+        doc_assign.push_char(DC_BEGIN_IDENTIFIER);
+        doc_assign.push_str("my_var");
+        doc_assign.push_char(DC_END_IDENTIFIER);
+        doc_assign.push_char(ctb_formats_dcdata::dc::DC_ASSIGN);
+        100u64.encode_dc_mixed(&mut doc_assign)?;
+        doc_assign.push_char(ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE);
+        doc_assign.push_char(DC_BEGIN_IDENTIFIER);
+        doc_assign.push_str("my_var");
+        doc_assign.push_char(DC_END_IDENTIFIER);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc_assign);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let ref_node_id = *arena.roots().get(1).context("Missing reference root")?;
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
+        let target_node = ctx.node(unwrapped_ref)?;
+        ensure!(matches!(target_node.kind, DcSyntaxKind::Number { .. }), "540 must resolve to assigned Number");
+        // Test transparent decoding through decode_dc_node:
+        let decoded: u64 = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, ref_node_id)?;
+        ensure!(decoded == 100, "540 reference must transparently decode as 100");
+
+        // 3. Named object reference (276)
+        let mut doc_named = DcMstring::new();
+        doc_named.push_char(DC_BEGIN_IDENTIFIER);
+        doc_named.push_str("obj_var");
+        doc_named.push_char(DC_END_IDENTIFIER);
+        doc_named.push_char(ctb_formats_dcdata::dc::DC_ASSIGN);
+        "named_str".to_string().encode_dc_mixed(&mut doc_named)?;
+        doc_named.push_char(ctb_formats_dcdata::dc::DC_REFERENCE_NAMED_OBJECT);
+        doc_named.push_char(DC_BEGIN_IDENTIFIER);
+        doc_named.push_str("obj_var");
+        doc_named.push_char(DC_END_IDENTIFIER);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc_named);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let ref_node_id = *arena.roots().get(1).context("Missing named reference root")?;
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
+        let target_node = ctx.node(unwrapped_ref)?;
+        ensure!(matches!(target_node.kind, DcSyntaxKind::Literal { .. }), "276 must resolve to assigned Literal");
+        let decoded_str: String = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, ref_node_id)?;
+        ensure!(decoded_str == "named_str", "276 reference must transparently decode as named_str");
+
+        // 4. Routine invocation (279)
+        let mut doc_routine = DcMstring::new();
+        doc_routine.push_char(ctb_formats_dcdata::dc::DC_ROUTINE_INVOCATION);
+        doc_routine.push_char(DC_BEGIN_IDENTIFIER);
+        doc_routine.push_str("lang.say");
+        doc_routine.push_char(DC_END_IDENTIFIER);
+        doc_routine.push_char(ctb_formats_dcdata::dc::DC_BEGIN_PARAMETER);
+        "routine_payload".to_string().encode_dc_mixed(&mut doc_routine)?;
+        doc_routine.push_char(ctb_formats_dcdata::dc::DC_END_PARAMETER);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc_routine);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let routine_id = *arena.roots().first().context("Missing routine root")?;
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let unwrapped_routine = ctx.unwrap_equivalent_or_self(routine_id)?;
+        let target_node = ctx.node(unwrapped_routine)?;
+        ensure!(matches!(target_node.kind, DcSyntaxKind::Literal { .. }), "279 must resolve to argument Literal");
+        let decoded_routine: String = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, routine_id)?;
+        ensure!(decoded_routine == "routine_payload", "279 routine must transparently decode payload");
+        Ok(())
+    }
+
+    /// Verifies that decoding equivalent representations selects a candidate that decodes cleanly
+    /// for the target type even when preceding candidates in the set have different types.
+    #[crate::ctb_test]
+    fn test_equivalent_representations_clean_target_type_selection() -> Result<()> {
+        use ctb_formats_dcstring::DcMixedDecode;
+        let policy = DcProjectionPolicy::strict();
+
+        // 1. 397 with [ "hello", 12345u64 ]
+        // First candidate is String; second is Number.
+        let mut equiv_str_num = DcMstring::new();
+        equiv_str_num.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        equiv_str_num.push_char(DC_BEGIN_LIST);
+        equiv_str_num.push_char(DC_TYPE_ANY);
+        "hello".to_string().encode_dc_mixed(&mut equiv_str_num)?;
+        equiv_str_num.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        12345u64.encode_dc_mixed(&mut equiv_str_num)?;
+        equiv_str_num.push_char(DC_END_LIST);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&equiv_str_num);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let root = *arena.roots().first().context("Missing root")?;
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+
+        // Target type u64 should cleanly select candidate 1 (12345)
+        let num_val: u64 = u64::decode_dc_node(&mut ctx, root)?;
+        ensure!(num_val == 12345, "u64 must select Number candidate (12345)");
+
+        // Target type String should cleanly select candidate 0 ("hello")
+        let str_val: String = String::decode_dc_node(&mut ctx, root)?;
+        ensure!(str_val == "hello", "String must select Literal candidate (hello)");
+
+        // 2. 398 with [ 999u64, true ]
+        // First candidate is Number; second is Boolean.
+        let mut part_num_bool = DcMstring::new();
+        part_num_bool.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        part_num_bool.push_char(DC_BEGIN_LIST);
+        part_num_bool.push_char(DC_TYPE_ANY);
+        999u64.encode_dc_mixed(&mut part_num_bool)?;
+        part_num_bool.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        true.encode_dc_mixed(&mut part_num_bool)?;
+        part_num_bool.push_char(DC_END_LIST);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&part_num_bool);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let root = *arena.roots().first().context("Missing root")?;
+        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+
+        // Target type bool should cleanly select candidate 1 (true)
+        let bool_val: bool = bool::decode_dc_node(&mut ctx, root)?;
+        ensure!(bool_val, "bool must select BooleanTrue candidate");
+
+        // Target type u64 should cleanly select candidate 0 (999)
+        let num_val: u64 = u64::decode_dc_node(&mut ctx, root)?;
+        ensure!(num_val == 999, "u64 must select Number candidate (999)");
+
+        Ok(())
+    }
 }

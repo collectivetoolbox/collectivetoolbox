@@ -973,13 +973,15 @@ fn generate_field_value_decoder(
     if attr.equivalents.is_some() {
         return Ok(quote! {
             {
-                let eq_id = ctx.unwrap_equivalent_or_self(#node_id_expr)?;
-                let eq_node = ctx.node(eq_id)?;
-                if matches!(eq_node.kind, #crate_root::navigator::DcSyntaxKind::Number { .. }) {
-                    <#field_ty as #crate_root::dc_mixed_serde::DcMixedNumber>::decode_dc_number(ctx, eq_id)?
-                } else {
-                    <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, eq_id)?
-                }
+                ctx.decode_equivalent(#node_id_expr, |ctx, eq_id| {
+                    let eq_id = ctx.unwrap_equivalent_or_self(eq_id)?;
+                    let eq_node = ctx.node(eq_id)?;
+                    if matches!(eq_node.kind, #crate_root::navigator::DcSyntaxKind::Number { .. }) {
+                        <#field_ty as #crate_root::dc_mixed_serde::DcMixedNumber>::decode_dc_number(ctx, eq_id)
+                    } else {
+                        <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, eq_id)
+                    }
+                })?
             }
         });
     }
@@ -1068,22 +1070,24 @@ fn generate_field_value_decoder(
     if let Some(inner_ty) = inner_opt {
         return Ok(quote! {
             {
-                let unwrap_opt = ctx.unwrap_equivalent_or_self(#node_id_expr)?;
-                let opt_node = ctx.node(unwrap_opt)?;
-                match &opt_node.kind {
-                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(316) => ::std::option::Option::None,
-                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == ::std::option::Option::Some(315) => {
-                        let inner_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty optional tagged construct (Dc 315)"))?;
-                        ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?)
+                ctx.decode_equivalent(#node_id_expr, |ctx, unwrap_opt| {
+                    let unwrap_opt = ctx.unwrap_equivalent_or_self(unwrap_opt)?;
+                    let opt_node = ctx.node(unwrap_opt)?;
+                    match &opt_node.kind {
+                        #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, #crate_root::DcRole::OptionalAbsent) => ::std::result::Result::Ok(::std::option::Option::None),
+                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, #crate_root::DcRole::OptionalPresent) => {
+                            let inner_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty optional tagged construct (Dc 315)"))?;
+                            ::std::result::Result::Ok(::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?))
+                        }
+                        #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, #crate_root::DcRole::OptionalPresent) => {
+                            let inner_id = children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty optional container (Dc 315)"))?;
+                            ::std::result::Result::Ok(::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?))
+                        }
+                        _ => {
+                            ::std::result::Result::Ok(::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_opt)?))
+                        }
                     }
-                    #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == ::std::option::Option::Some(315) => {
-                        let inner_id = children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty optional container (Dc 315)"))?;
-                        ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?)
-                    }
-                    _ => {
-                        ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?)
-                    }
-                }
+                })?
             }
         });
     }
