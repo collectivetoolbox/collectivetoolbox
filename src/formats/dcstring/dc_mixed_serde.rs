@@ -68,7 +68,7 @@ use crate::navigator::{
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
 
-// STYLE NOTE TO LLM TOOLS: This file (tests excepted) MUST use Dc roles for parsing, not consts or numbers, so that aliases and expressions are resolved correctly.
+// STYLE NOTE TO LLM TOOLS: This file (tests excepted) MUST use Dc roles for parsing, not consts or numbers, so that aliases and expressions are resolved correctly. Consts may be used in encoders.
 
 /// Serializes values to DcMM through a shared, fallible streaming encoder.
 pub trait DcMixedEncode {
