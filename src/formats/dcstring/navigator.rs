@@ -134,10 +134,122 @@ pub struct DefaultDcExpressionEvaluator;
 impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
     fn eval_expression_for_requirement(
         &self,
-        _expr_tokens: &[DcChar],
-        _requirement: &ValueRequirement<'_>,
-        _resolver: &dyn SyntaxRuleResolver,
+        expr_tokens: &[DcChar],
+        requirement: &ValueRequirement<'_>,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcEvaluatedValue>> {
+        let Some(first) = expr_tokens.first() else {
+            return Ok(None);
+        };
+        if resolver.is_representation_set(first.to_u128()) {
+            let mut mstr = DcMstring::new();
+            for &tok in expr_tokens {
+                mstr.push_char(tok);
+            }
+            let mut nav = DcDocumentNavigator::from_mstr(&mstr);
+            let mut ctx = SyntaxEvalContext::new(resolver, None);
+            let target_term = match requirement {
+                ValueRequirement::NamedConstruct { name, subtype } => SyntaxTerm::NamedConstruct {
+                    name: (*name).to_owned(),
+                    subtype: subtype.map(|s| (*s).to_owned()),
+                    capture_var: None,
+                },
+                ValueRequirement::TypeToken(tok) => {
+                    let Ok(val) = u32::try_from(tok.to_u128()) else {
+                        return Ok(None);
+                    };
+                    SyntaxTerm::CharRef(CharTarget::Dc(val))
+                }
+                ValueRequirement::ConstructOpener(op) => {
+                    let Ok(val) = u32::try_from(op.to_u128()) else {
+                        return Ok(None);
+                    };
+                    SyntaxTerm::CharRef(CharTarget::Dc(val))
+                }
+            };
+            let start = nav.cursor;
+            let Some((_wrapper_tok, after_wrapper)) = nav.read_token_or_binary_at(start)? else {
+                return Ok(None);
+            };
+            let Some((list_open, after_list_open)) = nav.read_token_or_binary_at(after_wrapper)? else {
+                return Ok(None);
+            };
+            if !list_open.fills_role_with(DcRole::BeginList, resolver) {
+                return Ok(None);
+            }
+            let list_closer = CharTarget::from_u128(list_open.to_u128())
+                .and_then(|t| resolver.closer_for_opener(&t))
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+            let close_len = dc_char_utf8e128_len(list_closer);
+            let Ok(mstr_len) = u64::try_from(mstr.len()) else {
+                return Ok(None);
+            };
+            let list_end = mstr_len.saturating_sub(close_len);
+            if list_end < after_list_open {
+                return Ok(None);
+            }
+            nav.active_span = DcByteSpan::new(after_list_open, list_end);
+            nav.cursor = after_list_open;
+
+            // Skip optional [number] and [type] header
+            let num_term = SyntaxTerm::NamedConstruct {
+                name: "number".to_owned(),
+                subtype: None,
+                capture_var: None,
+            };
+            let num_pos = nav.cursor;
+            if !nav.eval_term_single(&num_term, &mut ctx)? {
+                nav.cursor = num_pos;
+            }
+            let type_term = SyntaxTerm::NamedConstruct {
+                name: "type".to_owned(),
+                subtype: None,
+                capture_var: None,
+            };
+            if !nav.eval_term_single(&type_term, &mut ctx)? {
+                return Ok(None);
+            }
+
+            while nav.cursor < list_end {
+                let elem_start = nav.cursor;
+                let Some((tok, after_tok)) = nav.read_token_or_binary_at(elem_start)? else {
+                    break;
+                };
+                if tok.fills_role_with(DcRole::ListElementSeparator, resolver) {
+                    nav.cursor = after_tok;
+                    continue;
+                }
+                let mut cand_ctx = ctx.clone();
+                let cand_ok = nav.eval_term_single(&target_term, &mut cand_ctx)?;
+                if cand_ok && !cand_ctx.has_errors && nav.cursor > elem_start {
+                    let cand_span = DcByteSpan::new(elem_start, nav.cursor);
+                    let cand_tokens = nav.read_tokens_in_span(cand_span)?;
+                    let mut cand_mstr = DcMstring::new();
+                    for t in cand_tokens {
+                        cand_mstr.push_char(DcChar::from_u128(t));
+                    }
+                    return Ok(Some(DcEvaluatedValue::Document(cand_mstr)));
+                }
+                nav.cursor = elem_start;
+                if let Ok(Some(stub)) = nav.next_sibling_stub(&ctx.policy) {
+                    if stub.outer_span.end > elem_start {
+                        nav.cursor = stub.outer_span.end;
+                    } else {
+                        break;
+                    }
+                } else {
+                    let val_term = SyntaxTerm::NamedConstruct {
+                        name: "value".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    };
+                    if !nav.eval_term_single(&val_term, &mut ctx)? || nav.cursor <= elem_start {
+                        break;
+                    }
+                }
+            }
+        }
         Ok(None)
     }
 
@@ -3999,39 +4111,38 @@ impl<'a> DcDocumentNavigator<'a> {
                 subtype,
                 ..
             } => {
-                if name == "data" {
-                    return self.eval_data_construct(subtype.as_deref(), ctx);
-                }
-                if name == "typed_data" {
-                    return self.eval_typed_data_construct(subtype.as_deref(), ctx);
-                }
-                if name == "script" {
+                let direct_matched = if name == "data" {
+                    self.eval_data_construct(subtype.as_deref(), ctx)?
+                } else if name == "typed_data" {
+                    self.eval_typed_data_construct(subtype.as_deref(), ctx)?
+                } else if name == "script" {
                     if let Some(sub) = subtype {
                         if ctx.resolver.matches_script(sub, first) {
                             self.cursor = after_first;
-                            return Ok(true);
+                            true
+                        } else {
+                            false
                         }
+                    } else {
+                        false
                     }
-                    return Ok(false);
-                }
-                if (name == "format" || name == "formats" || name == "type") && subtype.is_some() {
+                } else if (name == "format" || name == "formats" || name == "type") && subtype.is_some() {
+                    let mut matched = false;
                     if let Some(sub) = subtype {
                         let script_name = format!("Formats:{sub}");
                         if ctx.resolver.matches_script(&script_name, first)
                             || ctx.resolver.matches_script(sub, first)
                         {
                             self.cursor = after_first;
-                            return Ok(true);
-                        }
-                        if let Some(fmt_id) = FormatId::from_shorthand(sub)
+                            matched = true;
+                        } else if let Some(fmt_id) = FormatId::from_shorthand(sub)
                             .or_else(|| FormatId::from_ident(sub))
                         {
                             if fmt_id.dc_id() == Some(first) {
                                 self.cursor = after_first;
-                                return Ok(true);
+                                matched = true;
                             }
-                        }
-                        if name == "type" && first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
+                        } else if name == "type" && first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
                             if let Some((inner_dc, after_inner)) =
                                 self.read_token_or_binary_at(after_first)?
                             {
@@ -4049,16 +4160,15 @@ impl<'a> DcDocumentNavigator<'a> {
                                             || ctx.resolver.matches_script(sub, inner_u128)
                                         {
                                             self.cursor = after_close;
-                                            return Ok(true);
+                                            matched = true;
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    return Ok(false);
-                }
-                if name == "type" && subtype.is_none() {
+                    matched
+                } else if name == "type" && subtype.is_none() {
                     let is_constructor = first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
                         || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
                         || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver);
@@ -4075,34 +4185,35 @@ impl<'a> DcDocumentNavigator<'a> {
                             });
                             return Ok(false);
                         }
-                        return self.eval_type_constructor(ctx);
+                        self.eval_type_constructor(ctx)?
+                    } else {
+                        let is_format_token =
+                            (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                                ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                                .contains(&first);
+                        if ctb_formats_dcdata::is_type_token(first)
+                            || is_format_token
+                            || ctx.resolver.matches_script(".EL Types", first)
+                            || ctx.resolver.matches_script("Formats", first)
+                        {
+                            self.cursor = after_first;
+                            true
+                        } else {
+                            false
+                        }
                     }
-                    let is_format_token =
-                        (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                            ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                            .contains(&first);
-                    if ctb_formats_dcdata::is_type_token(first)
-                        || is_format_token
-                        || ctx.resolver.matches_script(".EL Types", first)
-                        || ctx.resolver.matches_script("Formats", first)
-                    {
-                        self.cursor = after_first;
-                        return Ok(true);
-                    }
-                    return Ok(false);
-                }
-                if (name == "format" || name == "formats") && subtype.is_none() {
+                } else if (name == "format" || name == "formats") && subtype.is_none() {
                     let is_format_token =
                         (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                             ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                             .contains(&first);
                     if is_format_token || ctx.resolver.matches_script("Formats", first) {
                         self.cursor = after_first;
-                        return Ok(true);
+                        true
+                    } else {
+                        false
                     }
-                    return Ok(false);
-                }
-                let direct_matched = if name == "string" {
+                } else if name == "string" {
                     self.eval_literal_frame(subtype.as_deref(), ctx)?
                 } else if name == "identifier" {
                     self.eval_identifier_frame(ctx)?
@@ -4145,14 +4256,67 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(true);
                 }
 
-                if let Some(evaluator) = &ctx.evaluator {
-                    if first_dc.fills_role_with(DcRole::EvaluableExpressionStarter, ctx.resolver) {
-                        let checkpoint = self.save_checkpoint();
-                        if let Ok(Some(stub)) = self.next_sibling_stub(&ctx.policy) {
-                            let expr_tokens = self.read_tokens_in_span(stub.outer_span).unwrap_or_default();
-                            let expr_dc_chars: Vec<DcChar> = expr_tokens.into_iter().map(DcChar::from_u128).collect();
-                            let req = ValueRequirement::NamedConstruct { name: name.as_str(), subtype: subtype.as_deref() };
-                            if let Ok(Some(DcEvaluatedValue::Document(doc))) = evaluator.eval_expression_for_requirement(&expr_dc_chars, &req, ctx.resolver) {
+                if name != "value" && first_dc.fills_role_with(DcRole::EvaluableExpressionStarter, ctx.resolver) {
+                    let checkpoint = self.save_checkpoint();
+                    if let Ok(Some(stub)) = self.next_sibling_stub(&ctx.policy) {
+                        let expr_tokens = self.read_tokens_in_span(stub.outer_span).unwrap_or_default();
+                        let expr_dc_chars: Vec<DcChar> = expr_tokens.into_iter().map(DcChar::from_u128).collect();
+                        let req = ValueRequirement::NamedConstruct {
+                            name: name.as_str(),
+                            subtype: subtype.as_deref(),
+                        };
+
+                        if first_dc.fills_role_with(DcRole::ReferenceNamedObject, ctx.resolver) {
+                            let id_pos = expr_dc_chars
+                                .iter()
+                                .enumerate()
+                                .skip(1)
+                                .position(|(_, ch)| ch.fills_role_with(DcRole::BeginIdentifier, ctx.resolver))
+                                .map(|p| p.saturating_add(1));
+                            let explicit_type = if let Some(pos) = id_pos {
+                                if pos > 1 {
+                                    expr_dc_chars.get(1..pos)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            if let Some(type_tokens) = explicit_type {
+                                if !check_type_compatibility(type_tokens, name, subtype.as_deref(), ctx.resolver) {
+                                    self.restore_checkpoint(checkpoint);
+                                    return Ok(false);
+                                }
+                                let mut evaluated = false;
+                                if let Some(evaluator) = &ctx.evaluator {
+                                    if let Ok(Some(DcEvaluatedValue::Document(doc))) =
+                                        evaluator.eval_expression_for_requirement(&expr_dc_chars, &req, ctx.resolver)
+                                    {
+                                        evaluated = true;
+                                        let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
+                                        let mut sub_ctx = ctx.clone();
+                                        if let Ok(true) = sub_nav.eval_term_single(term, &mut sub_ctx) {
+                                            self.cursor = stub.outer_span.end;
+                                            return Ok(true);
+                                        }
+                                    }
+                                }
+                                if !evaluated {
+                                    if subtype.is_none() || type_statically_satisfies_subtype(type_tokens, subtype.as_deref(), ctx.resolver) {
+                                        self.cursor = stub.outer_span.end;
+                                        return Ok(true);
+                                    }
+                                }
+                                self.restore_checkpoint(checkpoint);
+                                return Ok(false);
+                            }
+                        }
+
+                        if let Some(evaluator) = &ctx.evaluator {
+                            if let Ok(Some(DcEvaluatedValue::Document(doc))) =
+                                evaluator.eval_expression_for_requirement(&expr_dc_chars, &req, ctx.resolver)
+                            {
                                 let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
                                 let mut sub_ctx = ctx.clone();
                                 if let Ok(true) = sub_nav.eval_term_single(term, &mut sub_ctx) {
@@ -4161,8 +4325,8 @@ impl<'a> DcDocumentNavigator<'a> {
                                 }
                             }
                         }
-                        self.restore_checkpoint(checkpoint);
                     }
+                    self.restore_checkpoint(checkpoint);
                 }
                 Ok(false)
             }
@@ -5043,15 +5207,213 @@ fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {
     match pattern {
         SyntaxPattern::Sequence(elements) => elements.iter().any(|element| match &element.term {
             SyntaxTerm::NamedConstruct {
-                name,
                 subtype: Some(_),
                 ..
-            } => name == "data" || name == "string",
+            } => true,
             SyntaxTerm::Group(pattern) => pattern_has_payload_constraint(pattern),
             _ => false,
         }),
         SyntaxPattern::Alternation(branches) => branches.iter().any(pattern_has_payload_constraint),
     }
+}
+
+fn check_type_compatibility(
+    type_tokens: &[DcChar],
+    req_name: &str,
+    req_subtype: Option<&str>,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    let tokens = if type_tokens.len() >= 2
+        && type_tokens.first().is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
+        && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
+    {
+        let end_idx = type_tokens.len().saturating_sub(1);
+        type_tokens.get(1..end_idx).unwrap_or(&[])
+    } else {
+        type_tokens
+    };
+
+    if tokens.is_empty() {
+        return false;
+    }
+
+    if tokens.len() == 1 {
+        let Some(&tok) = tokens.first() else {
+            return false;
+        };
+        let tok_u128 = tok.to_u128();
+
+        if tok.fills_role_with(DcRole::TypeAny, resolver)
+            || tok == ctb_formats_dcdata::dc::DC_TYPE_ANY
+        {
+            return true;
+        }
+
+        match req_name {
+            "string" => {
+                let is_string_fmt = tok == ctb_formats_dcdata::dc::DC_TYPE_STRING
+                    || tok == DcChar::from_short(264)
+                    || tok == DcChar::from_short(265)
+                    || tok == DcChar::from_short(266)
+                    || tok == DcChar::from_short(267)
+                    || tok == DcChar::from_short(284)
+                    || resolver.matches_script("Formats:string", tok_u128)
+                    || resolver.matches_script("string", tok_u128);
+                if !is_string_fmt {
+                    return false;
+                }
+                if let Some(sub) = req_subtype {
+                    if let Some(fmt_id) =
+                        FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub))
+                    {
+                        fmt_id.dc_id() == Some(tok_u128)
+                    } else {
+                        resolver.matches_script(sub, tok_u128)
+                    }
+                } else {
+                    true
+                }
+            }
+            "number" => {
+                let is_number_fmt = tok == ctb_formats_dcdata::dc::DC_TYPE_NUMBER
+                    || tok == DcChar::from_format(199)
+                    || tok == DcChar::from_short(278)
+                    || resolver.matches_script("Formats:number", tok_u128)
+                    || resolver.matches_script("number", tok_u128);
+                if !is_number_fmt {
+                    return false;
+                }
+                if let Some(sub) = req_subtype {
+                    if resolver.matches_script(sub, tok_u128) {
+                        return true;
+                    }
+                    tok == DcChar::from_format(199)
+                        || tok == ctb_formats_dcdata::dc::DC_TYPE_NUMBER
+                        || tok == DcChar::from_short(278)
+                } else {
+                    true
+                }
+            }
+            "data" | "typed_data" => {
+                let is_format = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                    .contains(&tok_u128)
+                    || resolver.matches_script("Formats", tok_u128);
+                if let Some(sub) = req_subtype {
+                    if let Ok((expected_fmt, _)) = parse_data_constraint(sub) {
+                        if let Some(efmt) = expected_fmt {
+                            let expected_id = FormatId::from_shorthand(efmt)
+                                .or_else(|| FormatId::from_ident(efmt))
+                                .and_then(|f| f.dc_id());
+                            expected_id == Some(tok_u128)
+                        } else {
+                            is_format
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    is_format
+                }
+            }
+            "type" => {
+                let is_type = ctb_formats_dcdata::is_type_token(tok_u128)
+                    || (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                        ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                        .contains(&tok_u128)
+                    || resolver.matches_script(".EL Types", tok_u128)
+                    || resolver.matches_script("Formats", tok_u128);
+                if !is_type {
+                    return false;
+                }
+                if let Some(sub) = req_subtype {
+                    let script_name = format!("Formats:{sub}");
+                    resolver.matches_script(&script_name, tok_u128)
+                        || resolver.matches_script(sub, tok_u128)
+                        || FormatId::from_shorthand(sub)
+                            .or_else(|| FormatId::from_ident(sub))
+                            .and_then(|f| f.dc_id())
+                            == Some(tok_u128)
+                } else {
+                    true
+                }
+            }
+            "format" | "formats" => {
+                let is_fmt = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                    .contains(&tok_u128)
+                    || resolver.matches_script("Formats", tok_u128);
+                if !is_fmt {
+                    return false;
+                }
+                if let Some(sub) = req_subtype {
+                    let script_name = format!("Formats:{sub}");
+                    resolver.matches_script(&script_name, tok_u128)
+                        || resolver.matches_script(sub, tok_u128)
+                        || FormatId::from_shorthand(sub)
+                            .or_else(|| FormatId::from_ident(sub))
+                            .and_then(|f| f.dc_id())
+                            == Some(tok_u128)
+                } else {
+                    true
+                }
+            }
+            _ => resolver.matches_script(req_name, tok_u128),
+        }
+    } else {
+        let mut mstr = DcMstring::new();
+        for &t in tokens {
+            mstr.push_char(t);
+        }
+        let mut nav = DcDocumentNavigator::from_mstr(&mstr);
+        let mut ctx = SyntaxEvalContext::new(resolver, None);
+        if req_name == "type" {
+            let type_term = SyntaxTerm::NamedConstruct {
+                name: "type".to_owned(),
+                subtype: req_subtype.map(str::to_owned),
+                capture_var: None,
+            };
+            nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
+                && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
+        } else {
+            false
+        }
+    }
+}
+
+fn type_statically_satisfies_subtype(
+    type_tokens: &[DcChar],
+    subtype: Option<&str>,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    let Some(sub) = subtype else {
+        return true;
+    };
+    let tokens = if type_tokens.len() >= 2
+        && type_tokens.first().is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
+        && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
+    {
+        let end_idx = type_tokens.len().saturating_sub(1);
+        type_tokens.get(1..end_idx).unwrap_or(&[])
+    } else {
+        type_tokens
+    };
+    if tokens.len() == 1 {
+        let Some(&tok_char) = tokens.first() else {
+            return false;
+        };
+        let tok = tok_char.to_u128();
+        if let Some(fmt_id) = FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub)) {
+            if fmt_id.dc_id() == Some(tok) {
+                return true;
+            }
+        }
+        let script_name = format!("Formats:{sub}");
+        if resolver.matches_script(&script_name, tok) || resolver.matches_script(sub, tok) {
+            return true;
+        }
+    }
+    false
 }
 
 fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {

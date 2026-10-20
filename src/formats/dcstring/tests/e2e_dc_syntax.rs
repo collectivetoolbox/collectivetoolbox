@@ -34,17 +34,18 @@ use ctb_formats_checksum::sha256;
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER,
     DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST,
-    DC_BEGIN_OPERATION_SESSION, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
+    DC_BEGIN_OPERATION_SESSION, DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
     DC_END_CHECKSUMMED_SECTION, DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER,
     DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST,
-    DC_END_OPERATION_SESSION, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
+    DC_END_OPERATION_SESSION, DC_END_TYPE_DEF, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
     DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE, DC_OPERATION_STATUS_CODE,
     DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
+    DC_END_ENCAPSULATION_BINARY, DC_TYPE_ANY,
 };
 use ctb_formats_dcdata::syntax::{
-    CharTarget, DatasetRuleResolver, DcRole, SyntaxPattern, SyntaxRuleResolver,
-    SyntaxTerm, default_syntax_resolver,
+    CharTarget, DatasetRuleResolver, DcRole, Quantifier, SyntaxElement,
+    SyntaxPattern, SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
 };
 use ctb_formats_dcstring::dc_mixed_serde::encode_format_representation;
 use ctb_formats_dcstring::{
@@ -976,6 +977,7 @@ mod tier5_adversarial_hardening {
 
 mod tier4_expression_evaluation_and_stream_splicing {
     use super::*;
+    use ctb_formats_dcstring::BinaryPayload;
     use std::sync::Arc;
 
     /// Mock expression evaluator that resolves bound references (`540`) to a mock document.
@@ -1074,6 +1076,218 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         let negative_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
         ensure!(!negative_matched, "[number:Natural0] must reject expression evaluating to negative number");
+
+        Ok(())
+    }
+
+    /// Verifies expression evaluation fallback for `[data]` and `[identifier]`.
+    #[crate::ctb_test]
+    fn test_expression_fallback_for_data_and_identifier() -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 1. [data] satisfied by an expression returning binary data (Dc 203)
+        let mut data_doc = DcMstring::new();
+        BinaryPayload::new(vec![0xAA, 0xBB, 0xCC]).encode_dc_mixed(&mut data_doc)?;
+
+        let data_evaluator = Arc::new(MockExpressionEvaluator {
+            mock_doc: data_doc,
+        });
+
+        let mut expr_doc = DcMstring::new();
+        expr_doc.push_char(DcChar::from_short(540));
+        expr_doc.push_char(DC_BEGIN_IDENTIFIER);
+        expr_doc.push_str("data_var");
+        expr_doc.push_char(DC_END_IDENTIFIER);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.evaluator = Some(data_evaluator);
+
+        let data_term = SyntaxTerm::NamedConstruct {
+            name: "data".to_string(),
+            subtype: None,
+            capture_var: None,
+        };
+        let data_matched = nav.eval_term_single(&data_term, &mut ctx)?;
+        ensure!(data_matched, "[data] must be satisfied by expression evaluating to binary data");
+
+        // 2. [identifier] satisfied by an expression returning an identifier
+        let mut id_doc = DcMstring::new();
+        id_doc.push_char(DC_BEGIN_IDENTIFIER);
+        id_doc.push_str("evaluated_id");
+        id_doc.push_char(DC_END_IDENTIFIER);
+
+        let id_evaluator = Arc::new(MockExpressionEvaluator {
+            mock_doc: id_doc,
+        });
+
+        let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.evaluator = Some(id_evaluator);
+
+        let id_term = SyntaxTerm::NamedConstruct {
+            name: "identifier".to_string(),
+            subtype: None,
+            capture_var: None,
+        };
+        let id_matched = nav.eval_term_single(&id_term, &mut ctx)?;
+        ensure!(id_matched, "[identifier] must be satisfied by expression evaluating to identifier");
+
+        Ok(())
+    }
+
+    /// Verifies static type checking and compatibility for `ReferenceNamedObject` (`276 [type] [identifier]`).
+    #[crate::ctb_test]
+    fn test_reference_named_object_type_compatibility() -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 276 [type: 264 (string)] [id: "my_str"]
+        let mut string_ref = DcMstring::new();
+        string_ref.push_char(DcChar::from_short(276));
+        string_ref.push_char(DcChar::from_short(264)); // f8 UTF-8 string format
+        string_ref.push_char(DC_BEGIN_IDENTIFIER);
+        string_ref.push_str("my_str");
+        string_ref.push_char(DC_END_IDENTIFIER);
+
+        // 276 [type: DC_TYPE_NUMBER (number)] [id: "my_num"]
+        let mut number_ref = DcMstring::new();
+        number_ref.push_char(DcChar::from_short(276));
+        number_ref.push_char(ctb_formats_dcdata::dc::DC_TYPE_NUMBER);
+        number_ref.push_char(DC_BEGIN_IDENTIFIER);
+        number_ref.push_str("my_num");
+        number_ref.push_char(DC_END_IDENTIFIER);
+
+        let string_term = SyntaxTerm::NamedConstruct {
+            name: "string".to_string(),
+            subtype: None,
+            capture_var: None,
+        };
+        let number_term = SyntaxTerm::NamedConstruct {
+            name: "number".to_string(),
+            subtype: None,
+            capture_var: None,
+        };
+
+        // 1. String ref satisfies [string] requirement
+        let mut nav = DcDocumentNavigator::from_mstr(&string_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(nav.eval_term_single(&string_term, &mut ctx)?, "276 [string] must satisfy [string]");
+
+        // 2. String ref rejected for [number] requirement
+        let mut nav = DcDocumentNavigator::from_mstr(&string_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(!nav.eval_term_single(&number_term, &mut ctx)?, "276 [string] must reject [number]");
+
+        // 3. Number ref satisfies [number] requirement
+        let mut nav = DcDocumentNavigator::from_mstr(&number_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(nav.eval_term_single(&number_term, &mut ctx)?, "276 [number] must satisfy [number]");
+
+        // 4. Number ref rejected for [string] requirement
+        let mut nav = DcDocumentNavigator::from_mstr(&number_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(!nav.eval_term_single(&string_term, &mut ctx)?, "276 [number] must reject [string]");
+
+        // 5. Explicit type wrapped in 262..263 type def
+        let mut wrapped_string_ref = DcMstring::new();
+        wrapped_string_ref.push_char(DcChar::from_short(276));
+        wrapped_string_ref.push_char(DC_BEGIN_TYPE_DEF);
+        wrapped_string_ref.push_char(DcChar::from_short(264));
+        wrapped_string_ref.push_char(DC_END_TYPE_DEF);
+        wrapped_string_ref.push_char(DC_BEGIN_IDENTIFIER);
+        wrapped_string_ref.push_str("wrapped_str");
+        wrapped_string_ref.push_char(DC_END_IDENTIFIER);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&wrapped_string_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(nav.eval_term_single(&string_term, &mut ctx)?, "276 [262 264 263] must satisfy [string]");
+        let mut nav = DcDocumentNavigator::from_mstr(&wrapped_string_ref);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(!nav.eval_term_single(&number_term, &mut ctx)?, "276 [262 264 263] must reject [number]");
+
+        Ok(())
+    }
+
+    /// Verifies DefaultDcExpressionEvaluator evaluates EquivalentRepresentations (397).
+    #[crate::ctb_test]
+    fn test_default_evaluator_equivalent_representations() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        let evaluator = DefaultDcExpressionEvaluator;
+
+        // Build 397 with two representations: [true] and [42]
+        let mut equiv_doc = DcMstring::new();
+        equiv_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        equiv_doc.push_char(DC_BEGIN_LIST);
+        equiv_doc.push_char(DC_TYPE_ANY);
+        equiv_doc.push_char(DC_BOOLEAN_TRUE);
+        equiv_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        42u64.encode_dc_mixed(&mut equiv_doc)?;
+        equiv_doc.push_char(DC_END_LIST);
+
+        let tokens: Vec<DcChar> = equiv_doc.to_dc_string()?.chars().collect();
+
+        // 1. Evaluate for [number:Natural0]
+        let num_req = ValueRequirement::NamedConstruct {
+            name: "number",
+            subtype: Some("Natural0"),
+        };
+        let res = evaluator.eval_expression_for_requirement(&tokens, &num_req, &**resolver)?;
+        ensure!(res.is_some(), "Default evaluator must find matching candidate for [number:Natural0]");
+
+        // 2. Evaluate for [string] (no candidate in list)
+        let str_req = ValueRequirement::NamedConstruct {
+            name: "string",
+            subtype: None,
+        };
+        let res = evaluator.eval_expression_for_requirement(&tokens, &str_req, &**resolver)?;
+        ensure!(res.is_none(), "Default evaluator must return None when no candidate satisfies [string]");
+
+        Ok(())
+    }
+
+    /// Verifies that a Group pattern wrapping [number:Natural0] properly checks subtype
+    /// constraints on an EquivalentRepresentations set.
+    #[crate::ctb_test]
+    fn test_group_pattern_wrapping_constrained_number_in_equivalent_set() -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 397 with negative number -42 only
+        let mut neg_equiv = DcMstring::new();
+        neg_equiv.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        neg_equiv.push_char(DC_BEGIN_LIST);
+        neg_equiv.push_char(DC_TYPE_ANY);
+        (-42i64).encode_dc_mixed(&mut neg_equiv)?;
+        neg_equiv.push_char(DC_END_LIST);
+
+        // Group wrapping [number:Natural0]
+        let group_term = SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
+            SyntaxElement {
+                term: SyntaxTerm::NamedConstruct {
+                    name: "number".to_string(),
+                    subtype: Some("Natural0".to_string()),
+                    capture_var: None,
+                },
+                quantifier: Quantifier::ExactOne,
+            },
+        ]));
+
+        let mut nav = DcDocumentNavigator::from_mstr(&neg_equiv);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        let matched = nav.eval_term_single(&group_term, &mut ctx)?;
+        ensure!(!matched, "Group wrapping [number:Natural0] must reject equivalent set with negative number");
+
+        // 397 with non-negative number 42
+        let mut pos_equiv = DcMstring::new();
+        pos_equiv.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        pos_equiv.push_char(DC_BEGIN_LIST);
+        pos_equiv.push_char(DC_TYPE_ANY);
+        42u64.encode_dc_mixed(&mut pos_equiv)?;
+        pos_equiv.push_char(DC_END_LIST);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&pos_equiv);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        let matched = nav.eval_term_single(&group_term, &mut ctx)?;
+        ensure!(matched, "Group wrapping [number:Natural0] must accept equivalent set with non-negative number");
 
         Ok(())
     }
