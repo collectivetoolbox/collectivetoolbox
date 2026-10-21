@@ -35,7 +35,7 @@ use ctb_formats_dcdata::dc::{
     DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LITERAL, DC_END_KV_MAP, DC_END_KV_PAIR,
     DC_LIST_ELEMENT_SEPARATOR,
 };
-use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
+use ctb_formats_dcdata::syntax::{default_syntax_resolver, SyntaxRuleResolver};
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
 fn append_dc(target: &mut Vec<u8>, ch: DcChar) {
@@ -68,6 +68,7 @@ fn dc_char_len(ch: &DcChar) -> usize {
 struct SourceView<'a> {
     source: &'a [u8],
     arena: &'a DcSyntaxArena<'a>,
+    resolver: &'a dyn SyntaxRuleResolver,
 }
 
 type NodeEntry = (Vec<NodeId>, Vec<NodeId>);
@@ -90,9 +91,8 @@ impl<'a> SourceView<'a> {
     fn is_map(&self, id: NodeId) -> bool {
         self.node(id).is_ok_and(|n| match &n.kind {
             DcSyntaxKind::Container { opener, .. } => {
-                let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-                resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginKvMap)
-                    || resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap)
+                self.resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginKvMap)
+                    || self.resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap)
             }
             _ => false,
         })
@@ -102,18 +102,19 @@ impl<'a> SourceView<'a> {
         if self.is_map(id) {
             DC_BEGIN_KV_MAP
         } else if let Ok(n) = self.node(id) {
+            let canon = |ch: DcChar| DcChar::from_u128(self.resolver.canonical_token(ch.to_u128()));
             match &n.kind {
-                DcSyntaxKind::Container { opener, .. } => *opener,
-                DcSyntaxKind::Tagged { tag, .. } => *tag,
+                DcSyntaxKind::Container { opener, .. } => canon(*opener),
+                DcSyntaxKind::Tagged { tag, .. } => canon(*tag),
                 DcSyntaxKind::Assignment { .. } => DC_ASSIGN,
                 DcSyntaxKind::Literal { .. } => DC_BEGIN_LITERAL,
                 DcSyntaxKind::Identifier { .. } => DC_BEGIN_IDENTIFIER,
                 DcSyntaxKind::Number { .. } => crate::dc_number::DC_BEGIN_NUMBER,
                 DcSyntaxKind::Binary { .. } => ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY,
-                DcSyntaxKind::Atom(ch) => *ch,
+                DcSyntaxKind::Atom(ch) => canon(*ch),
                 DcSyntaxKind::Malformed { raw_tokens, .. } => {
                     // Reason for fallback: Empty malformed tokens fall back to NUL (U+0000) for node identity comparison.
-                    raw_tokens.first().copied().unwrap_or(DcChar::from_u128(0))
+                    raw_tokens.first().copied().map(canon).unwrap_or(DcChar::from_u128(0))
                 }
             }
         } else {

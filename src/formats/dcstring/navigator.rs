@@ -5555,10 +5555,11 @@ impl<'a> DcDocumentNavigator<'a> {
                                         dc_char_utf8e128_len(DcChar::from_u128(closer_u128)),
                                     );
                                     if self
-                                        .validate_span(
+                                        .validate_span_with_resolver(
                                             DcByteSpan::new(after_first, inner_end),
                                             0,
                                             &ctx.policy,
+                                            ctx.resolver,
                                         )
                                         .is_err()
                                     {
@@ -6416,10 +6417,40 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Validates the active span with the same grammar and resource policy used
     /// by arena parsing, without retaining document nodes.
     pub fn validate_document(&mut self, policy: &DcProjectionPolicy) -> Result<()> {
-        self.validate_span(self.active_span, 0, policy)
+        self.validate_document_with_resolver(policy, default_syntax_resolver().as_ref())
     }
 
-    fn validate_span(&mut self, initial_span: DcByteSpan, initial_depth: usize, policy: &DcProjectionPolicy) -> Result<()> {
+    /// Validates the active span with the same grammar and resource policy used
+    /// by arena parsing and the provided resolver, without retaining document nodes.
+    pub fn validate_document_with_resolver(
+        &mut self,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<()> {
+        self.validate_span_with_resolver(self.active_span, 0, policy, resolver)
+    }
+
+    fn validate_span(
+        &mut self,
+        initial_span: DcByteSpan,
+        initial_depth: usize,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        self.validate_span_with_resolver(
+            initial_span,
+            initial_depth,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
+    }
+
+    fn validate_span_with_resolver(
+        &mut self,
+        initial_span: DcByteSpan,
+        initial_depth: usize,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<()> {
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
         let mut span_stack: Vec<(DcByteSpan, u64, usize)> =
@@ -6432,7 +6463,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 self.active_span = span;
                 self.cursor = cursor;
-                let sub_spans = self.step_validate_construct(depth, policy)?;
+                let sub_spans = self.step_validate_construct_with_resolver(depth, policy, resolver)?;
                 let next_cursor = self.cursor;
                 ensure!(next_cursor > cursor, "Parser made no progress at offset {cursor}");
                 if next_cursor < span.end {
@@ -6457,14 +6488,27 @@ impl<'a> DcDocumentNavigator<'a> {
         depth: usize,
         policy: &DcProjectionPolicy,
     ) -> Result<Vec<(DcByteSpan, usize)>> {
-        let Some(stub) = self.next_sibling_stub(policy)? else {
+        self.step_validate_construct_with_resolver(
+            depth,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
+    }
+
+    fn step_validate_construct_with_resolver(
+        &mut self,
+        depth: usize,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Vec<(DcByteSpan, usize)>> {
+        let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? else {
             return Ok(Vec::new());
         };
-        if stub.head_dc.fills_role(DcRole::StartEncapsulationBinary) {
-            self.parse_binary_arena_node(stub.outer_span, policy)?;
+        if stub.head_dc.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+            self.parse_binary_arena_node(stub.outer_span, policy, resolver)?;
         }
         if let Some(inner) = stub.inner_span {
-            if !default_syntax_resolver().is_opaque_container(stub.head_dc.to_u128()) {
+            if !resolver.is_opaque_container(stub.head_dc.to_u128()) {
                 if depth >= policy.max_depth {
                     policy.handle(policy.depth_limit_exceeded, format!(
                         "Document nesting depth exceeds maximum limit ({}) at offset {}",

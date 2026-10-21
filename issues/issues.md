@@ -239,3 +239,10 @@ Enviornment detection All network interfaces; MAC address; Add api in io/system 
 
 - [ ] Allow the local client to authenticate to a registered remote account;
   remote account registration is not currently enabled.
+
+- Tests for io/file and csc:
+    - Exercise native Windows link/stream materialization and Windows-only test
+    branches. Windows-source roundtrips on Linux do not establish native support.
+    - Exercise encoding-restrictive filesystems directly, including strict refusal
+    and explicit best-effort replacement. Existing checks covered conversion
+    logic and Unix raw-byte replication on the host filesystem.
