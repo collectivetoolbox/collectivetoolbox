@@ -317,11 +317,21 @@ pub fn u128_to_dc_number_chars(val: u128) -> Result<Vec<DcChar>> {
 // ---------------------------------------------------------------------------
 
 /// Reads a single Dc number from a reader closure yielding [`DcChar`]s.
-pub fn read_dc_number_from_reader<F>(mut next_char: F) -> Result<Integer>
+pub fn read_dc_number_from_reader<F>(next_char: F) -> Result<Integer>
 where
     F: FnMut() -> Result<DcChar>,
 {
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    read_dc_number_from_reader_with_resolver(next_char, &**resolver)
+}
+
+pub fn read_dc_number_from_reader_with_resolver<F>(
+    mut next_char: F,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<Integer>
+where
+    F: FnMut() -> Result<DcChar>,
+{
     let first = next_char()?;
     ensure!(
         resolver.token_fills_role(first.to_u128(), DcRole::BeginNumber),
@@ -367,6 +377,14 @@ where
 /// indicator, and `DC_END_NUMBER` delimiters) into an [`Integer`].
 pub fn parse_dc_number_digits(digits: &[DcChar]) -> Result<Integer> {
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    parse_dc_number_digits_with_resolver(digits, &**resolver)
+}
+
+/// Parses a slice of `DcChar` digits using the provided [`SyntaxRuleResolver`].
+pub fn parse_dc_number_digits_with_resolver(
+    digits: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<Integer> {
     let mut is_negative = false;
     let mut b64_str = String::new();
     for (idx, &ch) in digits.iter().enumerate() {
@@ -398,6 +416,15 @@ pub fn parse_dc_number_digits(digits: &[DcChar]) -> Result<Integer> {
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    read_dc_number_short_with_resolver(dcs, &**resolver)
+}
+
+/// Reads a single Dc number from a slice of short Document Characters (Dcs)
+/// using the provided [`SyntaxRuleResolver`].
+pub fn read_dc_number_short_with_resolver(
+    dcs: &[u32],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<(Integer, usize)> {
     let first = dcs
         .first()
         .copied()
@@ -473,12 +500,21 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
 pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    read_dc_number_global_with_resolver(gids, &**resolver)
+}
+
+/// Reads a single Dc number from a slice of Global Graph IDs (`DcList`)
+/// using the provided [`SyntaxRuleResolver`].
+pub fn read_dc_number_global_with_resolver(
+    gids: &[u128],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<(Integer, usize)> {
     let first = gids
         .first()
         .copied()
         .ok_or_else(|| anyhow!("Empty GID stream"))?;
     ensure!(
-        gid_fills_role(first, DcRole::BeginNumber, &**resolver),
+        gid_fills_role(first, DcRole::BeginNumber, resolver),
         "Expected GID 1114118 / Dc 6 (Begin number), found {first}"
     );
 
@@ -487,7 +523,7 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         .copied()
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     ensure!(
-        gid_fills_role(second, DcRole::IntegerFormatIndicator, &**resolver),
+        gid_fills_role(second, DcRole::IntegerFormatIndicator, resolver),
         "Expected format 199 indicator after Dc 6, found {second}"
     );
 
@@ -495,10 +531,10 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
     let mut is_negative = false;
 
     if let Some(&third) = gids.get(idx) {
-        if gid_fills_role(third, DcRole::Negative, &**resolver) {
+        if gid_fills_role(third, DcRole::Negative, resolver) {
             is_negative = true;
             idx = idx.saturating_add(1);
-        } else if gid_fills_role(third, DcRole::Positive, &**resolver) {
+        } else if gid_fills_role(third, DcRole::Positive, resolver) {
             idx = idx.saturating_add(1);
         }
     }
@@ -510,12 +546,12 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         let Some(&gid) = gids.get(idx) else { break };
         idx = idx.saturating_add(1);
 
-        if gid_fills_role(gid, DcRole::EndNumber, &**resolver) {
+        if gid_fills_role(gid, DcRole::EndNumber, resolver) {
             found_end = true;
             break;
         }
 
-        let digit = gid_to_base64_digit(gid, &**resolver)
+        let digit = gid_to_base64_digit(gid, resolver)
             .ok_or_else(|| anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc"))?;
         let ch = digit_to_base64_char(digit)?;
         b64_str.push(ch);
@@ -542,7 +578,17 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
 
 /// Parses an entire sequence of short Document Characters (Dcs) as a single Dc number.
 pub fn parse_dc_number_short(dcs: &[u32]) -> Result<Integer> {
-    let (val, consumed) = read_dc_number_short(dcs)?;
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    parse_dc_number_short_with_resolver(dcs, &**resolver)
+}
+
+/// Parses an entire sequence of short Document Characters (Dcs) as a single Dc number
+/// using the provided [`SyntaxRuleResolver`].
+pub fn parse_dc_number_short_with_resolver(
+    dcs: &[u32],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<Integer> {
+    let (val, consumed) = read_dc_number_short_with_resolver(dcs, resolver)?;
     ensure!(
         consumed == dcs.len(),
         "Trailing tokens after Dc number: consumed {consumed} of {} tokens",
@@ -553,7 +599,17 @@ pub fn parse_dc_number_short(dcs: &[u32]) -> Result<Integer> {
 
 /// Parses an entire sequence of Global Graph IDs (`DcList`) as a single Dc number.
 pub fn parse_dc_number_global(gids: &[u128]) -> Result<Integer> {
-    let (val, consumed) = read_dc_number_global(gids)?;
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    parse_dc_number_global_with_resolver(gids, &**resolver)
+}
+
+/// Parses an entire sequence of Global Graph IDs (`DcList`) as a single Dc number
+/// using the provided [`SyntaxRuleResolver`].
+pub fn parse_dc_number_global_with_resolver(
+    gids: &[u128],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<Integer> {
+    let (val, consumed) = read_dc_number_global_with_resolver(gids, resolver)?;
     ensure!(
         consumed == gids.len(),
         "Trailing tokens after Dc number: consumed {consumed} of {} tokens",

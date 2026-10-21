@@ -155,16 +155,16 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
                     capture_var: None,
                 },
                 ValueRequirement::TypeToken(tok) => {
-                    let Ok(val) = u32::try_from(tok.to_u128()) else {
+                    let Some(target) = CharTarget::from_u128(tok.to_u128()) else {
                         return Ok(None);
                     };
-                    SyntaxTerm::CharRef(CharTarget::Dc(val))
+                    SyntaxTerm::CharRef(target)
                 }
                 ValueRequirement::ConstructOpener(op) => {
-                    let Ok(val) = u32::try_from(op.to_u128()) else {
+                    let Some(target) = CharTarget::from_u128(op.to_u128()) else {
                         return Ok(None);
                     };
-                    SyntaxTerm::CharRef(CharTarget::Dc(val))
+                    SyntaxTerm::CharRef(target)
                 }
             };
             let start = nav.cursor;
@@ -1766,6 +1766,18 @@ pub enum DcFrameHeaderInfo {
     /// Format representation (`511 [format] ... 512`).
     FormatRepresentation {
         format: DcChar,
+    },
+    /// Spliced framed literal construct (`260..261`).
+    SplicedLiteral {
+        type_header: Vec<DcChar>,
+        decoded: String,
+    },
+    /// Spliced framed identifier construct (`270..271`).
+    SplicedIdentifier(String),
+    /// Spliced number construct (`6..7`).
+    SplicedNumber {
+        format: Option<DcChar>,
+        digits: Vec<DcChar>,
     },
 }
 
