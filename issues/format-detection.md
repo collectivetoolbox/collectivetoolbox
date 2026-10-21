@@ -74,3 +74,10 @@ current behavior before implementing a reported gap.
 - External decompressor command fallbacks differ from upstream but are not an
   implementation task: detection must remain self-contained rather than depend
   on installed system tools.
+
+## Recovered From Pre-Cleanup `issues/` (To Filter)
+
+- [ ] Deduplicate identical extension evidence on a single format candidate: `Gzip (f35)` records `Extension: .gz (primary: true, score: 25)` twice in `5e3a561bb:issues/csc-file-output.txt:40,42` and `288,290`.
+- [ ] Fix candidate score calculation where candidates with positive extension evidence (`Extension: .sz (primary: true, score: 50)` on `SzipCompressed (f612)` and `Extension: .cscjournal (primary: true, score: 50)` on `CscJournal (f410)`) still display `score: 0/100` (`5e3a561bb:issues/csc-file-output.txt:68-79, 186-194`).
+- [ ] Fix CSC journal version ranking and `SubsumedAncestor` evidence direction: generic `CscJournal (f410)` outranks version-specific `CscJournal4 (f632)` (`125/100` vs `50/100`), `CscJournal4 (f632)` lists `SubsumedAncestor: CscJournal1Meta1..3` without receiving the parent's score, and decompressed chains (`@chain(f410 > f35)`, `@chain(f410 > f612)`) resolve to generic `f410` rather than `f632` (`5e3a561bb:issues/csc-file-output.txt:15-31, 45-61, 165-194`).
+- [ ] Fix compressed chain MIME reporting for `SzipCompressed (f612)` so it does not emit `compressed-encoding=application/octet-stream` (`5e3a561bb:issues/csc-file-output.txt:57, 304`).

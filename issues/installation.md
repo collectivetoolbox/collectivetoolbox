@@ -76,3 +76,14 @@ in this cleanup. Existing installer modules are not evidence of full parity.
 
 Native platform signing (Authenticode/SmartScreen/Gatekeeper) was explicitly
 deferred in the original proposal and remains deferred here.
+
+## Recovered From Pre-Cleanup `issues/` (To Filter)
+
+- [ ] Support a text-mode Q&A fallback when running in a `tty` / `video terminal` without a GUI (`5e3a561bb:issues/installation.md:5`, `installation.old.md:3-5`).
+- [ ] Include mouse/pointer detection and pointer calibration in first-run/installer setup (`5e3a561bb:issues/installation.old.md:17`).
+- [ ] Include the per-chunk download visual, textual progress log frames (`"successfully downloaded chunk..."`, `"successfully installed file..."`), and post-install wrap-up screen offering to launch the application (`5e3a561bb:issues/installation.md:23-26`).
+- [ ] Verify concrete CLI flags and server/update mechanics specified in `5e3a561bb:issues/installation.md:28-68`:
+  - `--ctb-dev-sign`: 64 KB buzhash chunking; sign with dev private key in `pc_settings`; store `icecat` and dependency source tarballs uncompressed on the server (`installed_compression = gzip`) and compress locally with `gzip` after download; warn on unreferenced chunks older than 2 weeks.
+  - `--ctb-dev-release-check` and `--ctb-dev-release-expire` (prune unreferenced chunks older than 2 weeks after confirmation).
+  - Axum routes for latest release manifest, public keys, and individual chunk downloads.
+  - `--install` (install from a local directory with chunks), `--make-offline-installer` (bundle chunks into a directory/archive with `install.sh` / `install.bat`), `--update`, and `--ctb-automatic-update` (wait for running PID to exit, auto-upgrade after 5 minutes of inactivity following an update prompt, and notify open WebUI tabs via WebSocket server push).

@@ -213,3 +213,21 @@ Clippy checks, with explicit `--target x86_64-unknown-linux-musl`. Keep at least
 25 GB free, do not add dependencies or listening ports, and do not suppress
 Clippy errors. Documentation-only cleanup needs link and whitespace checks,
 not a broad Rust rebuild.
+
+## Recovered From Pre-Cleanup `issues/` (To Filter)
+
+- [ ] Treat alternative-representation Dcs (`397` / `561`) and escape Dc (`255`) as globally implied syntax usable anywhere relevant rather than only where explicitly written in a syntax rule (from `5e3a561bb:issues/issues.md:91`):
+  - Allow `397` / `561` anywhere a value has multiple representations (e.g., `378` "Timestamp clock resolution" `: ~ [datemagnitude]` expressed in two time systems via `397`), and remove the accidental explicit `397` / `561` from the single syntax rule where they were listed by mistake.
+  - Allow escape Dc `255` anywhere a payload Dc would otherwise collide with enclosing syntax (e.g., `374 376 255 377 [number] 377 [number]` inside `374` "File data extent" `:~ 376 [number:Natural0] 377 [number:Natural0]`).
+- [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
+- [ ] Eliminate remaining hardcoded Dc numbers and one-sided canonical token matching in `src/formats/dcstring/ctb_dc_macro/src/lib.rs` (`DcChar::from_short(397)` / `DcChar::from_short(561)` at lines `2022, 2753, 2859, 2861, 3446, 3576, 4179, 4239`, and `ctx.canonical_token(tag)` matched against raw `#all_match_tags` without canonicalizing the annotated side or consulting runtime `equiv_map`; from `5e3a561bb:issues/issues.md:146` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:76`).
+- [ ] Finish auditing and migrating remaining hardcoded Dc comparisons in `src/formats/dcdata/dc_char.rs` and `src/formats/dcdata/format_spec/dc_stream.rs` (`Short(535)`, `Short(258)`, `Short(259)`, `Short(299)`, `Short(300)` at `dc_stream.rs:151-245`; from `5e3a561bb:issues/issues.md:146`).
+- [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (`5e3a561bb:issues/issues.md:71`; reworded during cleanup into "Prefer existing generated identifiers...").
+- [ ] Audit `// Reason for fallback:` sites across `dcdata` and `dcstring` that may mask data corruption or broken invariants (from `5e3a561bb:issues/2026-10-13-Dc-syntax-parser-refactor/to-review:3-15` and `subplan-2.md:97`):
+  - `src/formats/dcdata/lookup.rs:105`: missing/unparseable `DcList.generated.csv` falls back to an empty lookup table instead of failing loudly.
+  - `src/formats/dcdata/column_spec.rs:190,234,248`: out-of-bounds/mid-codepoint slice falls back to `","`.
+  - `src/formats/dcdata/format.rs:650`: out-of-range format short ID falls back to dummy `0`.
+  - `src/formats/dcstring/source_edit.rs:116`: empty malformed token falls back to NUL (`\u{0000}`).
+  - `src/formats/dcstring/ctb_dc_macro/src/lib.rs:3535,4072,4164,4225`: empty `Tagged { tag, args }` falls back to passing `child_id`/`ch_id` as its own payload instead of returning a decode error.
+- [ ] Restore the deleted composite framed pair `(u32, bool)` + `Vec<u32>` test through `397 [list] -> 315` in `src/formats/dcstring/tests/` (from `5e3a561bb:issues/2026-10-13-Dc-syntax-parser-refactor/to-review:127-135` and `subplan-2.md:129`).
+- [ ] Check whether `memories/dc-document-parsing.md` should be restored to `memories/` (moved out of `memories/` into `issues/2026-10-13-Dc-syntax-parser-refactor/dc-document-parsing.md` in `787086572` and deleted in `b7e594364`).

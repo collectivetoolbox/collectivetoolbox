@@ -90,3 +90,11 @@ assuming the current code still has the reported fault.
 - [ ] Allow the local client to authenticate to a registered remote account;
   remote account registration is not currently enabled. This remains outside
   the personal MVP.
+
+## Recovered From Pre-Cleanup `issues/` (To Filter)
+
+- [ ] Cherry-pick `30f41d4a5` (`feat: Add Tailwind search` — `30f41d4a5c54ce5358d73e84c2c583d2bc0f283e` is not an ancestor of `HEAD`, and `src/formats/tailwind`, `src/io/webui/controllers/tailwind_search.rs`, and `assets/views/tools/tailwind-search.hbs` are absent from the working tree; from `5e3a561bb:issues/issues.md:173`).
+- [ ] Include optional verification step in compression, and decide whether verification should default to enabled when writing to a file (`default_verify()` in `src/formats/compression/compression.rs:316,385` currently keys off `format.is_in_repo()`, not file output; from `5e3a561bb:issues/issues.md:183`).
+- [ ] Complete file flags implementation (`"File flags did not have complete implementation"` from `5e3a561bb:issues/issues.md:165`; only the Dc `342`/`422`/`423` ontology note was retained in `issues/dc-parser.md`).
+- [ ] Add test for getting help function (from `5e3a561bb:issues/issues.md.backup:6`, distinct from existing `get_test_help_bytes` asset bundle test if referring to CLI/UI help retrieval).
+- [ ] Register domain names? (from `5e3a561bb:issues/issues.md.backup:9`).

@@ -236,3 +236,18 @@ These inbox reports also need reconciliation with current code before changes.
 - btrfs subvolume/ZFS dataset send/receive, the Dc runtime, renderer, graph trust,
   and graph editing. Existing archive approval supersedes the old milestone's
   instruction not to start an archive format.
+
+## Recovered From Pre-Cleanup `issues/` (To Filter)
+
+- [ ] Fix cross-directory dependency ordering and non-deterministic tie-breaking in `validate_and_order_directory_entries` (`src/io/file/name_collisions.rs:314-351`, from deleted `5e3a561bb:issues/CI-root-cause-investigation.md:142-193`):
+  - When `curr_src != curr_tgt` (separate source and destination directories), `action_a.dest_path == src_b` (`src/io/file/name_collisions.rs:318`) compares a destination path against a source path and is always false; only `test_name_collision_dependency_ordering` (`line 483`) was changed to pass `&src, &src, &src`.
+  - Kahn's topological sort (`src/io/file/name_collisions.rs:329-351`) uses LIFO `queue.pop()` with no deterministic filename tie-breaker when in-degrees tie.
+- [ ] Support Windows-style alternate data stream names such as `:Zone.Identifier` (from `5e3a561bb:issues/issues.md:40`).
+- [ ] Add CSC archiver quick indexing, materializing/verifying an individual file into or from an archive, and evaluate an `rsync`-equivalent remote transfer workflow by sending a CSC archive + `ctb` binary and unpacking on the remote end (from `5e3a561bb:issues/issues.md:44`).
+- [ ] Add `// SAFETY:` comments to the 4 undocumented `unsafe` blocks in `src/io/file/sys_flags.rs:1317, 1343, 1380, 1455` (`chflagsat` / `lchflags` FFI calls) that block FreeBSD production Clippy under `-D clippy::undocumented_unsafe_blocks` (from `5e3a561bb:issues/2026-10-08-Windows-csc.md:256-258`).
+- [ ] Remove early-return `Ok(())` bypasses when running as `root` in CSC permission-denied test fixtures (`src/io/csc/tests/e2e_journal_v4.rs` and `src/io/csc/tests/journal_adversarial.rs`) and replace the silent early return on unknown filesystems in `src/io/file/flags_tests.rs` with an explicit prerequisite assertion on Windows/WINE/FreeBSD (from `5e3a561bb:issues/2026-10-08-Windows-csc.md:218-220, 272-275`).
+- [ ] Address remaining cross-platform full-suite test blockers recorded in `5e3a561bb:issues/2026-10-08-Windows-csc.md:66-75, 549-552`:
+  - Headless Linux doctest failure in the software-renderer GUI example when `WAYLAND_DISPLAY`, `WAYLAND_SOCKET`, and `DISPLAY` are unset.
+  - WINE `build-support` `initrd` test failure attempting to execute uninstalled guest `rustc`.
+  - Native Windows 7 full-workspace test suite 1,800-second timeout during JavaScript tests (only 38 of 110 test binaries completed in full-suite mode).
+- [ ] Create `docs/cli/archive.md` CLI reference documentation (planned in `5e3a561bb:issues/csc-usability/archive.md:282`; file does not exist).
