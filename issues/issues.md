@@ -142,6 +142,22 @@ Hm, does this correspond to the CLI? Why force_overwrite true? Generally things 
 
 - Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)? A good practical test (add a test script to run this whole process, probably, so it can be re-tried and variations on it added) would be to create a few files with odd, mangled, and differing-only-in-normalization Unicode filenames, each file having a few large (>512kB) streams with odd, mangled, and differing-only-in-normalization Unicode stream names on FreeBSD, and pack them into a `csc archive` there. Copy that out of FreeBSD and save it as a test fixture. On Linux, extract it using AppleDouble files. Then, `csc archive` that folder, with reading AppleDouble files turned on, re-joining the streams to their files. Copy that archive into Windows 11, and extract it. Confirm that the streams were extracted as ADS. `csc archive` it there. Copy that back out. Unpack it on FreeBSD, then do a `ctoolbox csc-diff` against the original files. The test script should ignore expected differences (inode, ctime) and report anything that got mangled or broken in the process.
 
+- Phase 4 Reader Migration (memories/dc-document-parsing.md Section 4):
+Replacing hardcoded == token matching with dynamic resolver / DcRole queries in src/formats/dcdata/dc_char.rs, src/formats/dcdata/dc_number_minimal.rs, and src/formats/dcdata/format_spec/dc_stream.rs.
+Replacing legacy constant allowlists in src/formats/dcstring/navigator.rs with peek_fills_role / next_if_fills_role over dynamic resolvers.
+Complex Expression Splicing inside Projections:
+DcProjectionContext::resolve_expression_node resolves bound identifier references (Dc 540), named objects (Dc 276), and routine invocations (Dc 279, Dc 256) containing parameter frames (Dc 258..Dc 259). Fully dynamic runtime evaluations that generate synthetic AST nodes not already present in the CST arena are handled through eval_stream_splice in DcDocumentNavigator rather than synthetic node synthesis during projection.
+3. Deferred Items
+Synthetic AST Node Materialization from Runtime Evaluator:
+If a routine invocation produces an arbitrary dynamic document stream rather than wrapping an argument/parameter, that stream is spliced during parsing via DcDocumentNavigator::eval_stream_splice. Directly materializing synthetic AST nodes inside DcProjectionContext was deferred as CST arena nodes are borrowed from the immutable parsed document.
+
+- **Pre-existing Failure in `ctb-formats-dcdata`**:
+  - [`syntax::resolver::tests::test_rule_and_delimiter_pairing_when_non_canonical_or_target_owns_rule`](file:///workspaces/ctoolbox/src/formats/dcdata/syntax/resolver.rs#L1474): panics at line 1474 with `left == right` (`Some(1114423)` vs `Some(1115072)`). This test was introduced in prior commit `d015a7d` where `target_open` and `alias_open` cloned `list_open.syntax` containing closer `311` (`DC_END_LIST` / `1114423`) in their pattern, which conflicted with the test's declared `@closes` target `960` (`1115072`).
+
+### Known Gaps & What's Left
+- Multi-token `<equiv>` decompositions targeting combinations of formats/characters (e.g. `<equiv>f350 f351`) are forbidden from defining single-token syntax rules or `@closes`, which is actively validated, but multi-token decomposition equivalence resolution itself is handled downstream in parser stages rather than unified in the single-token disjoint set. [not sure what this means]
+
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container

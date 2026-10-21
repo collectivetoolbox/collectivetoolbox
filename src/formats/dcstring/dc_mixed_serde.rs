@@ -276,6 +276,46 @@ impl crate::DcMstr {
         ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
         Ok(res)
     }
+
+    /// Interprets the string using a custom [`SyntaxRuleResolver`].
+    ///
+    /// # Errors
+    /// Returns an error if interpretation fails or trailing content remains.
+    pub fn decode_with_resolver<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
+        self.decode_with_resolver_and_context(resolver, None, policy)
+    }
+
+    /// Interprets the string using a custom [`SyntaxRuleResolver`] and optional
+    /// outer shared context.
+    ///
+    /// # Errors
+    /// Returns an error if interpretation fails or trailing content remains.
+    pub fn decode_with_resolver_and_context<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+        context: Option<&crate::SharedValueContext>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
+        let mut nav = crate::DcDocumentNavigator::from_mstr(self);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena_with_resolver(&mut arena, policy, resolver)?;
+        let roots = arena.roots();
+        let mut ctx = DcProjectionContext::with_all_resolvers(
+            &arena,
+            policy,
+            context,
+            Some(&mut nav),
+            Some(resolver),
+            None,
+        );
+        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
+        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
+        Ok(res)
+    }
 }
 
 /// Trait for types that can convert to and from a numeric Dc representation.
@@ -2190,7 +2230,9 @@ where
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
-        let (_opener, pairs) = ctx.arena.extract_kv_map_node_pairs(node_id)?;
+        let (_opener, pairs) = ctx
+            .arena
+            .extract_kv_map_node_pairs_with_resolver(node_id, ctx.resolver())?;
 
         let mut map = BTreeMap::new();
         for (k_node_id, v_node_id) in pairs {

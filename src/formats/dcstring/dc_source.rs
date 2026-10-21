@@ -26,7 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::{DcMixedDecode, DcProjectionContext, DcMstr, DcMstring, DcStr, DcString};
+use crate::{
+    DcMixedDecode, DcMstr, DcMstring, DcProjectionContext, DcStr, DcString,
+    SyntaxRuleResolver,
+};
 use std::ops::Range;
 
 /// Field encoding supplied by tagged-record derives, using inline bindings.
@@ -295,6 +298,15 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         context: Option<&crate::SharedValueContext>,
         policy: &crate::DcProjectionPolicy,
     ) -> Self {
+        Self::read_with_resolver(source, context, policy, None)
+    }
+
+    fn read_with_resolver(
+        source: &'a S,
+        context: Option<&crate::SharedValueContext>,
+        policy: &crate::DcProjectionPolicy,
+        resolver: Option<&dyn SyntaxRuleResolver>,
+    ) -> Self {
         let bytes = source.source_bytes();
         let mut arena = crate::DcSyntaxArena::new();
         let mut nav = if bytes.starts_with(&crate::DCMM_MAGIC) {
@@ -329,7 +341,11 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             }
         };
 
-        let parsed = nav.parse_document_into_arena(&mut arena, policy);
+        let parsed = if let Some(r) = resolver {
+            nav.parse_document_into_arena_with_resolver(&mut arena, policy, r)
+        } else {
+            nav.parse_document_into_arena(&mut arena, policy)
+        };
         let mut diagnostics: Vec<DcDiagnostic> = arena.diagnostics().iter().map(|diagnostic| DcDiagnostic {
             position: diagnostic.token_offset,
             error: anyhow::anyhow!(diagnostic.message.clone()),
@@ -346,11 +362,13 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
 
         let roots = arena.roots();
         let (result, fields, ctx_pos, projection_diagnostics, trailing_error) = {
-            let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+            let mut ctx = DcProjectionContext::with_all_resolvers(
                 &arena,
                 policy,
                 context,
                 Some(&mut nav),
+                resolver,
+                None,
             );
             ctx.annotating = true;
             let result = T::decode_dc_document(&mut ctx, roots);
@@ -529,6 +547,20 @@ impl DcMstr {
             &crate::DcProjectionPolicy::strict(),
         )
     }
+
+    /// Annotates an interpretation with a custom [`SyntaxRuleResolver`].
+    #[must_use]
+    pub fn inspect_with_resolver<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> DcInspection<'_, T> {
+        DcInspection::read_with_resolver(
+            self,
+            None,
+            &crate::DcProjectionPolicy::strict(),
+            Some(resolver),
+        )
+    }
 }
 
 impl DcStr {
@@ -553,6 +585,46 @@ impl DcStr {
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
         self.decode_internal(Some(context), policy)
+    }
+
+    /// Interprets the whole DcUtf string using a custom [`SyntaxRuleResolver`].
+    ///
+    /// # Errors
+    /// Returns an error on unsupported syntax or trailing content.
+    pub fn decode_with_resolver<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
+        self.decode_with_resolver_and_context(resolver, None, policy)
+    }
+
+    /// Interprets the whole DcUtf string with explicitly supplied bindings and
+    /// custom [`SyntaxRuleResolver`].
+    ///
+    /// # Errors
+    /// Returns an error on unsupported syntax or trailing content.
+    pub fn decode_with_resolver_and_context<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+        context: Option<&crate::SharedValueContext>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
+        let mut nav = crate::DcDocumentNavigator::from_dc_str(self);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena_with_resolver(&mut arena, policy, resolver)?;
+        let roots = arena.roots();
+        let mut ctx = DcProjectionContext::with_all_resolvers(
+            &arena,
+            policy,
+            context,
+            Some(&mut nav),
+            Some(resolver),
+            None,
+        );
+        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
+        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
+        Ok(res)
     }
 
     fn decode_internal<T: DcMixedDecode>(
@@ -604,6 +676,20 @@ impl DcStr {
             self,
             Some(context),
             &crate::DcProjectionPolicy::strict(),
+        )
+    }
+
+    /// Annotates an interpretation with a custom [`SyntaxRuleResolver`].
+    #[must_use]
+    pub fn inspect_with_resolver<T: DcMixedDecode>(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> DcInspection<'_, T, DcStr> {
+        DcInspection::read_with_resolver(
+            self,
+            None,
+            &crate::DcProjectionPolicy::strict(),
+            Some(resolver),
         )
     }
 }

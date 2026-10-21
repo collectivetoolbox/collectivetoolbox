@@ -48,13 +48,7 @@ use ctb_formats_dcdata::syntax::{
     SyntaxPattern, SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
 };
 use ctb_formats_dcstring::dc_mixed_serde::encode_format_representation;
-use ctb_formats_dcstring::{
-    DcByteSpan, DcChar, DcDocumentNavigator, DcEvaluatedValue, DcExpressionEvaluator,
-    DcFrameHeaderInfo, DcFrameStub, DcMixedEncode, DcMstring, DcProjectionPolicy,
-    DcStr, DcString, DcSyntaxArena, DcSyntaxKind, DefaultDcExpressionEvaluator,
-    MAX_SYNTAX_EXPANSION_DEPTH, SyntaxEvalContext, ValueRequirement,
-    validate_dc_mixed_strict, validate_dc_str_strict,
-};
+pub use ctb_formats_dcstring::*;
 
 /// Type token wildcard `*` (Object or any subtype, short Dc 275).
 const DC_TYPE_WILDCARD: DcChar = DcChar::from_short(275);
@@ -1812,6 +1806,302 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // Target type u64 should cleanly select candidate 0 (999)
         let num_val: u64 = u64::decode_dc_node(&mut ctx, root)?;
         ensure!(num_val == 999, "u64 must select Number candidate (999)");
+
+        Ok(())
+    }
+}
+
+mod dynamic_runtime_equivalence_overlay_tests {
+    use super::*;
+    use ctb_formats_dcdata::dc::{
+        DC_BEGIN_LITERAL, DC_END_LITERAL, DC_TYPE_STRING,
+        DC_BEGIN_NUMBER, DC_END_NUMBER,
+    };
+    use ctb_formats_dcstring::DcMixed;
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct OverlaySampleRecord {
+        #[dc(short = 400)]
+        title: String,
+        #[dc(short = 406)]
+        count: u64,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    enum OverlaySampleStatus {
+        #[dc(short = 327)]
+        Active(u64),
+        #[dc(short = 359)]
+        Inactive,
+    }
+
+    /// Verifies list container openers, closers, and separators (`310`..`312`)
+    /// dynamically substituted via runtime equivalence overlay.
+    #[crate::ctb_test]
+    fn test_list_openers_closers_and_separators_equivalence_overlay() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let mut registry = SyntaxRuntimeRegistry::default();
+
+        let synth_list_open = DcChar::from_short(3910).to_u128();
+        let synth_list_close = DcChar::from_short(3911).to_u128();
+        let synth_list_sep = DcChar::from_short(3912).to_u128();
+
+        registry.register_equivalence(synth_list_open, DC_BEGIN_LIST.to_u128());
+        registry.register_equivalence(synth_list_close, DC_END_LIST.to_u128());
+        registry.register_equivalence(synth_list_sep, DC_LIST_ELEMENT_SEPARATOR.to_u128());
+
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_u128(synth_list_open));
+        doc.push_char(DC_TYPE_ANY);
+        10u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_u128(synth_list_sep));
+        20u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_u128(synth_list_sep));
+        30u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_u128(synth_list_close));
+
+        // 1. Decodes successfully using the overlay resolver on DcMstr
+        let list: Vec<u64> =
+            doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(list == [10, 20, 30], "List must decode elements [10, 20, 30]");
+
+        // 2. Decodes successfully using the overlay resolver on DcStr
+        let dc_string = doc.to_dc_string()?;
+        let list_str: Vec<u64> =
+            dc_string.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(list_str == [10, 20, 30], "DcStr must decode elements");
+
+        // 3. Without the overlay resolver, decoding fails strict validation
+        ensure!(
+            doc.decode::<Vec<u64>>(&policy).is_err(),
+            "Decoding synthetic list without overlay resolver must fail"
+        );
+
+        Ok(())
+    }
+
+    /// Verifies key-value map openers, closers, and pairs (`559`..`560`,
+    /// `514`..`515`) dynamically substituted via runtime equivalence overlay.
+    #[crate::ctb_test]
+    fn test_map_openers_closers_and_pairs_equivalence_overlay() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let mut registry = SyntaxRuntimeRegistry::default();
+
+        let synth_map_open = DcChar::from_short(3959).to_u128();
+        let synth_map_close = DcChar::from_short(3960).to_u128();
+        let synth_pair_open = DcChar::from_short(3914).to_u128();
+        let synth_pair_close = DcChar::from_short(3915).to_u128();
+
+        registry.register_equivalence(synth_map_open, DC_BEGIN_KV_MAP.to_u128());
+        registry.register_equivalence(synth_map_close, DC_END_KV_MAP.to_u128());
+        registry.register_equivalence(synth_pair_open, DC_BEGIN_KV_PAIR.to_u128());
+        registry.register_equivalence(synth_pair_close, DC_END_KV_PAIR.to_u128());
+
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_u128(synth_map_open));
+        doc.push_char(DC_TYPE_WILDCARD);
+        doc.push_char(DC_TYPE_WILDCARD);
+
+        // Pair 1: 1 -> 100
+        doc.push_char(DcChar::from_u128(synth_pair_open));
+        1u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        100u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_u128(synth_pair_close));
+
+        // Pair 2: 2 -> 200
+        doc.push_char(DcChar::from_u128(synth_pair_open));
+        2u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        200u64.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_u128(synth_pair_close));
+
+        doc.push_char(DcChar::from_u128(synth_map_close));
+
+        // 1. Decode into BTreeMap using overlay resolver
+        let map: std::collections::BTreeMap<u64, u64> =
+            doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(map.len() == 2, "Decoded map must contain 2 entries");
+        ensure!(map.get(&1) == Some(&100), "Map key 1 must map to 100");
+        ensure!(map.get(&2) == Some(&200), "Map key 2 must map to 200");
+
+        // 2. Direct navigator extraction using extract_kv_map_node_pairs_with_resolver
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena_with_resolver(
+            &mut arena,
+            &policy,
+            registry.resolver(),
+        )?;
+        let root = *arena.roots().first().context("Missing arena root")?;
+        let (_opener, pairs) = arena.extract_kv_map_node_pairs_with_resolver(
+            root,
+            registry.resolver(),
+        )?;
+        ensure!(pairs.len() == 2, "Must extract 2 pair nodes from arena");
+
+        Ok(())
+    }
+
+    /// Verifies literals, identifiers, numbers, and booleans
+    /// (`260`..`261`, `270`..`271`, `6`..`7`, `517`..`518`) dynamically
+    /// substituted via runtime equivalence overlay.
+    #[crate::ctb_test]
+    fn test_primitives_literals_identifiers_numbers_and_booleans_overlay(
+    ) -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let mut registry = SyntaxRuntimeRegistry::default();
+
+        let synth_lit_open = DcChar::from_short(3962).to_u128();
+        let synth_lit_close = DcChar::from_short(3963).to_u128();
+        let synth_ident_open = DcChar::from_short(3970).to_u128();
+        let synth_ident_close = DcChar::from_short(3971).to_u128();
+        let synth_num_open = DcChar::from_short(3906).to_u128();
+        let synth_num_close = DcChar::from_short(3907).to_u128();
+        let synth_bool_true = DcChar::from_short(3917).to_u128();
+        let synth_bool_false = DcChar::from_short(3918).to_u128();
+
+        registry.register_equivalence(synth_lit_open, DC_BEGIN_LITERAL.to_u128());
+        registry.register_equivalence(synth_lit_close, DC_END_LITERAL.to_u128());
+        registry.register_equivalence(synth_ident_open, DC_BEGIN_IDENTIFIER.to_u128());
+        registry.register_equivalence(synth_ident_close, DC_END_IDENTIFIER.to_u128());
+        registry.register_equivalence(synth_num_open, DC_BEGIN_NUMBER.to_u128());
+        registry.register_equivalence(synth_num_close, DC_END_NUMBER.to_u128());
+        registry.register_equivalence(synth_bool_true, DC_BOOLEAN_TRUE.to_u128());
+        registry.register_equivalence(synth_bool_false, DC_BOOLEAN_FALSE.to_u128());
+
+        // 1. Literal string decoding
+        let mut lit_doc = DcMstring::new();
+        lit_doc.push_char(DcChar::from_u128(synth_lit_open));
+        lit_doc.push_char(DC_BEGIN_TYPE_DEF);
+        lit_doc.push_char(DC_TYPE_STRING);
+        lit_doc.push_char(DC_END_TYPE_DEF);
+        lit_doc.push_str("overlay_text");
+        lit_doc.push_char(DcChar::from_u128(synth_lit_close));
+
+        let decoded_str: String =
+            lit_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(decoded_str == "overlay_text", "Decoded literal string mismatch");
+
+        // 2. Identifier decoding
+        let mut ident_doc = DcMstring::new();
+        ident_doc.push_char(DcChar::from_u128(synth_ident_open));
+        ident_doc.push_str("sample_identifier");
+        ident_doc.push_char(DcChar::from_u128(synth_ident_close));
+
+        let decoded_ident: String =
+            ident_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(
+            decoded_ident == "sample_identifier",
+            "Decoded identifier mismatch"
+        );
+
+        // 3. Number decoding (u64)
+        let base_chars =
+            ctb_formats_dcstring::dc_number::i128_to_dc_number_chars(4242)?;
+        let mut num_doc = DcMstring::new();
+        num_doc.push_char(DcChar::from_u128(synth_num_open));
+        let middle_slice = base_chars
+            .get(1..base_chars.len().saturating_sub(1))
+            .context("Middle number digits")?;
+        for &ch in middle_slice {
+            num_doc.push_char(ch);
+        }
+        num_doc.push_char(DcChar::from_u128(synth_num_close));
+
+        let decoded_num: u64 =
+            num_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(decoded_num == 4242, "Decoded number mismatch");
+
+        // 4. Boolean decoding (bool)
+        let mut true_doc = DcMstring::new();
+        true_doc.push_char(DcChar::from_u128(synth_bool_true));
+        let decoded_true: bool =
+            true_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(decoded_true, "Expected decoded true");
+
+        let mut false_doc = DcMstring::new();
+        false_doc.push_char(DcChar::from_u128(synth_bool_false));
+        let decoded_false: bool =
+            false_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(!decoded_false, "Expected decoded false");
+
+        Ok(())
+    }
+
+    /// Verifies that runtime-registered `<equiv>` container openers, field tags,
+    /// and enum variant tags deserialize identically to their canonical targets
+    /// for `#[derive(DcMixed)]` types without code recompilation.
+    #[crate::ctb_test]
+    fn test_derive_dc_mixed_structs_and_enums_equivalence_overlay(
+    ) -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+        let mut registry = SyntaxRuntimeRegistry::default();
+
+        let synth_rec_open = DcChar::from_short(3801).to_u128();
+        let synth_rec_close = DcChar::from_short(3802).to_u128();
+        let synth_field_title = DcChar::from_short(3803).to_u128();
+        let synth_field_count = DcChar::from_short(3804).to_u128();
+        let synth_variant_active = DcChar::from_short(3805).to_u128();
+        let synth_variant_inactive = DcChar::from_short(3806).to_u128();
+
+        registry.register_equivalence(synth_rec_open, DcChar::from_short(401).to_u128());
+        registry.register_equivalence(synth_rec_close, DcChar::from_short(402).to_u128());
+        registry.register_equivalence(synth_field_title, DcChar::from_short(400).to_u128());
+        registry.register_equivalence(synth_field_count, DcChar::from_short(406).to_u128());
+        registry.register_equivalence(synth_variant_active, DcChar::from_short(327).to_u128());
+        registry.register_equivalence(synth_variant_inactive, DcChar::from_short(359).to_u128());
+
+        // 1. Struct with overlay container opener/closer and field tags
+        let mut struct_doc = DcMstring::new();
+        struct_doc.push_char(DcChar::from_u128(synth_rec_open));
+        struct_doc.push_char(DcChar::from_u128(synth_field_title));
+        "hello_overlay".encode_dc_mixed(&mut struct_doc)?;
+        struct_doc.push_char(DcChar::from_u128(synth_field_count));
+        777u64.encode_dc_mixed(&mut struct_doc)?;
+        struct_doc.push_char(DcChar::from_u128(synth_rec_close));
+
+        let decoded_struct: OverlaySampleRecord =
+            struct_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(decoded_struct.title == "hello_overlay", "Title mismatch");
+        ensure!(decoded_struct.count == 777, "Count mismatch");
+
+        // 2. Enum variants with overlay variant tags
+        let mut active_doc = DcMstring::new();
+        active_doc.push_char(DcChar::from_u128(synth_variant_active));
+        1234u64.encode_dc_mixed(&mut active_doc)?;
+
+        let decoded_active: OverlaySampleStatus =
+            active_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(
+            decoded_active == OverlaySampleStatus::Active(1234),
+            "Active variant mismatch"
+        );
+
+        let mut inactive_doc = DcMstring::new();
+        inactive_doc.push_char(DcChar::from_u128(synth_variant_inactive));
+
+        let decoded_inactive: OverlaySampleStatus =
+            inactive_doc.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(
+            decoded_inactive == OverlaySampleStatus::Inactive,
+            "Inactive variant mismatch"
+        );
+
+        // 3. Inspection with overlay resolver
+        let inspection = struct_doc.inspect_with_resolver::<OverlaySampleRecord>(
+            registry.resolver(),
+        );
+        let fields = inspection.fields();
+        ensure!(
+            fields.iter().any(|f| f.field() == "title"),
+            "Inspection must find title field"
+        );
+        ensure!(
+            fields.iter().any(|f| f.field() == "count"),
+            "Inspection must find count field"
+        );
 
         Ok(())
     }
