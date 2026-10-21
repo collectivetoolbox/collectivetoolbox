@@ -1573,12 +1573,22 @@ impl<'a> DcSyntaxArena<'a> {
     /// Splits a sequence of child [`NodeId`]s on [`DC_LIST_ELEMENT_SEPARATOR`] (`Dc 312`).
     #[must_use]
     pub fn split_operands(&self, nodes: &[NodeId]) -> Vec<Vec<NodeId>> {
+        self.split_operands_with_resolver(nodes, default_syntax_resolver().as_ref())
+    }
+
+    /// Splits a sequence of child [`NodeId`]s on [`DC_LIST_ELEMENT_SEPARATOR`] using the provided resolver.
+    #[must_use]
+    pub fn split_operands_with_resolver(
+        &self,
+        nodes: &[NodeId],
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Vec<Vec<NodeId>> {
         let mut result = Vec::new();
         let mut current = Vec::new();
         for &id in nodes {
             if self
                 .get(id)
-                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.fills_role(DcRole::ListElementSeparator)))
+                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.fills_role_with(DcRole::ListElementSeparator, resolver)))
             {
                 result.push(std::mem::take(&mut current));
             } else {
@@ -1650,7 +1660,6 @@ impl<'a> DcSyntaxArena<'a> {
                             DcSyntaxKind::Atom(ch)
                                 if ch.fills_role_with(DcRole::TypeAny, resolver)
                                     || ch.fills_role_with(DcRole::TypeToken, resolver)
-                                    || ctb_formats_dcdata::is_type_token(ch.0)
                         )
                     })
                 }),
@@ -1661,7 +1670,7 @@ impl<'a> DcSyntaxArena<'a> {
         let mut entries = Vec::new();
         if is_legacy {
             if !body.is_empty() {
-                let operands = self.split_operands(body);
+                let operands = self.split_operands_with_resolver(body, resolver);
                 for pair in operands.chunks(2) {
                     let [key, value] = pair else {
                         bail!("Unpaired legacy map operand");
@@ -1689,7 +1698,7 @@ impl<'a> DcSyntaxArena<'a> {
                     pair_opener.fills_role_with(DcRole::BeginKvPair, resolver) && !pair_unclosed,
                     "Expected explicitly framed map entry (Dc 514..515)"
                 );
-                let operands = self.split_operands(pair_children);
+                let operands = self.split_operands_with_resolver(pair_children, resolver);
                 let [key, value] = operands.as_slice() else {
                     bail!("Expected two pair operands");
                 };
@@ -6608,12 +6617,8 @@ fn check_type_compatibility(
 
         match req_name {
             "string" => {
-                let is_string_fmt = tok == ctb_formats_dcdata::dc::DC_TYPE_STRING
-                    || tok == DcChar::from_short(264)
-                    || tok == DcChar::from_short(265)
-                    || tok == DcChar::from_short(266)
-                    || tok == DcChar::from_short(267)
-                    || tok == DcChar::from_short(284)
+                let is_string_fmt = tok.fills_role_with(DcRole::TypeString, resolver)
+                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_STRING.to_u128())
                     || resolver.matches_script("Formats:string", tok_u128)
                     || resolver.matches_script("string", tok_u128);
                 if !is_string_fmt {
@@ -6623,7 +6628,11 @@ fn check_type_compatibility(
                     if let Some(fmt_id) =
                         FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub))
                     {
-                        fmt_id.dc_id() == Some(tok_u128)
+                        if let Some(expected_id) = fmt_id.dc_id() {
+                            resolver.is_equivalent_to(tok_u128, expected_id)
+                        } else {
+                            false
+                        }
                     } else {
                         resolver.matches_script(sub, tok_u128)
                     }
@@ -6632,9 +6641,9 @@ fn check_type_compatibility(
                 }
             }
             "number" => {
-                let is_number_fmt = tok == ctb_formats_dcdata::dc::DC_TYPE_NUMBER
-                    || tok == DcChar::from_format(199)
-                    || tok == DcChar::from_short(278)
+                let is_number_fmt = tok.fills_role_with(DcRole::TypeNumber, resolver)
+                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
+                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_INTEGER.to_u128())
                     || resolver.matches_script("Formats:number", tok_u128)
                     || resolver.matches_script("number", tok_u128);
                 if !is_number_fmt {
@@ -6644,9 +6653,19 @@ fn check_type_compatibility(
                     if resolver.matches_script(sub, tok_u128) {
                         return true;
                     }
-                    tok == DcChar::from_format(199)
-                        || tok == ctb_formats_dcdata::dc::DC_TYPE_NUMBER
-                        || tok == DcChar::from_short(278)
+                    if let Some(fmt_id) =
+                        FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub))
+                    {
+                        if let Some(expected_id) = fmt_id.dc_id() {
+                            resolver.is_equivalent_to(tok_u128, expected_id)
+                        } else {
+                            false
+                        }
+                    } else {
+                        tok.fills_role_with(DcRole::TypeNumber, resolver)
+                            || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
+                            || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_INTEGER.to_u128())
+                    }
                 } else {
                     true
                 }
@@ -6662,7 +6681,11 @@ fn check_type_compatibility(
                             let expected_id = FormatId::from_shorthand(efmt)
                                 .or_else(|| FormatId::from_ident(efmt))
                                 .and_then(|f| f.dc_id());
-                            expected_id == Some(tok_u128)
+                            if let Some(exp) = expected_id {
+                                resolver.is_equivalent_to(tok_u128, exp)
+                            } else {
+                                false
+                            }
                         } else {
                             is_format
                         }
@@ -6674,7 +6697,7 @@ fn check_type_compatibility(
                 }
             }
             "type" => {
-                let is_type = ctb_formats_dcdata::is_type_token(tok_u128)
+                let is_type = resolver.token_fills_role(tok_u128, DcRole::TypeToken)
                     || (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                         ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                         .contains(&tok_u128)
@@ -6690,7 +6713,7 @@ fn check_type_compatibility(
                         || FormatId::from_shorthand(sub)
                             .or_else(|| FormatId::from_ident(sub))
                             .and_then(|f| f.dc_id())
-                            == Some(tok_u128)
+                            .is_some_and(|exp| resolver.is_equivalent_to(tok_u128, exp))
                 } else {
                     true
                 }
@@ -6710,7 +6733,7 @@ fn check_type_compatibility(
                         || FormatId::from_shorthand(sub)
                             .or_else(|| FormatId::from_ident(sub))
                             .and_then(|f| f.dc_id())
-                            == Some(tok_u128)
+                            .is_some_and(|exp| resolver.is_equivalent_to(tok_u128, exp))
                 } else {
                     true
                 }
@@ -6761,8 +6784,10 @@ fn type_statically_satisfies_subtype(
         };
         let tok = tok_char.to_u128();
         if let Some(fmt_id) = FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub)) {
-            if fmt_id.dc_id() == Some(tok) {
-                return true;
+            if let Some(exp) = fmt_id.dc_id() {
+                if resolver.is_equivalent_to(tok, exp) {
+                    return true;
+                }
             }
         }
         let script_name = format!("Formats:{sub}");
@@ -6773,12 +6798,14 @@ fn type_statically_satisfies_subtype(
     false
 }
 
-fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {
+fn encapsulated_byte_length(stream: &[u128], resolver: &dyn SyntaxRuleResolver) -> Result<usize> {
     let payload_end = stream.len().checked_sub(1).context("Missing binary terminator")?;
     let mut payload_start = payload_end;
     while let Some(index) = payload_start.checked_sub(1) {
         let token = *stream.get(index).context("Missing binary token")?;
-        if !ctb_formats_dcdata::is_dc_base64_encapsulation_char(DcChar::from_u128(token)) {
+        if !resolver.token_fills_role(token, DcRole::Base64Digit)
+            && !resolver.token_fills_role(token, DcRole::Base64Padding)
+        {
             break;
         }
         payload_start = index;
@@ -6787,7 +6814,15 @@ fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {
     ensure!(payload.len().is_multiple_of(4), "Invalid Base64 payload length");
     let digits = payload
         .iter()
-        .map(|token| ctb_formats_dcdata::dc_base64_char_to_digit(DcChar::from_u128(*token)))
+        .map(|&token| {
+            if let Some(digit) = resolver.base64_digit_value(token) {
+                Ok(digit)
+            } else if resolver.token_fills_role(token, DcRole::Base64Padding) {
+                Ok(64u8)
+            } else {
+                bail!("Invalid Base64 token in binary encapsulation: {token}")
+            }
+        })
         .collect::<Result<Vec<_>>>()?;
     let padding = digits.iter().rev().take_while(|digit| **digit == 64).count();
     ensure!(padding <= 2, "Invalid Base64 padding");
