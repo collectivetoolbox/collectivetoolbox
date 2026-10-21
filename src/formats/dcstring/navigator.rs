@@ -2586,7 +2586,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
         // 1. Check if this is a raw or textual binary encapsulation (Dc 203)
         if first_dc.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
-            let (end_offset, header_info) = self.scan_binary_at(start_offset, policy)?;
+            let (end_offset, header_info) = self.scan_binary_at(start_offset, policy, resolver)?;
             self.cursor = end_offset;
             return Ok(Some(DcFrameStub {
                 head_dc: first_dc,
@@ -3578,7 +3578,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             let head = stub.head_dc;
             if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
-                let node = nav.parse_binary_arena_node(stub.outer_span, policy)?;
+                let node = nav.parse_binary_arena_node(stub.outer_span, policy, resolver)?;
                 return Ok(StubStep::Leaf(arena.alloc(stub.outer_span, node)));
             }
             if head.fills_role_with(DcRole::BeginLiteral, resolver) {
@@ -4351,7 +4351,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
-                let (after_bin, _) = self.scan_binary_at(token_start, policy)?;
+                let (after_bin, _) = self.scan_binary_at(token_start, policy, resolver)?;
                 offset = after_bin;
                 continue;
             }
@@ -4480,7 +4480,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
             )?;
         }
-        let (final_end, bin_header) = self.scan_binary_at(after_digest_tag, policy)?;
+        let (final_end, bin_header) = self.scan_binary_at(after_digest_tag, policy, resolver)?;
         if !checksum_ok {
             return Ok((final_end, sequence_id, false));
         }
@@ -4490,7 +4490,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 payload_span: Some(pspan),
                 ..
             } => {
-                let Some(algorithm) = BinaryChecksum::algorithm_for_digest(&data_type, pspan.len(), policy)? else {
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, pspan.len(), policy, resolver)? else {
                     self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
                     return Ok((final_end, sequence_id, false));
                 };
@@ -4504,10 +4504,10 @@ impl<'a> DcDocumentNavigator<'a> {
                     data_type: Some(data_type),
                     payload,
                     ..
-                } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy)? else {
+                } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy, resolver)? else {
                     bail!("Section digest requires a typed checksum payload");
                 };
-                let Some(algorithm) = BinaryChecksum::algorithm_for_digest(&data_type, payload.len(), policy)? else {
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, payload.len(), policy, resolver)? else {
                     self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
                     return Ok((final_end, sequence_id, false));
                 };
@@ -4542,7 +4542,12 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok((final_end, sequence_id, valid))
     }
 
-    fn parse_binary_arena_node(&mut self, span: DcByteSpan, policy: &DcProjectionPolicy) -> Result<DcSyntaxKind<'a>> {
+    fn parse_binary_arena_node(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcSyntaxKind<'a>> {
         match &mut self.backend {
             NavBackend::MemoryMstr(mstr) => {
                 let range = span.to_usize_range()?;
@@ -4553,7 +4558,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice };
                 let Some(chunk) = chunks.next() else {
                     let sub = DcStr::from_bytes(slice)?;
-                    let (header, data, _) = crate::encapsulation::parse_text_with_policy(sub, policy)?;
+                    let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(sub, policy, resolver)?;
                     let cf = header.chars().next();
                     return Ok(DcSyntaxKind::Binary {
                         data_type: if header.is_empty() { None } else { Some(header) },
@@ -4570,7 +4575,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
-                        let parsed = crate::encapsulation::parse_metadata_with_policy(metadata, policy)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(metadata, policy, resolver)?;
                         let dt = parsed.data_type.map(DcStr::to_owned);
                         let cf = parsed.data_type.and_then(|d| d.chars().next());
                         Ok(DcSyntaxKind::Binary {
@@ -4580,7 +4585,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::Text(txt) => {
-                        let (header, data, _) = crate::encapsulation::parse_text_with_policy(txt, policy)?;
+                        let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(txt, policy, resolver)?;
                         let cf = header.chars().next();
                         Ok(DcSyntaxKind::Binary {
                             data_type: if header.is_empty() { None } else { Some(header) },
@@ -4595,7 +4600,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let sub = text
                     .get(range)
                     .context("Binary node span out of bounds in DcStr")?;
-                let (header, data, _) = crate::encapsulation::parse_text_with_policy(sub, policy)?;
+                let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(sub, policy, resolver)?;
                 let cf = header.chars().next();
                 Ok(DcSyntaxKind::Binary {
                     data_type: if header.is_empty() { None } else { Some(header) },
@@ -4604,7 +4609,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 })
             }
             NavBackend::SeekableFile { .. } => {
-                let (_, info) = self.scan_binary_at(span.start, policy)?;
+                let (_, info) = self.scan_binary_at(span.start, policy, resolver)?;
                 let DcFrameHeaderInfo::Binary {
                     data_type,
                     payload_span: Some(pspan),
@@ -5215,7 +5220,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     if !in_opaque {
                         if first_dc.fills_role_with(DcRole::StartEncapsulationBinary, ctx.resolver) {
-                            if let Ok((after_bin, _)) = self.scan_binary_at(start_offset, &ctx.policy) {
+                            if let Ok((after_bin, _)) = self.scan_binary_at(start_offset, &ctx.policy, ctx.resolver) {
                                 self.cursor = after_bin;
                                 return Ok(true);
                             }
@@ -5870,12 +5875,13 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, payload_len, .. })) =
-            self.try_scan_raw_binary_at(start_offset, &ctx.policy)?
+            self.try_scan_raw_binary_at(start_offset, &ctx.policy, ctx.resolver)?
         {
             if ctx.validate_interiors && matches!(self.backend, NavBackend::SeekableFile { .. }) {
                 self.parse_binary_arena_node(
                     DcByteSpan::new(start_offset, end_offset),
                     &ctx.policy,
+                    ctx.resolver,
                 )?;
             }
             if let Some((expected_fmt, expected_bytes)) = constraint {
@@ -5984,7 +5990,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         }
         if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, .. })) =
-            self.try_scan_raw_binary_at(start_offset, &ctx.policy)?
+            self.try_scan_raw_binary_at(start_offset, &ctx.policy, ctx.resolver)?
         {
             let Some(ref dt) = data_type else {
                 return Ok(false);
