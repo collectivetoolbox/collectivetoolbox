@@ -340,7 +340,7 @@ fn write_node(
             bail!("Expected container node for map");
         };
         let opener = *opener;
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let resolver = old_view.resolver;
         let encoding = if resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap) {
             crate::DcKvMapEncoding::Legacy
         } else {
@@ -403,22 +403,42 @@ pub(crate) fn preserve_source(
     old: &DcMstring,
     new: &DcMstring,
 ) -> Result<DcMstring> {
+    preserve_source_with_resolver(old, new, default_syntax_resolver().as_ref())
+}
+
+pub(crate) fn preserve_source_with_resolver(
+    old: &DcMstring,
+    new: &DcMstring,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
     if old == new {
         return Ok(old.clone());
     }
     let strict = crate::DcProjectionPolicy::strict();
     let mut old_arena = crate::DcSyntaxArena::new();
-    crate::DcDocumentNavigator::parse_document_arena(old.as_bytes(), &mut old_arena, &strict)?;
+    crate::DcDocumentNavigator::parse_document_arena_with_resolver(
+        old.as_bytes(),
+        &mut old_arena,
+        &strict,
+        resolver,
+    )?;
     let mut new_arena = crate::DcSyntaxArena::new();
-    crate::DcDocumentNavigator::parse_document_arena(new.as_bytes(), &mut new_arena, &strict)?;
+    crate::DcDocumentNavigator::parse_document_arena_with_resolver(
+        new.as_bytes(),
+        &mut new_arena,
+        &strict,
+        resolver,
+    )?;
 
     let old_view = SourceView {
         source: old.as_bytes(),
         arena: &old_arena,
+        resolver,
     };
     let new_view = SourceView {
         source: new.as_bytes(),
         arena: &new_arena,
+        resolver,
     };
 
     let mut result = DcMstring::new().into_bytes();
@@ -430,22 +450,42 @@ pub(crate) fn preserve_text(
     old: &crate::DcStr,
     new: &crate::DcStr,
 ) -> Result<crate::DcString> {
+    preserve_text_with_resolver(old, new, default_syntax_resolver().as_ref())
+}
+
+pub(crate) fn preserve_text_with_resolver(
+    old: &crate::DcStr,
+    new: &crate::DcStr,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<crate::DcString> {
     if old == new {
         return Ok(old.to_owned());
     }
     let strict = crate::DcProjectionPolicy::strict();
     let mut old_arena = crate::DcSyntaxArena::new();
-    crate::DcDocumentNavigator::parse_document_arena(old.as_bytes(), &mut old_arena, &strict)?;
+    crate::DcDocumentNavigator::parse_document_arena_with_resolver(
+        old.as_bytes(),
+        &mut old_arena,
+        &strict,
+        resolver,
+    )?;
     let mut new_arena = crate::DcSyntaxArena::new();
-    crate::DcDocumentNavigator::parse_document_arena(new.as_bytes(), &mut new_arena, &strict)?;
+    crate::DcDocumentNavigator::parse_document_arena_with_resolver(
+        new.as_bytes(),
+        &mut new_arena,
+        &strict,
+        resolver,
+    )?;
 
     let old_view = SourceView {
         source: old.as_bytes(),
         arena: &old_arena,
+        resolver,
     };
     let new_view = SourceView {
         source: new.as_bytes(),
         arena: &new_arena,
+        resolver,
     };
 
     let mut result = Vec::new();

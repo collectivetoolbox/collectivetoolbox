@@ -1,7 +1,7 @@
 # CSC and Archive Usability
 
 Status: **Partially Implemented**. Consolidates the former milestone/archive
-plans and the file-detection transcript from build `216aeaa258`. This is not
+plans, Windows CSC handoff, and file-detection transcript from build `216aeaa258`. This is not
 qualification as a production backup or snapshot tool. Keep originals until
 their recoverability has been independently verified.
 
@@ -38,7 +38,7 @@ extension does not establish valid descriptor structure.
   and extent flags and special file kinds; include ZFS xattr modes and dataset
   `casesensitivity`, `normalization`, and `utf8only` settings.
 - [ ] Reconcile the old Windows metadata/reparse fail-open allegations with
-  current behavior and [Windows findings](2026-10-08-Windows-csc.md). Inject
+  current behavior. Inject
   capture failures and verify retained diagnostics and non-success exit status.
   Check strict sandboxed directory creation separately from cross-compilation.
 - [ ] Complete bounded-memory capture/projection of large attached streams
@@ -63,6 +63,52 @@ extension does not establish valid descriptor structure.
 - [ ] Qualify ZFS separately on BSD or Illumos; FreeBSD execution alone is not
   a ZFS result. Do not substitute Linux ZFS or mocks. VM preparation is a
   separate follow-up, not part of this documentation cleanup.
+
+### File API and Windows Fidelity Follow-Ups
+
+These are unresolved items retained from the October 8-10 handoff, not fresh
+reproductions. Later corrections superseded its claims that engine tests were
+still Unix-gated, sparse restoration was absent, and audit timestamp errors
+were universally discarded. Generic full-suite reruns are not separate issues.
+
+- [ ] Implement Windows change-time restoration with independently verified
+  native equality. Capture and requested auditing existed; restoration did not.
+  Check Windows source access-time suppression/restoration and WINE creation-
+  time fidelity independently of successful mtime restoration.
+- [ ] Measure destination sparse allocation capabilities rather than assuming
+  platform-wide granularity. Qualify sub-unit holes, strict refusal, and retained
+  best-effort losses on NTFS and live ReFS. Live ReFS testing remains deferred
+  in the durable-destination-identity review tracked in [issues.md](issues.md).
+- [ ] Return restoration-induced ctime diagnostics from independent audit and
+  symlink cleanup, not only source capture. Close the non-atomic pathname
+  identity-check/restoration race for symlinks using shared anchored operations.
+- [ ] Require explicit completion and retained cleanup diagnostics for aborted
+  reads and direct detection/compression readers; Drop logging is insufficient.
+  Add a real failed native timestamp-restoration syscall fixture; injected
+  payload warnings do not exercise that failure.
+- [ ] Complete source-stability policies across metadata-only, noatime, stream,
+  and Windows capture. Size/mtime checks alone do not establish a snapshot.
+- [ ] Provide a best-effort dense payload-reader fallback that retains failed
+  extent-discovery diagnostics rather than hiding uncertainty about sparseness.
+- [ ] Propagate lower-level stream, flag, ACL, security/reparse, and directory-
+  sync failures as structured diagnostics. Audit direct file-API callers for
+  retention of receipt warnings, not just CSC journal paths.
+- [ ] Audit Windows identity-query failures for fabricated zero identities.
+  Qualify native link-count and sparse checks before enabling the currently
+  disabled non-Unix identical-file optimization.
+- [ ] Bound production provenance discovery end to end, including CRLite
+  preparation and blocking-client teardown; cover successful live IP/clock
+  discovery separately from the deterministic offline workflow test.
+- [ ] Reconcile legacy JSON migration for removed duplicate identity fields and
+  foreign-path projection with current codecs. Preserve exact source values;
+  rejected old exports and host `PathBuf` limits are not lossless migration.
+- [ ] Audit timestamp decoding for omitted required fields defaulting to epoch
+  and duplicate fields replacing earlier values. Keep generalized timestamp
+  serialization and retention of unknown `EnvDescription.extra` fields aligned
+  with the ongoing Dc parser/derive work, not a separate ad-hoc codec.
+- [ ] Reproduce the unexplained WINE IPC/software-renderer doctest page faults
+  despite success exit statuses. Earlier native coverage was Windows 7 only;
+  modern Windows and unusual native names remain part of the filesystem matrix.
 
 ### Archive Safety and Recovery
 

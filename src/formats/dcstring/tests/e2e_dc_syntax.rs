@@ -2105,4 +2105,82 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_dynamic_custom_container_header_and_trailing_rule() -> Result<()> {
+        let mut registry = SyntaxRuntimeRegistry::new();
+        let custom_open = CharTarget::Dc(9800);
+        let custom_close_u128 = 9801u128;
+        // Register rule: : ~ [type] [number] 9801 [type]
+        // Header: [type], Body: [number], Closer: 9801, Trailing: [type]
+        let rule = DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::One },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::from_u128(custom_close_u128).context("target")?), quantifier: Quantifier::One },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
+            ]),
+            action: None,
+        };
+        registry.register_closing_pair(custom_open.clone(), custom_close_u128);
+        registry.register_rule(custom_open.clone(), rule);
+
+        let headers = registry.resolver().container_header_elements(&custom_open);
+        ensure!(headers.len() == 1, "Expected 1 header element, found {}", headers.len());
+        ensure!(matches!(&headers[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"), "Header should be type construct");
+
+        let trailing = registry.resolver().trailing_after_closer(&custom_open);
+        ensure!(trailing.len() == 1, "Expected 1 trailing element, found {}", trailing.len());
+        ensure!(matches!(&trailing[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"), "Trailing should be type construct");
+
+        // Also test equivalent opener inherits the custom headers and trailing:
+        let equiv_open = 9802u128;
+        registry.register_equivalence(equiv_open, 9800u128);
+        let equiv_open_target = CharTarget::from_u128(equiv_open).context("equiv target")?;
+        let equiv_headers = registry.resolver().container_header_elements(&equiv_open_target);
+        ensure!(equiv_headers.len() == 1, "Equiv opener must inherit custom header");
+        let equiv_trailing = registry.resolver().trailing_after_closer(&equiv_open_target);
+        ensure!(equiv_trailing.len() == 1, "Equiv opener must inherit custom trailing");
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_source_edit_and_dctext_equivalence_overlay() -> Result<()> {
+        let mut registry = SyntaxRuntimeRegistry::new();
+        let synth_local = 9810u128;
+        let canon_local = ctb_formats_dcdata::dc::DC_LOCAL_NODE.to_u128();
+        registry.register_equivalence(synth_local, canon_local);
+
+        // 1. Test dctext serialization with custom LocalNode role
+        let gids = vec![synth_local, 6, 199, 127 + 5, 7]; // @L5@
+        let dctext_bytes = converters::dctext::dclist_to_dctext_with_resolver(&gids, registry.resolver());
+        let dctext_str = std::str::from_utf8(&dctext_bytes)?;
+        ensure!(dctext_str == "@L5@", "Expected @L5@, found {dctext_str}");
+
+        // 2. Test source preservation with custom resolver
+        let mut old_doc = DcMstring::new();
+        old_doc.push_char(DC_BEGIN_KV_MAP);
+        old_doc.push_char(DC_BEGIN_KV_PAIR);
+        "key1".encode_dc_mixed(&mut old_doc)?;
+        old_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        "val1".encode_dc_mixed(&mut old_doc)?;
+        old_doc.push_char(DC_END_KV_PAIR);
+        old_doc.push_char(DC_END_KV_MAP);
+
+        let mut new_doc = DcMstring::new();
+        new_doc.push_char(DC_BEGIN_KV_MAP);
+        new_doc.push_char(DC_BEGIN_KV_PAIR);
+        "key1".encode_dc_mixed(&mut new_doc)?;
+        new_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        "new_val".encode_dc_mixed(&mut new_doc)?;
+        new_doc.push_char(DC_END_KV_PAIR);
+        new_doc.push_char(DC_END_KV_MAP);
+
+        let preserved = source_edit::preserve_source_with_resolver(&old_doc, &new_doc, registry.resolver())?;
+        ensure!(!preserved.as_bytes().is_empty(), "Preserved output must not be empty");
+
+        Ok(())
+    }
 }
