@@ -52,8 +52,8 @@ completion. Unchecked review leads require a focused reproduction before fixes.
   API before deciding which helpers need explicit resolver variants.
 - [ ] Validate ambiguous database grammar and ambiguous derive mappings at
   build time. Equivalence parity is already checked; establish which other
-  ambiguity classes remain unsupported. Prefer existing generated identifiers
-  when useful for annotation diagnostics, without duplicating metadata.
+  ambiguity classes remain unsupported.
+- [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (note that this is different from the current accepted style guide, which forbids @ident only for enums/structs).
 - [ ] Audit remaining handwritten structured codecs and grammar-independent
   encoding paths. Writer-based derives exist; do not equate this with all
   serialization being generated from syntax specifications.
@@ -222,7 +222,6 @@ not a broad Rust rebuild.
 - [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
 - [ ] Eliminate remaining hardcoded Dc numbers and one-sided canonical token matching in `src/formats/dcstring/ctb_dc_macro/src/lib.rs` (`DcChar::from_short(397)` / `DcChar::from_short(561)` at lines `2022, 2753, 2859, 2861, 3446, 3576, 4179, 4239`, and `ctx.canonical_token(tag)` matched against raw `#all_match_tags` without canonicalizing the annotated side or consulting runtime `equiv_map`; from `5e3a561bb:issues/issues.md:146` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:76`).
 - [ ] Finish auditing and migrating remaining hardcoded Dc comparisons in `src/formats/dcdata/dc_char.rs` and `src/formats/dcdata/format_spec/dc_stream.rs` (`Short(535)`, `Short(258)`, `Short(259)`, `Short(299)`, `Short(300)` at `dc_stream.rs:151-245`; from `5e3a561bb:issues/issues.md:146`).
-- [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (`5e3a561bb:issues/issues.md:71`; reworded during cleanup into "Prefer existing generated identifiers...").
 - [ ] Audit `// Reason for fallback:` sites across `dcdata` and `dcstring` that may mask data corruption or broken invariants (from `5e3a561bb:issues/2026-10-13-Dc-syntax-parser-refactor/to-review:3-15` and `subplan-2.md:97`):
   - `src/formats/dcdata/lookup.rs:105`: missing/unparseable `DcList.generated.csv` falls back to an empty lookup table instead of failing loudly.
   - `src/formats/dcdata/column_spec.rs:190,234,248`: out-of-bounds/mid-codepoint slice falls back to `","`.
