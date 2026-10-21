@@ -42,7 +42,7 @@ pub mod error;
 pub mod kv_map;
 pub mod navigator;
 pub mod shared;
-mod source_edit;
+pub mod source_edit;
 mod encapsulation;
 
 pub use converters::dctext::DcList;

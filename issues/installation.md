@@ -24,6 +24,9 @@ cleanup does not establish whether they still occur on current builds.
   <https://github.com/emilk/egui/issues/2517>.
 - [ ] Vietnamese text mixes fonts inconsistently.
 - [ ] File picker Cancel/OK buttons and sidebar locations are not localized.
+- [ ] Reproduce Wayland paste and primary-selection failures. Ctrl-C works,
+  paste does not; selection is not exported, though middle-click can consume
+  another application's selection. Check X11 independently.
 
 ### File Picker
 

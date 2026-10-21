@@ -2108,20 +2108,24 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
     #[crate::ctb_test]
     fn test_dynamic_custom_container_header_and_trailing_rule() -> Result<()> {
+        use ctb_formats_dcdata::syntax::ast::{DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm};
+
         let mut registry = SyntaxRuntimeRegistry::new();
         let custom_open = CharTarget::Dc(9800);
-        let custom_close_u128 = 9801u128;
+        let custom_close = CharTarget::Dc(9801);
+        let custom_close_u128 = custom_close.to_u128();
         // Register rule: : ~ [type] [number] 9801 [type]
         // Header: [type], Body: [number], Closer: 9801, Trailing: [type]
         let rule = DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
-                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::One },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
-                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::from_u128(custom_close_u128).context("target")?), quantifier: Quantifier::One },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::One },
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(custom_close.clone()), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
             ]),
             action: None,
+            raw: String::new(),
         };
         registry.register_closing_pair(custom_open.clone(), custom_close_u128);
         registry.register_rule(custom_open.clone(), rule);
@@ -2135,12 +2139,11 @@ mod dynamic_runtime_equivalence_overlay_tests {
         ensure!(matches!(&trailing[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"), "Trailing should be type construct");
 
         // Also test equivalent opener inherits the custom headers and trailing:
-        let equiv_open = 9802u128;
-        registry.register_equivalence(equiv_open, 9800u128);
-        let equiv_open_target = CharTarget::from_u128(equiv_open).context("equiv target")?;
-        let equiv_headers = registry.resolver().container_header_elements(&equiv_open_target);
+        let equiv_open = CharTarget::Dc(9802);
+        registry.register_equivalence(equiv_open.to_u128(), custom_open.to_u128());
+        let equiv_headers = registry.resolver().container_header_elements(&equiv_open);
         ensure!(equiv_headers.len() == 1, "Equiv opener must inherit custom header");
-        let equiv_trailing = registry.resolver().trailing_after_closer(&equiv_open_target);
+        let equiv_trailing = registry.resolver().trailing_after_closer(&equiv_open);
         ensure!(equiv_trailing.len() == 1, "Equiv opener must inherit custom trailing");
 
         Ok(())
@@ -2149,12 +2152,18 @@ mod dynamic_runtime_equivalence_overlay_tests {
     #[crate::ctb_test]
     fn test_source_edit_and_dctext_equivalence_overlay() -> Result<()> {
         let mut registry = SyntaxRuntimeRegistry::new();
-        let synth_local = 9810u128;
+        let synth_local = DcChar::from_short(9810).to_u128();
         let canon_local = ctb_formats_dcdata::dc::DC_LOCAL_NODE.to_u128();
         registry.register_equivalence(synth_local, canon_local);
 
         // 1. Test dctext serialization with custom LocalNode role
-        let gids = vec![synth_local, 6, 199, 127 + 5, 7]; // @L5@
+        let gids = vec![
+            synth_local,
+            DC_BEGIN_NUMBER.to_u128(),
+            DcChar::from_format(199).to_u128(),
+            DcChar::from_short(127 + 5).to_u128(),
+            DC_END_NUMBER.to_u128(),
+        ]; // @L5@
         let dctext_bytes = converters::dctext::dclist_to_dctext_with_resolver(&gids, registry.resolver());
         let dctext_str = std::str::from_utf8(&dctext_bytes)?;
         ensure!(dctext_str == "@L5@", "Expected @L5@, found {dctext_str}");
@@ -2162,6 +2171,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
         // 2. Test source preservation with custom resolver
         let mut old_doc = DcMstring::new();
         old_doc.push_char(DC_BEGIN_KV_MAP);
+        old_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
+        old_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
         old_doc.push_char(DC_BEGIN_KV_PAIR);
         "key1".encode_dc_mixed(&mut old_doc)?;
         old_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
@@ -2171,6 +2182,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         let mut new_doc = DcMstring::new();
         new_doc.push_char(DC_BEGIN_KV_MAP);
+        new_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
+        new_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_ANY);
         new_doc.push_char(DC_BEGIN_KV_PAIR);
         "key1".encode_dc_mixed(&mut new_doc)?;
         new_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
@@ -2178,7 +2191,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         new_doc.push_char(DC_END_KV_PAIR);
         new_doc.push_char(DC_END_KV_MAP);
 
-        let preserved = source_edit::preserve_source_with_resolver(&old_doc, &new_doc, registry.resolver())?;
+        let preserved = ctb_formats_dcstring::source_edit::preserve_source_with_resolver(&old_doc, &new_doc, registry.resolver())?;
         ensure!(!preserved.as_bytes().is_empty(), "Preserved output must not be empty");
 
         Ok(())

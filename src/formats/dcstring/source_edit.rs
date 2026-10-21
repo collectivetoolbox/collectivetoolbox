@@ -399,14 +399,14 @@ fn write_node(
     Ok(())
 }
 
-pub(crate) fn preserve_source(
+pub fn preserve_source(
     old: &DcMstring,
     new: &DcMstring,
 ) -> Result<DcMstring> {
     preserve_source_with_resolver(old, new, default_syntax_resolver().as_ref())
 }
 
-pub(crate) fn preserve_source_with_resolver(
+pub fn preserve_source_with_resolver(
     old: &DcMstring,
     new: &DcMstring,
     resolver: &dyn SyntaxRuleResolver,
@@ -446,14 +446,14 @@ pub(crate) fn preserve_source_with_resolver(
     Ok(DcMstring::from_bytes(result)?)
 }
 
-pub(crate) fn preserve_text(
+pub fn preserve_text(
     old: &crate::DcStr,
     new: &crate::DcStr,
 ) -> Result<crate::DcString> {
     preserve_text_with_resolver(old, new, default_syntax_resolver().as_ref())
 }
 
-pub(crate) fn preserve_text_with_resolver(
+pub fn preserve_text_with_resolver(
     old: &crate::DcStr,
     new: &crate::DcStr,
     resolver: &dyn SyntaxRuleResolver,

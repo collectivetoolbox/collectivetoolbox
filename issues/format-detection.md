@@ -45,6 +45,17 @@ current behavior before implementing a reported gap.
   EBCDIC inputs, rather than matching only the original bytes. Cover encoded
   XML and scripts, including applicable BOM-less cases.
 
+### Context and Metadata
+
+- [ ] Use the recorded source OS from the file entity for detection hints,
+  not the host running detection. Include the enclosing archive's format/OS
+  association; it may be stronger evidence than the extraction host.
+- [ ] Derive platform priors from the formats database rather than treating
+  the mere presence of Apple metadata as a hardcoded platform decision in
+  `file/entity.rs`.
+- [ ] Evaluate consolidating the MIME crate's mappings with Magdir MIME data,
+  while retaining provenance and resolving conflicting evidence explicitly.
+
 ### CLI Compatibility and Limits
 
 - [ ] Verify and fill gaps in `-e` / `--exclude` test filtering: `apptype`,

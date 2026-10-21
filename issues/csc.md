@@ -1,9 +1,9 @@
 # CSC and Archive Usability
 
 Status: **Partially Implemented**. Consolidates the former milestone/archive
-plans, Windows CSC handoff, and file-detection transcript from build `216aeaa258`. This is not
-qualification as a production backup or snapshot tool. Keep originals until
-their recoverability has been independently verified.
+plans, Windows CSC handoff, and file-detection transcript from build
+`216aeaa258`. This is not qualification as a production backup or snapshot
+tool. Keep originals until their recoverability has been independently verified.
 
 ## Remaining Gaps and Verification
 
@@ -38,12 +38,28 @@ extension does not establish valid descriptor structure.
   and extent flags and special file kinds; include ZFS xattr modes and dataset
   `casesensitivity`, `normalization`, and `utf8only` settings.
 - [ ] Reconcile the old Windows metadata/reparse fail-open allegations with
-  current behavior. Inject
-  capture failures and verify retained diagnostics and non-success exit status.
+  current behavior. Inject capture failures and verify retained diagnostics
+  and non-success exit status.
   Check strict sandboxed directory creation separately from cross-compilation.
 - [ ] Complete bounded-memory capture/projection of large attached streams
   through shared journal batching, materialization, and verification. Primary
   payload streaming alone does not establish payload-independent memory bounds.
+- [ ] Extend AppleDouble/AppleSingle conversion writers to consume nonresident
+  bodies through `AttachedStreamSource`. The earlier implementation rejected
+  these modes before mutation rather than silently omitting streams; native
+  capture, archive writing, and lazy projection already had streaming paths.
+- [ ] Add a repeatable cross-filesystem stream roundtrip: create FreeBSD/ZFS
+  files with several streams larger than 512 KiB and odd, non-scalar/native,
+  and normalization-distinct file/stream names; archive and retain a fixture;
+  extract on Linux as AppleDouble, rearchive with companion reading, extract
+  on Windows 11 as ADS, rearchive, and restore on FreeBSD. Compare exact names,
+  stream hashes, and metadata, ignoring only expected inode/ctime differences.
+  Include Windows 7 coverage and distinguish ADS, Windows EAs, HFS forks, and
+  Unix xattrs rather than silently mapping unrelated namespaces together.
+- [ ] Exercise native Windows link/stream materialization and Windows-only test
+  branches. Windows-source roundtrips on Linux do not establish native support.
+- [ ] Exercise encoding-restrictive filesystems directly: strict refusal and
+  explicit best-effort replacement, beyond host Unix raw-byte replication.
 - [ ] Run and record hostile-tree copy probes on btrfs and native Windows NTFS:
   NFC/NFD and case-only names, invalid native name sequences, empty/small/large
   files, hardlinks, symlinks/reparse points, sparse files, unreadable entries,
@@ -77,8 +93,7 @@ were universally discarded. Generic full-suite reruns are not separate issues.
   time fidelity independently of successful mtime restoration.
 - [ ] Measure destination sparse allocation capabilities rather than assuming
   platform-wide granularity. Qualify sub-unit holes, strict refusal, and retained
-  best-effort losses on NTFS and live ReFS. Live ReFS testing remains deferred
-  in the durable-destination-identity review tracked in [issues.md](issues.md).
+  best-effort losses on NTFS. Live ReFS testing remains deferred below.
 - [ ] Return restoration-induced ctime diagnostics from independent audit and
   symlink cleanup, not only source capture. Close the non-atomic pathname
   identity-check/restoration race for symlinks using shared anchored operations.
@@ -109,6 +124,39 @@ were universally discarded. Generic full-suite reruns are not separate issues.
 - [ ] Reproduce the unexplained WINE IPC/software-renderer doctest page faults
   despite success exit statuses. Earlier native coverage was Windows 7 only;
   modern Windows and unusual native names remain part of the filesystem matrix.
+
+### Copy, Move, and File API
+
+These inbox reports also need reconciliation with current code before changes.
+
+- [ ] Propagate or explicitly retain `restore_applied_directory_ownership`
+  failures in the copy pipeline instead of discarding them.
+- [ ] Qualify resume into deep subtrees containing preexisting uncommitted
+  regular files under `ExistingEntryPolicy::Refuse`, without overwrite. Resuming
+  a previously completed empty subtree does not cover that crash window.
+- [ ] Add durable source inventory and per-source deletion/recovery state for
+  interrupted multi-file moves. In-memory `copied_entities` is not a durable
+  deletion transaction log.
+- [ ] Require caller-selected options for `rematerialize_from_metadata_json`;
+  audit its reported forced overwrite and special-file defaults against CLI
+  authorization rather than silently enabling either behavior.
+- [ ] Qualify default, best-effort, and full-strict modes separately. Native
+  archive tests using best-effort need at least equally thorough default-mode
+  counterparts. Default mode may accommodate properties literally impossible
+  to recreate on the destination, not silently waive reproducible fidelity.
+  Ensure `MaterializeOptions` exposes the same policy choices as the CLI.
+- [ ] Warn about metadata privacy before journals/archives are shared. Reconcile
+  default environment capture and `--no-metadata` behavior; suppressing full
+  environment capture alone does not remove sensitive per-file metadata.
+- [ ] Audit environment capture of all network interfaces/MAC addresses through
+  the shared system API, with explicit privacy policy and retained diagnostics.
+- [ ] Deduplicate disallowed Windows filename rules in `file/identity.rs` and
+  `clean-name`; preserve exact native names and destination-specific policy.
+- [ ] Use native macOS package classification (`NSURLIsPackageKey` or
+  `NSWorkspace::isFilePackageAtPath`, including older GNUstep support) rather
+  than a hardcoded bundle-name list where those APIs are available.
+- [ ] Reproduce the old FIFO-copy report with explicit special-file policy;
+  an unsupported special file must fail without corrupting the source.
 
 ### Archive Safety and Recovery
 
@@ -173,6 +221,9 @@ were universally discarded. Generic full-suite reruns are not separate issues.
 
 ## Deferred
 
+- Live ReFS volume testing from the durable-destination-identity review.
+  Preserve the existing `FileIdInfo`/64-bit fallback and 128-bit inode/receipt
+  identity extension boundary; do not reduce IDs to fit a fixture.
 - Special-file overwrite expansion and recursive deletion to resolve collisions.
 - Compression inside the archive format, encryption, signatures/authentication,
   multipart, completed-archive append/update, deduplication, stdin sources,
