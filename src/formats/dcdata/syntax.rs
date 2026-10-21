@@ -53,7 +53,10 @@ pub use ast::{
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{parse_dc_syntax, parse_target_token};
-pub use resolver::{DatasetRuleResolver, StarterSet, SyntaxRuleResolver};
+pub use resolver::{
+    DatasetRuleResolver, StarterSet, SyntaxRuleResolver,
+    extract_container_header_elements, extract_trailing_after_closer,
+};
 pub use role::DcRole;
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,

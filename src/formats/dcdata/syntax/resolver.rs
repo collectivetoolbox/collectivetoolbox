@@ -325,7 +325,7 @@ fn pattern_is_opaque_container(pattern: &SyntaxPattern, closer_token: u128) -> b
         .is_some_and(|body_el| term_is_lexical_payload(&body_el.term))
 }
 
-fn extract_container_header_elements(
+pub fn extract_container_header_elements(
     pattern: &SyntaxPattern,
     closer_token: u128,
 ) -> Vec<SyntaxElement> {
@@ -367,7 +367,7 @@ fn extract_container_header_elements(
         .to_vec()
 }
 
-fn extract_trailing_after_closer(
+pub fn extract_trailing_after_closer(
     pattern: &SyntaxPattern,
     closer_token: u128,
 ) -> Vec<SyntaxElement> {

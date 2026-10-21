@@ -377,6 +377,8 @@ pub struct SyntaxRuntimeResolver {
     semantic_equivalents: std::collections::HashMap<u128, std::collections::HashSet<u128>>,
     roles_overlay: std::collections::HashMap<u128, std::collections::HashSet<DcRole>>,
     custom_rules: std::collections::HashMap<CharTarget, DcSyntaxRule>,
+    custom_container_headers: std::collections::HashMap<CharTarget, Vec<ctb_formats_dcdata::SyntaxElement>>,
+    custom_trailing: std::collections::HashMap<CharTarget, Vec<ctb_formats_dcdata::SyntaxElement>>,
     closing_delimiters: std::collections::HashMap<u128, CharTarget>,
     opener_to_closer: std::collections::HashMap<CharTarget, u128>,
     opaque_containers: std::collections::HashSet<u128>,
@@ -389,6 +391,8 @@ impl std::fmt::Debug for SyntaxRuntimeResolver {
             .field("semantic_equivalents", &self.semantic_equivalents)
             .field("roles_overlay", &self.roles_overlay)
             .field("custom_rules", &self.custom_rules)
+            .field("custom_container_headers", &self.custom_container_headers)
+            .field("custom_trailing", &self.custom_trailing)
             .field("closing_delimiters", &self.closing_delimiters)
             .field("opener_to_closer", &self.opener_to_closer)
             .field("opaque_containers", &self.opaque_containers)
@@ -412,6 +416,8 @@ impl SyntaxRuntimeResolver {
             semantic_equivalents: std::collections::HashMap::new(),
             roles_overlay: std::collections::HashMap::new(),
             custom_rules: std::collections::HashMap::new(),
+            custom_container_headers: std::collections::HashMap::new(),
+            custom_trailing: std::collections::HashMap::new(),
             closing_delimiters: std::collections::HashMap::new(),
             opener_to_closer: std::collections::HashMap::new(),
             opaque_containers: std::collections::HashSet::new(),
@@ -470,11 +476,31 @@ impl SyntaxRuntimeResolver {
     /// Registers an opener/closer delimiter pair.
     pub fn register_closing_pair(&mut self, opener: CharTarget, closer: u128) {
         self.closing_delimiters.insert(closer, opener.clone());
-        self.opener_to_closer.insert(opener, closer);
+        self.opener_to_closer.insert(opener.clone(), closer);
+        if let Some(rule) = self.custom_rules.get(&opener).cloned() {
+            let header = ctb_formats_dcdata::syntax::extract_container_header_elements(&rule.pattern, closer);
+            if !header.is_empty() {
+                self.custom_container_headers.insert(opener.clone(), header);
+            }
+            let trailing = ctb_formats_dcdata::syntax::extract_trailing_after_closer(&rule.pattern, closer);
+            if !trailing.is_empty() {
+                self.custom_trailing.insert(opener, trailing);
+            }
+        }
     }
 
     /// Registers a custom syntax rule for `target`.
     pub fn register_rule(&mut self, target: CharTarget, rule: DcSyntaxRule) {
+        if let Some(closer) = self.closer_for_opener(&target) {
+            let header = ctb_formats_dcdata::syntax::extract_container_header_elements(&rule.pattern, closer);
+            if !header.is_empty() {
+                self.custom_container_headers.insert(target.clone(), header);
+            }
+            let trailing = ctb_formats_dcdata::syntax::extract_trailing_after_closer(&rule.pattern, closer);
+            if !trailing.is_empty() {
+                self.custom_trailing.insert(target.clone(), trailing);
+            }
+        }
         self.custom_rules.insert(target, rule);
     }
 
@@ -703,10 +729,16 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
     }
 
     fn container_header_elements(&self, opener: &CharTarget) -> &[SyntaxElement] {
+        if let Some(elements) = self.custom_container_headers.get(opener) {
+            return elements;
+        }
         let token = opener.to_u128();
         let canon = self.canonical_token(token);
         if canon != token {
             if let Some(canon_target) = CharTarget::from_u128(canon) {
+                if let Some(elements) = self.custom_container_headers.get(&canon_target) {
+                    return elements;
+                }
                 let elements = self.base.container_header_elements(&canon_target);
                 if !elements.is_empty() {
                     return elements;
@@ -717,10 +749,16 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
     }
 
     fn trailing_after_closer(&self, opener: &CharTarget) -> &[SyntaxElement] {
+        if let Some(trailing) = self.custom_trailing.get(opener) {
+            return trailing;
+        }
         let token = opener.to_u128();
         let canon = self.canonical_token(token);
         if canon != token {
             if let Some(canon_target) = CharTarget::from_u128(canon) {
+                if let Some(trailing) = self.custom_trailing.get(&canon_target) {
+                    return trailing;
+                }
                 let trailing = self.base.trailing_after_closer(&canon_target);
                 if !trailing.is_empty() {
                     return trailing;
@@ -3406,11 +3444,12 @@ impl<'a> DcDocumentNavigator<'a> {
         stack
     }
 
-    /// Parses a single root node from `bytes` into `arena` using `policy`.
-    pub fn parse_arena(
+    /// Parses a single root node from `bytes` into `arena` using `policy` and `resolver`.
+    pub fn parse_arena_with_resolver(
         bytes: &'a [u8],
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<NodeId> {
         let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
             let mstr = DcMstr::from_bytes_with_policy(bytes, policy)?;
@@ -3419,7 +3458,7 @@ impl<'a> DcDocumentNavigator<'a> {
             let text = DcStr::from_bytes(bytes)?;
             Self::from_dc_str(text)
         };
-        nav.parse_document_into_arena(arena, policy)?;
+        nav.parse_document_into_arena_with_resolver(arena, policy, resolver)?;
         arena
             .roots()
             .first()
@@ -3427,11 +3466,21 @@ impl<'a> DcDocumentNavigator<'a> {
             .ok_or_else(|| anyhow::anyhow!("Empty document or node stream"))
     }
 
-    /// Parses all document root nodes from `bytes` into `arena` using `policy`.
-    pub fn parse_document_arena(
+    /// Parses a single root node from `bytes` into `arena` using `policy`.
+    pub fn parse_arena(
         bytes: &'a [u8],
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
+    ) -> Result<NodeId> {
+        Self::parse_arena_with_resolver(bytes, arena, policy, default_syntax_resolver().as_ref())
+    }
+
+    /// Parses all document root nodes from `bytes` into `arena` using `policy` and `resolver`.
+    pub fn parse_document_arena_with_resolver(
+        bytes: &'a [u8],
+        arena: &mut DcSyntaxArena<'a>,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
         let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
             let mstr = DcMstr::from_bytes_with_policy(bytes, policy)?;
@@ -3440,7 +3489,16 @@ impl<'a> DcDocumentNavigator<'a> {
             let text = DcStr::from_bytes(bytes)?;
             Self::from_dc_str(text)
         };
-        nav.parse_document_into_arena(arena, policy)
+        nav.parse_document_into_arena_with_resolver(arena, policy, resolver)
+    }
+
+    /// Parses all document root nodes from `bytes` into `arena` using `policy`.
+    pub fn parse_document_arena(
+        bytes: &'a [u8],
+        arena: &mut DcSyntaxArena<'a>,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        Self::parse_document_arena_with_resolver(bytes, arena, policy, default_syntax_resolver().as_ref())
     }
 
     fn build_arena_node_from_stub(
@@ -3902,6 +3960,7 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         start_offset: u64,
         policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<(u64, DcFrameHeaderInfo)>> {
         match &mut self.backend {
             NavBackend::MemoryMstr(mstr) => {
@@ -3937,7 +3996,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
                         let data_len = u64::try_from(data.len())?;
                         let abs_data_start = end_offset.saturating_sub(data_len);
-                        let parsed = crate::encapsulation::parse_metadata_with_policy(metadata, policy)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(metadata, policy, resolver)?;
                         let data_type = parsed.data_type.map(DcStr::to_owned);
                         Ok(Some((
                             end_offset,
@@ -4022,7 +4081,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             .read_exact(&mut meta_bytes)
                             .context("Truncated .dcmm metadata payload")?;
                         let meta_str = DcStr::from_bytes(&meta_bytes)?;
-                        let parsed = crate::encapsulation::parse_metadata_with_policy(meta_str, policy)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(meta_str, policy, resolver)?;
                         data_type = parsed.data_type.map(DcStr::to_owned);
                         checksum = parsed.checksum_spec;
                     }
@@ -4073,21 +4132,30 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    fn scan_binary_at(&mut self, start_offset: u64, policy: &DcProjectionPolicy) -> Result<(u64, DcFrameHeaderInfo)> {
-        if let Some(res) = self.try_scan_raw_binary_at(start_offset, policy)? {
+    fn scan_binary_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, DcFrameHeaderInfo)> {
+        if let Some(res) = self.try_scan_raw_binary_at(start_offset, policy, resolver)? {
             return Ok(res);
         }
-        self.scan_textual_binary_at(start_offset)
+        self.scan_textual_binary_at(start_offset, resolver)
     }
 
-    fn scan_textual_binary_at(&mut self, start_offset: u64) -> Result<(u64, DcFrameHeaderInfo)> {
+    fn scan_textual_binary_at(
+        &mut self,
+        start_offset: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, DcFrameHeaderInfo)> {
         let mut offset = start_offset;
         let mut depth = 0usize;
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             offset = next_offset;
-            if ch.fills_role(DcRole::StartEncapsulationBinary) {
+            if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
                 depth = depth.saturating_add(1);
-            } else if ch.fills_role(DcRole::EndEncapsulationBinary) {
+            } else if ch.fills_role_with(DcRole::EndEncapsulationBinary, resolver) {
                 depth = depth.checked_sub(1).context("Unexpected binary encapsulation closer (Dc 204)")?;
                 if depth == 0 {
                     return Ok((

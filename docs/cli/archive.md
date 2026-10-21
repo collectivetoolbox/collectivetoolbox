@@ -2,7 +2,7 @@
 
 Status: **Partially Implemented**. This is an experimental command, not yet a
 production-ready backup tool. Keep original files until recovery has been
-independently validated. See [the implementation tracker](../../issues/csc-usability/archive.md).
+independently validated. See [the implementation tracker](../../issues/csc-usability.md).
 
 ## Commands
 

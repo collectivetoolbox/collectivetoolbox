@@ -38,7 +38,7 @@ Large-stream memory bounds, durable inventory/recovery, replacement policies,
 and platform/security coverage still have gaps. Do not treat checksums as
 authentication or use an archive
 as the only copy of important data. See [the command reference](cli/archive.md)
-and [remaining implementation work](../issues/csc-usability/archive.md).
+and [remaining implementation work](../issues/csc-usability.md).
 
 ## Safety Checks
 
