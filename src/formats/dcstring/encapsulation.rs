@@ -31,7 +31,8 @@ use ctb_formats_dcdata::dc::{
     DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
 };
 use ctb_formats_dcdata::syntax::{
-    Quantifier, SyntaxElement, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
+    default_syntax_resolver, DcRole, Quantifier, SyntaxElement, SyntaxPattern,
+    SyntaxRuleResolver, SyntaxTerm,
 };
 
 pub(crate) struct Metadata<'a> {
@@ -119,8 +120,9 @@ impl<'a> Cursor<'a> {
         if !self.peek().is_some_and(|ch| self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginNumber)) {
             return Ok(None);
         }
+        let resolver = self.resolver;
         let length =
-            crate::dc_number::read_dc_number_from_reader_with_resolver(|| self.next(), self.resolver)?;
+            crate::dc_number::read_dc_number_from_reader_with_resolver(|| self.next(), resolver)?;
         Ok(Some(usize::try_from(&length).map_err(|_| {
             anyhow::anyhow!("Invalid encapsulation byte length")
         })?))

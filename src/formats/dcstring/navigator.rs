@@ -5823,6 +5823,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         } else {
                             Some(first_ch.to_u128())
                         }
+                    });
                     let matches_fmt = match (expected_id, actual_id) {
                         (Some(exp), Some(act)) => ctx.resolver.is_equivalent_to(act, exp),
                         _ => false,
@@ -6643,7 +6644,7 @@ fn check_type_compatibility(
             "number" => {
                 let is_number_fmt = tok.fills_role_with(DcRole::TypeNumber, resolver)
                     || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
-                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_INTEGER.to_u128())
+                    || resolver.is_equivalent_to(tok_u128, DC_INTEGER.to_u128())
                     || resolver.matches_script("Formats:number", tok_u128)
                     || resolver.matches_script("number", tok_u128);
                 if !is_number_fmt {
@@ -6664,7 +6665,7 @@ fn check_type_compatibility(
                     } else {
                         tok.fills_role_with(DcRole::TypeNumber, resolver)
                             || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
-                            || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_INTEGER.to_u128())
+                            || resolver.is_equivalent_to(tok_u128, DC_INTEGER.to_u128())
                     }
                 } else {
                     true
