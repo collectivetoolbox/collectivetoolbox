@@ -185,10 +185,11 @@ pub fn dclist_to_utf8(
                             let mut inner_dcs = Vec::new();
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
-                                    if let Some(digit) = resolver.base64_digit_value(k_dc) {
+                                    let canon_k_dc = resolver.canonical_token(k_dc);
+                                    if let Some(digit) = resolver.base64_digit_value(canon_k_dc) {
                                         inner_dcs.push(ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit).to_short()?);
                                     } else if let Ok(k_short) = u32::try_from(
-                                        k_dc.saturating_sub(SHORT_DC_REGION_START),
+                                        canon_k_dc.saturating_sub(SHORT_DC_REGION_START),
                                     ) {
                                         inner_dcs.push(k_short);
                                     }
@@ -213,9 +214,35 @@ pub fn dclist_to_utf8(
                     }
 
                     // Sub-case 2b: Standard short Dc to UTF-8 mapping
+                    let canon_dc = resolver.canonical_token(dc);
+                    if canon_dc <= 0x10_FFFF {
+                        if let Ok(cp_u32) = u32::try_from(canon_dc) {
+                            if let Some(ch) = char::from_u32(cp_u32) {
+                                flush_unmappables(
+                                    &mut out,
+                                    &mut unmappables,
+                                    &mut found_any_unmappables,
+                                    false,
+                                    settings,
+                                    &start_uuid_bytes,
+                                )?;
+                                let mut buf = [0u8; 4];
+                                let encoded = ch.encode_utf8(&mut buf);
+                                out.extend_from_slice(encoded.as_bytes());
+                                i = i.saturating_add(1);
+                                continue;
+                            }
+                        }
+                    }
+                    let lookup_short = if canon_dc >= SHORT_DC_REGION_START {
+                        // Reason for unwrap_or: If offset from SHORT_DC_REGION_START exceeds u32, fallback to original short_dc.
+                        u32::try_from(canon_dc.saturating_sub(SHORT_DC_REGION_START)).unwrap_or(short_dc)
+                    } else {
+                        short_dc
+                    };
                     if let Ok((mapped_bytes, dc_log)) =
                         ctb_formats_eite::formats::dc_to_format(
-                            "utf8", short_dc,
+                            "utf8", lookup_short,
                         )
                     {
                         log.merge(&dc_log);

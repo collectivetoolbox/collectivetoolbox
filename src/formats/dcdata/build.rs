@@ -170,6 +170,7 @@ pub(crate) mod syntax {
 
     pub use ast::{
         CharTarget, DcSyntaxRule, SyntaxElement, SyntaxPattern, SyntaxTerm,
+        normalize_syntax_pattern,
     };
     pub use data_constraint::parse_data_constraint;
     pub use parser::{parse_dc_syntax, parse_target_token};

@@ -871,11 +871,6 @@ impl DatasetRuleResolver {
         }).collect();
         let mut graph: HashMap<u128, HashSet<u128>> = HashMap::new();
         for (source, target) in &equivalents {
-            let source_rule = CharTarget::from_u128(*source).and_then(|key| resolver.rules.get(&key));
-            let target_rule = resolver.rules.get(target);
-            ensure!(source_rule.map(|rule| (&rule.pattern, &rule.action))
-                == target_rule.map(|rule| (&rule.pattern, &rule.action)),
-                "Equivalent tokens {source} and {target:?} have incompatible syntax");
             graph.entry(*source).or_default().insert(target.to_u128());
             graph.entry(target.to_u128()).or_default().insert(*source);
         }
@@ -940,6 +935,53 @@ impl DatasetRuleResolver {
             for &member in members {
                 resolver.canonical_map.insert(member, canonical);
                 resolver.semantic_equivalents.insert(member, members.clone());
+            }
+        }
+
+        // Validate syntax rule and @closes parity across equivalent tokens
+        let defns_by_id: HashMap<u128, &DcDefn> = dc_defns.iter().chain(format_defns.iter()).map(|d| (d.dc_id, d)).collect();
+        for (source, target) in &equivalents {
+            let source_defn = defns_by_id.get(source);
+            let target_u128 = target.to_u128();
+            let target_defn = defns_by_id.get(&target_u128);
+
+            // 1. Verify syntax rule parity with pattern normalization
+            let source_rule = CharTarget::from_u128(*source).and_then(|key| resolver.rules.get(&key));
+            let target_rule = resolver.rules.get(target);
+
+            let s_self = source_defn.and_then(|d| d.short_id).and_then(|id| u32::try_from(id).ok());
+            let t_self = target_defn.and_then(|d| d.short_id).and_then(|id| u32::try_from(id).ok());
+
+            let s_norm_pattern = source_rule.map(|r| super::ast::normalize_syntax_pattern(&r.pattern, s_self, &resolver.canonical_map));
+            let t_norm_pattern = target_rule.map(|r| super::ast::normalize_syntax_pattern(&r.pattern, t_self, &resolver.canonical_map));
+            let s_action = source_rule.map(|r| &r.action);
+            let t_action = target_rule.map(|r| &r.action);
+
+            ensure!(
+                s_norm_pattern == t_norm_pattern && s_action == t_action,
+                "Equivalent tokens {source} and {target:?} have incompatible syntax"
+            );
+
+            // 2. Verify @closes parity
+            let s_closes = source_defn.and_then(|d| d.closes.as_ref());
+            let t_closes = target_defn.and_then(|d| d.closes.as_ref());
+            match (s_closes, t_closes) {
+                (None, None) => {}
+                (Some(s_c), Some(t_c)) => {
+                    let s_gid: u128 = s_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
+                    let t_gid: u128 = t_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
+                    let s_canon = resolver.canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                    let t_canon = resolver.canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
+                    ensure!(
+                        s_canon == t_canon,
+                        "Equivalent tokens {source} and {target:?} have incompatible @closes: {s_c:?} vs {t_c:?}"
+                    );
+                }
+                _ => {
+                    bail!(
+                        "Equivalent tokens {source} and {target:?} have incompatible @closes: one declares @closes and the other does not"
+                    );
+                }
             }
         }
 
@@ -1457,7 +1499,7 @@ mod tests {
         alias_close.short_id = Some(110);
         alias_close.dc_id = DcChar::from_short(110).to_u128();
         alias_close.is_deprecated = true;
-        alias_close.closes = None;
+        alias_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
         alias_close.decompositions = vec!["<equiv>960".to_owned()];
 
         let resolver = DatasetRuleResolver::load_from_dataset(

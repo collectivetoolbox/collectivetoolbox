@@ -50,15 +50,21 @@ struct Cursor<'a> {
     chars: DcChars<'a>,
     checksum_action: crate::DiagnosticAction,
     max_depth: usize,
+    resolver: &'a dyn SyntaxRuleResolver,
 }
 
 impl<'a> Cursor<'a> {
-    fn with_policy(source: &'a DcStr, policy: &crate::DcProjectionPolicy) -> Self {
+    fn with_policy(
+        source: &'a DcStr,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &'a dyn SyntaxRuleResolver,
+    ) -> Self {
         Self {
             source,
             chars: source.chars(),
             checksum_action: policy.syntax_error,
             max_depth: policy.max_encapsulation_metadata_depth,
+            resolver,
         }
     }
 
@@ -85,7 +91,6 @@ impl<'a> Cursor<'a> {
         let Some(slice) = self.source.get(start..) else {
             return Ok(None);
         };
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         let mut nav = crate::DcDocumentNavigator::from_dc_str(slice);
         let pattern = SyntaxPattern::Sequence(vec![SyntaxElement {
             term: SyntaxTerm::NamedConstruct {
@@ -95,7 +100,7 @@ impl<'a> Cursor<'a> {
             },
             quantifier: Quantifier::ExactOne,
         }]);
-        let mut ctx = crate::SyntaxEvalContext::new(&**resolver, None);
+        let mut ctx = crate::SyntaxEvalContext::new(self.resolver, None);
         if !nav.eval_pattern(&pattern, &mut ctx)?
             || ctx.has_errors
             || nav.position() == 0
@@ -111,20 +116,18 @@ impl<'a> Cursor<'a> {
     }
 
     fn read_length(&mut self) -> Result<Option<usize>> {
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginNumber)) {
+        if !self.peek().is_some_and(|ch| self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginNumber)) {
             return Ok(None);
         }
         let length =
-            crate::dc_number::read_dc_number_from_reader(|| self.next())?;
+            crate::dc_number::read_dc_number_from_reader_with_resolver(|| self.next(), self.resolver)?;
         Ok(Some(usize::try_from(&length).map_err(|_| {
             anyhow::anyhow!("Invalid encapsulation byte length")
         })?))
     }
 
     fn read_checksum(&mut self) -> Result<Option<(&'a DcStr, Option<ChecksumSpec>)>> {
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        if !self.peek().is_some_and(|ch| resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::StartEncapsulationBinary)) {
+        if !self.peek().is_some_and(|ch| self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::StartEncapsulationBinary)) {
             return Ok(None);
         }
         let start = self.position();
@@ -143,24 +146,30 @@ impl<'a> Cursor<'a> {
             syntax_error: self.checksum_action,
             ..crate::DcProjectionPolicy::strict()
         };
-        let algorithm = ChecksumSpec::algorithm_for_digest(data_type, u64::try_from(digest.len())?, &policy)?;
+        let algorithm = ChecksumSpec::algorithm_for_digest_with_resolver(
+            data_type,
+            u64::try_from(digest.len())?,
+            &policy,
+            self.resolver,
+        )?;
         Ok(algorithm.map(|algorithm| ChecksumSpec { algorithm, expected_digest: digest }))
     }
 
     fn read_body(&mut self, length: Option<usize>) -> Result<Vec<u8>> {
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         let mut digits = Vec::new();
         loop {
             let ch = self.next()?;
-            if resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::EndEncapsulationBinary) {
+            if self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::EndEncapsulationBinary) {
                 break;
             }
             ensure!(
-                resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Digit)
-                    || resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Padding),
+                self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Digit)
+                    || self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Padding),
                 "Expected base64 Dc in binary encapsulation"
             );
-            let short = ch.to_short()?;
+            let canon_u128 = self.resolver.canonical_token(ch.to_u128());
+            let canon_ch = DcChar::from_u128(canon_u128);
+            let short = canon_ch.to_short()?;
             digits.push(short);
         }
         let data = ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&digits)?;
@@ -246,15 +255,23 @@ struct PayloadLevel<'a> {
     checksum: Option<(&'a DcStr, Option<ChecksumSpec>)>,
 }
 
-fn single_format(data_type: &DcStr) -> Result<FormatId> {
-    let mut chars = data_type.chars();
-    let ch = chars.next().context("Missing checksum type")?;
-    let format = FormatId::from_dc_id(ch.to_u128())
-        .context("Unknown checksum format")?;
+fn single_format(data_type: &DcStr, resolver: &dyn SyntaxRuleResolver) -> Result<FormatId> {
+    let mut chars: Vec<DcChar> = data_type.chars().collect();
+    if chars.len() >= 2
+        && resolver.token_fills_role(chars.first().map_or(0, |c| c.to_u128()), DcRole::BeginTypeDef)
+        && resolver.token_fills_role(chars.last().map_or(0, |c| c.to_u128()), DcRole::EndTypeDef)
+    {
+        chars.pop();
+        chars.remove(0);
+    }
     ensure!(
-        chars.next().is_none(),
+        chars.len() == 1,
         "Checksum requires a single hash format"
     );
+    let ch = chars[0];
+    let canon = resolver.canonical_token(ch.to_u128());
+    let format = FormatId::from_dc_id(canon)
+        .context("Unknown checksum format")?;
     Ok(format)
 }
 
@@ -279,7 +296,15 @@ pub(crate) fn parse_metadata_with_policy<'a>(
     source: &'a DcStr,
     policy: &crate::DcProjectionPolicy,
 ) -> Result<Metadata<'a>> {
-    let mut cursor = Cursor::with_policy(source, policy);
+    parse_metadata_with_policy_and_resolver(source, policy, default_syntax_resolver().as_ref())
+}
+
+pub(crate) fn parse_metadata_with_policy_and_resolver<'a>(
+    source: &'a DcStr,
+    policy: &crate::DcProjectionPolicy,
+    resolver: &'a dyn SyntaxRuleResolver,
+) -> Result<Metadata<'a>> {
+    let mut cursor = Cursor::with_policy(source, policy, resolver);
     let data_type = cursor.read_type()?;
     let checksum = cursor.read_checksum()?;
     ensure!(
@@ -302,7 +327,16 @@ pub(crate) fn validate_metadata_with_policy(
     data: &[u8],
     policy: &crate::DcProjectionPolicy,
 ) -> Result<()> {
-    verify(&parse_metadata_with_policy(source, policy)?, data, policy.syntax_error)
+    validate_metadata_with_policy_and_resolver(source, data, policy, default_syntax_resolver().as_ref())
+}
+
+pub(crate) fn validate_metadata_with_policy_and_resolver(
+    source: &DcStr,
+    data: &[u8],
+    policy: &crate::DcProjectionPolicy,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<()> {
+    verify(&parse_metadata_with_policy_and_resolver(source, policy, resolver)?, data, policy.syntax_error)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -320,7 +354,21 @@ impl ChecksumSpec {
         length: u64,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<Option<SupportedHashFormat>> {
-        let format = single_format(data_type)?;
+        Self::algorithm_for_digest_with_resolver(
+            data_type,
+            length,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
+    }
+
+    pub(crate) fn algorithm_for_digest_with_resolver(
+        data_type: &DcStr,
+        length: u64,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<SupportedHashFormat>> {
+        let format = single_format(data_type, resolver)?;
         ensure!(
             ctb_formats_utilities::get_format_info_by_id(format)
                 .is_some_and(|info| info.category == "hash"),
@@ -364,7 +412,15 @@ pub(crate) fn parse_text_with_policy(
     source: &DcStr,
     policy: &crate::DcProjectionPolicy,
 ) -> Result<(DcString, Vec<u8>, usize)> {
-    let mut cursor = Cursor::with_policy(source, policy);
+    parse_text_with_policy_and_resolver(source, policy, default_syntax_resolver().as_ref())
+}
+
+pub(crate) fn parse_text_with_policy_and_resolver(
+    source: &DcStr,
+    policy: &crate::DcProjectionPolicy,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<(DcString, Vec<u8>, usize)> {
+    let mut cursor = Cursor::with_policy(source, policy, resolver);
     let (metadata, data) = cursor.read_payload()?;
     let mut header = DcString::new();
     if let Some(data_type) = metadata.data_type {

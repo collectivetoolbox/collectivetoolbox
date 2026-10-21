@@ -42,7 +42,8 @@ use crate::shared::{
 use crate::syntax::{
     CharTarget, DcSyntaxRule, FormatValidationRegistry, SyntaxElement,
     SyntaxPattern, SyntaxTerm, build_format_validation_registry,
-    parse_dc_syntax, parse_target_token, validate_dc_syntax,
+    normalize_syntax_pattern, parse_dc_syntax, parse_target_token,
+    validate_dc_syntax,
 };
 use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
 use ctb_storage_minimal::shorthand::parse_unicode_shorthand;
@@ -1220,50 +1221,6 @@ pub fn validate_dc_category_file(
     rows
 }
 
-/// Normalizes a syntax pattern by converting explicit references to the defining
-/// character's Short ID into `SyntaxTerm::SelfChar` (`~`).
-fn normalize_syntax_pattern(
-    pattern: &SyntaxPattern,
-    self_short: Option<u32>,
-) -> SyntaxPattern {
-    match pattern {
-        SyntaxPattern::Sequence(elements) => {
-            SyntaxPattern::Sequence(
-                elements
-                    .iter()
-                    .map(|elem| {
-                        let term = match &elem.term {
-                            SyntaxTerm::CharRef(CharTarget::Dc(id))
-                                if self_short == Some(*id) =>
-                            {
-                                SyntaxTerm::SelfChar
-                            }
-                            SyntaxTerm::Group(group_pat) => {
-                                SyntaxTerm::Group(normalize_syntax_pattern(
-                                    group_pat, self_short,
-                                ))
-                            }
-                            other => other.clone(),
-                        };
-                        SyntaxElement {
-                            term,
-                            quantifier: elem.quantifier,
-                        }
-                    })
-                    .collect(),
-            )
-        }
-        SyntaxPattern::Alternation(branches) => {
-            SyntaxPattern::Alternation(
-                branches
-                    .iter()
-                    .map(|b| normalize_syntax_pattern(b, self_short))
-                    .collect(),
-            )
-        }
-    }
-}
-
 /// Validates target references strictly (Dc short IDs, lowercase Unicode `uXXXX`, Formats `fXX`).
 fn collect_format_ids_from_expr(
     expr: &crate::format_spec::FormatExpr,
@@ -1663,6 +1620,8 @@ where
 
     // Build equivalence connected components for normalizing equivalent opener targets
     let mut equiv_graph: HashMap<u128, HashSet<u128>> = HashMap::new();
+    let mut equiv_sources: HashSet<u128> = HashSet::new();
+    let mut equiv_targets: HashSet<u128> = HashSet::new();
     for r in &all_rows {
         for decomp in &r.decompositions {
             if let Some((tag_raw, payload)) = decomp.split_once('>') {
@@ -1674,6 +1633,8 @@ where
                                 if let Ok(target_gid) = sh.to_global_id() {
                                     equiv_graph.entry(r.dc_id).or_default().insert(target_gid);
                                     equiv_graph.entry(target_gid).or_default().insert(r.dc_id);
+                                    equiv_sources.insert(r.dc_id);
+                                    equiv_targets.insert(target_gid);
                                 }
                             }
                         }
@@ -1695,6 +1656,8 @@ where
                                         if let Ok(target_gid) = sh.to_global_id() {
                                             equiv_graph.entry(fmt_sh).or_default().insert(target_gid);
                                             equiv_graph.entry(target_gid).or_default().insert(fmt_sh);
+                                            equiv_sources.insert(fmt_sh);
+                                            equiv_targets.insert(target_gid);
                                         }
                                     }
                                 }
@@ -1705,6 +1668,18 @@ where
             }
         }
     }
+
+    let is_dep = |token: u128| -> bool {
+        let dc = DcChar::from_u128(token);
+        if let Ok(sid) = dc.to_short() {
+            deprecated_dc_ids.contains(&sid)
+        } else if let Some(fid) = ctb_utilities::format_id::FormatId::from_dc_id(token) {
+            fid.shorthand().trim_start_matches('f').parse::<usize>().ok()
+                .is_some_and(|id| deprecated_format_ids.contains(&id))
+        } else {
+            false
+        }
+    };
 
     let mut canonical_map: HashMap<u128, u128> = HashMap::new();
     let mut visited_equiv: HashSet<u128> = HashSet::new();
@@ -1725,7 +1700,37 @@ where
                 }
             }
         }
-        if let Some(&canonical) = component.iter().min() {
+
+        let terminal_targets: Vec<u128> = component
+            .iter()
+            .copied()
+            .filter(|m| equiv_targets.contains(m) && !equiv_sources.contains(m) && !is_dep(*m))
+            .collect();
+        let non_dep_targets: Vec<u128> = component
+            .iter()
+            .copied()
+            .filter(|m| equiv_targets.contains(m) && !is_dep(*m))
+            .collect();
+        let non_dep_members: Vec<u128> = component
+            .iter()
+            .copied()
+            .filter(|m| !is_dep(*m))
+            .collect();
+        let any_targets: Vec<u128> = component
+            .iter()
+            .copied()
+            .filter(|m| equiv_targets.contains(m))
+            .collect();
+
+        let canonical = terminal_targets
+            .into_iter()
+            .min()
+            .or_else(|| non_dep_targets.into_iter().min())
+            .or_else(|| non_dep_members.into_iter().min())
+            .or_else(|| any_targets.into_iter().min())
+            .or_else(|| component.iter().copied().min());
+
+        if let Some(canonical) = canonical {
             for member in component {
                 canonical_map.insert(member, canonical);
             }
@@ -1855,8 +1860,8 @@ where
                                     } else if let (Some(s_rule), Some(t_rule)) = (&row.syntax, target_syntax.as_ref()) {
                                         let s_self = row.short_id.and_then(|id| u32::try_from(id).ok());
                                         let t_self = u32::try_from(target_sid).ok();
-                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self);
-                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, t_self);
+                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self, &canonical_map);
+                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, t_self, &canonical_map);
                                         if s_norm != t_norm || s_rule.action != t_rule.action {
                                             report.add_error(
                                                 &row.source_file,
@@ -1946,8 +1951,8 @@ where
                                         );
                                     } else if let (Some(s_rule), Some(t_rule)) = (&row.syntax, fmt_info.syntax.as_ref()) {
                                         let s_self = row.short_id.and_then(|id| u32::try_from(id).ok());
-                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self);
-                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, None);
+                                        let s_norm = normalize_syntax_pattern(&s_rule.pattern, s_self, &canonical_map);
+                                        let t_norm = normalize_syntax_pattern(&t_rule.pattern, None, &canonical_map);
                                         if s_norm != t_norm || s_rule.action != t_rule.action {
                                             report.add_error(
                                                 &row.source_file,

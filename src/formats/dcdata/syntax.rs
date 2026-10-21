@@ -49,6 +49,7 @@ mod data_constraint;
 pub use ast::{
     ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    normalize_syntax_pattern,
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{parse_dc_syntax, parse_target_token};

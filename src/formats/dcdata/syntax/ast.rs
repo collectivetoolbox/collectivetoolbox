@@ -275,3 +275,85 @@ pub struct SyntaxDiagnostic {
     /// Whether this diagnostic represents a syntax/framing error.
     pub is_error: bool,
 }
+
+/// Normalizes a syntax pattern by converting explicit references to the defining
+/// character's Short ID (or any equivalent ID) into `SyntaxTerm::SelfChar` (`~`),
+/// and mapping target references to their canonical equivalents under `canonical_map`.
+pub fn normalize_syntax_pattern(
+    pattern: &SyntaxPattern,
+    self_short: Option<u32>,
+    canonical_map: &std::collections::HashMap<u128, u128>,
+) -> SyntaxPattern {
+    let norm_target = |ct: &CharTarget| -> CharTarget {
+        let gid = ct.to_u128();
+        if let Some(&canon_gid) = canonical_map.get(&gid) {
+            CharTarget::from_u128(canon_gid).unwrap_or_else(|| ct.clone())
+        } else {
+            ct.clone()
+        }
+    };
+
+    let is_self = |ct: &CharTarget| -> bool {
+        match ct {
+            CharTarget::Dc(id) if self_short == Some(*id) => true,
+            _ => {
+                if let Some(self_id) = self_short {
+                    let self_gid = DcChar::from_short(self_id).to_u128();
+                    let canon_self = canonical_map.get(&self_gid).copied().unwrap_or(self_gid);
+                    let ct_gid = ct.to_u128();
+                    let canon_ct = canonical_map.get(&ct_gid).copied().unwrap_or(ct_gid);
+                    canon_self == canon_ct
+                } else {
+                    false
+                }
+            }
+        }
+    };
+
+    match pattern {
+        SyntaxPattern::Sequence(elements) => {
+            SyntaxPattern::Sequence(
+                elements
+                    .iter()
+                    .map(|elem| {
+                        let term = match &elem.term {
+                            SyntaxTerm::CharRef(ct) if is_self(ct) => SyntaxTerm::SelfChar,
+                            SyntaxTerm::CharRef(ct) => SyntaxTerm::CharRef(norm_target(ct)),
+                            SyntaxTerm::CharSet { negated, members } => {
+                                let mut norm_members: Vec<CharTarget> =
+                                    members.iter().map(norm_target).collect();
+                                norm_members.sort();
+                                norm_members.dedup();
+                                SyntaxTerm::CharSet {
+                                    negated: *negated,
+                                    members: norm_members,
+                                }
+                            }
+                            SyntaxTerm::CharRange { start, end } => SyntaxTerm::CharRange {
+                                start: norm_target(start),
+                                end: norm_target(end),
+                            },
+                            SyntaxTerm::RuleRef { target } => SyntaxTerm::RuleRef {
+                                target: norm_target(target),
+                            },
+                            SyntaxTerm::Group(group_pat) => SyntaxTerm::Group(
+                                normalize_syntax_pattern(group_pat, self_short, canonical_map),
+                            ),
+                            other => other.clone(),
+                        };
+                        SyntaxElement {
+                            term,
+                            quantifier: elem.quantifier,
+                        }
+                    })
+                    .collect(),
+            )
+        }
+        SyntaxPattern::Alternation(branches) => SyntaxPattern::Alternation(
+            branches
+                .iter()
+                .map(|b| normalize_syntax_pattern(b, self_short, canonical_map))
+                .collect(),
+        ),
+    }
+}

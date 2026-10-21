@@ -1776,7 +1776,7 @@ pub enum DcFrameHeaderInfo {
     SplicedIdentifier(String),
     /// Spliced number construct (`6..7`).
     SplicedNumber {
-        format: Option<DcChar>,
+        format: DcChar,
         digits: Vec<DcChar>,
     },
 }
@@ -2356,6 +2356,143 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(None);
                 }
             }
+
+            if head_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
+                let closer = resolver
+                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                    self.spliced_tokens.pop_front();
+                    let mut type_header = Vec::new();
+                    if let Some(&hdr_open) = self.spliced_tokens.front() {
+                        if hdr_open.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                            self.spliced_tokens.pop_front();
+                            while let Some(tok) = self.spliced_tokens.pop_front() {
+                                if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
+                                    break;
+                                }
+                                type_header.push(tok);
+                            }
+                        }
+                    }
+                    let mut decoded = String::new();
+                    while let Some(tok) = self.spliced_tokens.pop_front() {
+                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                            break;
+                        }
+                        if tok.fills_role_with(DcRole::Escape, resolver) {
+                            if let Some(escaped) = self.spliced_tokens.pop_front() {
+                                if let Ok(ch) = escaped.to_unicode() {
+                                    if let Some(c) = char::from_u32(ch) {
+                                        decoded.push(c);
+                                    }
+                                }
+                            }
+                        } else if let Ok(ch) = tok.to_unicode() {
+                            if let Some(c) = char::from_u32(ch) {
+                                decoded.push(c);
+                            }
+                        }
+                    }
+                    return Ok(Some(DcFrameStub {
+                        head_dc,
+                        closer_dc: Some(closer),
+                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                        inner_span: None,
+                        header_info: DcFrameHeaderInfo::SplicedLiteral { type_header, decoded },
+                    }));
+                }
+            }
+
+            if head_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                let closer = resolver
+                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                    self.spliced_tokens.pop_front();
+                    let mut name = String::new();
+                    while let Some(tok) = self.spliced_tokens.pop_front() {
+                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                            break;
+                        }
+                        if tok.fills_role_with(DcRole::Escape, resolver) {
+                            if let Some(escaped) = self.spliced_tokens.pop_front() {
+                                if let Ok(ch) = escaped.to_unicode() {
+                                    if let Some(c) = char::from_u32(ch) {
+                                        name.push(c);
+                                    }
+                                }
+                            }
+                        } else if let Ok(ch) = tok.to_unicode() {
+                            if let Some(c) = char::from_u32(ch) {
+                                name.push(c);
+                            }
+                        }
+                    }
+                    return Ok(Some(DcFrameStub {
+                        head_dc,
+                        closer_dc: Some(closer),
+                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                        inner_span: None,
+                        header_info: DcFrameHeaderInfo::SplicedIdentifier(name),
+                    }));
+                }
+            }
+
+            if head_dc.fills_role_with(DcRole::BeginNumber, resolver) {
+                let closer = resolver
+                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(6)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                    self.spliced_tokens.pop_front();
+                    let format = match self.spliced_tokens.front() {
+                        Some(&tok) if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) => DC_INTEGER,
+                        Some(_) => self.spliced_tokens.pop_front().unwrap_or(DC_INTEGER),
+                        None => DC_INTEGER,
+                    };
+                    let mut digits = Vec::new();
+                    while let Some(tok) = self.spliced_tokens.pop_front() {
+                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                            break;
+                        }
+                        digits.push(tok);
+                    }
+                    return Ok(Some(DcFrameStub {
+                        head_dc,
+                        closer_dc: Some(closer),
+                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                        inner_span: None,
+                        header_info: DcFrameHeaderInfo::SplicedNumber { format, digits },
+                    }));
+                }
+            }
+
+            let closer_opt = CharTarget::from_u128(head_dc.to_u128())
+                .and_then(|t| resolver.closer_for_opener(&t))
+                .map(DcChar::from_u128)
+                .or_else(|| {
+                    if head_dc.fills_role_with(DcRole::BeginList, resolver) {
+                        Some(ctb_formats_dcdata::dc::DC_END_LIST)
+                    } else {
+                        None
+                    }
+                });
+            if let Some(closer) = closer_opt {
+                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                    self.spliced_tokens.pop_front();
+                    return Ok(Some(DcFrameStub {
+                        head_dc,
+                        closer_dc: Some(closer),
+                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                        inner_span: Some(DcByteSpan::new(self.cursor, self.cursor)),
+                        header_info: DcFrameHeaderInfo::None,
+                    }));
+                }
+            }
+
             self.spliced_tokens.pop_front();
             return Ok(Some(DcFrameStub {
                 head_dc,
@@ -2759,7 +2896,8 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if resolver.token_fills_role(target.to_u128(), DcRole::BeginFormatRepresentation) {
                 if let Some((format, _)) = self.read_token_or_binary_at(inner.start)? {
-                    if let Some(format_target @ CharTarget::Format(_)) = CharTarget::from_u128(format.to_u128()) {
+                    let canon_format = resolver.canonical_token(format.to_u128());
+                    if let Some(format_target @ CharTarget::Format(_)) = CharTarget::from_u128(canon_format) {
                         if resolver.resolve_rule(&format_target).is_some() {
                             self.cursor = inner.start;
                             let mut ctx = SyntaxEvalContext::new(resolver, None);
@@ -2821,7 +2959,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(());
         }
         let (_, digits) = self.decode_number_span_with_resolver(DcByteSpan::new(inner.start, self.cursor), resolver)?;
-        let length = crate::dc_number::parse_dc_number_digits(&digits)?;
+        let length = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, resolver)?;
         let Ok(expected) = usize::try_from(&length) else {
             return self.syntax_issue(policy, inner.start, "Invalid declared list length".to_owned());
         };
@@ -3349,6 +3487,28 @@ impl<'a> DcDocumentNavigator<'a> {
                              current_depth: usize,
                              arena: &mut DcSyntaxArena<'a>|
          -> Result<StubStep> {
+            match &stub.header_info {
+                DcFrameHeaderInfo::SplicedLiteral { type_header, decoded } => {
+                    return Ok(StubStep::Leaf(arena.alloc(
+                        stub.outer_span,
+                        DcSyntaxKind::Literal {
+                            type_header: type_header.clone(),
+                            decoded: decoded.clone(),
+                        },
+                    )));
+                }
+                DcFrameHeaderInfo::SplicedIdentifier(name) => {
+                    return Ok(StubStep::Leaf(
+                        arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name: name.clone() }),
+                    ));
+                }
+                DcFrameHeaderInfo::SplicedNumber { format, digits } => {
+                    return Ok(StubStep::Leaf(
+                        arena.alloc(stub.outer_span, DcSyntaxKind::Number { format: *format, digits: digits.clone() }),
+                    ));
+                }
+                _ => {}
+            }
             let head = stub.head_dc;
             if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
                 let node = nav.parse_binary_arena_node(stub.outer_span, policy)?;
@@ -4203,7 +4363,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     if num_open.fills_role_with(DcRole::BeginNumber, resolver) {
                         if let Ok(num_end) = self.scan_until_token(after_num_open, ctb_formats_dcdata::dc::DC_END_NUMBER, policy, resolver) {
                             if let Ok((_, digits)) = self.decode_number_span_with_resolver(DcByteSpan::new(after_tag, num_end), resolver) {
-                                if let Ok(int_val) = crate::dc_number::parse_dc_number_digits(&digits) {
+                                if let Ok(int_val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, resolver) {
                                     sequence_id = u64::try_from(&int_val).ok();
                                 }
                             }
@@ -5058,7 +5218,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         } else if let Some(fmt_id) = FormatId::from_shorthand(sub)
                             .or_else(|| FormatId::from_ident(sub))
                         {
-                            if fmt_id.dc_id() == Some(first) {
+                            if fmt_id.dc_id().is_some_and(|exp| ctx.resolver.is_equivalent_to(first, exp)) {
                                 if from_spliced {
                                     self.spliced_tokens.pop_front();
                                 } else {
@@ -5078,7 +5238,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                         let fmt_match = FormatId::from_shorthand(sub)
                                             .or_else(|| FormatId::from_ident(sub))
                                             .and_then(|f| f.dc_id())
-                                            == Some(inner_u128);
+                                            .is_some_and(|exp| ctx.resolver.is_equivalent_to(inner_u128, exp));
                                         if fmt_match
                                             || ctx.resolver.matches_script(&script_name, inner_u128)
                                             || ctx.resolver.matches_script(sub, inner_u128)
@@ -5115,7 +5275,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                                 ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                                 .contains(&first);
-                        if ctb_formats_dcdata::is_type_token(first)
+                        if ctx.resolver.token_fills_role(first, DcRole::TypeToken)
                             || is_format_token
                             || ctx.resolver.matches_script(".EL Types", first)
                             || ctx.resolver.matches_script("Formats", first)
@@ -5190,7 +5350,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
                 if name != "value" && first_dc.fills_role_with(DcRole::EvaluableExpressionStarter, ctx.resolver) {
                     let checkpoint = self.save_checkpoint();
-                    if let Ok(Some(stub)) = self.next_sibling_stub(&ctx.policy) {
+                    if let Ok(Some(stub)) = self.next_sibling_stub_with_resolver(&ctx.policy, ctx.resolver) {
                         let expr_tokens = self.read_tokens_in_span(stub.outer_span).unwrap_or_default();
                         let expr_dc_chars: Vec<DcChar> = expr_tokens.into_iter().map(DcChar::from_u128).collect();
                         let req = ValueRequirement::NamedConstruct {
@@ -5654,8 +5814,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         } else {
                             Some(first_ch.to_u128())
                         }
-                    });
-                    if expected_id.is_none() || actual_id != expected_id {
+                    let matches_fmt = match (expected_id, actual_id) {
+                        (Some(exp), Some(act)) => ctx.resolver.is_equivalent_to(act, exp),
+                        _ => false,
+                    };
+                    if !matches_fmt {
                         return Ok(false);
                     }
                 }
@@ -5698,13 +5861,17 @@ impl<'a> DcDocumentNavigator<'a> {
                     } else {
                         tokens.get(1).copied()
                     };
-                if expected_id.is_none() || actual_id != expected_id {
+                let matches_fmt = match (expected_id, actual_id) {
+                    (Some(exp), Some(act)) => ctx.resolver.is_equivalent_to(act, exp),
+                    _ => false,
+                };
+                if !matches_fmt {
                     self.cursor = start_offset;
                     return Ok(false);
                 }
             }
             if let Some(req_bytes) = expected_bytes {
-                match encapsulated_byte_length(&tokens) {
+                match encapsulated_byte_length(&tokens, ctx.resolver) {
                     Ok(len) if len == req_bytes => {}
                     Ok(_) => {
                         self.cursor = start_offset;
@@ -5771,6 +5938,91 @@ impl<'a> DcDocumentNavigator<'a> {
         subtype: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
+        let term_checkpoint = self.save_checkpoint();
+        if let Some(&first_dc) = self.spliced_tokens.front() {
+            if !first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
+                return Ok(false);
+            }
+            self.spliced_tokens.pop_front();
+            let Some(hdr_open) = self.spliced_tokens.pop_front() else {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            };
+            if !hdr_open.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            let Some(type_dc) = self.spliced_tokens.pop_front() else {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            };
+            if !ctx.resolver.matches_script(".EL Types", type_dc.to_u128()) {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            let Some(hdr_close) = self.spliced_tokens.pop_front() else {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            };
+            if !hdr_close.fills_role_with(DcRole::EndTypeDef, ctx.resolver) {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            let mut decoded_payload = Vec::new();
+            let mut found_closer = false;
+            while let Some(ch) = self.spliced_tokens.pop_front() {
+                if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
+                    let Some(escaped) = self.spliced_tokens.pop_front() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
+                    if subtype.is_some() {
+                        decoded_payload.push(escaped);
+                    }
+                } else if ch.fills_role_with(DcRole::EndLiteral, ctx.resolver) {
+                    found_closer = true;
+                    break;
+                } else if subtype.is_some() {
+                    decoded_payload.push(ch);
+                }
+            }
+            if !found_closer {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            if let Some(sub_str) = subtype {
+                let sub_rule = match parse_dc_syntax(sub_str) {
+                    Ok(r) => r,
+                    Err(_) => {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    }
+                };
+                let mut payload_dc_str =
+                    DcString::with_capacity(decoded_payload.len().saturating_mul(4));
+                for dch in decoded_payload {
+                    payload_dc_str.push(dch);
+                }
+                let mut sub_nav = DcDocumentNavigator::from_dc_str(&payload_dc_str);
+                let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
+                sub_ctx.policy.clone_from(&ctx.policy);
+                sub_ctx.depth = ctx.depth.saturating_add(1);
+                sub_ctx.max_depth = ctx.max_depth;
+                sub_ctx.call_stack.clone_from(&ctx.call_stack);
+                let sub_ok = sub_nav.eval_pattern(&sub_rule.pattern, &mut sub_ctx)?;
+                ctx.has_errors |= sub_ctx.has_errors;
+                ctx.diagnostics.extend(sub_ctx.diagnostics);
+                if !sub_ok
+                    || sub_ctx.has_errors
+                    || sub_nav.position() != sub_nav.active_span().end
+                {
+                    self.restore_checkpoint(term_checkpoint);
+                    return Ok(false);
+                }
+            }
+            return Ok(true);
+        }
+
         let start_offset = self.cursor;
         let Some((first_dc, after_260)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
@@ -5897,6 +6149,35 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     fn eval_identifier_frame(&mut self, ctx: &mut SyntaxEvalContext<'_>) -> Result<bool> {
+        let term_checkpoint = self.save_checkpoint();
+        if let Some(&first_dc) = self.spliced_tokens.front() {
+            if !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
+                return Ok(false);
+            }
+            self.spliced_tokens.pop_front();
+            let mut char_count = 0usize;
+            let mut found_closer = false;
+            while let Some(ch) = self.spliced_tokens.pop_front() {
+                if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
+                    let Some(_escaped) = self.spliced_tokens.pop_front() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
+                    char_count = char_count.saturating_add(1);
+                } else if ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver) {
+                    found_closer = true;
+                    break;
+                } else {
+                    char_count = char_count.saturating_add(1);
+                }
+            }
+            if !found_closer || char_count == 0 {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            return Ok(true);
+        }
+
         let start_offset = self.cursor;
         let Some((first_dc, mut offset)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
@@ -5952,6 +6233,48 @@ impl<'a> DcDocumentNavigator<'a> {
         subtype: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
+        let term_checkpoint = self.save_checkpoint();
+        if let Some(&first_dc) = self.spliced_tokens.front() {
+            if !first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
+                return Ok(false);
+            }
+            self.spliced_tokens.pop_front();
+            let Some(fmt_dc) = self.spliced_tokens.pop_front() else {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            };
+            if !ctx.resolver.matches_script("Formats:number", fmt_dc.to_u128())
+                && !ctx.resolver.matches_script("number", fmt_dc.to_u128())
+            {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            let mut digits = Vec::new();
+            let mut found_closer = false;
+            while let Some(ch) = self.spliced_tokens.pop_front() {
+                if ch.fills_role_with(DcRole::EndNumber, ctx.resolver) {
+                    found_closer = true;
+                    break;
+                }
+                digits.push(ch);
+            }
+            if !found_closer || digits.is_empty() {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            if let Some(sub) = subtype {
+                let Ok(val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, ctx.resolver) else {
+                    self.restore_checkpoint(term_checkpoint);
+                    return Ok(false);
+                };
+                if !number_satisfies_subtype(&val, sub, ctx.resolver) {
+                    self.restore_checkpoint(term_checkpoint);
+                    return Ok(false);
+                }
+            }
+            return Ok(true);
+        }
+
         let start_offset = self.cursor;
         let Some((first_dc, after_6)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
@@ -5976,12 +6299,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 if let Some(sub) = subtype {
                     let Ok((_, digits)) =
-                        self.decode_number_span(DcByteSpan::new(start_offset, next_off))
+                        self.decode_number_span_with_resolver(DcByteSpan::new(start_offset, next_off), ctx.resolver)
                     else {
                         self.cursor = start_offset;
                         return Ok(false);
                     };
-                    let Ok(val) = crate::dc_number::parse_dc_number_digits(&digits) else {
+                    let Ok(val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, ctx.resolver) else {
                         self.cursor = start_offset;
                         return Ok(false);
                     };

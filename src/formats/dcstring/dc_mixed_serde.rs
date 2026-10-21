@@ -626,7 +626,10 @@ impl DcMixedDecode for DcRawValue {
             DcSyntaxKind::Binary { checksum_format, payload, .. } => {
                 let bytes = ctx.materialize_binary(payload)?.into_owned();
                 let format = checksum_format
-                    .map(|dc| FormatId::from_dc_id(dc.to_u128()).context("Unsupported binary format identifier"))
+                    .map(|dc| {
+                        let canon = ctx.canonical_token(dc);
+                        FormatId::from_dc_id(canon.to_u128()).context("Unsupported binary format identifier")
+                    })
                     .transpose()?;
                 Ok(Self::Binary {
                     format,
@@ -657,7 +660,7 @@ fn decode_integer_node(
     let node = ctx.node(node_id)?;
     match &node.kind {
         DcSyntaxKind::Number { digits, .. } => {
-            crate::dc_number::parse_dc_number_digits(digits)
+            crate::dc_number::parse_dc_number_digits_with_resolver(digits, ctx.resolver())
         }
         other => bail!("Expected Number node for integer, found {other:?}"),
     }
@@ -786,14 +789,47 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
 
     /// Returns true if two tokens are identical or declared logically equivalent.
     #[must_use]
-    pub fn tokens_equivalent(&self, a: DcChar, b: DcChar) -> bool {
-        self.resolver().is_equivalent_to(a.to_u128(), b.to_u128())
+    pub fn tokens_equivalent(&self, a: impl Into<u128>, b: impl Into<u128>) -> bool {
+        let a_val = a.into();
+        let b_val = b.into();
+        a_val == b_val || self.resolver().is_equivalent_to(a_val, b_val)
+    }
+
+    /// Returns true if `token` is identical or declared logically equivalent to any
+    /// candidate in `candidates`.
+    #[must_use]
+    pub fn any_token_equivalent(&self, token: impl Into<u128>, candidates: &[u128]) -> bool {
+        let tok = token.into();
+        for &cand in candidates {
+            if tok == cand || self.resolver().is_equivalent_to(tok, cand) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Returns true if `token` fills `role`.
     #[must_use]
-    pub fn token_fills_role(&self, token: DcChar, role: DcRole) -> bool {
-        self.resolver().token_fills_role(token.to_u128(), role)
+    pub fn token_fills_role(&self, token: impl Into<u128>, role: DcRole) -> bool {
+        self.resolver().token_fills_role(token.into(), role)
+    }
+
+    /// Looks up the syntax rule for a format by its [`FormatId`] using the active resolver.
+    #[must_use]
+    pub fn get_format_rule(&self, fid: FormatId) -> Option<crate::navigator::FormatSyntaxRule> {
+        let rule = self.resolver().resolve_rule(&ctb_formats_dcdata::CharTarget::Format(fid))?;
+        let expr = match &rule.pattern {
+            ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) => {
+                let payload_items: Vec<_> = items
+                    .iter()
+                    .filter(|el| !matches!(el.term, ctb_formats_dcdata::SyntaxTerm::SelfChar))
+                    .cloned()
+                    .collect();
+                ctb_formats_dcdata::DcSyntaxExpr::Sequence(payload_items)
+            }
+            other => other.clone(),
+        };
+        Some(crate::navigator::FormatSyntaxRule { expr })
     }
 
     /// Creates a new projection context with an optional enclosing shared context.
@@ -1364,11 +1400,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         DcSyntaxKind::Tagged { tag, .. } => *tag,
                         other => bail!("Expected Atom or Identifier for format token in Dc 511, found {other:?}"),
                     };
-                    let is_sequence_format = if let Some(fid) = FormatId::from_dc_id(format.to_u128()) {
-                        if let Some(rule) = crate::navigator::SyntaxRuntimeRegistry::global()
-                            .resolver()
-                            .get_format_rule(fid)
-                        {
+                    let canon_format = self.canonical_token(format);
+                    let is_sequence_format = if let Some(fid) = FormatId::from_dc_id(canon_format.to_u128()) {
+                        if let Some(rule) = self.get_format_rule(fid) {
                             matches!(&rule.expr, ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) if items.len() >= 2)
                         } else {
                             false
@@ -1854,7 +1888,8 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
         mst: &mut crate::DcWriter<'_>,
         context: &crate::SharedValueContext,
     ) -> Result<()> {
-        let is_seq_len_2 = if let Some(fid) = FormatId::from_dc_id(format.to_u128()) {
+        let canon = ctb_formats_dcdata::syntax::default_syntax_resolver().canonical_token(format.to_u128());
+        let is_seq_len_2 = if let Some(fid) = FormatId::from_dc_id(canon) {
             if let Some(rule) = crate::navigator::SyntaxRuntimeRegistry::global()
                 .resolver()
                 .get_format_rule(fid)
@@ -2036,7 +2071,7 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
                 let second_id = children.get(1).copied();
                 let is_followed_by_type = if let Some(sec_id) = second_id {
                     let sec_node = ctx.node(sec_id)?;
-                    matches!(sec_node.kind, DcSyntaxKind::Atom(ch) if ctb_formats_dcdata::is_type_token(ch.0))
+                    matches!(sec_node.kind, DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, DcRole::TypeToken))
                 } else {
                     false
                 };
@@ -2049,7 +2084,7 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
         if let Some(&id) = iter.peek() {
             let n = ctx.node(id)?;
             if let DcSyntaxKind::Atom(ch) = &n.kind {
-                if ctb_formats_dcdata::is_type_token(ch.0) {
+                if ctx.token_fills_role(*ch, DcRole::TypeToken) {
                     let _ = iter.next();
                 }
             }
@@ -2181,7 +2216,8 @@ impl DcMixedDecode for ctb_formats_utilities::FormatId {
         let node = ctx.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Atom(ch) => {
-                if let Some(fid) = Self::from_dc_id(ch.0) {
+                let canon = ctx.canonical_token(*ch);
+                if let Some(fid) = Self::from_dc_id(canon.0) {
                     Ok(fid)
                 } else {
                     bail!("Unknown format DC character {ch:?}")
@@ -2788,14 +2824,16 @@ impl DcMixedDecode for SystemTime {
                 };
                 let first = ctx.node(first_child)?;
                 let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
-                    let fid = FormatId::from_dc_id(tag.0)
+                    let canon_tag = ctx.canonical_token(*tag);
+                    let fid = FormatId::from_dc_id(canon_tag.0)
                         .context("Expected date format token after 390")?;
                     let Some(&arg_id) = args.first() else {
                         bail!("Missing number after format token in Dc 390..391");
                     };
                     (fid, arg_id)
                 } else if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let fid = FormatId::from_dc_id(ch.0)
+                    let canon_ch = ctx.canonical_token(*ch);
+                    let fid = FormatId::from_dc_id(canon_ch.0)
                         .context("Expected date format token after 390")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in Dc 390..391");
@@ -2851,14 +2889,16 @@ impl DcMixedDecode for Duration {
                 };
                 let first = ctx.node(first_child)?;
                 let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
-                    let fid = FormatId::from_dc_id(tag.0)
+                    let canon_tag = ctx.canonical_token(*tag);
+                    let fid = FormatId::from_dc_id(canon_tag.0)
                         .context("Expected date/duration format token")?;
                     let Some(&arg_id) = args.first() else {
                         bail!("Missing number after format token in duration");
                     };
                     (fid, arg_id)
                 } else if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let fid = FormatId::from_dc_id(ch.0)
+                    let canon_ch = ctx.canonical_token(*ch);
+                    let fid = FormatId::from_dc_id(canon_ch.0)
                         .context("Expected date/duration format token")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in duration");
