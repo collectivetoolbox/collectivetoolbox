@@ -1590,7 +1590,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         if encoding == crate::DcKvMapEncoding::Pairs {
             for &entry_id in slice {
                 let entry_node = self.node(entry_id)?;
-                if let DcSyntaxKind::Atom(ch) = entry_node.kind {
+                if !entry_node.is_escaped_atom()
+                    && let DcSyntaxKind::Atom(ch) = entry_node.kind
+                {
                     if self.token_fills_role(ch, DcRole::ListElementSeparator) {
                         continue;
                     }
@@ -1611,7 +1613,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         let mut items = Vec::new();
                         for &pc_id in pair_children {
                             let pc_node = self.node(pc_id)?;
-                            if let DcSyntaxKind::Atom(ch) = pc_node.kind {
+                            if !pc_node.is_escaped_atom()
+                                && let DcSyntaxKind::Atom(ch) = pc_node.kind
+                            {
                                 if self.token_fills_role(ch, DcRole::ListElementSeparator) {
                                     continue;
                                 }
@@ -1639,7 +1643,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             let mut items = Vec::new();
             for &ch_id in slice {
                 let ch_node = self.node(ch_id)?;
-                if let DcSyntaxKind::Atom(ch) = ch_node.kind {
+                if !ch_node.is_escaped_atom()
+                    && let DcSyntaxKind::Atom(ch) = ch_node.kind
+                {
                     if self.token_fills_role(ch, DcRole::ListElementSeparator) {
                         continue;
                     }

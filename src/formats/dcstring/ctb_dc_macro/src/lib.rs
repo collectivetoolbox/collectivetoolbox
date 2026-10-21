@@ -1233,12 +1233,6 @@ fn expand_named_representation(
             }, quote! {
                 let node_id = ctx.unwrap_transparent(node_id)?;
                 let (encoding, entries) = ctx.extract_kv_map_entries(node_id)?;
-                if encoding == #crate_root::DcKvMapEncoding::Legacy {
-                    ctx.policy.handle(
-                        ctx.policy.deprecated_syntax,
-                        format!("Deprecated Dc 313..314 key-value map syntax used for {}", stringify!(#type_name)),
-                    )?;
-                }
 
                 #(#field_inits)*
 

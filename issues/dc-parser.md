@@ -30,19 +30,18 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Parser and Projection Ownership
 
-- [ ] Finish parser-owned normalization and deprecation handling. The derive
-  still branches on `DcKvMapEncoding::Legacy` and emits its own syntax warning
-  in [macro codegen](../src/formats/dcstring/ctb_dc_macro/src/lib.rs#L1236).
-  Projectors should map parsed values and report unused/missing fields through
-  one general policy path, not rediscover grammar or legacy representations.
-- [ ] Reconcile the strict-deprecation contract: the original request requires
-  errors, but [strict()](../src/formats/dcstring/navigator.rs#L1013) sets
-  `deprecated_syntax` to `Warn`, and `is_strict()` does not consider it. Confirm
-  any later approved change before changing behavior or tests.
-- [ ] Centralize retained diagnostics across parser, projection, inspection,
-  and journal consumers. [Policy handling](../src/formats/dcstring/navigator.rs#L1108)
-  alone logs or returns without recording a diagnostic; verify quiet recovery,
-  deprecated syntax, conversion failures, unknown fields, and missing fields.
+- [x] Finish parser-owned `Dc 313..314` deprecation handling and reconcile the
+  `strict()` deprecation contract: removed duplicate legacy map warnings from
+  [macro codegen](../src/formats/dcstring/ctb_dc_macro/src/lib.rs#L1235) and
+  [arena classification](../src/formats/dcstring/navigator.rs#L3662) so
+  [the scanner](../src/formats/dcstring/navigator.rs#L2718) emits and records
+  the deprecation diagnostic once, while `DcProjectionPolicy::strict()` keeps
+  `deprecated_syntax: DiagnosticAction::Warn` (since deprecated Dcs remain valid
+  legacy documents).
+- [ ] Finish auditing remaining retained diagnostics across projection,
+  inspection, and journal consumers (`record_diagnostic` now records parser
+  diagnostics in `DcDocumentNavigator` and drains them into `DcSyntaxArena` even
+  on error; verify conversion failures, unknown fields, and missing fields).
 - [ ] Audit remaining default-resolver boundaries rather than repeating the
   completed role migration. For example,
   [minimal number readers](../src/formats/dcdata/dc_number_minimal.rs#L71)
@@ -216,9 +215,14 @@ not a broad Rust rebuild.
 
 ## Recovered From Pre-Cleanup `issues/` (To Filter)
 
-- [ ] Treat alternative-representation Dcs (`397` / `561`) and escape Dc (`255`) as globally implied syntax usable anywhere relevant rather than only where explicitly written in a syntax rule (from `5e3a561bb:issues/issues.md:91`):
-  - Allow `397` / `561` anywhere a value has multiple representations (e.g., `378` "Timestamp clock resolution" `: ~ [datemagnitude]` expressed in two time systems via `397`), and remove the accidental explicit `397` / `561` from the single syntax rule where they were listed by mistake.
-  - Allow escape Dc `255` anywhere a payload Dc would otherwise collide with enclosing syntax (e.g., `374 376 255 377 [number] 377 [number]` inside `374` "File data extent" `:~ 376 [number:Natural0] 377 [number:Natural0]`).
+- [ ] Remove the accidental explicit `| [397:] | [561:]` from `Dc 388` in
+  [semantic.csv](../src/formats/dcdata/data/categories/semantic.csv#L93) and
+  allow `eval_constrained_equivalent_list` in
+  [navigator.rs](../src/formats/dcstring/navigator.rs#L5066) to evaluate
+  grouped alternations inside `397` / `561` (`378` and non-grouped operands
+  already support implicit `397` / `561`; `Dc 255` single-token role stripping
+  and arena/projection preservation of escaped atoms are now implemented via
+  `DcFrameHeaderInfo::Escaped` and `DcSyntaxNode::is_escaped_atom()`).
 - [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
 - [ ] Eliminate remaining hardcoded Dc numbers and one-sided canonical token matching in `src/formats/dcstring/ctb_dc_macro/src/lib.rs` (`DcChar::from_short(397)` / `DcChar::from_short(561)` at lines `2022, 2753, 2859, 2861, 3446, 3576, 4179, 4239`, and `ctx.canonical_token(tag)` matched against raw `#all_match_tags` without canonicalizing the annotated side or consulting runtime `equiv_map`; from `5e3a561bb:issues/issues.md:146` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:76`).
 - [ ] Finish auditing and migrating remaining hardcoded Dc comparisons in `src/formats/dcdata/dc_char.rs` and `src/formats/dcdata/format_spec/dc_stream.rs` (`Short(535)`, `Short(258)`, `Short(259)`, `Short(299)`, `Short(300)` at `dc_stream.rs:151-245`; from `5e3a561bb:issues/issues.md:146`).

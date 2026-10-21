@@ -1524,6 +1524,16 @@ impl<'a> DcSyntaxNode<'a> {
         })
     }
 
+    /// Returns true if this node is an `Atom` that was escaped by `Dc 255` (`Escape`),
+    /// stripping one layer of syntactic role at the enclosing level.
+    #[must_use]
+    pub fn is_escaped_atom(&self) -> bool {
+        match self.kind {
+            DcSyntaxKind::Atom(ch) => self.span.len() > dc_char_utf8e128_len(ch),
+            _ => false,
+        }
+    }
+
     /// Returns the child node IDs if this node is a container or tagged construct.
     #[must_use]
     pub fn children(&self) -> &[NodeId] {
@@ -1624,10 +1634,14 @@ impl<'a> DcSyntaxArena<'a> {
         let mut result = Vec::new();
         let mut current = Vec::new();
         for &id in nodes {
-            if self
-                .get(id)
-                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.fills_role_with(DcRole::ListElementSeparator, resolver)))
-            {
+            if self.get(id).is_some_and(|n| {
+                !n.is_escaped_atom()
+                    && matches!(
+                        n.kind,
+                        DcSyntaxKind::Atom(ch)
+                            if ch.fills_role_with(DcRole::ListElementSeparator, resolver)
+                    )
+            }) {
                 result.push(std::mem::take(&mut current));
             } else {
                 current.push(id);
@@ -1826,6 +1840,8 @@ pub enum DcFrameHeaderInfo {
         format: DcChar,
         digits: Vec<DcChar>,
     },
+    /// Character whose syntactic role at this level was escaped by `Dc 255`.
+    Escaped,
 }
 
 /// Lightweight descriptor for a single sibling frame or statement at the
@@ -2561,8 +2577,9 @@ impl<'a> DcDocumentNavigator<'a> {
         // 0. Escape sequence (Dc 255 + escaped character)
         if first_dc.fills_role_with(DcRole::Escape, resolver) {
             let Some((escaped_dc, after_escaped)) = self.read_token_or_binary_at(after_first)? else {
-                policy.handle(
-                    policy.syntax_error,
+                self.syntax_issue(
+                    policy,
+                    start_offset,
                     format!("Dangling escape Dc 255 at offset {start_offset}"),
                 )?;
                 self.cursor = after_first;
@@ -2580,7 +2597,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 closer_dc: None,
                 outer_span: DcByteSpan::new(start_offset, after_escaped),
                 inner_span: None,
-                header_info: DcFrameHeaderInfo::None,
+                header_info: DcFrameHeaderInfo::Escaped,
             }));
         }
 
@@ -2642,8 +2659,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 if end_offset
                     == after_first.saturating_add(dc_char_utf8e128_len(closer))
                 {
-                    policy.handle(
-                        policy.syntax_error,
+                    self.syntax_issue(
+                        policy,
+                        start_offset,
                         format!("Empty identifier frame at offset {start_offset}"),
                     )?;
                 }
@@ -2682,8 +2700,9 @@ impl<'a> DcDocumentNavigator<'a> {
 
         // Reject dangling closing delimiters
         if let Some(opener) = resolver.closing_opener_for(first_dc.to_u128()) {
-            policy.handle(
-                policy.syntax_error,
+            self.syntax_issue(
+                policy,
+                start_offset,
                 format!(
                     "Unexpected closing delimiter {first_dc:?} (closes {opener}) at offset {start_offset}"
                 ),
@@ -2705,7 +2724,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 } else {
                     format!("Deprecated construct {target} encountered")
                 };
-                policy.handle(policy.deprecated_syntax, msg)?;
+                self.record_diagnostic(policy, policy.deprecated_syntax, start_offset, msg)?;
             }
 
             // 4. Check if `first_dc` is a paired container opener in the database syntax table
@@ -2759,8 +2778,9 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(rule) = resolver.resolve_rule(&target) {
                 if rule.pattern.starts_with_self() {
                     if after_first >= self.active_span.end {
-                        policy.handle(
-                            policy.syntax_error,
+                        self.syntax_issue(
+                            policy,
+                            start_offset,
                             format!("Prefix operator {first_dc:?} with missing arguments at offset {start_offset}"),
                         )?;
                     }
@@ -2870,14 +2890,23 @@ impl<'a> DcDocumentNavigator<'a> {
         }))
     }
 
-    fn syntax_issue(&mut self, policy: &DcProjectionPolicy, offset: u64, message: String) -> Result<()> {
-        policy.handle(policy.syntax_error, &message)?;
+    fn record_diagnostic(
+        &mut self,
+        policy: &DcProjectionPolicy,
+        action: DiagnosticAction,
+        offset: u64,
+        message: String,
+    ) -> Result<()> {
         self.diagnostics.push(SyntaxDiagnostic {
-            message,
+            message: message.clone(),
             token_offset: offset,
-            is_error: policy.syntax_error == DiagnosticAction::Error,
+            is_error: action == DiagnosticAction::Error,
         });
-        Ok(())
+        policy.handle(action, message)
+    }
+
+    fn syntax_issue(&mut self, policy: &DcProjectionPolicy, offset: u64, message: String) -> Result<()> {
+        self.record_diagnostic(policy, policy.syntax_error, offset, message)
     }
 
     fn check_container_grammar(
@@ -3291,13 +3320,20 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
         let mut raw_roots = Vec::new();
-        while let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
-            let id = self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)?;
-            raw_roots.push(id);
-            for diagnostic in self.diagnostics.drain(..) {
-                arena.push_diagnostic(diagnostic);
+        let res = (|| -> Result<()> {
+            while let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
+                let id = self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)?;
+                raw_roots.push(id);
+                for diagnostic in self.diagnostics.drain(..) {
+                    arena.push_diagnostic(diagnostic);
+                }
             }
+            Ok(())
+        })();
+        for diagnostic in self.diagnostics.drain(..) {
+            arena.push_diagnostic(diagnostic);
         }
+        res?;
         let normalized_roots = Self::normalize_field_nodes_with_resolver(raw_roots, arena, resolver);
         for id in normalized_roots {
             arena.push_root(id);
@@ -3327,14 +3363,16 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<NodeId> {
         let start = self.cursor;
-        let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? else {
-            bail!("Unexpected end of stream at offset {start}");
-        };
-        let id = self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)?;
+        let res = (|| -> Result<NodeId> {
+            let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? else {
+                bail!("Unexpected end of stream at offset {start}");
+            };
+            self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)
+        })();
         for diagnostic in self.diagnostics.drain(..) {
             arena.push_diagnostic(diagnostic);
         }
-        Ok(id)
+        res
     }
 
     fn is_separator(ch: DcChar) -> bool {
@@ -3415,11 +3453,13 @@ impl<'a> DcDocumentNavigator<'a> {
             let Some(node) = arena.get(node_id) else {
                 continue;
             };
-            if let DcSyntaxKind::Atom(ch) = node.kind {
+            if let DcSyntaxKind::Atom(ch) = node.kind
+                && !node.is_escaped_atom()
+            {
                 if !Self::is_separator_with(ch, resolver) && !Self::is_value_atom_with(ch, resolver) {
                     if let Some(&top_id) = stack.last() {
                         if let Some(top_node) = arena.get(top_id)
-                            && Self::is_pairable_kind_with(&top_node.kind, resolver)
+                            && (Self::is_pairable_kind_with(&top_node.kind, resolver) || top_node.is_escaped_atom())
                         {
                             let start = node.span.start;
                             let end = top_node.span.end;
@@ -3555,6 +3595,11 @@ impl<'a> DcDocumentNavigator<'a> {
                              arena: &mut DcSyntaxArena<'a>|
          -> Result<StubStep> {
             match &stub.header_info {
+                DcFrameHeaderInfo::Escaped => {
+                    return Ok(StubStep::Leaf(
+                        arena.alloc(stub.outer_span, DcSyntaxKind::Atom(stub.head_dc)),
+                    ));
+                }
                 DcFrameHeaderInfo::SplicedLiteral { type_header, decoded } => {
                     return Ok(StubStep::Leaf(arena.alloc(
                         stub.outer_span,
@@ -3638,12 +3683,6 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             if let Some(closer) = stub.closer_dc {
-                if head.fills_role_with(DcRole::BeginLegacyKvMap, resolver) {
-                    policy.handle(
-                        policy.deprecated_syntax,
-                        "Deprecated Dc 313..314 key-value map syntax; prefer Dc 559..560",
-                    )?;
-                }
                 let unclosed = stub.is_unclosed();
                 if stub.inner_span.is_some() && !resolver.is_opaque_container(head.to_u128()) {
                     if current_depth >= policy.max_depth {
@@ -4984,7 +5023,7 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         let from_spliced = !self.spliced_tokens.is_empty();
-        let (mut first_dc, mut after_first) = if from_spliced {
+        let (first_dc, after_first) = if from_spliced {
             let Some(&ch) = self.spliced_tokens.front() else {
                 return Ok(false);
             };
@@ -4995,47 +5034,7 @@ impl<'a> DcDocumentNavigator<'a> {
             };
             (dc, after)
         };
-        let mut start_offset = self.cursor;
-
-        let targets_escape = match term {
-            SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| ctx.token_fills_role(t, DcRole::Escape)),
-            SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => ctx.token_fills_role(target.to_u128(), DcRole::Escape),
-            SyntaxTerm::CharSet { negated: true, .. } => true,
-            SyntaxTerm::CharSet { negated: false, members } => members.iter().any(|target| ctx.token_fills_role(target.to_u128(), DcRole::Escape)),
-            _ => false,
-        };
-        if !targets_escape && !ctx.self_dc.is_some_and(|token| ctx.resolver.is_opaque_container(token)) {
-            if from_spliced {
-                while first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
-                    self.spliced_tokens.pop_front();
-                    let Some(_) = self.spliced_tokens.pop_front() else {
-                        ctx.policy.handle(ctx.policy.syntax_error, "Dangling escape Dc 255 in spliced stream".to_string())?;
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    let Some(&next) = self.spliced_tokens.front() else {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    first_dc = next;
-                }
-            } else {
-                while first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
-                    let Some((_, after_ignored)) = self.read_token_or_binary_at(after_first)? else {
-                        ctx.policy.handle(ctx.policy.syntax_error, format!("Dangling escape Dc 255 at offset {start_offset}"))?;
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    start_offset = after_ignored;
-                    let Some(next) = self.read_token_or_binary_at(start_offset)? else {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    (first_dc, after_first) = next;
-                }
-                self.cursor = start_offset;
-            }
-        }
+        let start_offset = self.cursor;
         let first = first_dc.to_u128();
 
         // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
@@ -5191,21 +5190,21 @@ impl<'a> DcDocumentNavigator<'a> {
                         Ok(false)
                     }
                 } else {
-                    if from_spliced {
-                        if in_set {
-                            self.restore_checkpoint(term_checkpoint);
-                            return Ok(false);
-                        }
-                        self.spliced_tokens.pop_front();
-                        return Ok(true);
-                    }
-                    let in_opaque = ctx
-                        .self_dc
-                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
-                    if in_set && !(in_opaque && first_dc.fills_role_with(DcRole::Escape, ctx.resolver)) {
-                        return Ok(false);
-                    }
                     if first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
+                        if from_spliced {
+                            self.spliced_tokens.pop_front();
+                            let Some(_) = self.spliced_tokens.pop_front() else {
+                                ctx.has_errors = true;
+                                ctx.diagnostics.push(SyntaxDiagnostic {
+                                    message: "Dangling escape Dc 255 in spliced stream".to_string(),
+                                    token_offset: start_offset,
+                                    is_error: true,
+                                });
+                                self.restore_checkpoint(term_checkpoint);
+                                return Ok(false);
+                            };
+                            return Ok(true);
+                        }
                         let Some((_, after_esc)) = self.read_token_or_binary_at(after_first)? else {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
@@ -5217,6 +5216,20 @@ impl<'a> DcDocumentNavigator<'a> {
                         };
                         self.cursor = after_esc;
                         return Ok(true);
+                    }
+                    if from_spliced {
+                        if in_set {
+                            self.restore_checkpoint(term_checkpoint);
+                            return Ok(false);
+                        }
+                        self.spliced_tokens.pop_front();
+                        return Ok(true);
+                    }
+                    let in_opaque = ctx
+                        .self_dc
+                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
+                    if in_set {
+                        return Ok(false);
                     }
                     if !in_opaque {
                         if first_dc.fills_role_with(DcRole::StartEncapsulationBinary, ctx.resolver) {

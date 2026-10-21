@@ -443,22 +443,100 @@ mod tier2_boundary_corner_cases {
     }
 
     #[crate::ctb_test]
-    fn implicit_representations_and_ignored_tokens_in_operands() -> Result<()> {
-        for ignored_token in [false, true] {
-            let mut document = DcMstring::new();
-            document.push_char(DcChar::from_short(374));
-            document.push_char(DcChar::from_short(376));
-            if ignored_token {
-                document.push_char(DcChar::from_short(255));
-                document.push_char(DcChar::from_short(377));
-            }
-            document.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-            vec![0u64, 0u64].encode_dc_mixed(&mut document)?;
-            document.push_char(DcChar::from_short(377));
-            16u64.encode_dc_mixed(&mut document)?;
-            validate_dc_mixed_strict(&document)
-                .with_context(|| format!("Implicit operand syntax, ignored_token={ignored_token}"))?;
+    fn implicit_representations_and_escaped_tokens_in_operands() -> Result<()> {
+        let mut valid_slice = DcMstring::new();
+        valid_slice.push_char(DcChar::from_short(374));
+        valid_slice.push_char(DcChar::from_short(376));
+        valid_slice.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        vec![0u64, 0u64].encode_dc_mixed(&mut valid_slice)?;
+        valid_slice.push_char(DcChar::from_short(377));
+        16u64.encode_dc_mixed(&mut valid_slice)?;
+        validate_dc_mixed_strict(&valid_slice)?;
+
+        let mut escaped_tag_in_slice = DcMstring::new();
+        escaped_tag_in_slice.push_char(DcChar::from_short(374));
+        escaped_tag_in_slice.push_char(DcChar::from_short(376));
+        escaped_tag_in_slice.push_char(DcChar::from_short(255));
+        escaped_tag_in_slice.push_char(DcChar::from_short(377));
+        escaped_tag_in_slice.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        vec![0u64, 0u64].encode_dc_mixed(&mut escaped_tag_in_slice)?;
+        escaped_tag_in_slice.push_char(DcChar::from_short(377));
+        16u64.encode_dc_mixed(&mut escaped_tag_in_slice)?;
+        ensure!(
+            validate_dc_mixed_strict(&escaped_tag_in_slice).is_err(),
+            "Escaped Dc 255 377 must not be silently deleted where a [number:positive] operand is required"
+        );
+
+        // Escaped delimiters (255 515 and 255 312) inside a 514..515 key-value pair
+        let mut kv_doc = DcString::new();
+        for short_id in [559u32, 275, 275, 514, 255, 515, 312, 255, 312, 515, 560] {
+            kv_doc.push(DcChar::from_short(short_id));
         }
+        let mut arena = DcSyntaxArena::new();
+        let policy = DcProjectionPolicy::strict();
+        let root_id = DcDocumentNavigator::parse_arena(
+            kv_doc.as_bytes(),
+            &mut arena,
+            &policy,
+        )?;
+        let mut ctx = DcProjectionContext::new(&arena, &policy);
+        let (_, entries) = ctx.extract_kv_map_entries(root_id)?;
+        ensure!(entries.len() == 1, "Expected 1 kv entry, got {}", entries.len());
+        let (key_id, val_id, _, _) = entries.into_iter().next().context("Missing kv entry")??;
+        let key_node = arena.get(key_id).context("Missing key node")?;
+        let val_node = arena.get(val_id).context("Missing val node")?;
+        ensure!(
+            key_node.kind == DcSyntaxKind::Atom(DcChar::from_short(515)) && key_node.is_escaped_atom(),
+            "Expected escaped Atom(515) key, got {:?}",
+            key_node
+        );
+        ensure!(
+            val_node.kind == DcSyntaxKind::Atom(DcChar::from_short(312)) && val_node.is_escaped_atom(),
+            "Expected escaped Atom(312) value, got {:?}",
+            val_node
+        );
+
+        // Deprecated 313..314 key-value map warns once under strict() and records 1 diagnostic
+        let mut legacy_kv = DcString::new();
+        for short_id in [313u32, 275, 275, 255, 314, 312, 255, 312, 314] {
+            legacy_kv.push(DcChar::from_short(short_id));
+        }
+        let mut legacy_arena = DcSyntaxArena::new();
+        let legacy_root = DcDocumentNavigator::parse_arena(
+            legacy_kv.as_bytes(),
+            &mut legacy_arena,
+            &policy,
+        )?;
+        ensure!(
+            legacy_arena.diagnostics().len() == 1,
+            "Expected 1 deprecation diagnostic in arena, got {:?}",
+            legacy_arena.diagnostics()
+        );
+        let mut legacy_ctx = DcProjectionContext::new(&legacy_arena, &policy);
+        let (_, legacy_entries) = legacy_ctx.extract_kv_map_entries(legacy_root)?;
+        ensure!(legacy_entries.len() == 1, "Expected 1 legacy kv entry, got {}", legacy_entries.len());
+        let (lkey_id, lval_id, _, _) = legacy_entries.into_iter().next().context("Missing legacy kv entry")??;
+        ensure!(
+            legacy_arena.get(lkey_id).is_some_and(|n| n.kind == DcSyntaxKind::Atom(DcChar::from_short(314)) && n.is_escaped_atom()),
+            "Expected escaped Atom(314) key in legacy kv map"
+        );
+        ensure!(
+            legacy_arena.get(lval_id).is_some_and(|n| n.kind == DcSyntaxKind::Atom(DcChar::from_short(312)) && n.is_escaped_atom()),
+            "Expected escaped Atom(312) value in legacy kv map"
+        );
+        let mut reject_deprecated = DcProjectionPolicy::strict();
+        reject_deprecated.deprecated_syntax = DiagnosticAction::Error;
+        let mut err_arena = DcSyntaxArena::new();
+        ensure!(
+            DcDocumentNavigator::parse_arena(
+                legacy_kv.as_bytes(),
+                &mut err_arena,
+                &reject_deprecated,
+            )
+            .is_err(),
+            "Deprecated 313..314 must fail when deprecated_syntax is Error"
+        );
+
         let mut resolution = DcMstring::new();
         resolution.push_char(DcChar::from_short(378));
         resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
