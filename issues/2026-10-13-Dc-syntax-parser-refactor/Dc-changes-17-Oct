@@ -1,4 +1,11 @@
 
+# Dc Database Approval Reference
+
+Historical October 17 audit; its `HEAD` means the audit endpoint, not the
+current checkout. The operator approved the changes listed here, including
+Dc 562. This is approval provenance, not an active parser checklist or a fresh
+database validation result. See the [current backlog](../dc-parser.md).
+
 ## Dc database CSV changes, `5aafa2bf..HEAD`
 
 **Scope:** six CSVs under `src/formats/dcdata/data/` changed. Of these, `DcList.generated.csv` and `formats.generated.csv` are generated artifacts — I verified they contain exactly the propagation of the source-table changes below, with no orphan edits. In the hand-edited tables, **`categories/el.csv` (26 changed rows) and 12 rows of `semantic.csv` are pure `@ident(...)` additions** — confirmed by programmatically normalizing away the idents and diffing every column. Everything else is listed below.

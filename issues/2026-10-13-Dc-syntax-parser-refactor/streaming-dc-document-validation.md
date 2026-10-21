@@ -1,11 +1,17 @@
+# Dc Streaming Validation Boundaries
 
-There is no single 1:1 streaming replacement that works over an arbitrary forward-only `std::io::Read` / `Write` while still performing full Document Character grammar validation. However, depending on what level of validation and what type of stream you have, the codebase provides two different streaming equivalents in [`ctb_formats_dcstring`](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring.rs):
+Implementation reference, not test certification. Pending work is tracked in
+the [Dc parser checklist](../dc-parser.md).
+
+Full grammar validation currently needs seekable input. Forward-only byte
+transport validation and typed-record validation provide different guarantees
+in [ctb_formats_dcstring](../../src/formats/dcstring/dcstring.rs).
 
 ---
 
-### 1. File-Backed Streaming Syntax Validation: [`DcDocumentNavigator::from_dcmm_file`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs#L1087-L1127)
+### 1. File-Backed Grammar Validation
 
-[`validate_dc_mixed_strict`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs#L4480-L4483) is actually a thin wrapper:
+`validate_dc_mixed_strict` delegates to the navigator:
 ```rust
 pub fn validate_dc_mixed_strict(mstr: &DcMstr) -> Result<()> {
     let mut nav = DcDocumentNavigator::from_mstr(mstr);
@@ -13,7 +19,9 @@ pub fn validate_dc_mixed_strict(mstr: &DcMstr) -> Result<()> {
 }
 ```
 
-If you have a file on disk (such as a `.cscjournal` or `.dcmm` file) and want to validate full Dc grammar, container delimiter pairing, and syntax rules without loading multi-gigabyte contents into an in-memory [`DcMstring`](file:///workspaces/ctoolbox/src/formats/dcstring/dc_mixed.rs#L540), you can use [`DcDocumentNavigator::from_dcmm_file`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs#L1087):
+For a seekable file containing a DcMM document at `base_offset`, use
+`DcDocumentNavigator::from_dcmm_file` in
+[the navigator](../../src/formats/dcstring/navigator.rs):
 
 ```rust
 let mut nav = ctb_formats_dcstring::DcDocumentNavigator::from_dcmm_file(file, base_offset)?;
@@ -25,9 +33,10 @@ nav.validate_document_strict()?;
 
 ---
 
-### 2. Forward-Only `Read`/`Write` Streaming Validator: [`validate_and_copy_dcmm_stream`](file:///workspaces/ctoolbox/src/formats/dcstring/dc_mixed.rs#L1329-L1339)
+### 2. Forward-Only Transport Validation
 
-For arbitrary `R: std::io::Read` and `W: std::io::Write` streams (e.g. pipes, sockets, or non-seekable streams):
+For arbitrary `Read`/`Write` streams, use the copier in
+[dc_mixed](../../src/formats/dcstring/dc_mixed.rs):
 
 ```rust
 pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
@@ -35,7 +44,7 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
     writer: &mut W,
 ) -> Result<u64>
 ```
-(or with custom options via [`validate_and_copy_dcmm_stream_with_options`](file:///workspaces/ctoolbox/src/formats/dcstring/dc_mixed.rs#L1353-L1360)).
+Custom options are available via `validate_and_copy_dcmm_stream_with_options`.
 
 * **How it streams**: Reads and writes in 64 KiB buffers with bounded memory.
 * **What it validates**:
@@ -50,7 +59,7 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
 
 ### 3. Validation While Encoding Typed Records
 
-`validate_and_write_dc_record` in `src/formats/dcstring/dc_writer.rs` accepts
+`validate_and_write_dc_record` in [dc_writer](../../src/formats/dcstring/dc_writer.rs#L194) accepts
 a callback emitting through `DcWriter`. It streams binary bodies, verifies
 their framing and supplied checksums, and spools the exact emitted bytes to an
 anonymous file. The existing file-backed strict navigator validates that file
@@ -69,7 +78,7 @@ and failed length/digest checks are errors.
 ### CSC Integration
 
 `JournalWriter::write_batch` and `write_entity_checked` both use the derived,
-source-aware file encoder in `src/io/file/encoding.rs`. `BodyPolicy::Omit`
+source-aware [file encoder](../../src/io/file/encoding.rs). `BodyPolicy::Omit`
 explicitly omits primary and attached bodies recursively while retaining
 identity metadata. `BodyPolicy::Include` fails on missing attached sources.
 Do not use empty readers or rewrite filesystem origins to request omission.

@@ -9,8 +9,9 @@ assuming the current code still has the reported fault.
 
 - [CSC and archives](csc.md): preservation, streams, recovery, file API policy,
   native-platform qualification, and metadata privacy.
-- [EITE and Dc follow-ups](eite.md): encodings, editor RPC reproduction, and
-  operator requirements pending reconciliation with the Dc syntax project.
+- [Dc parser](dc-parser.md): syntax validation, semantic roles, projection,
+  derives, diagnostics, and streaming parser work.
+- [EITE](eite.md): encodings, runtime integration, and editor RPC reproduction.
 - [Format detection](format-detection.md): detection parity, source/OS priors,
   and MIME metadata.
 - [Installer](installation.md): installer bugs, updates, repair, and release

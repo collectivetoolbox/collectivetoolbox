@@ -117,10 +117,9 @@ were universally discarded. Generic full-suite reruns are not separate issues.
 - [ ] Reconcile legacy JSON migration for removed duplicate identity fields and
   foreign-path projection with current codecs. Preserve exact source values;
   rejected old exports and host `PathBuf` limits are not lossless migration.
-- [ ] Audit timestamp decoding for omitted required fields defaulting to epoch
-  and duplicate fields replacing earlier values. Keep generalized timestamp
-  serialization and retention of unknown `EnvDescription.extra` fields aligned
-  with the ongoing Dc parser/derive work, not a separate ad-hoc codec.
+Timestamp projection, duplicate fields, and unknown `EnvDescription.extra`
+retention are tracked in the [Dc parser checklist](dc-parser.md#value-correctness-and-fidelity),
+not as a separate CSC codec task.
 - [ ] Reproduce the unexplained WINE IPC/software-renderer doctest page faults
   despite success exit statuses. Earlier native coverage was Windows 7 only;
   modern Windows and unusual native names remain part of the filesystem matrix.
@@ -166,6 +165,10 @@ These inbox reports also need reconciliation with current code before changes.
   eliminate check/use races. Persist applied-identity recovery authority.
 - [ ] Harden Apple parsing and original raw/container/companion retention;
   complete staged main/companion publication and persistent local recovery.
+- [ ] Preserve unknown AppleSingle/AppleDouble entries through Dc metadata
+  roundtrips. [AppleMetadata](../src/io/file/metadata.rs#L1008) still marks
+  `unrecognized_entries` as `dc(skip)`. Reuse a suitable generic representation
+  or obtain semantic approval; do not add an ad-hoc parser or unapproved Dc.
 - [ ] Complete durable diagnostic resolution/retry and intended-source inventory.
   Retained errors do not prove that all intended members were enumerated.
 - [ ] Expand torn-record, partial-token/footer, completion, rollback, descriptor,
