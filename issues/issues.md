@@ -60,7 +60,7 @@ assuming the current code still has the reported fault.
   files, and report newer versions of vendored dependencies.
 - [ ] Remove duplicate exclude-path configuration in Deno.
 - [ ] Add cache-busting to asset URLs.
-- [ ] Evaluate output minification without introducing unapproved dependencies:
+- [ ] [Priority: low] Evaluate output minification without introducing unapproved dependencies:
   [HTML](https://crates.io/crates/swc_html_minifier),
   [JavaScript](https://crates.io/crates/oxc_minifier),
   [CSS](https://crates.io/crates/lightningcss), and
@@ -71,14 +71,12 @@ assuming the current code still has the reported fault.
 
 - [ ] Restore the removed semantic coordinate types in `formats/math`, using
   current Dc/derive conventions rather than blindly restoring old code.
-- [ ] Represent arbitrary-bit FNV folding (`fnv_xor_fold`) through a suitable
-  typed format/parameter API; the old report found no corresponding variant.
-- [ ] Evaluate multi-file szip support; the format allows more than the current
-  single-file workflow. Verify current support before designing an extension.
-- [ ] Add optional compression output verification; decide whether file output
-  should enable it by default.
 - [ ] HQX archive support
 - [ ] Implement magic-square for parity
+- [ ] [Priority: low] Evaluate multi-file szip support; the format allows more than the current
+  single-file workflow. Verify current support before designing an extension.
+- [ ] [Priority: low] Represent arbitrary-bit FNV folding (`fnv_xor_fold`)
+  through a suitable typed format/parameter API; the old report found no corresponding variant.
 
 ## Storage and Accounts
 
