@@ -24,6 +24,7 @@ collaboration and hosting remain outside the personal MVP.
     sample corpus, such as a subset of MusicBrainz.
 - [ ] Resolve dependencies on shared-library and private/team documents through
     explicit trust and availability policy, not ambient network access.
+- [ ] Preserve the explicit local node deletion storage contract from `5e3a561bb:issues/csc-usability/milestone-0.md:58-61`: deleting a node transitions its node type to `Deleted`, discards content, keeps the ID reserved, and garbage-collects derived index entries on demand or within a bounded time window.
 
 ## Desktop and Browser Workflows
 
@@ -34,8 +35,9 @@ collaboration and hosting remain outside the personal MVP.
     bytes; do not silently replace them for display and then use the changed path.
 - [ ] Connect the existing runtime and renderer into a self-sufficient GUI.
     Further graphics work may use statically linked LLVM/Mesa software rendering
-    for OpenGL/Vulkan. The old Linux `dlopen` shim proposal is superseded by the
-    static-musl, native-Wayland/X11 invariants; it is not an approved exception.
+    for OpenGL/Vulkan.
+  - [ ] Evaluate separate, optional minimal shim binaries that `dlopen` system X11/libwayland/libGL and proxy over IPC to the static `musl` binary while keeping the main binary purely static. This would be a permitted exception to the general rule against dynamic linking.
+
 - [ ] Evaluate macOS cross-build options, including
     [Zig's cross-compilation support](https://actually.fyi/posts/zig-makes-rust-cross-compilation-just-work/),
     under the repository's source-build and licensing constraints.
@@ -80,6 +82,7 @@ authentication or a cryptography dependency alone does not qualify them.
     pools, and optional update sharing. Distinguish STUN-assisted direct access
     from TURN relay costs; bound abuse, resource use, and disruptive clients even
     when accounts are authenticated.
+- [ ] Define the client-to-client API once peers are connected.
 
 ## Additional Tools
 
@@ -87,18 +90,7 @@ authentication or a cryptography dependency alone does not qualify them.
     workflow before implementation.
 - [ ] Scope a ddrescue-style recovery workflow separately from ordinary CSC
     copying, including read-error recovery and retained diagnostics.
-
-## Recovered From Pre-Cleanup `issues/` (To Filter)
-
-- [ ] Evaluate separate, optional minimal shim binaries that `dlopen` system X11/libwayland/libGL and proxy over IPC to the static `musl` binary while keeping the main binary purely static (from `5e3a561bb:issues/issues.md:32`; note that `issues/projects.md:37-38` above inverted this during cleanup by marking the `dlopen` shim proposal superseded).
-- [ ] Retain explicit source-note references dropped during cleanup:
-  - `2026-08-20-Matching and Linking.txt` (`5e3a561bb:issues/issues.md:175`).
-  - `duck.ai_2025-09-06_16-10-56-updates.txt` (`5e3a561bb:issues/projects.md:16`).
-- [ ] Track remaining feature commitments advertised in `assets/views/index.hbs` (`5e3a561bb:issues/projects.md:4`):
-  - Visual query builder and optional AI assistance to translate natural language into graph queries (`assets/views/index.hbs:105`).
-  - Collaborative real-time editing, deterministic document rendering and interactivity, browser extension for embedding, multimedia documents, and "boot to Collective Toolbox" mode (`assets/views/index.hbs:190-198`).
-  - Hosted online VM demo (`assets/views/index.hbs:207, 226`).
-  - Separate build for older CPUs and operating systems (`assets/views/index.hbs:220`).
-- [ ] Design a permission and metering system for a shared reference library (`5e3a561bb:issues/projects.md:48-49`).
-- [ ] Define the client-to-client API once peers are connected via WebRTC (`5e3a561bb:issues/projects.md:46`).
-- [ ] Preserve the explicit node deletion storage contract from `5e3a561bb:issues/csc-usability/milestone-0.md:58-61`: deleting a node transitions its node type to `Deleted`, discards content, keeps the ID reserved, and garbage-collects derived index entries on demand or within a bounded time window.
+- Visual query builder and optional AI assistance to translate natural language into graph queries (`assets/views/index.hbs:105`).
+- Collaborative real-time editing, deterministic document rendering and interactivity, browser extension for embedding, multimedia documents, and "boot to Collective Toolbox" mode (`assets/views/index.hbs:190-198`).
+- Hosted online VM demo (`assets/views/index.hbs:207, 226`).
+- Potentially: Separate build for older CPUs and operating systems (`assets/views/index.hbs:220`).
