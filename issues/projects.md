@@ -60,6 +60,7 @@
     - [ ] Some way of making sure clients can't be disruptive of each other - libre software, so even with authentication and only paid users I can imagine there would be some people with accidental or even malicious clients
 - [ ] Insert permission system for a shared reference library?
     - [ ] Metered, paid, can of worms
+    - Conclusion: nope.
 - [ ] What if users need to talk to outside services?
     - [ ] This would need something like Tailscale (viz. WebVM/CheerpX)
     - [ ] Another metered, paid can of worms
@@ -69,5 +70,5 @@
 - [ ] Consider storing keys additionally in OS keychain/credential vault for better UX with auto-unlock on login.
 - [ ] Use filesystem permissions; on Unix set 0700, on Windows apply ACLs for the user SID.
 
-    
+
 

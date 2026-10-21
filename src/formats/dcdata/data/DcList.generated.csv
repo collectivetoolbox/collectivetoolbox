@@ -302,7 +302,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114405,293,White,0,BN,,!Cx,.Colors,,,,,,,,,,,
 1114406,294,!New line within paragraph,0,WS,,Zl,.Punctuation,<equiv>u2028,"This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph.",,,,,,,,,
 1114407,295,!Paragraph separator (short Dc),0,B,,Zp,.Punctuation,<equiv>u2029,This is the Unicode U+2029.,,,,,,,,,
-1114408,296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,.Miscellaneous,:~ [number],,,,,,,,,,
+1114408,296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,.Miscellaneous,"@ident(""LocalNode""), @roleDef(), :~ [number]",,,,,,,,,,
 1114409,297,Next number is a Dc-equivalent reference to a global node to which this local node was moved.,0,BN,,!Cx,.Miscellaneous,:~ [number],,,,,,,,,,
 1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,"@ident(""BeginAssociativityGroup""), @roleDef()",Equivalent to an opening parenthesis in many languages or in arithmetic expressions.,,,,,,,,,
 1114411,299,End associativity group,0,BN,,!Cx,.Semantic,"@ident(""EndAssociativityGroup""), @roleDef(), @closes(298)",Equivalent to a closing parenthesis in many languages or in arithmetic expressions.,,,,,,,,,

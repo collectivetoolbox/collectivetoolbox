@@ -106,6 +106,8 @@ pub const DC_TYPE_NUMBER: DcChar = DcChar::from_short(278);
 pub const DC_ROUTINE_INVOCATION: DcChar = DcChar::from_short(279);
 /// Built-in type identifier: Routine (Dc 280).
 pub const DC_TYPE_ROUTINE: DcChar = DcChar::from_short(280);
+/// Next number is a Dc-equivalent reference to a local node/document (Dc 296).
+pub const DC_LOCAL_NODE: DcChar = DcChar::from_short(296);
 /// Equivalent to an opening parenthesis in many languages or in arithmetic expressions. (Dc 298).
 pub const DC_BEGIN_ASSOCIATIVITY_GROUP: DcChar = DcChar::from_short(298);
 /// Equivalent to a closing parenthesis in many languages or in arithmetic expressions. (Dc 299).

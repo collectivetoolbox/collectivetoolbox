@@ -33,11 +33,14 @@ use crate::utilities::*;
 
 use anyhow::Result;
 use crate::dc_char::DcCharExt;
-use ctb_formats_dcdata::syntax::DcRole;
+use ctb_formats_dcdata::syntax::{
+    default_syntax_resolver, DcRole, SyntaxRuleResolver,
+};
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
-use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LONG_DC};
+use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LOCAL_NODE, DC_LONG_DC};
 use crate::dc_number::{
-    integer_to_dc_number_global, read_dc_number_global, read_dc_number_short,
+    integer_to_dc_number_global, read_dc_number_global,
+    read_dc_number_global_with_resolver, read_dc_number_short,
 };
 use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
@@ -96,7 +99,7 @@ pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>>
                                 let malachite_val = malachite::Integer::from(int_val);
                                 match integer_to_dc_number_global(&malachite_val) {
                                     Ok(dc_num_gids) => {
-                                        dc_string.push(DcChar(1_114_408u128));
+                                        dc_string.push(DC_LOCAL_NODE);
                                         for gid in dc_num_gids {
                                             dc_string.push(DcChar(gid));
                                         }
@@ -149,6 +152,14 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
 
 /// Serializes a `DcList` (`&[u128]`) to DcText format bytes (`Vec<u8>`).
 pub fn dclist_to_dctext(dclist: &[u128]) -> Vec<u8> {
+    dclist_to_dctext_with_resolver(dclist, default_syntax_resolver().as_ref())
+}
+
+/// Serializes a `DcList` (`&[u128]`) to DcText format bytes (`Vec<u8>`) using the given resolver.
+pub fn dclist_to_dctext_with_resolver(
+    dclist: &[u128],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Vec<u8> {
     let mut output = String::new();
     let mut i = 0;
     while i < dclist.len() {
@@ -166,15 +177,17 @@ pub fn dclist_to_dctext(dclist: &[u128]) -> Vec<u8> {
             } else {
                 output.push_str(&format!("@{dcid}@"));
             }
-        } else if dcid == 1_114_408 {
+        } else if resolver.token_fills_role(dcid, DcRole::LocalNode) {
             if let Some(rest) = dclist.get(i.saturating_add(1)..) {
-                if let Ok((int_val, consumed)) = read_dc_number_global(rest) {
+                if let Ok((int_val, consumed)) =
+                    read_dc_number_global_with_resolver(rest, resolver)
+                {
                     output.push_str(&format!("@L{int_val}@"));
                     i = i.saturating_add(1).saturating_add(consumed);
                     continue;
                 }
             }
-            output.push_str("@1114408@");
+            output.push_str(&format!("@{dcid}@"));
         } else {
             output.push_str(&format!("@{dcid}@"));
         }

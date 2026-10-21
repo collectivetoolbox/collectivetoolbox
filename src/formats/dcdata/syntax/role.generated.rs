@@ -96,6 +96,8 @@ pub enum DcRole {
     RoutineInvocation,
     /// Built-in type identifier: Routine (`280`).
     TypeRoutine,
+    /// Next number is a Dc-equivalent reference to a local node/document (`296`).
+    LocalNode,
     /// Equivalent to an opening parenthesis in many languages or in arithmetic expressions. (`298`).
     BeginAssociativityGroup,
     /// Equivalent to a closing parenthesis in many languages or in arithmetic expressions. (`299`).
@@ -224,6 +226,7 @@ match self {
             Self::TypeNumber => Some(278),
             Self::RoutineInvocation => Some(279),
             Self::TypeRoutine => Some(280),
+            Self::LocalNode => Some(296),
             Self::BeginAssociativityGroup => Some(298),
             Self::EndAssociativityGroup => Some(299),
             Self::TypeUnion => Some(300),
@@ -308,6 +311,7 @@ match self {
             Self::TypeNumber => short == Some(278),
             Self::RoutineInvocation => short == Some(279),
             Self::TypeRoutine => short == Some(280),
+            Self::LocalNode => short == Some(296),
             Self::BeginAssociativityGroup => short == Some(298),
             Self::EndAssociativityGroup => short == Some(299),
             Self::TypeUnion => short == Some(300),
