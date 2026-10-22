@@ -98,27 +98,24 @@ impl<'a> SourceView<'a> {
         })
     }
 
-    fn identity(&self, id: NodeId) -> DcChar {
+    fn identity(&self, id: NodeId) -> Option<DcChar> {
         if self.is_map(id) {
-            DC_BEGIN_KV_MAP
+            Some(DC_BEGIN_KV_MAP)
         } else if let Ok(n) = self.node(id) {
             let canon = |ch: DcChar| DcChar::from_u128(self.resolver.canonical_token(ch.to_u128()));
             match &n.kind {
-                DcSyntaxKind::Container { opener, .. } => canon(*opener),
-                DcSyntaxKind::Tagged { tag, .. } => canon(*tag),
-                DcSyntaxKind::Assignment { .. } => DC_ASSIGN,
-                DcSyntaxKind::Literal { .. } => DC_BEGIN_LITERAL,
-                DcSyntaxKind::Identifier { .. } => DC_BEGIN_IDENTIFIER,
-                DcSyntaxKind::Number { .. } => crate::dc_number::DC_BEGIN_NUMBER,
-                DcSyntaxKind::Binary { .. } => ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY,
-                DcSyntaxKind::Atom(ch) => canon(*ch),
-                DcSyntaxKind::Malformed { raw_tokens, .. } => {
-                    // Reason for fallback: Empty malformed tokens fall back to NUL (U+0000) for node identity comparison.
-                    raw_tokens.first().copied().map(canon).unwrap_or(DcChar::from_u128(0))
-                }
+                DcSyntaxKind::Container { opener, .. } => Some(canon(*opener)),
+                DcSyntaxKind::Tagged { tag, .. } => Some(canon(*tag)),
+                DcSyntaxKind::Assignment { .. } => Some(DC_ASSIGN),
+                DcSyntaxKind::Literal { .. } => Some(DC_BEGIN_LITERAL),
+                DcSyntaxKind::Identifier { .. } => Some(DC_BEGIN_IDENTIFIER),
+                DcSyntaxKind::Number { .. } => Some(crate::dc_number::DC_BEGIN_NUMBER),
+                DcSyntaxKind::Binary { .. } => Some(ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY),
+                DcSyntaxKind::Atom(ch) => Some(canon(*ch)),
+                DcSyntaxKind::Malformed { raw_tokens, .. } => raw_tokens.first().copied().map(canon),
             }
         } else {
-            DcChar::from_u128(0)
+            None
         }
     }
 
@@ -141,7 +138,7 @@ impl<'a> SourceView<'a> {
 
     fn extract_map_entries(&self, id: NodeId) -> Result<(Vec<NodeId>, Vec<NodeEntry>)> {
         let (_opener, header, entries) =
-            self.arena.extract_kv_map_operand_entries(id, true)?;
+            self.arena.extract_kv_map_operand_entries_with_resolver(id, true, self.resolver)?;
         Ok((header, entries))
     }
 
@@ -165,10 +162,18 @@ impl<'a> SourceView<'a> {
                 append_dc(target, DC_END_KV_PAIR);
             }
             append_dc(target, DC_END_KV_MAP);
-        } else if let DcSyntaxKind::Binary { payload, .. } = &node.kind {
+        } else if let DcSyntaxKind::Binary { data_type, payload, .. } = &node.kind {
             let mut canonical = DcMstring::new();
             let bytes = payload.materialize_bytes()?;
-            canonical.push_binary(&bytes);
+            if let Some(dtype) = data_type {
+                let mut metadata = crate::DcString::new();
+                for ch in dtype.chars() {
+                    metadata.push(DcChar::from_u128(self.resolver.canonical_token(ch.to_u128())));
+                }
+                canonical.push_binary_with_metadata(&bytes, &metadata)?;
+            } else {
+                canonical.push_binary(&bytes);
+            }
             target.extend_from_slice(canonical.to_dc_string()?.as_bytes());
         } else if let DcSyntaxKind::Container { children, .. } = &node.kind {
             let (opening, closing) = self.container_delimiters(id)?;
@@ -712,6 +717,36 @@ mod tests {
         let mut expected = DcMstring::new();
         write_inner(&mut expected, crate::DcKvMapEncoding::Legacy, 1)?;
         assert_eq!(revised.as_bytes(), expected.as_bytes());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_source_binary_edit_is_type_sensitive() -> Result<()> {
+        let payload = [0xAB_u8; 32];
+        let sha256_fmt = ctb_utilities::format_id::FormatId::from_shorthand("f245")
+            .context("Missing f245 format")?
+            .dc_char()
+            .context("Missing f245 format Dc")?;
+        let alt_fmt = ctb_utilities::format_id::FormatId::from_shorthand("f246")
+            .context("Missing f246 format")?
+            .dc_char()
+            .context("Missing f246 format Dc")?;
+
+        let mut old = DcMstring::new();
+        old.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
+        old.push_checksum(sha256_fmt, &payload)?;
+
+        let mut new = DcMstring::new();
+        new.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
+        new.push_checksum(alt_fmt, &payload)?;
+
+        let revised = preserve_source(&old, &new)?;
+        assert_eq!(revised.as_bytes(), new.as_bytes());
+
+        let old_text = old.to_dc_string()?;
+        let new_text = new.to_dc_string()?;
+        let revised_text = preserve_text(&old_text, &new_text)?;
+        assert_eq!(revised_text.as_bytes(), new_text.as_bytes());
         Ok(())
     }
 }

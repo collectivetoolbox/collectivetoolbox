@@ -28,14 +28,6 @@ use crate::utilities::*;
 
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 pub use ctb_utilities::dc_char::DcChar;
-use ctb_utilities::dc_char::{
-    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START,
-};
-
-use crate::dc::{
-    DC_FILE_PATH_DELIMITER, DC_TYPE_ANY, DC_TYPE_INTERSECTION, DC_TYPE_NUMBER,
-    DC_TYPE_ROUTINE, DC_TYPE_ROUTINE_NAME, DC_TYPE_STRING, DC_TYPE_UNION,
-};
 use crate::syntax::SyntaxRuleResolver;
 
 /// Returns whether the given token (u128 character code) represents a type

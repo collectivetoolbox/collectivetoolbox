@@ -33,6 +33,12 @@ use crate::utilities::*;
 use ctb_storage_minimal::shorthand::DcShorthand;
 use serde::{Deserialize, Serialize};
 
+use crate::dc::{
+    DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION, DC_TYPE_TRANSFORMATION,
+    DC_TYPE_TRANSMUTATION, DC_TYPE_UNION, DcChar,
+};
+use crate::syntax::DcRole;
+
 /// Maximum expression recursion depth allowed to prevent stack overflow.
 pub const MAX_FORMAT_EXPR_DEPTH: usize = 32;
 
@@ -55,29 +61,58 @@ pub enum FormatOp {
 }
 
 impl FormatOp {
+    /// Returns the `DcChar` constant corresponding to this operator.
+    #[must_use]
+    pub const fn dc_char(self) -> DcChar {
+        match self {
+            Self::Union => DC_TYPE_UNION,
+            Self::Transform => DC_TYPE_TRANSFORMATION,
+            Self::Convert => DC_TYPE_CONVERSION,
+            Self::Transmute => DC_TYPE_TRANSMUTATION,
+            Self::Intersection => DC_TYPE_INTERSECTION,
+        }
+    }
+
+    /// Returns the `DcRole` corresponding to this operator.
+    #[must_use]
+    pub const fn role(self) -> DcRole {
+        match self {
+            Self::Union => DcRole::TypeUnion,
+            Self::Transform => DcRole::TypeTransformation,
+            Self::Convert => DcRole::TypeConversion,
+            Self::Transmute => DcRole::TypeTransmutation,
+            Self::Intersection => DcRole::TypeIntersection,
+        }
+    }
+
     /// Returns the short Dc ID corresponding to this operator.
     #[must_use]
-    pub const fn dc_id(self) -> u32 {
-        match self {
-            Self::Union => 300,
-            Self::Transform => 301,
-            Self::Convert => 302,
-            Self::Transmute => 303,
-            Self::Intersection => 516,
-        }
+    pub fn dc_id(self) -> u32 {
+        #[expect(
+            clippy::expect_used,
+            reason = "All FormatOp DcChar constants are compile-time short Dcs"
+        )]
+        self.dc_char()
+            .to_short_dc()
+            .expect("FormatOp dc_char is a short Dc")
     }
 
     /// Returns the operator corresponding to a short Dc ID, if valid.
     #[must_use]
-    pub const fn from_dc_id(id: u32) -> Option<Self> {
-        match id {
-            300 => Some(Self::Union),
-            301 => Some(Self::Transform),
-            302 => Some(Self::Convert),
-            303 => Some(Self::Transmute),
-            516 => Some(Self::Intersection),
-            _ => None,
+    pub fn from_dc_id(id: u32) -> Option<Self> {
+        let ch = DcChar::from_short(id);
+        for op in [
+            Self::Union,
+            Self::Transform,
+            Self::Convert,
+            Self::Transmute,
+            Self::Intersection,
+        ] {
+            if ch == op.dc_char() {
+                return Some(op);
+            }
         }
+        None
     }
 
     /// Returns the textual symbol for this operator.

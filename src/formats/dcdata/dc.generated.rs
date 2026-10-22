@@ -114,6 +114,12 @@ pub const DC_BEGIN_ASSOCIATIVITY_GROUP: DcChar = DcChar::from_short(298);
 pub const DC_END_ASSOCIATIVITY_GROUP: DcChar = DcChar::from_short(299);
 /// Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”. (Dc 300).
 pub const DC_TYPE_UNION: DcChar = DcChar::from_short(300);
+/// Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it. (Dc 301).
+pub const DC_TYPE_TRANSFORMATION: DcChar = DcChar::from_short(301);
+/// Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it. (Dc 302).
+pub const DC_TYPE_CONVERSION: DcChar = DcChar::from_short(302);
+/// Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it. (Dc 303).
+pub const DC_TYPE_TRANSMUTATION: DcChar = DcChar::from_short(303);
 /// Subtype of string (Dc 306).
 pub const DC_TYPE_ROUTINE_NAME: DcChar = DcChar::from_short(306);
 /// Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back. (Dc 308).

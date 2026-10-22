@@ -646,12 +646,9 @@ where
     let format_registry = crate::syntax::build_format_validation_registry(&all_rows);
 
     for row in &all_rows {
-        if let Some(syntax_rule) = &row.syntax {
-            // Reason for fallback: format short id absent or out of u32 range falls back to dummy 0 for self-reference validation
-            let self_id = row
-                .short_id
-                .and_then(|sid| u32::try_from(sid).ok())
-                .unwrap_or(0);
+        if let (Some(syntax_rule), Some(Ok(self_id))) =
+            (&row.syntax, row.short_id.map(u32::try_from))
+        {
             crate::syntax::validator::validate_dc_syntax(
                 syntax_rule,
                 self_id,

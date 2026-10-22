@@ -1197,7 +1197,7 @@ fn expand_named_representation(
                 encode_parts.push(quote! {
                     encoding.encode_entry_begin_to(mst, true)?;
                     #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(#key, mst, context)?;
-                    mst.push_char(#crate_root::DcChar::from_short(312))?;
+                    mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
                     #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
                     encoding.encode_entry_end_to(mst)?;
                 });
@@ -1205,7 +1205,7 @@ fn expand_named_representation(
                     stringify!(#field_ident) => {
                         encoding.encode_entry_begin_to(mst, true)?;
                         #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(#key, mst, context)?;
-                        mst.push_char(#crate_root::DcChar::from_short(312))?;
+                        mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
                         #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
                         encoding.encode_entry_end_to(mst)?;
                         Ok(())
@@ -1264,8 +1264,8 @@ fn expand_named_representation(
             if is_list && end != Some(SHORT_DC_REGION_START.saturating_add(311)) {
                 return Err(syn::Error::new(input.span(), "Dc 310 lists must end with Dc 311"));
             }
-            let list_header = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(275))?; });
-            let payload_separator = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(312))?; });
+            let list_header = is_list.then(|| quote! { mst.push_char(#crate_root::dc::DC_TYPE_ANY)?; });
+            let payload_separator = is_list.then(|| quote! { mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?; });
             for variant in &data.variants {
                 let variant_ident = &variant.ident;
                 let mut name = None;
@@ -1657,13 +1657,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let mut #field_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
                                 });
                                 decode_arms.push(quote! {
-                                    #(#all_match_tags)|* => {
+                                    _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         let state = #field_ident.get_or_insert_with(::std::default::Default::default);
                                         <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id, unwrap_id)?;
                                     }
                                 });
                                 decode_field_arms.push(quote! {
-                                    #(#all_match_tags)|* => {
+                                    _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
                                         state.decode_field(tag, ctx, val_id)
                                     }
@@ -1682,12 +1682,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let mut #field_ident: <#field_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
                                 });
                                 decode_arms.push(quote! {
-                                    #(#all_match_tags)|* => {
+                                    _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id, unwrap_id)?;
                                     }
                                 });
                                 decode_field_arms.push(quote! {
-                                    #(#all_match_tags)|* => {
+                                    _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         self.#field_ident.decode_field(tag, ctx, val_id)
                                     }
                                 });
@@ -1727,15 +1727,19 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else if attr.via.is_some() {
-                        let id = attr.tag;
+                        let id = attr.tag.ok_or_else(|| {
+                            syn::Error::new(field.span(), "via field requires an assigned Dc tag")
+                        })?;
+                        let mut all_match_tags = vec![id];
+                        all_match_tags.extend(attr.aliases.iter().copied());
                         let encode = generate_via_field_encoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr);
                         let decode = generate_field_value_decoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr, &quote!(val_id))?;
                         encode_stmts.push(encode);
                         decode_arms.push(quote! {
-                            #id => { #field_ident = Some(#decode); }
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => { #field_ident = Some(#decode); }
                         });
                         decode_field_arms.push(quote! {
-                            #id => { self.#field_ident = #decode; Ok(true) }
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => { self.#field_ident = #decode; Ok(true) }
                         });
                         field_inits.push(quote! {
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
@@ -1743,12 +1747,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else if attr.binary {
                         let id = attr.tag;
                         if let Some(id) = id {
+                            let mut all_match_tags = vec![id];
+                            all_match_tags.extend(attr.aliases.iter().copied());
                             encode_stmts.push(quote! {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id))?;
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
                             decode_arms.push(quote! {
-                                #id => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1764,7 +1770,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                #id => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1828,6 +1834,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 format!("Optional field `{field_ident}` in flattened struct must have an assigned Dc tag"),
                             )
                         })?;
+                        let mut all_match_tags = vec![id];
+                        all_match_tags.extend(attr.aliases.iter().copied());
                         encode_stmts.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id))?;
@@ -1835,7 +1843,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_arms.push(quote! {
-                            #id => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                     ::std::result::Result::Ok(val) => {
                                         #field_ident = Some(Some(val));
@@ -1853,7 +1861,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_field_arms.push(quote! {
-                            #id => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                     ::std::result::Result::Ok(val) => {
                                         self.#field_ident = Some(val);
@@ -1876,12 +1884,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else if let Some(id) = attr.tag {
+                        let mut all_match_tags = vec![id];
+                        all_match_tags.extend(attr.aliases.iter().copied());
                         encode_stmts.push(quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id))?;
                             #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
                         });
                         decode_arms.push(quote! {
-                            #id => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                     ::std::result::Result::Ok(val) => {
                                         #field_ident = Some(val);
@@ -1899,7 +1909,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_field_arms.push(quote! {
-                            #id => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                     ::std::result::Result::Ok(val) => {
                                         self.#field_ident = val;
@@ -2190,7 +2200,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     });
 
                     decode_flag_arms.push(quote! {
-                        #(#match_tags)|* => {
+                        _t if [#(#match_tags),*].iter().any(|&expected| _t == expected || ctx.tokens_equivalent(_t, expected)) => {
                             self.#field_ident = true;
                             Ok(true)
                         }
@@ -2221,7 +2231,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #(#check_any_flags)*
                             if any_flags {
                                 mst.push_char(#crate_root::dc::DC_BEGIN_LIST)?;
-                                mst.push_char(#crate_root::DcChar::from_short(275))?;
+                                mst.push_char(#crate_root::dc::DC_TYPE_ANY)?;
                                 let mut first = true;
                                 #(#encode_flag_fields)*
                                 let _ = first;
@@ -2431,7 +2441,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             seen_ids.insert(t);
                         }
                         field_name_arms.push(quote! {
-                            #(#all_match_tags)|* => ::std::option::Option::Some(stringify!(#field_ident)),
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => ::std::option::Option::Some(stringify!(#field_ident)),
                         });
 
                         if let Some(inner_ty) = extract_type_from_option(field_ty) {
@@ -2448,13 +2458,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let mut #field_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
                             });
                             decode_arms.push(quote! {
-                                #(#all_match_tags)|* => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     let state = #field_ident.get_or_insert_with(::std::default::Default::default);
                                     <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id, unwrap_id)?;
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                #(#all_match_tags)|* => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
                                     state.decode_field(tag, ctx, val_id)
                                 }
@@ -2473,12 +2483,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let mut #field_ident: <#field_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
                             });
                             decode_arms.push(quote! {
-                                #(#all_match_tags)|* => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id, unwrap_id)?;
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                #(#all_match_tags)|* => {
+                                _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                     self.#field_ident.decode_field(tag, ctx, val_id)
                                 }
                             });
@@ -2628,7 +2638,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 all_match_tags.extend(attr.aliases.iter().copied());
                 let annotation_tags = all_match_tags.clone();
                 field_name_arms.push(quote! {
-                    #(#annotation_tags)|* => Some(stringify!(#field_ident)),
+                    _t if [#(#annotation_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => Some(stringify!(#field_ident)),
                 });
 
                 let type_str = quote!(#field_ty).to_string();
@@ -2696,13 +2706,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     };
                     encode_fields.push(encode);
                     decode_arms.push(quote! {
-                        #(#nested_ids)|* => {
+                        _t if [#(#nested_ids),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                             #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
                             #field_ident = Some(#inline);
                         }
                     });
                     decode_field_arms.push(quote! {
-                        #(#nested_ids)|* => { self.#field_ident = #inline; Ok(true) }
+                        _t if [#(#nested_ids),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => { self.#field_ident = #inline; Ok(true) }
                     });
                     shared_decode_arms.push(quote! {
                         #shared_name => {
@@ -2742,7 +2752,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     for (idx, enc) in eq_encoders.into_iter().enumerate() {
                         if idx > 0 {
                             eq_encoders_with_sep.push(quote! {
-                                mst.push_char(#crate_root::DcChar::from_short(312))?;
+                                mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
                             });
                         }
                         eq_encoders_with_sep.push(enc);
@@ -2750,11 +2760,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id))?;
-                        mst.push_char(#crate_root::DcChar::from_short(397))?;
-                        mst.push_char(#crate_root::DcChar::from_short(310))?;
-                        mst.push_char(#crate_root::DcChar::from_short(275))?;
+                        mst.push_char(#crate_root::dc::DC_EQUIVALENT_REPRESENTATIONS)?;
+                        mst.push_char(#crate_root::dc::DC_BEGIN_LIST)?;
+                        mst.push_char(#crate_root::dc::DC_TYPE_ANY)?;
                         #(#eq_encoders_with_sep)*
-                        mst.push_char(#crate_root::DcChar::from_short(311))?;
+                        mst.push_char(#crate_root::dc::DC_END_LIST)?;
                     };
 
                     if attr.omit_default {
@@ -2771,7 +2781,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let opt_marker = if attr.omit_default {
                             quote! {}
                         } else {
-                            quote! { mst.push_char(#crate_root::DcChar::from_short(315))?; }
+                            quote! { mst.push_char(#crate_root::dc::DC_OPTIONAL_PRESENT)?; }
                         };
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
@@ -2803,7 +2813,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let opt_marker = if attr.omit_default {
                                 quote! {}
                             } else {
-                                quote! { mst.push_char(#crate_root::DcChar::from_short(315))?; }
+                                quote! { mst.push_char(#crate_root::dc::DC_OPTIONAL_PRESENT)?; }
                             };
                             encode_fields.push(quote! {
                                 if let ::std::option::Option::Some(ref val) = self.#field_ident {
@@ -2856,17 +2866,17 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         mst.push_char(#crate_root::DcChar::from_u128(#begin_id))?;
                                         let is_lossless = #crate_root::LosslessWithContext::is_lossless(raw_val, context);
                                         if is_lossless {
-                                            mst.push_char(#crate_root::DcChar::from_short(397))?;
+                                            mst.push_char(#crate_root::dc::DC_EQUIVALENT_REPRESENTATIONS)?;
                                         } else {
-                                            mst.push_char(#crate_root::DcChar::from_short(561))?;
+                                            mst.push_char(#crate_root::dc::DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS)?;
                                         }
-                                        mst.push_char(#crate_root::DcChar::from_short(310))?;
-                                        mst.push_char(#crate_root::DcChar::from_short(275))?;
+                                        mst.push_char(#crate_root::dc::DC_BEGIN_LIST)?;
+                                        mst.push_char(#crate_root::dc::DC_TYPE_ANY)?;
                                         #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(sem, mst, context)?;
-                                        mst.push_char(#crate_root::DcChar::from_short(312))?;
+                                        mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
                                         mst.push_char(#crate_root::DcChar::from_u128(#raw_tag))?;
                                         #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(raw_val, mst, context)?;
-                                        mst.push_char(#crate_root::DcChar::from_short(311))?;
+                                        mst.push_char(#crate_root::dc::DC_END_LIST)?;
                                         mst.push_char(#crate_root::DcChar::from_u128(#end_id))?;
                                     }
                                     (::std::option::Option::None, ::std::option::Option::Some(raw_val)) => {
@@ -3013,7 +3023,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         return Err(syn::Error::new(field_ident.span(), "Paired raw field requires Option<T> field type"));
                     };
                     decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
+                        _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                             let cnode = ctx.node(val_id)?;
                             let c_children = match &cnode.kind {
                                 #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
@@ -3088,7 +3098,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     });
                     decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
+                        _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                             let cnode = ctx.node(val_id)?;
                             let c_children = match &cnode.kind {
                                 #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
@@ -3167,13 +3177,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     let val_decoder = generate_field_value_decoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr, &quote!(val_id))?;
                     if is_vec && attr.begin.is_none() && !attr.binary && !attr.checksum {
                         decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let elem = #val_decoder;
                                 #field_ident.push(elem);
                             }
                         });
                         decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let elem = #val_decoder;
                                 self.#field_ident.push(elem);
                                 Ok(true)
@@ -3181,13 +3191,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     } else if is_vec && attr.begin.is_some() && attr.end.is_some() {
                         decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let list = #val_decoder;
                                 #field_ident = list;
                             }
                         });
                         decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let list = #val_decoder;
                                 self.#field_ident = list;
                                 Ok(true)
@@ -3195,13 +3205,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     } else {
                         decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let val = #val_decoder;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
                         decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
+                            _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                 let val = #val_decoder;
                                 self.#field_ident = val;
                                 Ok(true)
@@ -3268,7 +3278,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     };
                     let first_field = &first_entry.0;
                     field_name_arms.push(quote! {
-                        #nid => Some(stringify!(#first_field)),
+                        _t if ctx.tokens_equivalent(_t, #nid) => Some(stringify!(#first_field)),
                     });
 
                     let init_dispatches: Vec<_> = group.iter().map(|(f_ident, _, _)| {
@@ -3283,7 +3293,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }).collect();
 
                     decode_arms.push(quote! {
-                        #nid => {
+                        _t if ctx.tokens_equivalent(_t, #nid) => {
                             let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, val_id)?;
                             for (flag_tag, item_id) in flag_items {
                                 let mut consumed = false;
@@ -3320,7 +3330,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }).collect();
 
                     decode_field_arms.push(quote! {
-                        #nid => {
+                        _t if ctx.tokens_equivalent(_t, #nid) => {
                             let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, val_id)?;
                             for (flag_tag, item_id) in flag_items {
                                 let mut consumed = false;
@@ -3512,7 +3522,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let node = ctx.node(unwrap_id)?;
                         let children = match &node.kind {
                             #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
-                                if ctx.canonical_token(*opener).to_u128() != ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(#begin_dc)).to_u128() {
+                                if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) {
                                     #anyhow_path::bail!(
                                         "Expected opener {:#X} for {}, found {:#X}",
                                         #begin_dc,
@@ -3545,11 +3555,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let child_node = ctx.node(child_id)?;
                             let (tag, val_id) = match &child_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    // Reason for fallback: Tagged constructs without arguments or with multiple arguments pass child_id as payload.
-                                    let arg_id = if args.len() > 1 {
-                                        child_id
-                                    } else {
-                                        args.first().copied().unwrap_or(child_id)
+                                    let arg_id = match args.as_slice() {
+                                        [single_arg] => *single_arg,
+                                        _ => child_id,
                                     };
                                     (tag.to_u128(), arg_id)
                                 }
@@ -3750,7 +3758,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_variants.push(quote! {
-                            #tag_id => {
+                            _t if ctx.tokens_equivalent(_t, #tag_id) => {
                                 let remaining = match &variant_node.kind {
                                     #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.as_slice(),
                                     #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
@@ -3787,7 +3795,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_variants.push(quote! {
-                                #tag_id => {
+                                _t if ctx.tokens_equivalent(_t, #tag_id) => {
+                                    let val_id = val_id.ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for binary variant `{}` in enum {}", stringify!(#variant_ident), stringify!(#type_name)))?;
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -3813,7 +3822,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_variants.push(quote! {
-                                #tag_id => {
+                                _t if ctx.tokens_equivalent(_t, #tag_id) => {
+                                    let val_id = val_id.ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for variant `{}` in enum {}", stringify!(#variant_ident), stringify!(#type_name)))?;
                                     let val = <#first_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     Self::#variant_ident(val)
                                 }
@@ -3840,9 +3850,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             }).collect();
                             decode_variants.push(quote! {
-                                #tag_id => {
-                                    let vnode = ctx.node(val_id)?;
-                                    let field_ids = match &vnode.kind {
+                                _t if ctx.tokens_equivalent(_t, #tag_id) => {
+                                    let field_ids = match &variant_node.kind {
                                         #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.clone(),
                                         #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
                                         _ => ::std::vec::Vec::new(),
@@ -3892,7 +3901,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         let mut #f_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
                                     });
                                     v_field_arms.push(quote! {
-                                        #(#all_field_tags)|* => {
+                                        _t if [#(#all_field_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                             let state = #f_ident.get_or_insert_with(::std::default::Default::default);
                                             <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, ch_tag, ctx, child_val_id, ch_id)?;
                                         }
@@ -3911,7 +3920,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         let mut #f_ident: <#f_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
                                     });
                                     v_field_arms.push(quote! {
-                                        #(#all_field_tags)|* => {
+                                        _t if [#(#all_field_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                             <#f_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #f_ident, ch_tag, ctx, child_val_id, ch_id)?;
                                         }
                                     });
@@ -3944,7 +3953,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let mut #f_ident: #f_ty = ::std::vec::Vec::new();
                                 });
                                 v_field_arms.push(quote! {
-                                    #(#all_field_tags)|* => {
+                                    _t if [#(#all_field_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         let elem = #val_expr;
                                         #f_ident.push(elem);
                                     }
@@ -3955,7 +3964,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let mut #f_ident: ::std::option::Option<#f_ty> = ::std::option::Option::None;
                                 });
                                 v_field_arms.push(quote! {
-                                    #(#all_field_tags)|* => {
+                                    _t if [#(#all_field_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => {
                                         let val = #val_expr;
                                         if #f_ident.is_none() {
                                             #f_ident = ::std::option::Option::Some(val);
@@ -3992,7 +4001,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let opt_marker = if attr.omit_default {
                                         quote! {}
                                     } else {
-                                        quote! { mst.push_char(#crate_root::DcChar::from_short(315))?; }
+                                        quote! { mst.push_char(#crate_root::dc::DC_OPTIONAL_PRESENT)?; }
                                     };
                                     quote! {
                                         if let Some(ref val) = #f_ident {
@@ -4012,7 +4021,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let opt_marker = if attr.omit_default {
                                         quote! {}
                                     } else {
-                                        quote! { mst.push_char(#crate_root::DcChar::from_short(315))?; }
+                                        quote! { mst.push_char(#crate_root::dc::DC_OPTIONAL_PRESENT)?; }
                                     };
                                     quote! {
                                         if let Some(ref val) = #f_ident {
@@ -4069,7 +4078,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
 
                         decode_variants.push(quote! {
-                            #tag_id => {
+                            _t if ctx.tokens_equivalent(_t, #tag_id) => {
                                 #(#v_field_inits)*
                                 let field_ids: &[#crate_root::NodeId] = match &variant_node.kind {
                                     #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.as_slice(),
@@ -4082,8 +4091,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     ctx.current_position = ch_node.span.start;
                                     let (ch_tag, child_val_id) = match &ch_node.kind {
                                         #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                            // Reason for fallback: Tagged constructs without arguments fall back to ch_id as payload.
-                                            let arg_id = args.first().copied().unwrap_or(ch_id);
+                                            let ::std::option::Option::Some(&first_arg) = args.first() else {
+                                                ctx.handle_unconsumed_or_incomplete(
+                                                    &[format!("Empty tagged field {:#X} in variant `{}` of enum {}", tag.to_u128(), stringify!(#variant_ident), stringify!(#type_name))],
+                                                    &[],
+                                                )?;
+                                                continue;
+                                            };
+                                            let arg_id = if args.len() > 1 { ch_id } else { first_arg };
                                             (tag.to_u128(), arg_id)
                                         }
                                         #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
@@ -4094,6 +4109,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                         _ => (0, ch_id),
                                     };
+                                    let unwrap_id = ch_id;
                                     let ch_tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(ch_tag)).to_u128();
                                     let field_result: #anyhow_path::Result<bool> = (|| {
                                         match ch_tag {
@@ -4174,16 +4190,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let variant_node = ctx.node(variant_id)?;
                             let (tag, val_id) = match &variant_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    // Reason for fallback: Tagged constructs without arguments fall back to variant_id as payload.
-                                    let arg_id = args.first().copied().unwrap_or(variant_id);
-                                    (tag.to_u128(), arg_id)
+                                    (tag.to_u128(), args.first().copied())
                                 }
                                 #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                    (opener.to_u128(), variant_id)
+                                    (opener.to_u128(), ::std::option::Option::Some(variant_id))
                                 }
                                 #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
                                     let ch_tag = ch.to_u128();
-                                    (ch_tag, variant_id)
+                                    (ch_tag, ::std::option::Option::Some(variant_id))
                                 }
                                 other => #anyhow_path::bail!(
                                     "Unexpected node {other:?} for variant in enum {}",
@@ -4235,15 +4249,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let children = variant_node.children();
                             let (tag, val_id) = match &variant_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    // Reason for fallback: Tagged constructs without arguments fall back to unwrap_id as payload.
-                                    let arg_id = args.first().copied().unwrap_or(unwrap_id);
-                                    (tag.to_u128(), arg_id)
+                                    (tag.to_u128(), args.first().copied())
                                 }
                                 #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                    (opener.to_u128(), unwrap_id)
+                                    (opener.to_u128(), ::std::option::Option::Some(unwrap_id))
                                 }
                                 #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                    (ch.to_u128(), unwrap_id)
+                                    (ch.to_u128(), ::std::option::Option::Some(unwrap_id))
                                 }
                                 other => #anyhow_path::bail!(
                                     "Unexpected node {other:?} for enum {}",

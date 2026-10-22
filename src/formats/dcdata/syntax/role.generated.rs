@@ -104,6 +104,12 @@ pub enum DcRole {
     EndAssociativityGroup,
     /// Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”. (`300`).
     TypeUnion,
+    /// Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it. (`301`).
+    TypeTransformation,
+    /// Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it. (`302`).
+    TypeConversion,
+    /// Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it. (`303`).
+    TypeTransmutation,
     /// Subtype of string (`306`).
     TypeRoutineName,
     /// Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back. (`308`).
@@ -230,6 +236,9 @@ match self {
             Self::BeginAssociativityGroup => Some(298),
             Self::EndAssociativityGroup => Some(299),
             Self::TypeUnion => Some(300),
+            Self::TypeTransformation => Some(301),
+            Self::TypeConversion => Some(302),
+            Self::TypeTransmutation => Some(303),
             Self::TypeRoutineName => Some(306),
             Self::LongDc => Some(308),
             Self::BeginList => Some(310),
@@ -315,6 +324,9 @@ match self {
             Self::BeginAssociativityGroup => short == Some(298),
             Self::EndAssociativityGroup => short == Some(299),
             Self::TypeUnion => short == Some(300),
+            Self::TypeTransformation => short == Some(301),
+            Self::TypeConversion => short == Some(302),
+            Self::TypeTransmutation => short == Some(303),
             Self::TypeRoutineName => short == Some(306),
             Self::LongDc => short == Some(308),
             Self::BeginList => short == Some(310),

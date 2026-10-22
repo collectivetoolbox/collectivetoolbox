@@ -38,6 +38,12 @@ use super::ast::{
     FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
     ParamBinding, ParamValue,
 };
+use crate::dc::{
+    DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_PARAMETER,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_PARAMETER, DC_FORMAT_PARAM_APPLICATION,
+    DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION, DC_TYPE_TRANSFORMATION,
+    DC_TYPE_TRANSMUTATION, DC_TYPE_UNION, DcChar,
+};
 use crate::syntax::{DcRole, SyntaxRuleResolver};
 
 /// Token in a Dc format specification stream.
@@ -82,6 +88,18 @@ impl<'de> Deserialize<'de> for DcToken {
 }
 
 impl DcToken {
+    /// Constructs a `DcToken` from a short-range `DcChar` constant.
+    #[must_use]
+    pub fn from_short_dc(dc: DcChar) -> Self {
+        #[expect(
+            clippy::expect_used,
+            reason = "Caller passes compile-time short Dc constant"
+        )]
+        Self::Dc(DcShorthand::Short(
+            dc.to_short_dc().expect("dc is a short Dc constant"),
+        ))
+    }
+
     /// Returns true if this token fills the specified syntax role under `resolver`.
     #[must_use]
     pub fn fills_role_with(&self, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> bool {
@@ -127,17 +145,17 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
             tokens.push(DcToken::NamedType(name.clone()));
         }
         FormatExpr::Convert(left, right) => {
-            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Convert.dc_id())));
+            tokens.push(DcToken::from_short_dc(FormatOp::Convert.dc_char()));
             encode_expr_recursive(left, false, tokens);
             encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Transmute(left, right) => {
-            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Transmute.dc_id())));
+            tokens.push(DcToken::from_short_dc(FormatOp::Transmute.dc_char()));
             encode_expr_recursive(left, false, tokens);
             encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Transform(left, right) => {
-            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Transform.dc_id())));
+            tokens.push(DcToken::from_short_dc(FormatOp::Transform.dc_char()));
             encode_expr_recursive(left, false, tokens);
             encode_expr_recursive(right, is_tail, tokens);
         }
@@ -148,10 +166,10 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
             encode_variable_arity_op(FormatOp::Intersection, children, is_tail, tokens);
         }
         FormatExpr::Apply { target, params } => {
-            tokens.push(DcToken::Dc(DcShorthand::Short(535)));
+            tokens.push(DcToken::from_short_dc(DC_FORMAT_PARAM_APPLICATION));
             encode_expr_recursive(target, false, tokens);
             for param in params {
-                tokens.push(DcToken::Dc(DcShorthand::Short(258)));
+                tokens.push(DcToken::from_short_dc(DC_BEGIN_PARAMETER));
                 tokens.push(DcToken::NamedType(param.name.clone()));
                 match &param.value {
                     ParamValue::Integer(n) => {
@@ -173,9 +191,9 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
                         encode_expr_recursive(e, false, tokens);
                     }
                 }
-                tokens.push(DcToken::Dc(DcShorthand::Short(259)));
+                tokens.push(DcToken::from_short_dc(DC_END_PARAMETER));
             }
-            tokens.push(DcToken::Dc(DcShorthand::Short(299)));
+            tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP));
         }
     }
 }
@@ -189,21 +207,17 @@ fn encode_variable_arity_op(
     if children.is_empty() {
         return;
     }
-    tokens.push(DcToken::Dc(DcShorthand::Short(op.dc_id())));
+    tokens.push(DcToken::from_short_dc(op.dc_char()));
     let count = children.len();
     for (idx, child) in children.iter().enumerate() {
         let is_last = idx.saturating_add(1) == count;
         encode_expr_recursive(child, is_tail && is_last, tokens);
     }
     if !is_tail {
-        tokens.push(DcToken::Dc(DcShorthand::Short(299)));
+        tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP));
     }
 }
 
-/// Decodes a string of space-separated Dc tokens into a `FormatExpr`.
-///
-/// # Errors
-/// Returns an error if the token stream has unmatched groups, unknown operators,
 /// Decodes a string of space-separated Dc tokens into a `FormatExpr`.
 ///
 /// # Errors
@@ -229,20 +243,19 @@ pub fn decode_dc_stream_string_with_resolver(
     decode_dc_stream_with_resolver(&tokens, resolver)
 }
 
-/// Parses a space-separated string of tokens into `Vec<DcToken>`.
 /// Parses a space-separated string of tokens into `Vec<DcToken>`, supporting both
 /// numeric Dc shorthands and operator symbols.
 fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
     let mut tokens = Vec::new();
     for part in input.split_whitespace() {
         match part {
-            "&" => tokens.push(DcToken::Dc(DcShorthand::Short(300))),
-            "|" => tokens.push(DcToken::Dc(DcShorthand::Short(516))),
-            ">" => tokens.push(DcToken::Dc(DcShorthand::Short(302))),
-            "!" => tokens.push(DcToken::Dc(DcShorthand::Short(303))),
-            ":" => tokens.push(DcToken::Dc(DcShorthand::Short(301))),
-            "(" => tokens.push(DcToken::Dc(DcShorthand::Short(298))),
-            ")" => tokens.push(DcToken::Dc(DcShorthand::Short(299))),
+            "&" => tokens.push(DcToken::from_short_dc(DC_TYPE_UNION)),
+            "|" => tokens.push(DcToken::from_short_dc(DC_TYPE_INTERSECTION)),
+            ">" => tokens.push(DcToken::from_short_dc(DC_TYPE_CONVERSION)),
+            "!" => tokens.push(DcToken::from_short_dc(DC_TYPE_TRANSMUTATION)),
+            ":" => tokens.push(DcToken::from_short_dc(DC_TYPE_TRANSFORMATION)),
+            "(" => tokens.push(DcToken::from_short_dc(DC_BEGIN_ASSOCIATIVITY_GROUP)),
+            ")" => tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP)),
             _ => {
                 if let Ok(shorthand) = DcShorthand::parse(part) {
                     tokens.push(DcToken::Dc(shorthand));
@@ -262,15 +275,18 @@ pub(crate) fn is_closing_token(token: &DcToken, resolver: &dyn SyntaxRuleResolve
 }
 
 fn format_op_from_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> Option<FormatOp> {
-    match token {
-        DcToken::Dc(sh) => {
-            let gid = sh.to_global_id().ok()?;
-            let canonical_gid = resolver.canonical_token(gid);
-            let short_id = crate::dc_char::DcChar::from_u128(canonical_gid).to_short().ok()?;
-            FormatOp::from_dc_id(short_id)
+    for op in [
+        FormatOp::Union,
+        FormatOp::Transform,
+        FormatOp::Convert,
+        FormatOp::Transmute,
+        FormatOp::Intersection,
+    ] {
+        if token.fills_role_with(op.role(), resolver) {
+            return Some(op);
         }
-        _ => None,
     }
+    None
 }
 
 /// Decodes a slice of `DcToken`s into a `FormatExpr`.

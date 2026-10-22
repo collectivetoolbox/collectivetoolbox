@@ -37,9 +37,7 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 - [ ] Audit remaining default-resolver boundaries rather than repeating the
   completed role migration. For example,
   [minimal number readers](../src/formats/dcdata/dc_number_minimal.rs#L71)
-  use default roles/digits, and
-  [source map extraction](../src/formats/dcstring/source_edit.rs#L139) calls
-  the default-resolver arena helper. Exercise custom aliases through the public
+  use default roles/digits. Exercise custom aliases through the public
   API before deciding which helpers need explicit resolver variants.
 - [ ] Validate ambiguous database grammar and ambiguous derive mappings at
   build time. Equivalence parity is already checked; establish which other
@@ -77,10 +75,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
   including multi-token values, emitted outer closers, and quoted content.
   [Expression/overlay tests](../src/formats/dcstring/tests/e2e_dc_syntax.rs#L1010)
   already exist; extend them instead of reviving synthetic-node insertion.
-- [ ] Make binary source-edit reconciliation type-sensitive:
-  [write_semantic](../src/formats/dcstring/source_edit.rs#L147) re-encodes only
-  payload bytes, ignoring `data_type`. Add a same-bytes/different-type edit
-  regression. This predates the refactor; it is not a newly introduced bug.
 - [ ] Audit timestamp decoding for omitted required fields defaulting to epoch,
   duplicate-field replacement, and retained unknown `EnvDescription.extra`
   fields. These historical CSC reports need reproduction against current
@@ -139,41 +133,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
   clean bootstrap and relevant non-Linux runtime behavior separately. No current
   full-workspace or cross-platform certification is claimed.
 
-## Bounded Work Already Present
-
-These are removed from the active implementation queue, not assertions that
-their surrounding contracts have no remaining gaps.
-
-- [x] Generated static resolver tables and CSV/table equality coverage:
-  [resolver code and tests](../src/formats/dcdata/syntax/resolver.rs#L1343).
-- [x] Navigator/arena projection, inspection, and source editing replace the
-  active `DcMixedReader`, `read_nodes`, fixed-arity shortcut, and separate
-  token-document parser. The syntax DSL parser remains intentionally.
-- [x] Shared normalized single-token equivalence and `@closes` parity checks:
-  [validation](../src/formats/dcdata/validation.rs#L1830) and
-  [dataset loading](../src/formats/dcdata/syntax/resolver.rs#L941).
-  The old delimiter-ownership fixture now declares matching closer parity.
-- [x] Generated roles, runtime equivalence overlays, resolver-aware decoding,
-  expression evaluation/splicing, and associated
-  [regressions](../src/formats/dcstring/tests/e2e_dc_syntax.rs#L1842) exist.
-  The double-offset/format-truncation and multi-token-splice fixes are present.
-- [x] Temporal closer declarations for Dc 391, 394, and 396 are now explicit in
-  [semantic data](../src/formats/dcdata/data/categories/semantic.csv#L96).
-- [x] Generic metadata/FinderLabel derives, signed pre-epoch time encoding,
-  file-backed checksum validation, metadata budgets, configurable depth, and
-  flattened required-field checks have implementation/regression coverage.
-  Do not reopen the old whole-feature absence claims without a reproducer.
-- [x] Writer-based derives, `encode_only`, lazy binary sources, and strict
-  validation of emitted typed records exist in
-  [dc_writer](../src/formats/dcstring/dc_writer.rs#L194) and the
-  [shared file encoder](../src/io/file/encoding.rs#L179). Journal/archive work
-  must reuse this path, not introduce another serialization grammar.
-- [x] `Dc 255` single-token role stripping, parser-owned `Dc 313..314`
-  deprecation diagnostics (`strict()` warns once and records the diagnostic in
-  `DcSyntaxArena`), `[format]` named type covering `:[f0..f1114111]`, `Dc 388`
-  implicit `397`/`561` evaluation over grouped alternations, and composite
-  framed pair `(u32, bool)` + `Vec<u32>` projection through `397 [list] -> 315`.
-
 ## Related and Deferred Work
 
 - Journal crash recovery, integrity diagnostics, completion/resume, archive
@@ -209,12 +168,4 @@ not a broad Rust rebuild.
 ## Recovered From Pre-Cleanup `issues/` (To Filter)
 
 - [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
-- [ ] Eliminate remaining hardcoded Dc numbers and one-sided canonical token matching in `src/formats/dcstring/ctb_dc_macro/src/lib.rs` (`DcChar::from_short(397)` / `DcChar::from_short(561)` at lines `2022, 2753, 2859, 2861, 3446, 3576, 4179, 4239`, and `ctx.canonical_token(tag)` matched against raw `#all_match_tags` without canonicalizing the annotated side or consulting runtime `equiv_map`; from `5e3a561bb:issues/issues.md:146` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:76`).
-- [ ] Finish auditing and migrating remaining hardcoded Dc comparisons in `src/formats/dcdata/dc_char.rs` and `src/formats/dcdata/format_spec/dc_stream.rs` (`Short(535)`, `Short(258)`, `Short(259)`, `Short(299)`, `Short(300)` at `dc_stream.rs:151-245`; from `5e3a561bb:issues/issues.md:146`).
-- [ ] Audit `// Reason for fallback:` sites across `dcdata` and `dcstring` that may mask data corruption or broken invariants (from `5e3a561bb:issues/2026-10-13-Dc-syntax-parser-refactor/to-review:3-15` and `subplan-2.md:97`):
-  - `src/formats/dcdata/lookup.rs:105`: missing/unparseable `DcList.generated.csv` falls back to an empty lookup table instead of failing loudly.
-  - `src/formats/dcdata/column_spec.rs:190,234,248`: out-of-bounds/mid-codepoint slice falls back to `","`.
-  - `src/formats/dcdata/format.rs:650`: out-of-range format short ID falls back to dummy `0`.
-  - `src/formats/dcstring/source_edit.rs:116`: empty malformed token falls back to NUL (`\u{0000}`).
-  - `src/formats/dcstring/ctb_dc_macro/src/lib.rs:3535,4072,4164,4225`: empty `Tagged { tag, args }` falls back to passing `child_id`/`ch_id` as its own payload instead of returning a decode error.
 - [ ] Check whether `memories/dc-document-parsing.md` should be restored to `memories/` (moved out of `memories/` into `issues/2026-10-13-Dc-syntax-parser-refactor/dc-document-parsing.md` in `787086572` and deleted in `b7e594364`).

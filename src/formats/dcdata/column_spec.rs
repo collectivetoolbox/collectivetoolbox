@@ -185,10 +185,15 @@ pub fn parse_aliases_or_base_column(
                 if i > 0 {
                     if let Some(&(_, prev_ch)) = chars.get(i.saturating_sub(1)) {
                         if prev_ch.is_whitespace() {
-                            let snippet_start = byte_idx.saturating_sub(10);
-                            let snippet_end = byte_idx.saturating_add(1).min(raw.len());
-                            // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
-                            let snippet = raw.get(snippet_start..snippet_end).unwrap_or(",");
+                            let snippet_start = raw.floor_char_boundary(byte_idx.saturating_sub(10));
+                            let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(1).min(raw.len()));
+                            #[expect(
+                                clippy::expect_used,
+                                reason = "floor_char_boundary and ceil_char_boundary guarantee valid UTF-8 char boundaries with snippet_start <= snippet_end <= raw.len()"
+                            )]
+                            let snippet = raw
+                                .get(snippet_start..snippet_end)
+                                .expect("char-boundary slice is valid");
                             report.add_error(
                                 file_path,
                                 Some(line_no),
@@ -230,9 +235,14 @@ pub fn parse_aliases_or_base_column(
                             Some("Remove redundant comma"),
                         );
                     } else if next_ch != ' ' {
-                        let snippet_end = byte_idx.saturating_add(15).min(raw.len());
-                        // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
-                        let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
+                        let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(15).min(raw.len()));
+                        #[expect(
+                            clippy::expect_used,
+                            reason = "byte_idx is from char_indices() and ceil_char_boundary guarantees valid UTF-8 char boundary >= byte_idx"
+                        )]
+                        let snippet = raw
+                            .get(byte_idx..snippet_end)
+                            .expect("char-boundary slice is valid");
                         report.add_error(
                             file_path,
                             Some(line_no),
@@ -244,9 +254,14 @@ pub fn parse_aliases_or_base_column(
                         let next_next_i = next_i.saturating_add(1);
                         if let Some(&(_, after_space_ch)) = chars.get(next_next_i) {
                             if after_space_ch.is_whitespace() {
-                                let snippet_end = byte_idx.saturating_add(15).min(raw.len());
-                                // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
-                                let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
+                                let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(15).min(raw.len()));
+                                #[expect(
+                                    clippy::expect_used,
+                                    reason = "byte_idx is from char_indices() and ceil_char_boundary guarantees valid UTF-8 char boundary >= byte_idx"
+                                )]
+                                let snippet = raw
+                                    .get(byte_idx..snippet_end)
+                                    .expect("char-boundary slice is valid");
                                 report.add_error(
                                     file_path,
                                     Some(line_no),
