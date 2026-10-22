@@ -333,6 +333,8 @@ pub struct SyntaxEvalContext<'r> {
     pub has_errors: bool,
     /// Optional expression evaluator for dynamic/Scheme/Lisp-like expression resolution.
     pub evaluator: Option<Arc<dyn DcExpressionEvaluator>>,
+    /// Captured integer variables bound via `-> $var` during rule evaluation.
+    pub captured_numbers: std::collections::HashMap<String, malachite::Integer>,
     policy: DcProjectionPolicy,
 }
 
@@ -350,6 +352,7 @@ impl<'r> SyntaxEvalContext<'r> {
             diagnostics: Vec::new(),
             has_errors: false,
             evaluator: Some(Arc::new(DefaultDcExpressionEvaluator)),
+            captured_numbers: std::collections::HashMap::new(),
             policy: DcProjectionPolicy::strict(),
         }
     }
@@ -648,6 +651,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         }
     }
 
+    fn has_script(&self, script_name: &str) -> bool {
+        self.base.has_script(script_name)
+    }
+
     fn matches_named_type_starter(&self, name: &str, token: u128) -> bool {
         if self.base.matches_named_type_starter(name, token) {
             return true;
@@ -899,6 +906,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeRegistry {
 
     fn matches_script(&self, script_name: &str, token: u128) -> bool {
         self.resolver.matches_script(script_name, token)
+    }
+
+    fn has_script(&self, script_name: &str) -> bool {
+        self.resolver.has_script(script_name)
     }
 
     fn matches_named_type_starter(&self, name: &str, token: u128) -> bool {
@@ -2685,7 +2696,7 @@ impl<'a> DcDocumentNavigator<'a> {
             self.cursor = start_offset;
             let mut ctx = SyntaxEvalContext::new(resolver, None);
             ctx.policy.clone_from(policy);
-            if !self.eval_number_frame(None, &mut ctx)? || ctx.has_errors {
+            if !self.eval_number_frame(None, None, &mut ctx)? || ctx.has_errors {
                 self.syntax_issue(policy, start_offset, format!("Invalid number frame at offset {start_offset}"))?;
             }
             self.cursor = end_offset;
@@ -3031,7 +3042,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut ctx = SyntaxEvalContext::new(resolver, Some(list_target.to_u128()));
         ctx.policy.clone_from(policy);
         self.cursor = inner.start;
-        if !self.eval_number_frame(None, &mut ctx)? {
+        if !self.eval_number_frame(None, None, &mut ctx)? {
             return Ok(());
         }
         let (_, digits) = self.decode_number_span_with_resolver(DcByteSpan::new(inner.start, self.cursor), resolver)?;
@@ -5244,7 +5255,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         if first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
                             self.cursor = start_offset;
-                            return self.eval_number_frame(None, ctx);
+                            return self.eval_number_frame(None, None, ctx);
                         }
                         if let Some(target) = CharTarget::from_u128(first) {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(&target) {
@@ -5271,7 +5282,7 @@ impl<'a> DcDocumentNavigator<'a> {
             SyntaxTerm::NamedConstruct {
                 name,
                 subtype,
-                ..
+                capture_var,
             } => {
                 let direct_matched = if name == "data" {
                     self.eval_data_construct(subtype.as_deref(), ctx)?
@@ -5400,7 +5411,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 } else if name == "identifier" {
                     self.eval_identifier_frame(ctx)?
                 } else if name == "number" {
-                    self.eval_number_frame(subtype.as_deref(), ctx)?
+                    self.eval_number_frame(subtype.as_deref(), capture_var.as_deref(), ctx)?
                 } else {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;
@@ -5418,16 +5429,61 @@ impl<'a> DcDocumentNavigator<'a> {
                     if ctx.call_stack.contains(&frame_key) {
                         return Ok(false);
                     }
+                    let (lookup_name, list_len_arg) = if let Some(len_arg) =
+                        name.strip_prefix("list(").and_then(|s| s.strip_suffix(')'))
+                    {
+                        ("list", Some(len_arg))
+                    } else {
+                        (name.as_str(), None)
+                    };
                     let mut matched = false;
                     if let Some(pattern) = ctx
                         .resolver
-                        .resolve_named_type_with_arg(name, subtype.as_deref())
+                        .resolve_named_type_with_arg(lookup_name, subtype.as_deref())
                     {
                         ctx.call_stack.push(frame_key);
                         ctx.depth = ctx.depth.saturating_add(1);
                         matched = self.eval_pattern(&pattern, ctx)?;
                         ctx.depth = ctx.depth.saturating_sub(1);
                         ctx.call_stack.pop();
+                        if matched
+                            && lookup_name == "list"
+                            && (subtype.is_some() || list_len_arg.is_some())
+                        {
+                            if from_spliced {
+                                let consumed_count = term_checkpoint
+                                    .spliced_tokens
+                                    .len()
+                                    .saturating_sub(self.spliced_tokens.len());
+                                let mut mstr = DcMstring::new();
+                                for &ch in
+                                    term_checkpoint.spliced_tokens.iter().take(consumed_count)
+                                {
+                                    mstr.push_char(ch.to_u128());
+                                }
+                                let mut sub_nav = DcDocumentNavigator::from_mstr(&mstr);
+                                let list_end = u64::try_from(mstr.len()).unwrap_or(0);
+                                matched = sub_nav.eval_list_constraints(
+                                    0,
+                                    list_end,
+                                    subtype.as_deref(),
+                                    list_len_arg,
+                                    ctx,
+                                )?;
+                            } else {
+                                let list_end = self.cursor;
+                                matched = self.eval_list_constraints(
+                                    start_offset,
+                                    list_end,
+                                    subtype.as_deref(),
+                                    list_len_arg,
+                                    ctx,
+                                )?;
+                                if matched {
+                                    self.cursor = list_end;
+                                }
+                            }
+                        }
                         if !matched {
                             self.restore_checkpoint(term_checkpoint.clone());
                         }
@@ -5629,12 +5685,6 @@ impl<'a> DcDocumentNavigator<'a> {
                             token.and_then(|ch| CharTarget::from_u128(ch.to_u128()))
                                 .and_then(|target| ctx.resolver.resolve_rule(&target))
                                 .map(|rule| rule.pattern.clone())
-                        } else if let SyntaxTerm::NamedConstruct { name, subtype, .. } = &term {
-                            if name == "list" {
-                                ctx.resolver.resolve_named_type_with_arg(name, subtype.as_deref())
-                            } else {
-                                None
-                            }
                         } else if let SyntaxTerm::RuleRef { target } = &term {
                             ctx.resolver.resolve_rule(target).map(|rule| rule.pattern.clone())
                         } else {
@@ -6319,6 +6369,7 @@ impl<'a> DcDocumentNavigator<'a> {
     fn eval_number_frame(
         &mut self,
         subtype: Option<&str>,
+        capture_var: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let term_checkpoint = self.save_checkpoint();
@@ -6350,14 +6401,22 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.restore_checkpoint(term_checkpoint);
                 return Ok(false);
             }
-            if let Some(sub) = subtype {
-                let Ok(val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, ctx.resolver) else {
+            if subtype.is_some() || capture_var.is_some() {
+                let Ok(val) =
+                    crate::dc_number::parse_dc_number_digits_with_resolver(&digits, ctx.resolver)
+                else {
                     self.restore_checkpoint(term_checkpoint);
                     return Ok(false);
                 };
-                if !number_satisfies_subtype(&val, sub, ctx.resolver) {
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
+                if let Some(sub) = subtype {
+                    if !number_satisfies_subtype(&val, sub, ctx.resolver) {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    }
+                }
+                if let Some(var) = capture_var {
+                    ctx.captured_numbers
+                        .insert(var.trim_start_matches('$').to_owned(), val);
                 }
             }
             return Ok(true);
@@ -6385,20 +6444,30 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.cursor = start_offset;
                     return Ok(false);
                 }
-                if let Some(sub) = subtype {
-                    let Ok((_, digits)) =
-                        self.decode_number_span_with_resolver(DcByteSpan::new(start_offset, next_off), ctx.resolver)
-                    else {
+                if subtype.is_some() || capture_var.is_some() {
+                    let Ok((_, digits)) = self.decode_number_span_with_resolver(
+                        DcByteSpan::new(start_offset, next_off),
+                        ctx.resolver,
+                    ) else {
                         self.cursor = start_offset;
                         return Ok(false);
                     };
-                    let Ok(val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, ctx.resolver) else {
+                    let Ok(val) = crate::dc_number::parse_dc_number_digits_with_resolver(
+                        &digits,
+                        ctx.resolver,
+                    ) else {
                         self.cursor = start_offset;
                         return Ok(false);
                     };
-                    if !number_satisfies_subtype(&val, sub, ctx.resolver) {
-                        self.cursor = start_offset;
-                        return Ok(false);
+                    if let Some(sub) = subtype {
+                        if !number_satisfies_subtype(&val, sub, ctx.resolver) {
+                            self.cursor = start_offset;
+                            return Ok(false);
+                        }
+                    }
+                    if let Some(var) = capture_var {
+                        ctx.captured_numbers
+                            .insert(var.trim_start_matches('$').to_owned(), val);
                     }
                 }
                 self.cursor = next_off;
@@ -6409,6 +6478,220 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         self.cursor = start_offset;
         Ok(false)
+    }
+
+    fn eval_list_constraints(
+        &mut self,
+        list_start: u64,
+        list_end: u64,
+        subtype: Option<&str>,
+        len_arg: Option<&str>,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
+        let Some((list_open, after_list_open)) = self.read_token_or_binary_at(list_start)? else {
+            return Ok(false);
+        };
+        if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
+            return Ok(false);
+        }
+        let list_closer = CharTarget::from_u128(list_open.to_u128())
+            .and_then(|t| ctx.resolver.closer_for_opener(&t))
+            .map(DcChar::from_u128)
+            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+        let close_len = dc_char_utf8e128_len(list_closer);
+        if list_end < after_list_open.saturating_add(close_len) {
+            return Ok(false);
+        }
+        let list_body_end = list_end.saturating_sub(close_len);
+
+        let expected_len: Option<malachite::Integer> = if let Some(raw_len) = len_arg {
+            let trimmed = raw_len.trim();
+            if let Some(var_name) = trimmed.strip_prefix('$') {
+                let Some(val) = ctx.captured_numbers.get(var_name).cloned() else {
+                    return Ok(false);
+                };
+                if val < malachite::Integer::from(0) {
+                    return Ok(false);
+                }
+                Some(val)
+            } else {
+                let Some(val) = parse_bound(trimmed) else {
+                    return Ok(false);
+                };
+                if val < malachite::Integer::from(0) {
+                    return Ok(false);
+                }
+                Some(val)
+            }
+        } else {
+            None
+        };
+
+        let elem_term = if let Some(sub) = subtype {
+            let trimmed = sub.trim();
+            if trimmed.starts_with('(') {
+                let Ok(rule) = parse_dc_syntax(&format!(":{trimmed}")) else {
+                    return Ok(false);
+                };
+                SyntaxTerm::Group(rule.pattern)
+            } else if let Some((base, inner_sub)) = trimmed.split_once(':') {
+                if ctx.resolver.resolve_named_type(base).is_some()
+                    || matches!(
+                        base,
+                        "data"
+                            | "typed_data"
+                            | "script"
+                            | "format"
+                            | "formats"
+                            | "type"
+                            | "string"
+                            | "identifier"
+                            | "number"
+                            | "list"
+                    )
+                    || base.starts_with("list(")
+                {
+                    SyntaxTerm::NamedConstruct {
+                        name: base.to_owned(),
+                        subtype: Some(inner_sub.to_owned()),
+                        capture_var: None,
+                    }
+                } else if ctx.resolver.has_script(trimmed) {
+                    SyntaxTerm::NamedConstruct {
+                        name: "script".to_owned(),
+                        subtype: Some(trimmed.to_owned()),
+                        capture_var: None,
+                    }
+                } else {
+                    return Ok(false);
+                }
+            } else if ctx.resolver.resolve_named_type(trimmed).is_some()
+                || matches!(
+                    trimmed,
+                    "data"
+                        | "typed_data"
+                        | "script"
+                        | "format"
+                        | "formats"
+                        | "type"
+                        | "string"
+                        | "identifier"
+                        | "number"
+                        | "list"
+                )
+                || trimmed.starts_with("list(")
+            {
+                SyntaxTerm::NamedConstruct {
+                    name: trimmed.to_owned(),
+                    subtype: None,
+                    capture_var: None,
+                }
+            } else if ctx.resolver.has_script(trimmed) {
+                SyntaxTerm::NamedConstruct {
+                    name: "script".to_owned(),
+                    subtype: Some(trimmed.to_owned()),
+                    capture_var: None,
+                }
+            } else if FormatId::from_shorthand(trimmed).is_some()
+                || FormatId::from_ident(trimmed).is_some()
+                || matches!(trimmed, "NonNegative" | "Natural")
+                || trimmed.starts_with("<=")
+                || trimmed.starts_with('<')
+                || trimmed.starts_with(">=")
+                || trimmed.starts_with('>')
+                || trimmed.contains('&')
+            {
+                SyntaxTerm::NamedConstruct {
+                    name: "number".to_owned(),
+                    subtype: Some(trimmed.to_owned()),
+                    capture_var: None,
+                }
+            } else {
+                return Ok(false);
+            }
+        } else {
+            SyntaxTerm::NamedConstruct {
+                name: "value".to_owned(),
+                subtype: None,
+                capture_var: None,
+            }
+        };
+
+        let saved_span = self.active_span;
+        self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+        self.cursor = after_list_open;
+
+        let mut sub_ctx = ctx.clone();
+
+        // 1. Optional [number] count header in 310..311
+        let mut header_count: Option<malachite::Integer> = None;
+        let num_pos = self.cursor;
+        let num_term = SyntaxTerm::NamedConstruct {
+            name: "number".to_owned(),
+            subtype: Some("NonNegative".to_owned()),
+            capture_var: Some("__list_header_len".to_owned()),
+        };
+        if self.eval_term_single(&num_term, &mut sub_ctx)? && !sub_ctx.has_errors {
+            header_count = sub_ctx.captured_numbers.remove("__list_header_len");
+        } else {
+            self.cursor = num_pos;
+            sub_ctx.has_errors = false;
+        }
+
+        // 2. Required [type] header in 310..311
+        let type_term = SyntaxTerm::NamedConstruct {
+            name: "type".to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        if !self.eval_term_single(&type_term, &mut sub_ctx)? || sub_ctx.has_errors {
+            self.active_span = saved_span;
+            return Ok(false);
+        }
+
+        // 3. Elements separated by Dc 312
+        let mut elem_count = malachite::Integer::from(0);
+        let mut expect_elem = false;
+        while self.cursor < list_body_end {
+            let elem_start = self.cursor;
+            if !self.eval_term_single(&elem_term, &mut sub_ctx)?
+                || sub_ctx.has_errors
+                || self.cursor <= elem_start
+            {
+                self.active_span = saved_span;
+                return Ok(false);
+            }
+            elem_count += malachite::Integer::from(1);
+            expect_elem = false;
+            if self.cursor < list_body_end {
+                let Some((sep_tok, after_sep)) = self.read_token_or_binary_at(self.cursor)? else {
+                    self.active_span = saved_span;
+                    return Ok(false);
+                };
+                if sep_tok.fills_role_with(DcRole::ListElementSeparator, ctx.resolver) {
+                    self.cursor = after_sep;
+                    expect_elem = true;
+                } else if !matches!(elem_term, SyntaxTerm::Group(_)) {
+                    self.active_span = saved_span;
+                    return Ok(false);
+                }
+            }
+        }
+        self.active_span = saved_span;
+        if expect_elem {
+            return Ok(false);
+        }
+        if let Some(hdr) = header_count {
+            if hdr != elem_count {
+                return Ok(false);
+            }
+        }
+        if let Some(exp) = expected_len {
+            if exp != elem_count {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// Strictly validates all constructs in the navigator's active span against
@@ -6548,10 +6831,14 @@ fn number_satisfies_subtype(
     subtype: &str,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    for raw_part in subtype.split('&') {
+    let trimmed = subtype.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    for raw_part in trimmed.split('&') {
         let part = raw_part.trim();
         if part.is_empty() {
-            continue;
+            return false;
         }
         if !check_single_number_subtype(val, part, resolver) {
             return false;
@@ -6579,19 +6866,19 @@ fn check_single_number_subtype(
                 return ok;
             }
         }
-        eval_format_number_bounds(fmt, val)
+        eval_format_number_bounds(fmt, val, resolver)
     } else if let Some(rule) = resolver.resolve_named_type(part) {
-        check_pattern_number_constraint(rule, val, resolver).unwrap_or(true)
+        check_pattern_number_constraint(rule, val, resolver).unwrap_or(false)
     } else if let Some(rest) = part.strip_prefix("<=") {
-        parse_bound(rest).is_none_or(|b| val <= &b)
+        parse_bound(rest).is_some_and(|b| val <= &b)
     } else if let Some(rest) = part.strip_prefix('<') {
-        parse_bound(rest).is_none_or(|b| val < &b)
+        parse_bound(rest).is_some_and(|b| val < &b)
     } else if let Some(rest) = part.strip_prefix(">=") {
-        parse_bound(rest).is_none_or(|b| val >= &b)
+        parse_bound(rest).is_some_and(|b| val >= &b)
     } else if let Some(rest) = part.strip_prefix('>') {
-        parse_bound(rest).is_none_or(|b| val > &b)
+        parse_bound(rest).is_some_and(|b| val > &b)
     } else {
-        true
+        false
     }
 }
 
@@ -6655,7 +6942,11 @@ fn check_term_number_constraint(
     }
 }
 
-fn eval_format_number_bounds(fmt: FormatId, val: &malachite::Integer) -> bool {
+fn eval_format_number_bounds(
+    fmt: FormatId,
+    val: &malachite::Integer,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
     let zero = malachite::Integer::from(0);
     match fmt {
         FormatId::Natural0 => val >= &zero,
@@ -6687,7 +6978,10 @@ fn eval_format_number_bounds(fmt: FormatId, val: &malachite::Integer) -> bool {
             val >= &malachite::Integer::from(i128::MIN)
                 && val <= &malachite::Integer::from(i128::MAX)
         }
-        _ => true,
+        _ => fmt.dc_id().is_some_and(|dc_id| {
+            resolver.matches_script("Formats:number", dc_id)
+                || resolver.matches_script("Formats:number_abstract", dc_id)
+        }),
     }
 }
 
@@ -6695,13 +6989,20 @@ fn unconstrained_term(term: &SyntaxTerm) -> Option<SyntaxTerm> {
     match term {
         SyntaxTerm::NamedConstruct {
             name,
-            subtype: Some(_),
+            subtype,
             ..
-        } => Some(SyntaxTerm::NamedConstruct {
-            name: name.clone(),
-            subtype: None,
-            capture_var: None,
-        }),
+        } if name != "script" && (subtype.is_some() || name.starts_with("list(")) => {
+            let base_name = if name.starts_with("list(") {
+                "list".to_owned()
+            } else {
+                name.clone()
+            };
+            Some(SyntaxTerm::NamedConstruct {
+                name: base_name,
+                subtype: None,
+                capture_var: None,
+            })
+        }
         SyntaxTerm::Group(pattern) => unconstrained_pattern(pattern).map(SyntaxTerm::Group),
         _ => None,
     }
@@ -8378,6 +8679,161 @@ mod tests {
         ctx.max_depth = 5;
         ctx.depth = 5;
         assert!(!nav.eval_pattern(&recursive_rule.pattern, &mut ctx)?);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_numeric_and_list_constraints_across_backends_and_evaluated_inputs() -> Result<()> {
+        use std::io::Write as _;
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+        let fmt = |id: u32| {
+            FormatId::from_shorthand(&format!("f{id}"))
+                .and_then(|f| f.dc_id())
+                .unwrap()
+        };
+        let resolver = default_syntax_resolver();
+        let strict = DcProjectionPolicy::strict();
+
+        let check_all_backends = |tokens: &[u128], expected_ok: bool| -> Result<()> {
+            let dc_str = dc_string_from_tokens(tokens);
+            let mut mstr = DcMstring::new();
+            for &t in tokens {
+                mstr.push_char(t);
+            }
+            let mut file = tempfile::tempfile()?;
+            file.write_all(mstr.as_bytes())?;
+
+            let mut nav_str = DcDocumentNavigator::from_dc_str(&dc_str);
+            let mut nav_mstr = DcDocumentNavigator::from_mstr(&mstr);
+            let mut nav_file = DcDocumentNavigator::from_dcmm_file(file, 0)?;
+
+            let res_str = nav_str.validate_document_with_resolver(&strict, resolver.as_ref());
+            let res_mstr = nav_mstr.validate_document_with_resolver(&strict, resolver.as_ref());
+            let res_file = nav_file.validate_document_with_resolver(&strict, resolver.as_ref());
+
+            assert_eq!(res_str.is_ok(), expected_ok, "text backend mismatch for {tokens:?}");
+            assert_eq!(res_mstr.is_ok(), expected_ok, "mixed backend mismatch for {tokens:?}");
+            assert_eq!(res_file.is_ok(), expected_ok, "file backend mismatch for {tokens:?}");
+            Ok(())
+        };
+
+        // 1. Dc 405 (Mac OS Finder label color: :~ ([number:Natural0&<8] | ...))
+        // 0 (digit 127) and 7 (digit 134) succeed; 8 (digit 135) and -1 (191 128) fail.
+        check_all_backends(&[sdc(405), sdc(6), fmt(199), sdc(127), sdc(7)], true)?;
+        check_all_backends(&[sdc(405), sdc(6), fmt(199), sdc(134), sdc(7)], true)?;
+        check_all_backends(&[sdc(405), sdc(6), fmt(199), sdc(135), sdc(7)], false)?;
+        check_all_backends(&[sdc(405), sdc(6), fmt(199), sdc(191), sdc(128), sdc(7)], false)?;
+
+        // 2. Dc 388 (File flags: :~ ([list:Semantic:fileflag] | [539:])? 389)
+        // Valid fileflag 409 succeeds; non-fileflag 403 or number fails.
+        check_all_backends(
+            &[sdc(388), sdc(310), sdc(275), sdc(409), sdc(312), sdc(410), sdc(311), sdc(389)],
+            true,
+        )?;
+        check_all_backends(
+            &[sdc(388), sdc(310), sdc(275), sdc(403), sdc(311), sdc(389)],
+            false,
+        )?;
+        check_all_backends(
+            &[sdc(388), sdc(310), sdc(275), sdc(6), fmt(199), sdc(127), sdc(7), sdc(311), sdc(389)],
+            false,
+        )?;
+
+        // 3. Format f504 (Point: :~ [number $dimensions] [list($dimensions):number])
+        // 2D point with 2 numbers succeeds; 2D point with 1 number or non-number element fails.
+        let num_2 = [sdc(6), fmt(199), sdc(129), sdc(7)];
+        let num_10 = [sdc(6), fmt(199), sdc(137), sdc(7)];
+        let num_20 = [sdc(6), fmt(199), sdc(147), sdc(7)];
+        let mut valid_point = vec![sdc(511), fmt(504)];
+        valid_point.extend_from_slice(&num_2);
+        valid_point.extend([sdc(310), fmt(199)]);
+        valid_point.extend_from_slice(&num_10);
+        valid_point.push(sdc(312));
+        valid_point.extend_from_slice(&num_20);
+        valid_point.extend([sdc(311), sdc(512)]);
+        check_all_backends(&valid_point, true)?;
+
+        let mut wrong_len_point = vec![sdc(511), fmt(504)];
+        wrong_len_point.extend_from_slice(&num_2);
+        wrong_len_point.extend([sdc(310), fmt(199)]);
+        wrong_len_point.extend_from_slice(&num_10);
+        wrong_len_point.extend([sdc(311), sdc(512)]);
+        check_all_backends(&wrong_len_point, false)?;
+
+        let mut wrong_elem_point = vec![sdc(511), fmt(504)];
+        wrong_elem_point.extend_from_slice(&num_2);
+        wrong_elem_point.extend([sdc(310), sdc(275)]);
+        wrong_elem_point.extend_from_slice(&num_10);
+        wrong_elem_point.extend([sdc(312), sdc(517), sdc(311), sdc(512)]);
+        check_all_backends(&wrong_elem_point, false)?;
+
+        // 4. Unknown or invalid number bounds and non-number subtypes must reject rather than fall through.
+        let val_3 = malachite::Integer::from(3);
+        assert!(number_satisfies_subtype(&val_3, "Natural0&<8", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&malachite::Integer::from(8), "Natural0&<8", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&val_3, "UnknownBound", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&val_3, "<not_a_number", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&val_3, "Natural0&", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&val_3, "boolean", resolver.as_ref()));
+        assert!(!number_satisfies_subtype(&val_3, "f0", resolver.as_ref()));
+
+        // 5. Evaluated input (Dc 256 stream-spliced expression) across all backends:
+        // Splicing 7 (digit 134) satisfies Dc 405 ([number:Natural0&<8]); splicing 8 (digit 135) fails.
+        for (digit, expected_ok) in [(sdc(134), true), (sdc(135), false)] {
+            let spliced_label = vec![
+                sdc(405),
+                sdc(256),
+                sdc(258),
+                sdc(260),
+                sdc(262),
+                sdc(264),
+                sdc(263),
+                sdc(6),
+                fmt(199),
+                digit,
+                sdc(7),
+                sdc(261),
+                sdc(259),
+            ];
+            check_all_backends(&spliced_label, expected_ok)?;
+        }
+
+        // Splicing $dimensions = 2 via Dc 256 into Format f504 ([number $dimensions] [list($dimensions):number])
+        // succeeds for a 2-element list and fails for a 1-element list.
+        let mut spliced_dim_ok = vec![
+            sdc(511),
+            fmt(504),
+            sdc(256),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+        ];
+        spliced_dim_ok.extend_from_slice(&num_2);
+        spliced_dim_ok.extend([sdc(261), sdc(259), sdc(310), fmt(199)]);
+        spliced_dim_ok.extend_from_slice(&num_10);
+        spliced_dim_ok.push(sdc(312));
+        spliced_dim_ok.extend_from_slice(&num_20);
+        spliced_dim_ok.extend([sdc(311), sdc(512)]);
+        check_all_backends(&spliced_dim_ok, true)?;
+
+        let mut spliced_dim_bad = vec![
+            sdc(511),
+            fmt(504),
+            sdc(256),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+        ];
+        spliced_dim_bad.extend_from_slice(&num_2);
+        spliced_dim_bad.extend([sdc(261), sdc(259), sdc(310), fmt(199)]);
+        spliced_dim_bad.extend_from_slice(&num_10);
+        spliced_dim_bad.extend([sdc(311), sdc(512)]);
+        check_all_backends(&spliced_dim_bad, false)?;
+
         Ok(())
     }
 }

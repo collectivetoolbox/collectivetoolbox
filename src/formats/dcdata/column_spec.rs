@@ -90,6 +90,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
     /// Indicates whether this character is declared as defining a semantic or syntactic role via `@roleDef()`.
     pub role_def: bool,
+    /// Composite semantic or syntactic role names declared via `@roleDef("...")`.
+    pub composite_roles: Vec<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -849,15 +851,47 @@ fn process_column_item(
         } else if item_trimmed == "@roleDef()" {
             parsed.role_def = true;
         } else if let Some(inner) = item_trimmed.strip_prefix("@roleDef(") {
-            if inner.trim() == ")" {
-                parsed.role_def = true;
+            if let Some(body) = inner.strip_suffix(')') {
+                let body_trimmed = body.trim();
+                if body_trimmed.is_empty() {
+                    parsed.role_def = true;
+                } else if let Some(role_name) = unescape_quoted_directive_payload(body_trimmed) {
+                    if matches!(
+                        role_name.as_str(),
+                        "Base64Digit"
+                            | "TypeToken"
+                            | "PrimitiveValueAtom"
+                            | "DomainValueAtom"
+                            | "EvaluableExpressionStarter"
+                            | "StructuralSeparator"
+                    ) {
+                        parsed.composite_roles.push(role_name);
+                    } else {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Unknown composite role '{role_name}' in '{item_trimmed}'"),
+                            Some("Supported composite roles in '@roleDef(\"...\")' are 'Base64Digit', 'TypeToken', 'PrimitiveValueAtom', 'DomainValueAtom', 'EvaluableExpressionStarter', and 'StructuralSeparator'"),
+                        );
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@roleDef()': expected empty parentheses or a quoted composite role name in '{item_trimmed}'"),
+                        Some("Use '@roleDef()' without arguments or '@roleDef(\"RoleName\")'"),
+                    );
+                    parsed.role_def = true;
+                }
             } else {
                 report.add_error(
                     file_path,
                     Some(line_no),
                     Some(col_name),
-                    format!("Malformed '@roleDef()': directive takes no parameters in '{item_trimmed}'"),
-                    Some("Use '@roleDef()' without arguments"),
+                    format!("Malformed '@roleDef(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@roleDef(...)' closes with a parenthesis"),
                 );
                 parsed.role_def = true;
             }
@@ -1319,7 +1353,7 @@ mod tests {
     fn test_parse_role_def_directive() {
         let mut report = ValidationReport::new();
         let parsed = parse_aliases_or_base_column(
-            r#"@ident("Escape"), @roleDef()"#,
+            r#"@ident("TypeString"), @roleDef(), @roleDef("TypeToken")"#,
             "test_category.csv",
             1,
             &mut report,
@@ -1327,7 +1361,8 @@ mod tests {
         );
         assert!(!report.has_errors(), "Report errors: {}", report.format_report());
         assert!(parsed.role_def);
-        assert_eq!(parsed.rust_ident.as_deref(), Some("Escape"));
+        assert_eq!(parsed.rust_ident.as_deref(), Some("TypeString"));
+        assert_eq!(parsed.composite_roles, vec!["TypeToken"]);
 
         let mut err_report = ValidationReport::new();
         let parsed_err = parse_aliases_or_base_column(
@@ -1340,5 +1375,16 @@ mod tests {
         assert!(err_report.has_errors());
         assert!(err_report.format_report().contains("Malformed '@roleDef()'"));
         assert!(parsed_err.role_def);
+
+        let mut unknown_report = ValidationReport::new();
+        let _ = parse_aliases_or_base_column(
+            r#"@roleDef("UnknownRole")"#,
+            "test_category.csv",
+            1,
+            &mut unknown_report,
+            false,
+        );
+        assert!(unknown_report.has_errors());
+        assert!(unknown_report.format_report().contains("Unknown composite role 'UnknownRole'"));
     }
 }

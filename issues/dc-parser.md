@@ -52,12 +52,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Value Correctness and Fidelity
 
-- [ ] Close numeric/list constraint coverage across text, mixed, file-backed,
-  and evaluated inputs. Numeric subtype handling exists in
-  [the navigator](../src/formats/dcstring/navigator.rs#L6541); check `Natural0`,
-  `Natural0&<8` (including 8), list element types, and unknown/invalid bounds.
-  Some unsupported bounds currently fall through to acceptance. Extend existing
-  regressions rather than reimplementing numeric validation.
 - [ ] Preserve Dc-native literal/identifier payloads losslessly. Current
   [literal decoding](../src/formats/dcstring/navigator.rs#L4670) and identifier
   decoding convert to Rust `String`, including Plane 14 fallback for short Dcs.
@@ -164,8 +158,3 @@ Clippy checks, with explicit `--target x86_64-unknown-linux-musl`. Keep at least
 25 GB free, do not add dependencies or listening ports, and do not suppress
 Clippy errors. Documentation-only cleanup needs link and whitespace checks,
 not a broad Rust rebuild.
-
-## Recovered From Pre-Cleanup `issues/` (To Filter)
-
-- [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
-- [ ] Check whether `memories/dc-document-parsing.md` should be restored to `memories/` (moved out of `memories/` into `issues/2026-10-13-Dc-syntax-parser-refactor/dc-document-parsing.md` in `787086572` and deleted in `b7e594364`).

@@ -79,6 +79,25 @@ fn extract_ident_annotation(s: &str) -> Option<String> {
     None
 }
 
+/// Extracts all `@roleDef("...")` composite role names from an aliases / annotations string.
+fn extract_composite_role_defs(s: &str) -> Vec<String> {
+    let mut roles = Vec::new();
+    let mut rest = s;
+    while let Some(pos) = rest.find("@roleDef(") {
+        let after = rest.get(pos.saturating_add(9)..).unwrap_or("");
+        if let Some(end) = after.find(')') {
+            let inner = after.get(..end).unwrap_or("").trim().trim_matches('"');
+            if !inner.is_empty() {
+                roles.push(inner.to_string());
+            }
+            rest = after.get(end.saturating_add(1)..).unwrap_or("");
+        } else {
+            break;
+        }
+    }
+    roles
+}
+
 /// Generates the contents of `dc.generated.rs` from category CSV files.
 ///
 /// # Errors
@@ -281,6 +300,9 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
     let mut seen_idents = HashSet::new();
 
     let mut base64_digits: BTreeSet<u32> = BTreeSet::new();
+    let mut base64_start_opt: Option<u32> = None;
+    let mut base64_end_opt: Option<u32> = None;
+    let mut base64_padding_opt: Option<u32> = None;
     let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
     let mut primitive_atoms: BTreeSet<u32> = BTreeSet::new();
     let mut domain_atoms: BTreeSet<u32> = BTreeSet::new();
@@ -324,9 +346,6 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
                         };
                         let name_raw = get(2);
                         let name = name_raw.trim_start_matches('!').trim().to_string();
-                        let bidi = get(4);
-                        let cat = get(6);
-                        let script = get(7);
                         let aliases = get(8);
                         let desc = get(9).trim().to_string();
                         let ident_opt = extract_ident_annotation(&aliases);
@@ -344,73 +363,45 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
                             }
                         }
 
-                        if script == ".Encapsulation"
-                            && name.starts_with("Base 64 encapsulation digit")
-                        {
-                            base64_digits.insert(short_id);
+                        match ident_opt.as_deref() {
+                            Some("Base64Start") => base64_start_opt = Some(short_id),
+                            Some("Base64End") => base64_end_opt = Some(short_id),
+                            Some("Base64Padding") => base64_padding_opt = Some(short_id),
+                            _ => {}
                         }
 
-                        if script == ".EL Types"
-                            || ident_opt.as_deref().is_some_and(|id| {
-                                matches!(
-                                    id,
-                                    "TypeUnion"
-                                        | "TypeIntersection"
-                                        | "FormatParamApplication"
-                                        | "FilePathDelimiter"
-                                )
-                            })
-                        {
-                            type_tokens.insert(short_id);
-                        }
-
-                        if ident_opt.as_deref().is_some_and(|id| {
-                            matches!(id, "OptionalAbsent" | "BooleanTrue" | "BooleanFalse")
-                        }) {
-                            primitive_atoms.insert(short_id);
-                        }
-
-                        if ident_opt.as_deref().is_some_and(|id| {
-                            matches!(
-                                id,
-                                "OptionalAbsent"
-                                    | "BooleanTrue"
-                                    | "BooleanFalse"
-                                    | "FilePathDelimiter"
-                            )
-                        }) || ((name.starts_with("Stream kind:")
-                            || name.starts_with("Mac OS Finder label"))
-                            && !aliases.contains(":~"))
-                        {
-                            domain_atoms.insert(short_id);
-                        }
-
-                        if script == ".EL Routines"
-                            || ident_opt.as_deref().is_some_and(|id| {
-                                matches!(
-                                    id,
-                                    "ReferenceBoundValue"
-                                        | "ReferenceNamedObject"
-                                        | "RoutineInvocation"
-                                        | "EquivalentRepresentations"
-                                        | "PartiallyEquivalentRepresentations"
-                                        | "BeginFormatRepresentation"
-                                )
-                            })
-                        {
-                            evaluable_starters.insert(short_id);
-                        }
-
-                        if ident_opt.as_deref().is_some_and(|id| id == "ListElementSeparator")
-                            || (script == ".Punctuation"
-                                && (cat == "Zl" || cat == "Zp" || bidi == "B")
-                                && aliases.contains("<equiv>u"))
-                        {
-                            structural_seps.insert(short_id);
+                        for role_name in extract_composite_role_defs(&aliases) {
+                            match role_name.as_str() {
+                                "Base64Digit" => {
+                                    base64_digits.insert(short_id);
+                                }
+                                "TypeToken" => {
+                                    type_tokens.insert(short_id);
+                                }
+                                "PrimitiveValueAtom" => {
+                                    primitive_atoms.insert(short_id);
+                                }
+                                "DomainValueAtom" => {
+                                    domain_atoms.insert(short_id);
+                                }
+                                "EvaluableExpressionStarter" => {
+                                    evaluable_starters.insert(short_id);
+                                }
+                                "StructuralSeparator" => {
+                                    structural_seps.insert(short_id);
+                                }
+                                _ => {}
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    if let (Some(start), Some(end)) = (base64_start_opt, base64_end_opt) {
+        for id in start..=end {
+            base64_digits.insert(id);
         }
     }
 
@@ -425,6 +416,7 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
 
     let base64_min = base64_digits.first().copied().unwrap_or(127);
     let base64_max = base64_digits.last().copied().unwrap_or(190);
+    let base64_padding = base64_padding_opt.unwrap_or(195);
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
@@ -550,7 +542,7 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
         #[must_use]\n\
         pub fn base64_digit_value(token: u128) -> Option<u8> {{\n\
             let short = DcChar::from_u128(token).to_short().ok()?;\n\
-            if short == 195 {{\n\
+            if short == {base64_padding} {{\n\
                 Some(64)\n\
             }} else if ({base64_min}..={base64_max}).contains(&short) {{\n\
                 u8::try_from(short.saturating_sub({base64_min})).ok()\n\

@@ -73,6 +73,10 @@ pub trait SyntaxRuleResolver {
     }
     /// Checks whether a character token belongs to a designated script.
     fn matches_script(&self, script_name: &str, token: u128) -> bool;
+    /// Checks whether a designated script name exists in the dataset.
+    fn has_script(&self, _script_name: &str) -> bool {
+        false
+    }
     /// Returns true if `token` can appear as the leading token of the named construct `name`.
     fn matches_named_type_starter(&self, _name: &str, _token: u128) -> bool {
         false
@@ -1163,6 +1167,25 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             }
         }
 
+        false
+    }
+
+    fn has_script(&self, script_name: &str) -> bool {
+        if self.script_chars.contains_key(script_name) {
+            return true;
+        }
+        let clean_target = script_name.trim_start_matches('.');
+        for name in self.script_chars.keys() {
+            let clean_name = name.trim_start_matches('.');
+            if clean_name == clean_target || clean_name.starts_with(clean_target) {
+                return true;
+            }
+            if let Some(suffix) = clean_name.split(':').last() {
+                if suffix == clean_target {
+                    return true;
+                }
+            }
+        }
         false
     }
 

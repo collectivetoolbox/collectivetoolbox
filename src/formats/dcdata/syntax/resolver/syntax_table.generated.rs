@@ -945,6 +945,17 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.rules.insert(
+        CharTarget::Dc(369),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "boolean".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [boolean]".to_string(),
+        },
+    );
+    resolver.rules.insert(
         CharTarget::Dc(370),
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![

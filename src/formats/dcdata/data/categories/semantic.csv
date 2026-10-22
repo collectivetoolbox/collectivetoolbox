@@ -15,7 +15,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114348,236,End document,0,BN,,!Cx,.Semantic,,
 1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,"@ident(""BeginAssociativityGroup""), @roleDef()",Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
 1114411,299,End associativity group,0,BN,,!Cx,.Semantic,"@ident(""EndAssociativityGroup""), @roleDef(), @closes(298)",Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
-1114412,300,Type union,0,BN,,!Cx,.Semantic,"@ident(""TypeUnion""), @roleDef(), :~ (([type] [type]) | [list:type])","Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
+1114412,300,Type union,0,BN,,!Cx,.Semantic,"@ident(""TypeUnion""), @roleDef(), @roleDef(""TypeToken""), :~ (([type] [type]) | [list:type])","Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
 1114413,301,Type transformation,0,BN,,!Cx,.Semantic,"@ident(""TypeTransformation""), @roleDef(), :~ [type] [type:transformation]",Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
 1114414,302,Type conversion,0,BN,,!Cx,.Semantic,"@ident(""TypeConversion""), @roleDef(), :~ [type] [type]",Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
 1114415,303,Type transmutation,0,BN,,!Cx,.Semantic,"@ident(""TypeTransmutation""), @roleDef(), :~ [type] [type]",Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
@@ -71,7 +71,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114478,366,File kind: door descriptor,0,BN,,!Cx,.Semantic,,Identifies a door descriptor entity.
 1114479,367,File kind: bundle,0,BN,,!Cx,.Semantic,,Identifies a composite application or document bundle.
 1114480,368,File payload checksum,0,BN,,!Cx,.Semantic,:~ [checksum],Cryptographic digest hash of file payload.
-1114481,369,File sparse allocation flag,0,BN,,!Cx,.Semantic,,Flag indicating sparse hole allocation.
+1114481,369,File sparse allocation flag,0,BN,,!Cx,.Semantic,:~ [boolean],Flag indicating sparse hole allocation.
 1114482,370,File device node number,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Encoded device node identifier (dev_t / rdev).
 1114483,371,File bundle type format,0,BN,,!Cx,.Semantic,:~ [asciilatinletterdigit:1..16],Application bundle type format identifier.
 1114484,372,Begin file extents descriptor,0,BN,,!Cx,.Semantic,:~ [^373]* 373,Begins a list of sparse and data extents.
@@ -81,12 +81,12 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114488,376,Extent byte offset,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte offset where an extent starts.
 1114489,377,Extent byte length,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte length of an extent.
 1114490,378,Timestamp clock resolution,0,BN,,!Cx,.Semantic,:~ [datemagnitude],Clock resolution in nanoseconds.
-1114491,379,Stream kind: extended attribute,0,BN,,!Cx,.Semantic,,Identifies a standard extended attribute stream.
-1114492,380,Stream kind: macOS resource fork,0,BN,,!Cx,.Semantic,,Identifies a macOS resource fork stream.
-1114493,381,Stream kind: NTFS alternate stream,0,BN,,!Cx,.Semantic,,Identifies an NTFS alternate data stream.
-1114494,382,Stream kind: POSIX ACL access,0,BN,,!Cx,.Semantic,,Identifies a POSIX ACL access stream.
-1114495,383,Stream kind: POSIX ACL default,0,BN,,!Cx,.Semantic,,Identifies a POSIX default ACL stream.
-1114496,384,Stream kind: security label,0,BN,,!Cx,.Semantic,,Identifies a security label stream.
+1114491,379,Stream kind: extended attribute,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a standard extended attribute stream.
+1114492,380,Stream kind: macOS resource fork,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a macOS resource fork stream.
+1114493,381,Stream kind: NTFS alternate stream,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies an NTFS alternate data stream.
+1114494,382,Stream kind: POSIX ACL access,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a POSIX ACL access stream.
+1114495,383,Stream kind: POSIX ACL default,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a POSIX default ACL stream.
+1114496,384,Stream kind: security label,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a security label stream.
 1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
@@ -99,12 +99,12 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""EndDateMagnitude""), @roleDef(), @closes(393)",
 1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateDuration""), @roleDef(), :~ [formats:duration] [^396]+ 396",
 1114508,396,End date duration description,0,BN,,!Cx,.Semantic,"@ident(""EndDateDuration""), @roleDef(), @closes(395)",
-1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), @roleDef(), :~ [list]",Indicates that all values within the list have the same underlying meaning.
+1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), @roleDef(), @roleDef(""EvaluableExpressionStarter""), :~ [list]",Indicates that all values within the list have the same underlying meaning.
 1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,.Semantic,:~ [string],File comment string.
 1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,.Semantic,:~ [^402]* 402,Begins a preserved Mac OS Finder and archive metadata record.
-1114514,402,End Mac OS file metadata description,0,BN,,!Cx,.Semantic,,Terminates a preserved Mac OS Finder and archive metadata record.
+1114514,402,End Mac OS file metadata description,0,BN,,!Cx,.Semantic,@closes(401),Terminates a preserved Mac OS Finder and archive metadata record.
 1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file type code.
 1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file creator code.
 1114517,405,Mac OS Finder label color,0,BN,,!Cx,.Semantic,:~ ([number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489)),Mac OS Finder label color code.
@@ -170,16 +170,16 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114577,465,File flag: casefold,0,BN,,!Cx,.Semantic:fileflag,casefold,Directory casefolding.
 1114578,466,File flag: reserved for ext2,0,BN,,!Cx,.Semantic:fileflag,reservedforext2,Reserved flag for ext2/ext4.
 1114579,467,Maybe value,0,BN,,!Cx,.Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
-1114594,482,Mac OS Finder label: none,0,BN,,!Cx,.Semantic,,Finder label index 0.
-1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,.Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
-1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,.Semantic,<ambiguous>469 476,"Finder label index 2, Green."
-1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,.Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
-1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,.Semantic,<ambiguous>471 478,"Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
-1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
-1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,<ambiguous>473 480,"Finder label index 6, Red."
-1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,<ambiguous>474 481,"Finder label index 7, Orange."
+1114594,482,Mac OS Finder label: none,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Finder label index 0.
+1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>468 475","Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
+1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>469 476","Finder label index 2, Green."
+1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>470 477","Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
+1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>471 478","Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
+1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>472 479","Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
+1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>473 480","Finder label index 6, Red."
+1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom""), <ambiguous>474 481","Finder label index 7, Orange."
 1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,:~ [^491]* 491,Begins an extended Mac OS Finder information record (FXInfo).
-1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,,Terminates an extended Mac OS Finder information record (FXInfo).
+1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,@closes(490),Terminates an extended Mac OS Finder information record (FXInfo).
 1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.
 1114605,493,Mac OS extended Finder script code,0,BN,,!Cx,.Semantic,:~ [number:Integer],Script system text encoding code in extended Finder info.
 1114606,494,Mac OS extended Finder comment identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Comment resource ID in extended Finder info.
@@ -199,12 +199,12 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114620,508,File flag: alias,0,BN,,!Cx,.Semantic:fileflag,alias,Mac OS object is an alias file.
 1114621,509,File flag: extended flags invalid,0,BN,,!Cx,.Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
 1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:] 512,Mac OS Finder folder window bounds rectangle coordinates.
-1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""BeginFormatRepresentation""), @roleDef(), :~ [format] [^512]+ [512]",E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
+1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""BeginFormatRepresentation""), @roleDef(), @roleDef(""EvaluableExpressionStarter""), :~ [format] [^512]+ [512]",E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
 1114624,512,End Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""EndFormatRepresentation""), @roleDef(), @closes(511)",
-1114625,513,File path delimiter,0,BN,,!Cx,.Semantic,"@ident(""FilePathDelimiter""), @roleDef()",
-1114628,516,Type intersection,0,BN,,!Cx,.Semantic,"@ident(""TypeIntersection""), @roleDef(), :~ (([type] [type]) | [list:type])","Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
-1114629,517,Boolean true,0,BN,,!Cx,.Semantic,"@ident(""BooleanTrue""), @roleDef()",
-1114630,518,Boolean false,0,BN,,!Cx,.Semantic,"@ident(""BooleanFalse""), @roleDef()",
+1114625,513,File path delimiter,0,BN,,!Cx,.Semantic,"@ident(""FilePathDelimiter""), @roleDef(), @roleDef(""TypeToken""), @roleDef(""DomainValueAtom"")",
+1114628,516,Type intersection,0,BN,,!Cx,.Semantic,"@ident(""TypeIntersection""), @roleDef(), @roleDef(""TypeToken""), :~ (([type] [type]) | [list:type])","Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
+1114629,517,Boolean true,0,BN,,!Cx,.Semantic,"@ident(""BooleanTrue""), @roleDef(), @roleDef(""PrimitiveValueAtom""), @roleDef(""DomainValueAtom"")",
+1114630,518,Boolean false,0,BN,,!Cx,.Semantic,"@ident(""BooleanFalse""), @roleDef(), @roleDef(""PrimitiveValueAtom""), @roleDef(""DomainValueAtom"")",
 1114631,519,Server system clock offset nanoseconds,0,BN,,!Cx,.Semantic,:~ [number:Integer],Difference between server time and system time in nanoseconds.
 1114632,520,Execution environment is an application built with release configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in release mode with optimizations.
 1114633,521,Execution environment is an application built with debug configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in debug mode with debug assertions enabled.
@@ -221,7 +221,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is executing on a local machine.
 1114645,533,Host kernel version string,0,BN,,!Cx,.Semantic,:~ [string],Kernel version or release string of execution environment host.
 1114646,534,File origin: FIFO,0,BN,,!Cx,.Semantic,,
-1114647,535,Format parameter application,0,BN,,!Cx,.Semantic,"@ident(""FormatParamApplication""), @roleDef()",Applies typed parameter bindings to a format in a format specification expression.
+1114647,535,Format parameter application,0,BN,,!Cx,.Semantic,"@ident(""FormatParamApplication""), @roleDef(), @roleDef(""TypeToken"")",Applies typed parameter bindings to a format in a format specification expression.
 1114648,536,File warning,0,BN,,!Cx,.Semantic,:~ [string],Operational warning or fidelity notice observed for a file entity.
 1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.
 1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist."
@@ -242,7 +242,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
 1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
 1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
-1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), @roleDef(), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
+1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), @roleDef(), @roleDef(""EvaluableExpressionStarter""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
 1114674,562,Mac OS extended Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]* 389),Extended Mac OS Finder flags (FXInfo fdXFlags / DXInfo frXFlags).
 1114675,563,File data format,0,BN,,!Cx,.Semantic,:~ [format],Data format of the file identified by the enclosing descriptor.
 1114676,564,Archive member position,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Zero-based position of a member within the archive identified by the enclosing origin descriptor.

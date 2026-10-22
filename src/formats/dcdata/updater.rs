@@ -868,6 +868,9 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     if parsed.role_def {
         parts.push("@roleDef()".to_string());
     }
+    for role in parsed.composite_roles {
+        parts.push(format!("@roleDef(\"{}\")", escape_directive_string(&role)));
+    }
     if let Some(title) = parsed.title {
         parts.push(format!("@title(\"{}\")", escape_directive_string(&title)));
     }
