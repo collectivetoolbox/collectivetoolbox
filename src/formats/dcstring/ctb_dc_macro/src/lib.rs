@@ -1653,6 +1653,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let mut field_validations = Vec::new();
                 let mut construct_fields = Vec::new();
                 let mut has_catchall = false;
+                let mut seen_ids = HashSet::new();
 
                 for field in fields {
                     let Some(field_ident) = field.ident.as_ref() else {
@@ -1676,6 +1677,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         if !attr.nested.is_empty() {
                             let mut all_match_tags = attr.nested.clone();
                             all_match_tags.extend(attr.aliases.iter().copied());
+                            for &t in &all_match_tags {
+                                if !seen_ids.insert(t) {
+                                    return Err(syn::Error::new(
+                                        field.span(),
+                                        format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                    ));
+                                }
+                            }
 
                             if let Some(inner_ty) = extract_type_from_option(field_ty) {
                                 encode_stmts.push(quote! {
@@ -1734,6 +1743,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                             continue;
                         }
+                        if has_catchall {
+                            return Err(syn::Error::new(
+                                field.span(),
+                                format!("Duplicate catchall flattened field `{field_ident}` in flattened struct"),
+                            ));
+                        }
                         has_catchall = true;
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
@@ -1766,6 +1781,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         })?;
                         let mut all_match_tags = vec![id];
                         all_match_tags.extend(attr.aliases.iter().copied());
+                        for &t in &all_match_tags {
+                            if !seen_ids.insert(t) {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                ));
+                            }
+                        }
                         let encode = generate_via_field_encoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr);
                         let decode = generate_field_value_decoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr, &quote!(val_id))?;
                         encode_stmts.push(encode);
@@ -1783,6 +1806,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         if let Some(id) = id {
                             let mut all_match_tags = vec![id];
                             all_match_tags.extend(attr.aliases.iter().copied());
+                            for &t in &all_match_tags {
+                                if !seen_ids.insert(t) {
+                                    return Err(syn::Error::new(
+                                        field.span(),
+                                        format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                    ));
+                                }
+                            }
                             encode_stmts.push(quote! {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id))?;
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
@@ -1870,6 +1901,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         })?;
                         let mut all_match_tags = vec![id];
                         all_match_tags.extend(attr.aliases.iter().copied());
+                        for &t in &all_match_tags {
+                            if !seen_ids.insert(t) {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                ));
+                            }
+                        }
                         encode_stmts.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id))?;
@@ -1914,6 +1953,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else if let Some(id) = attr.tag {
                         let mut all_match_tags = vec![id];
                         all_match_tags.extend(attr.aliases.iter().copied());
+                        for &t in &all_match_tags {
+                            if !seen_ids.insert(t) {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                ));
+                            }
+                        }
                         encode_stmts.push(quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id))?;
                             #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
@@ -1954,6 +2001,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else {
+                        if has_catchall {
+                            return Err(syn::Error::new(
+                                field.span(),
+                                format!("Duplicate catchall untagged field `{field_ident}` in flattened struct"),
+                            ));
+                        }
                         has_catchall = true;
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
@@ -2182,6 +2235,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let mut encode_flag_fields = Vec::new();
                 let mut decode_flag_arms = Vec::new();
                 let mut check_any_flags = Vec::new();
+                let mut seen_ids = HashSet::new();
+                seen_ids.insert(begin_dc);
+                seen_ids.insert(end_dc);
 
                 for field in fields {
                     let Some(field_ident) = field.ident.as_ref() else {
@@ -2200,6 +2256,20 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             format!("Field `{field_ident}` in flag struct must have an assigned Dc tag"),
                         )
                     })?;
+                    if !seen_ids.insert(id) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            format!("Duplicate Dc ID {id:#X} on field `{field_ident}`"),
+                        ));
+                    }
+                    for &alias in &attr.aliases {
+                        if !seen_ids.insert(alias) {
+                            return Err(syn::Error::new(
+                                field.span(),
+                                format!("Duplicate Dc ID {alias:#X} on field `{field_ident}`"),
+                            ));
+                        }
+                    }
                     let mut match_tags = vec![id];
                     if id >= SHORT_DC_REGION_START {
                         match_tags.push(id.saturating_sub(SHORT_DC_REGION_START));
@@ -2425,6 +2495,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut field_name_arms = Vec::new();
             let mut field_encode_arms = Vec::new();
             let mut has_catchall_decode_arm = false;
+            let mut has_format_id_vec_decode_arm = false;
 
             let mut shared_decode_arms = Vec::new();
             let mut json_encode_fields = Vec::new();
@@ -2462,7 +2533,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let mut all_match_tags = attr.nested.clone();
                         all_match_tags.extend(attr.aliases.iter().copied());
                         for &t in &all_match_tags {
-                            seen_ids.insert(t);
+                            if !seen_ids.insert(t) {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate Dc ID {t:#X} on field `{field_ident}`"),
+                                ));
+                            }
                         }
                         field_name_arms.push(quote! {
                             _t if [#(#all_match_tags),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => ::std::option::Option::Some(stringify!(#field_ident)),
@@ -2546,6 +2622,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let mut #field_ident: #field_ty = ::std::vec::Vec::new();
                         });
                         if type_str.contains("FormatId") {
+                            if has_format_id_vec_decode_arm {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate flattened Vec<FormatId> field `{field_ident}`"),
+                                ));
+                            }
+                            has_format_id_vec_decode_arm = true;
                             field_name_arms.push(quote! {
                                 tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => Some(stringify!(#field_ident)),
                             });
@@ -2563,6 +2646,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                         } else {
+                            if has_catchall_decode_arm {
+                                return Err(syn::Error::new(
+                                    field.span(),
+                                    format!("Duplicate catchall flattened field `{field_ident}`"),
+                                ));
+                            }
                             has_catchall_decode_arm = true;
                             field_name_arms.push(quote! { _ => Some(stringify!(#field_ident)), });
                             decode_arms.push(quote! {
@@ -2583,6 +2672,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let #field_ident = #field_ident;
                         });
                     } else {
+                        if has_catchall_decode_arm {
+                            return Err(syn::Error::new(
+                                field.span(),
+                                format!("Duplicate catchall flattened field `{field_ident}`"),
+                            ));
+                        }
                         has_catchall_decode_arm = true;
                         field_name_arms.push(quote! { _ => Some(stringify!(#field_ident)), });
                         encode_fields.push(quote! {
@@ -2646,10 +2741,21 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }
                 }
                 for nid in &attr.nested {
+                    if attr.tag.is_none() && !seen_ids.insert(*nid) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            format!("Duplicate Dc ID {nid:#X} on field `{field_ident}`"),
+                        ));
+                    }
                     nested_field_groups.entry(*nid).or_default().push((field_ident.clone(), field_ty.clone(), attr.tag));
                 }
                 for alias in &attr.aliases {
-                    seen_ids.insert(*alias);
+                    if !seen_ids.insert(*alias) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            format!("Duplicate Dc ID {alias:#X} on field `{field_ident}`"),
+                        ));
+                    }
                 }
 
                 let mut all_match_tags = if let Some(tag_id) = attr.tag {
@@ -3856,6 +3962,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let mut v_field_inits = Vec::new();
                         let mut v_field_arms = Vec::new();
                         let mut v_field_build = Vec::new();
+                        let mut variant_seen_ids = HashSet::new();
 
                         for f in &named.named {
                             let Some(f_ident) = f.ident.as_ref() else {
@@ -3879,6 +3986,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             if attr.flatten && !attr.nested.is_empty() {
                                 let mut all_field_tags = attr.nested.clone();
                                 all_field_tags.extend(attr.aliases.iter().copied());
+                                for &t in &all_field_tags {
+                                    if !variant_seen_ids.insert(t) {
+                                        return Err(syn::Error::new(
+                                            f.span(),
+                                            format!("Duplicate Dc ID {t:#X} on field `{f_ident}` in variant `{variant_ident}`"),
+                                        ));
+                                    }
+                                }
 
                                 if let Some(inner_ty) = extract_type_from_option(f_ty) {
                                     encode_fields.push(quote! {
@@ -3937,9 +4052,17 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let is_vec = quote!(#f_ty).to_string().starts_with("Vec");
                             let val_expr = generate_field_value_decoder(&crate_root, &anyhow_path, f_ident, f_ty, &attr, &quote!(child_val_id))?;
                             let mut all_field_tags = vec![f_tag];
-                            all_field_tags.extend(attr.aliases.iter().copied());
                             if !attr.nested.is_empty() {
                                 all_field_tags.clone_from(&attr.nested);
+                            }
+                            all_field_tags.extend(attr.aliases.iter().copied());
+                            for &t in &all_field_tags {
+                                if !variant_seen_ids.insert(t) {
+                                    return Err(syn::Error::new(
+                                        f.span(),
+                                        format!("Duplicate Dc ID {t:#X} on field `{f_ident}` in variant `{variant_ident}`"),
+                                    ));
+                                }
                             }
                             if is_vec && attr.begin.is_none() && !attr.binary && !attr.checksum {
                                 v_field_inits.push(quote! {
@@ -4279,5 +4402,144 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             input.span(),
             "Unions are not supported by #[derive(DcMixed)]",
         )),
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rejects_duplicate_and_ambiguous_derive_mappings() {
+        // 1. Duplicate primary tag in compound struct
+        let dup_tag: DeriveInput = syn::parse_quote! {
+            #[dc(begin = 317, end = 318)]
+            struct DupTag {
+                #[dc(short = 326)]
+                a: u64,
+                #[dc(short = 326)]
+                b: u64,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_tag).is_err());
+
+        // 2. Alias colliding with primary tag in compound struct
+        let dup_alias: DeriveInput = syn::parse_quote! {
+            #[dc(begin = 317, end = 318)]
+            struct DupAlias {
+                #[dc(short = 326)]
+                a: u64,
+                #[dc(short = 327, alias = 326)]
+                b: u64,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_alias).is_err());
+
+        // 3. Flattened nested tag colliding with another field's tag in compound struct
+        let dup_flattened_nested: DeriveInput = syn::parse_quote! {
+            #[dc(begin = 317, end = 318)]
+            struct DupFlattenedNested {
+                #[dc(short = 326)]
+                a: u64,
+                #[dc(flatten, nested = 326)]
+                b: Inner,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_flattened_nested).is_err());
+
+        // 4. Multiple catchall flattened fields in compound struct
+        let dup_catchall: DeriveInput = syn::parse_quote! {
+            #[dc(begin = 317, end = 318)]
+            struct DupCatchall {
+                #[dc(flatten)]
+                a: InnerA,
+                #[dc(flatten)]
+                b: InnerB,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_catchall).is_err());
+
+        // 5. Duplicate tag or alias in #[dc(flatten)] struct
+        let dup_in_flat: DeriveInput = syn::parse_quote! {
+            #[dc(flatten)]
+            struct DupInFlat {
+                #[dc(short = 326)]
+                a: u64,
+                #[dc(short = 327, alias = 326)]
+                b: u64,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_in_flat).is_err());
+
+        // 6. Multiple catchall fields in #[dc(flatten)] struct
+        let dup_flat_catchall: DeriveInput = syn::parse_quote! {
+            #[dc(flatten)]
+            struct DupFlatCatchall {
+                #[dc(flatten)]
+                a: InnerA,
+                #[dc(flatten)]
+                b: InnerB,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_flat_catchall).is_err());
+
+        // 7. Duplicate flag or alias in #[dc(flags)] struct
+        let dup_flag: DeriveInput = syn::parse_quote! {
+            #[dc(begin = 388, end = 389, flags)]
+            struct DupFlag {
+                #[dc(short = 422)]
+                read_only: bool,
+                #[dc(short = 423, alias = 422)]
+                reparse: bool,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_flag).is_err());
+
+        // 8. Duplicate field tag or alias inside enum struct variant
+        let dup_enum_field: DeriveInput = syn::parse_quote! {
+            enum DupEnumField {
+                #[dc(short = 331)]
+                VariantA {
+                    #[dc(short = 326)]
+                    x: u64,
+                    #[dc(short = 327, alias = 326)]
+                    y: u64,
+                },
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_enum_field).is_err());
+
+        // 9. Duplicate key in key_value struct and duplicate name in names enum
+        let dup_kv: DeriveInput = syn::parse_quote! {
+            #[dc(key_value)]
+            struct DupKv {
+                #[dc(key = "alpha")]
+                a: u64,
+                #[dc(key = "alpha")]
+                b: u64,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_kv).is_err());
+
+        let dup_names: DeriveInput = syn::parse_quote! {
+            #[dc(names)]
+            enum DupNames {
+                #[dc(name = "first")]
+                A,
+                #[dc(name = "first")]
+                B,
+            }
+        };
+        assert!(expand_derive_dc_mixed(&dup_names).is_err());
     }
 }

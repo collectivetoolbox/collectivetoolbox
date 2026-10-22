@@ -745,6 +745,8 @@ impl DatasetRuleResolver {
     ) -> Result<Self> {
         let mut resolver = Self::new();
 
+        let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
+
         // 1. Index rules and scripts from Document Character definitions
         for defn in dc_defns {
             if let Some(short_id) = defn.short_id {
@@ -778,6 +780,7 @@ impl DatasetRuleResolver {
                         _ => None,
                     };
                     if let Some(target) = opener_target {
+                        explicit_closes_pairs.push((sid_u128, target.clone()));
                         resolver.register_closing_delimiter(sid_u128, target);
                     }
                 }
@@ -858,6 +861,18 @@ impl DatasetRuleResolver {
                                     resolver.add_rule(lead_target.clone(), rule.clone());
                                 }
                                 if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                                    if let Some(&existing_closer) = resolver.opener_to_closer.get(lead_target) {
+                                        ensure!(
+                                            existing_closer == closer_tok,
+                                            "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} conflicts with existing closer {existing_closer:#X}"
+                                        );
+                                    }
+                                    if let Some(existing_opener) = resolver.closing_delimiters.get(&closer_tok) {
+                                        ensure!(
+                                            existing_opener == lead_target,
+                                            "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} already closes {existing_opener}"
+                                        );
+                                    }
                                     resolver.register_closing_delimiter(closer_tok, lead_target.clone());
                                 }
                             }
@@ -987,6 +1002,40 @@ impl DatasetRuleResolver {
                     bail!(
                         "Equivalent tokens {source} and {target:?} have incompatible @closes: one declares @closes and the other does not"
                     );
+                }
+            }
+        }
+
+        // Validate that non-equivalent closers do not claim @closes for the same canonical opener,
+        // and that an opener's syntax rule does not end with a closer that conflicts with @closes.
+        let mut canonical_opener_to_closer: HashMap<u128, u128> = HashMap::new();
+        for (closer_tok, opener_target) in &explicit_closes_pairs {
+            let canon_opener = resolver.canonical_token(opener_target.to_u128());
+            let canon_closer = resolver.canonical_token(*closer_tok);
+            if let Some(&existing_closer) = canonical_opener_to_closer.get(&canon_opener) {
+                ensure!(
+                    existing_closer == canon_closer,
+                    "Ambiguous @closes declarations for opener {opener_target}: non-equivalent closers {existing_closer:#X} and {canon_closer:#X}"
+                );
+            } else {
+                canonical_opener_to_closer.insert(canon_opener, canon_closer);
+            }
+        }
+        for defn in dc_defns {
+            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
+                if let (Ok(id), Some(detected_closer)) = (
+                    u32::try_from(short_id),
+                    detect_container_closer(&rule.pattern),
+                ) {
+                    let target = CharTarget::Dc(id);
+                    let canon_opener = resolver.canonical_token(target.to_u128());
+                    if let Some(&declared_closer) = canonical_opener_to_closer.get(&canon_opener) {
+                        let canon_detected = resolver.canonical_token(detected_closer);
+                        ensure!(
+                            canon_detected == declared_closer,
+                            "Opener {target} syntax rule ends with closer {detected_closer:#X}, conflicting with @closes closer {declared_closer:#X}"
+                        );
+                    }
                 }
             }
         }
@@ -1592,6 +1641,49 @@ mod tests {
         // Dataset check: ASCII exclamation (33) matches Punctuation via <equiv> from Dc 19
         let default_resolver = DatasetRuleResolver::load();
         assert!(default_resolver.matches_script("Punctuation", 33));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_rejects_conflicting_closes_and_rule_delimiter_mismatches() -> Result<()> {
+        let defns = crate::lookup::get_all_dc_defns();
+        let list_open = defns
+            .iter()
+            .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
+            .context("Missing DC_BEGIN_LIST")?;
+        let list_close = defns
+            .iter()
+            .find(|d| d.dc_id == crate::dc::DC_END_LIST.to_u128())
+            .context("Missing DC_END_LIST")?;
+
+        // 1. Two non-equivalent closers claiming @closes on the same opener (310)
+        let mut rival_close = list_close.clone();
+        rival_close.short_id = Some(9700);
+        rival_close.dc_id = DcChar::from_short(9700).to_u128();
+        rival_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(310));
+        rival_close.decompositions.clear();
+
+        assert!(
+            DatasetRuleResolver::load_from_dataset(
+                &[list_open.clone(), list_close.clone(), rival_close],
+                &[],
+                None,
+            )
+            .is_err()
+        );
+
+        // 2. Opener's syntax rule ending with a closer (9701) that conflicts with its declared @closes closer (311)
+        let mut mismatched_open = list_open.clone();
+        mismatched_open.syntax = Some(parse_dc_syntax(":~ [type] [element] (312 [element])* 9701")?);
+        assert!(
+            DatasetRuleResolver::load_from_dataset(
+                &[mismatched_open, list_close.clone()],
+                &[],
+                None,
+            )
+            .is_err()
+        );
 
         Ok(())
     }

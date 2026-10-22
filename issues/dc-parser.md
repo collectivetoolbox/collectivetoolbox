@@ -28,9 +28,6 @@ before fixes.
 
 ### Parser and Projection Ownership
 
-- [ ] Validate ambiguous database grammar and ambiguous derive mappings at
-  build time. Equivalence parity is already checked; establish which other
-  ambiguity classes remain unsupported.
 - [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (note that this is different from the current accepted style guide, which forbids @ident only for enums/structs).
   - [ ] Alternatively: Instead of annotating structs/enums directly in code with Dcs, maybe use a new @struct()/@enum() note in the database and generate the structs from there?
 - [ ] Audit remaining handwritten structured codecs and grammar-independent
@@ -61,7 +58,7 @@ pub fn validate_and_write_dc_record(
   such as `f350 f351`. Single-token canonical equivalence and rejection of
   conflicting single-token syntax on decompositions are already implemented.
 - [ ] Resolve the retained
-  [flattened name/format FIXME](../src/formats/dcstring/dc_mixed_serde.rs#L4158)
+  [flattened name/format FIXME](../src/formats/dcstring/dc_mixed_serde.rs#L4518)
   and [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38).
   Restoring a comment or adding an identifier does not resolve its semantics.
 - [ ] Review Remote URI/ETag mappings, String (`f80`) versus Text (`f14`), and
