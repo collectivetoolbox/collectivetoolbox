@@ -957,7 +957,7 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
         span,
         ctb_formats_dcstring::navigator::DcSyntaxKind::Literal {
             type_header: Vec::new(),
-            decoded: "hello".to_string(),
+            decoded: ctb_formats_dcstring::DcMstring::from("hello"),
         },
     );
     let tag_385 = arena.alloc(

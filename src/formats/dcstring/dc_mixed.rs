@@ -489,6 +489,77 @@ impl DcMstr {
         Ok(out)
     }
 
+    /// Returns the payload as a borrowed [`DcStr`] if this `DcMstr` contains only
+    /// text (no embedded binary chunks).
+    #[must_use]
+    pub fn as_dc_str(&self) -> Option<&DcStr> {
+        if self.is_empty() {
+            #[expect(
+                unsafe_code,
+                reason = "An empty byte slice is trivially valid UTF-8e-128"
+            )]
+            return Some(unsafe { DcStr::from_bytes_unchecked(&[]) });
+        }
+        let mut chunks = self.chunks();
+        match (chunks.next(), chunks.next()) {
+            (Some(DcMixed::Text(text)), None) => Some(text),
+            _ => None,
+        }
+    }
+
+    /// Returns the payload as a borrowed UTF-8 `&str` if this `DcMstr` contains
+    /// only valid Unicode scalar text (no non-Unicode Dcs and no binary chunks).
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        self.as_dc_str()?.as_str()
+    }
+
+    /// Converts this `DcMstr` into a Rust `String` if it contains only Unicode
+    /// scalar characters (or single-token `<equiv>` aliases of Unicode scalars).
+    ///
+    /// # Errors
+    /// Returns an error if the `DcMstr` contains embedded binary chunks or
+    /// non-Unicode Document Characters.
+    pub fn to_unicode_string(&self) -> Result<String> {
+        self.to_unicode_string_with_resolver(
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+        )
+    }
+
+    /// Converts this `DcMstr` into a Rust `String` using `resolver` to resolve
+    /// single-token `<equiv>` aliases of Unicode scalar characters.
+    ///
+    /// # Errors
+    /// Returns an error if the `DcMstr` contains embedded binary chunks or
+    /// non-Unicode Document Characters.
+    pub fn to_unicode_string_with_resolver(
+        &self,
+        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+    ) -> Result<String> {
+        if let Some(s) = self.as_str() {
+            return Ok(s.to_owned());
+        }
+        let text = self
+            .as_dc_str()
+            .context("Cannot project binary DcMstr chunk into a Unicode String")?;
+        let mut out = String::with_capacity(text.len());
+        for ch in text.chars() {
+            if let Some(c) = ch.as_char() {
+                out.push(c);
+                continue;
+            }
+            let canonical = resolver.canonical_token(ch.to_u128());
+            if let Ok(cp) = u32::try_from(canonical) {
+                if let Some(c) = char::from_u32(cp) {
+                    out.push(c);
+                    continue;
+                }
+            }
+            bail!("Non-Unicode character {ch:?} cannot be projected into a Unicode String");
+        }
+        Ok(out)
+    }
+
     /// Converts this `DcMstr` into a token stream of native `u128` character
     /// identifiers suitable for syntax parsing and validation.
     ///
@@ -497,6 +568,27 @@ impl DcMstr {
     pub fn to_dc_tokens(&self) -> Result<Vec<u128>> {
         let dc_str = self.to_dc_string()?;
         Ok(dc_str.chars().map(|c| c.to_u128()).collect())
+    }
+}
+
+impl PartialEq<str> for DcMstr {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == Some(other)
+    }
+}
+
+impl PartialEq<&str> for DcMstr {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == Some(*other)
+    }
+}
+
+impl PartialEq<DcStr> for DcMstr {
+    #[inline]
+    fn eq(&self, other: &DcStr) -> bool {
+        self.as_dc_str() == Some(other)
     }
 }
 
@@ -903,6 +995,138 @@ impl AsRef<[u8]> for DcMstring {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.inner
+    }
+}
+
+impl From<&str> for DcMstring {
+    #[inline]
+    fn from(s: &str) -> Self {
+        let mut mst = Self::with_capacity(DCMM_HEADER_LEN.saturating_add(s.len()));
+        mst.push_str(s);
+        mst
+    }
+}
+
+impl From<String> for DcMstring {
+    #[inline]
+    fn from(s: String) -> Self {
+        Self::from(s.as_str())
+    }
+}
+
+impl From<&DcStr> for DcMstring {
+    #[inline]
+    fn from(s: &DcStr) -> Self {
+        let mut mst = Self::with_capacity(DCMM_HEADER_LEN.saturating_add(s.len()));
+        mst.push_dc_str(s);
+        mst
+    }
+}
+
+impl From<DcString> for DcMstring {
+    #[inline]
+    fn from(s: DcString) -> Self {
+        let dc_str: &DcStr = s.as_ref();
+        Self::from(dc_str)
+    }
+}
+
+impl From<&DcMstr> for DcMstring {
+    #[inline]
+    fn from(s: &DcMstr) -> Self {
+        s.to_owned()
+    }
+}
+
+impl FromIterator<DcChar> for DcMstring {
+    fn from_iter<I: IntoIterator<Item = DcChar>>(iter: I) -> Self {
+        let mut mst = Self::new();
+        for ch in iter {
+            mst.push_char(ch);
+        }
+        mst
+    }
+}
+
+impl FromIterator<char> for DcMstring {
+    fn from_iter<I: IntoIterator<Item = char>>(iter: I) -> Self {
+        let mut mst = Self::new();
+        for ch in iter {
+            mst.push_char(ch);
+        }
+        mst
+    }
+}
+
+impl Extend<DcChar> for DcMstring {
+    fn extend<I: IntoIterator<Item = DcChar>>(&mut self, iter: I) {
+        for ch in iter {
+            self.push_char(ch);
+        }
+    }
+}
+
+impl Extend<char> for DcMstring {
+    fn extend<I: IntoIterator<Item = char>>(&mut self, iter: I) {
+        for ch in iter {
+            self.push_char(ch);
+        }
+    }
+}
+
+impl PartialEq<str> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == Some(other)
+    }
+}
+
+impl PartialEq<&str> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == Some(*other)
+    }
+}
+
+impl PartialEq<String> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &String) -> bool {
+        self.as_str() == Some(other.as_str())
+    }
+}
+
+impl PartialEq<DcStr> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &DcStr) -> bool {
+        self.as_dc_str() == Some(other)
+    }
+}
+
+impl PartialEq<&DcStr> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &&DcStr) -> bool {
+        self.as_dc_str() == Some(*other)
+    }
+}
+
+impl PartialEq<DcString> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &DcString) -> bool {
+        self.as_dc_str() == Some(other.as_ref())
+    }
+}
+
+impl PartialEq<DcMstr> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &DcMstr) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl PartialEq<&DcMstr> for DcMstring {
+    #[inline]
+    fn eq(&self, other: &&DcMstr) -> bool {
+        self.as_bytes() == other.as_bytes()
     }
 }
 

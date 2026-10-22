@@ -1092,9 +1092,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node = self.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Assignment { ident, value } => {
+                let ident_str = ident.to_unicode_string_with_resolver(self.resolver())?;
                 let decoded = T::decode_dc_node(self, *value)?;
                 let arc = Arc::new(decoded);
-                self.reference_scope.insert(ident, Arc::clone(&arc))?;
+                self.reference_scope.insert(ident_str, Arc::clone(&arc))?;
                 Ok(arc)
             }
             other => bail!("Expected assignment declaration (Dc 269), found {other:?}"),
@@ -1126,10 +1127,11 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     /// Finds an assignment declaration (`ident = value`) in the arena by its identifier name,
     /// searching in reverse document order to honor lexical shadowing.
     #[must_use]
-    pub fn find_bound_assignment(&self, name: &str) -> Option<NodeId> {
+    pub fn find_bound_assignment(&self, name: &crate::DcMstr) -> Option<NodeId> {
         for node in self.arena.nodes().iter().rev() {
             if let DcSyntaxKind::Assignment { ident, value } = &node.kind {
-                if ident == name {
+                let ident_mstr: &crate::DcMstr = ident.as_ref();
+                if ident_mstr == name {
                     return Some(*value);
                 }
             }
@@ -1396,7 +1398,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     let format = match &fmt_node.kind {
                         DcSyntaxKind::Atom(ch) => *ch,
                         DcSyntaxKind::Identifier { name } => {
-                            let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                            let name_str = name
+                                .as_str()
+                                .context("Format shorthand identifier must be UTF-8")?;
+                            let fid = ctb_formats_utilities::FormatId::from_shorthand(name_str)
                                 .context("Invalid format shorthand")?;
                             let dc_id = fid.dc_id().context("FormatId missing dc_id")?;
                             DcChar::from_u128(dc_id)
@@ -1444,7 +1449,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     }
 
     /// Unwraps a bound reference (`Dc 540` or `Dc 276` + identifier).
-    pub fn unwrap_bound_reference(&self, node_id: NodeId) -> Result<Option<String>> {
+    pub fn unwrap_bound_reference(&self, node_id: NodeId) -> Result<Option<crate::DcMstring>> {
         let node = self.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Tagged { tag, args }
@@ -1701,7 +1706,7 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for &T {
     }
 }
 
-impl DcMixedDecode for String {
+impl DcMixedDecode for crate::DcMstring {
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
@@ -1718,8 +1723,70 @@ impl DcMixedDecode for String {
         match &node.kind {
             DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
             DcSyntaxKind::Identifier { name } => Ok(name.clone()),
-            other => bail!("Expected Literal or Identifier node for String, found {other:?}"),
+            other => bail!("Expected Literal or Identifier node for DcMstring, found {other:?}"),
         }
+    }
+}
+
+impl DcMixedEncode for crate::DcMstr {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        let Some(dc_str) = self.as_dc_str() else {
+            bail!("Cannot encode DcMstr containing raw binary chunks as a character literal");
+        };
+        dc_str.encode_dc_mixed_to(mst)
+    }
+}
+
+impl DcMixedEncode for crate::DcMstring {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        let mstr: &crate::DcMstr = self.as_ref();
+        mstr.encode_dc_mixed_to(mst)
+    }
+}
+
+impl DcMixedDecode for crate::DcString {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
+        mstr.to_dc_string()
+            .map_err(|e| anyhow::anyhow!("Failed to convert decoded literal/identifier to DcString: {e}"))
+    }
+}
+
+impl DcMixedEncode for crate::DcStr {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        use ctb_formats_dcdata::DcCharExt;
+        mst.push_char(DC_BEGIN_LITERAL)?;
+        mst.push_char(DC_BEGIN_TYPE_DEF)?;
+        mst.push_char(DC_TYPE_STRING)?;
+        mst.push_char(DC_END_TYPE_DEF)?;
+        for ch in self.chars() {
+            if ch.fills_role(DcRole::Escape) || ch.fills_role(DcRole::EndLiteral) {
+                mst.push_char(crate::dc::DC_ESCAPE)?;
+            }
+            mst.push_char(ch)?;
+        }
+        mst.push_char(DC_END_LITERAL)?;
+        Ok(())
+    }
+}
+
+impl DcMixedEncode for crate::DcString {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        let dc_str: &crate::DcStr = self.as_ref();
+        dc_str.encode_dc_mixed_to(mst)
+    }
+}
+
+impl DcMixedDecode for String {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
+        mstr.to_unicode_string_with_resolver(ctx.resolver())
     }
 }
 
@@ -2243,7 +2310,10 @@ impl DcMixedDecode for ctb_formats_utilities::FormatId {
                 }
             }
             DcSyntaxKind::Identifier { name } => {
-                Self::from_shorthand(name).with_context(|| format!("Unknown format identifier shorthand '{name}'"))
+                let s = name
+                    .as_str()
+                    .with_context(|| format!("Non-UTF-8 format identifier shorthand {name:?}"))?;
+                Self::from_shorthand(s).with_context(|| format!("Unknown format identifier shorthand '{s}'"))
             }
             other => bail!("Expected Atom or Identifier for FormatId, found {other:?}"),
         }
@@ -2440,7 +2510,8 @@ pub fn decode_format_representation<T: DcMixedDecode>(
             let fmt_matches = match &fmt_node.kind {
                 DcSyntaxKind::Atom(ch) => ctx.tokens_equivalent(*ch, format),
                 DcSyntaxKind::Identifier { name } => {
-                    ctb_formats_utilities::FormatId::from_shorthand(name)
+                    name.as_str()
+                        .and_then(ctb_formats_utilities::FormatId::from_shorthand)
                         .and_then(|fid| fid.dc_id())
                         .is_some_and(|id| ctx.tokens_equivalent(DcChar::from_u128(id), format))
                 }
@@ -2532,10 +2603,12 @@ pub fn extract_flag_nodes(
                 }
             }
             DcSyntaxKind::Identifier { name } => {
-                if let Some(fid) = ctb_formats_utilities::FormatId::from_shorthand(name) {
-                    if let Some(dc_id) = fid.dc_id() {
-                        let dc_char = DcChar::from_u128(dc_id);
-                        result.push((ctx.canonical_token(dc_char).to_u128(), item_id));
+                if let Some(s) = name.as_str() {
+                    if let Some(fid) = ctb_formats_utilities::FormatId::from_shorthand(s) {
+                        if let Some(dc_id) = fid.dc_id() {
+                            let dc_char = DcChar::from_u128(dc_id);
+                            result.push((ctx.canonical_token(dc_char).to_u128(), item_id));
+                        }
                     }
                 }
             }
@@ -2636,7 +2709,9 @@ fn decode_filename_bytes(
             let payload = payload.clone();
             Ok(ctx.materialize_binary(&payload)?.into_owned())
         }
-        DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.as_bytes().to_vec()),
+        DcSyntaxKind::Literal { decoded, .. } => {
+            Ok(decoded.to_unicode_string_with_resolver(ctx.resolver())?.into_bytes())
+        }
         other => bail!(
             "Expected binary, string literal, or equivalent container for filename, found {other:?}"
         ),
@@ -2859,7 +2934,8 @@ impl DcMixedDecode for SystemTime {
                     };
                     (fid, second_child)
                 } else if let DcSyntaxKind::Identifier { name } = &first.kind {
-                    let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                    let s = name.as_str().context("Non-UTF-8 shorthand")?;
+                    let fid = ctb_formats_utilities::FormatId::from_shorthand(s)
                         .context("Invalid shorthand")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in Dc 390..391");
@@ -2924,7 +3000,8 @@ impl DcMixedDecode for Duration {
                     };
                     (fid, second_child)
                 } else if let DcSyntaxKind::Identifier { name } = &first.kind {
-                    let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                    let s = name.as_str().context("Non-UTF-8 shorthand")?;
+                    let fid = ctb_formats_utilities::FormatId::from_shorthand(s)
                         .context("Invalid shorthand")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in duration");

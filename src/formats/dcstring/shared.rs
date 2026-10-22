@@ -186,8 +186,32 @@ pub fn encode_identifier_to(mst: &mut crate::DcWriter<'_>, name: &str) -> Result
     Ok(())
 }
 
-/// Reads a Unicode identifier without interpreting its name as an expression.
-pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<String> {
+/// Emits a nonempty Dc-native identifier using Dc 270..271 framing.
+pub fn encode_dc_identifier(mst: &mut DcMstring, name: &crate::DcMstr) -> Result<()> {
+    encode_dc_identifier_to(&mut mst.writer(), name)
+}
+
+pub fn encode_dc_identifier_to(mst: &mut crate::DcWriter<'_>, name: &crate::DcMstr) -> Result<()> {
+    use ctb_formats_dcdata::DcCharExt;
+    let Some(dc_str) = name.as_dc_str() else {
+        bail!("Cannot encode DcMstr containing raw binary chunks as an identifier");
+    };
+    ensure!(!dc_str.is_empty(), "Identifiers must not be empty");
+    mst.push_char(DC_BEGIN_IDENTIFIER)?;
+    for character in dc_str.chars() {
+        if character.fills_role(ctb_formats_dcdata::syntax::DcRole::Escape)
+            || character.fills_role(ctb_formats_dcdata::syntax::DcRole::EndIdentifier)
+        {
+            mst.push_char(DC_ESCAPE)?;
+        }
+        mst.push_char(character)?;
+    }
+    mst.push_char(DC_END_IDENTIFIER)?;
+    Ok(())
+}
+
+/// Reads a Dc-native identifier without lossy Unicode conversion.
+pub fn decode_dc_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<DcMstring> {
     let node = ctx.node(node_id)?;
     match &node.kind {
         crate::navigator::DcSyntaxKind::Identifier { name } => {
@@ -196,6 +220,12 @@ pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId)
         }
         other => bail!("Expected Identifier node (Dc 270 .. 271), found {other:?}"),
     }
+}
+
+/// Reads a Unicode identifier without interpreting its name as an expression.
+pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<String> {
+    let name = decode_dc_identifier(ctx, node_id)?;
+    name.to_unicode_string_with_resolver(ctx.resolver())
 }
 
 /// Assigns a field from a lexically bound value using identifiers, not strings.
@@ -215,6 +245,7 @@ pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: N
     let node = ctx.node(node_id)?;
     match &node.kind {
         crate::navigator::DcSyntaxKind::Assignment { ident, value } => {
+            let ident_str = ident.to_unicode_string_with_resolver(ctx.resolver())?;
             let val_node = ctx.node(*value)?;
             match &val_node.kind {
                 crate::navigator::DcSyntaxKind::Tagged { tag, args }
@@ -222,7 +253,7 @@ pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: N
                 {
                     let target_id = args.first().copied().context("Missing reference target identifier")?;
                     let target_name = decode_identifier(ctx, target_id)?;
-                    Ok((ident.clone(), target_name))
+                    Ok((ident_str, target_name))
                 }
                 other => bail!("Expected reference tag Dc 540 in assignment, found {other:?}"),
             }

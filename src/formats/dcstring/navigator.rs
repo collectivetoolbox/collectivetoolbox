@@ -335,6 +335,8 @@ pub struct SyntaxEvalContext<'r> {
     pub evaluator: Option<Arc<dyn DcExpressionEvaluator>>,
     /// Captured integer variables bound via `-> $var` during rule evaluation.
     pub captured_numbers: std::collections::HashMap<String, malachite::Integer>,
+    /// True when evaluating a subtype pattern over an already-unescaped literal payload.
+    pub unescaped_literal_payload: bool,
     policy: DcProjectionPolicy,
 }
 
@@ -353,6 +355,7 @@ impl<'r> SyntaxEvalContext<'r> {
             has_errors: false,
             evaluator: Some(Arc::new(DefaultDcExpressionEvaluator)),
             captured_numbers: std::collections::HashMap::new(),
+            unescaped_literal_payload: false,
             policy: DcProjectionPolicy::strict(),
         }
     }
@@ -1468,17 +1471,17 @@ pub enum DcSyntaxKind<'a> {
     },
     /// Assignment statement (`[identifier] 269 [value]`).
     Assignment {
-        ident: String,
+        ident: DcMstring,
         value: NodeId,
     },
     /// Framed literal (`260 [262:]{1} <payload> 261`) with `255` unescaped.
     Literal {
         type_header: Vec<DcChar>,
-        decoded: String,
+        decoded: DcMstring,
     },
     /// Framed identifier (`270 <payload> 271`) with `255` unescaped.
     Identifier {
-        name: String,
+        name: DcMstring,
     },
     /// Framed number (`6 [format:number] [^7]+ 7`).
     Number {
@@ -1842,10 +1845,10 @@ pub enum DcFrameHeaderInfo {
     /// Spliced framed literal construct (`260..261`).
     SplicedLiteral {
         type_header: Vec<DcChar>,
-        decoded: String,
+        decoded: DcMstring,
     },
     /// Spliced framed identifier construct (`270..271`).
-    SplicedIdentifier(String),
+    SplicedIdentifier(DcMstring),
     /// Spliced number construct (`6..7`).
     SplicedNumber {
         format: DcChar,
@@ -2450,23 +2453,17 @@ impl<'a> DcDocumentNavigator<'a> {
                             }
                         }
                     }
-                    let mut decoded = String::new();
+                    let mut decoded = DcMstring::new();
                     while let Some(tok) = self.spliced_tokens.pop_front() {
                         if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
                             break;
                         }
                         if tok.fills_role_with(DcRole::Escape, resolver) {
                             if let Some(escaped) = self.spliced_tokens.pop_front() {
-                                if let Ok(ch) = escaped.to_unicode() {
-                                    if let Some(c) = char::from_u32(ch) {
-                                        decoded.push(c);
-                                    }
-                                }
+                                decoded.push_char(escaped);
                             }
-                        } else if let Ok(ch) = tok.to_unicode() {
-                            if let Some(c) = char::from_u32(ch) {
-                                decoded.push(c);
-                            }
+                        } else {
+                            decoded.push_char(tok);
                         }
                     }
                     return Ok(Some(DcFrameStub {
@@ -2486,23 +2483,17 @@ impl<'a> DcDocumentNavigator<'a> {
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
                 if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
                     self.spliced_tokens.pop_front();
-                    let mut name = String::new();
+                    let mut name = DcMstring::new();
                     while let Some(tok) = self.spliced_tokens.pop_front() {
                         if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
                             break;
                         }
                         if tok.fills_role_with(DcRole::Escape, resolver) {
                             if let Some(escaped) = self.spliced_tokens.pop_front() {
-                                if let Ok(ch) = escaped.to_unicode() {
-                                    if let Some(c) = char::from_u32(ch) {
-                                        name.push(c);
-                                    }
-                                }
+                                name.push_char(escaped);
                             }
-                        } else if let Ok(ch) = tok.to_unicode() {
-                            if let Some(c) = char::from_u32(ch) {
-                                name.push(c);
-                            }
+                        } else {
+                            name.push_char(tok);
                         }
                     }
                     return Ok(Some(DcFrameStub {
@@ -3574,7 +3565,7 @@ impl<'a> DcDocumentNavigator<'a> {
         enum ArenaBuildFrame {
             Assignment {
                 outer_span: DcByteSpan,
-                ident: String,
+                ident: DcMstring,
                 value: Option<NodeId>,
             },
             Container {
@@ -4707,7 +4698,7 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         span: DcByteSpan,
         policy: &DcProjectionPolicy,
-    ) -> Result<(Vec<DcChar>, String)> {
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
         self.decode_literal_span_with_resolver(
             span,
             policy,
@@ -4720,7 +4711,7 @@ impl<'a> DcDocumentNavigator<'a> {
         span: DcByteSpan,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<(Vec<DcChar>, String)> {
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
         let mut offset = span.start;
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty literal span");
@@ -4743,7 +4734,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
         }
-        let mut decoded = String::new();
+        let mut decoded = DcMstring::new();
         while offset < span.end {
             let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {
                 break;
@@ -4753,33 +4744,28 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             }
             if ch.fills_role_with(DcRole::Escape, resolver) {
-                if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
-                    ch = escaped;
-                    offset = after_esc;
-                }
-            }
-            if let Ok(cp) = ch.to_unicode() {
-                if let Some(c) = char::from_u32(cp) {
-                    decoded.push(c);
-                    continue;
-                }
-            }
-            let canonical = resolver.canonical_token(ch.to_u128());
-            if let Ok(cp) = u32::try_from(canonical) {
-                if let Some(c) = char::from_u32(cp) {
-                    decoded.push(c);
-                    continue;
-                }
-            }
-            if let Ok(short_id) = ch.to_short() {
-                if let Some(plane14_cp) = 0x000E_0000u32.checked_add(short_id) {
-                    if let Some(c) = char::from_u32(plane14_cp) {
-                        decoded.push(c);
-                        continue;
+                if offset < span.end {
+                    if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
+                        ch = escaped;
+                        offset = after_esc;
+                    } else {
+                        self.syntax_issue(
+                            policy,
+                            offset,
+                            format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                        )?;
+                        break;
                     }
+                } else {
+                    self.syntax_issue(
+                        policy,
+                        offset,
+                        format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                    )?;
+                    break;
                 }
             }
-            policy.handle(policy.syntax_error, format!("Non-Unicode character {ch:?} in literal"))?;
+            decoded.push_char(ch);
         }
         Ok((type_header, decoded))
     }
@@ -4788,7 +4774,7 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         span: DcByteSpan,
         policy: &DcProjectionPolicy,
-    ) -> Result<String> {
+    ) -> Result<DcMstring> {
         self.decode_identifier_span_with_resolver(
             span,
             policy,
@@ -4801,14 +4787,14 @@ impl<'a> DcDocumentNavigator<'a> {
         span: DcByteSpan,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<String> {
+    ) -> Result<DcMstring> {
         let mut offset = span.start;
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty identifier span");
         };
         ensure!(first.fills_role_with(DcRole::BeginIdentifier, resolver), "Expected identifier opener (Dc 270), found {first}");
         offset = after_first;
-        let mut name = String::new();
+        let mut name = DcMstring::new();
         while offset < span.end {
             let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {
                 break;
@@ -4818,33 +4804,28 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             }
             if ch.fills_role_with(DcRole::Escape, resolver) {
-                if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
-                    ch = escaped;
-                    offset = after_esc;
-                }
-            }
-            if let Ok(cp) = ch.to_unicode() {
-                if let Some(c) = char::from_u32(cp) {
-                    name.push(c);
-                    continue;
-                }
-            }
-            let canonical = resolver.canonical_token(ch.to_u128());
-            if let Ok(cp) = u32::try_from(canonical) {
-                if let Some(c) = char::from_u32(cp) {
-                    name.push(c);
-                    continue;
-                }
-            }
-            if let Ok(short_id) = ch.to_short() {
-                if let Some(plane14_cp) = 0x000E_0000u32.checked_add(short_id) {
-                    if let Some(c) = char::from_u32(plane14_cp) {
-                        name.push(c);
-                        continue;
+                if offset < span.end {
+                    if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
+                        ch = escaped;
+                        offset = after_esc;
+                    } else {
+                        self.syntax_issue(
+                            policy,
+                            offset,
+                            format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                        )?;
+                        break;
                     }
+                } else {
+                    self.syntax_issue(
+                        policy,
+                        offset,
+                        format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                    )?;
+                    break;
                 }
             }
-            policy.handle(policy.syntax_error, format!("Non-Unicode character {ch:?} in identifier"))?;
+            name.push_char(ch);
         }
         Ok(name)
     }
@@ -5007,7 +4988,10 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let term_checkpoint = self.save_checkpoint();
-        if self.spliced_tokens.is_empty() && self.cursor < self.active_span.end {
+        if !ctx.unescaped_literal_payload
+            && self.spliced_tokens.is_empty()
+            && self.cursor < self.active_span.end
+        {
             if let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? {
                 if ch.fills_role_with(DcRole::LangSay, ctx.resolver) {
                     let term_targets_say = match term {
@@ -5047,7 +5031,8 @@ impl<'a> DcDocumentNavigator<'a> {
         let first = first_dc.to_u128();
 
         // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
-        let is_equiv_wrapper = ctx.resolver.is_representation_set(first);
+        let is_equiv_wrapper =
+            !ctx.unescaped_literal_payload && ctx.resolver.is_representation_set(first);
         let term_targets_equiv = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
@@ -5090,7 +5075,10 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             _ => false,
         };
-        if first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver) && !term_targets_opt_present {
+        if !ctx.unescaped_literal_payload
+            && first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
+            && !term_targets_opt_present
+        {
             let opt_checkpoint = self.save_checkpoint();
             if from_spliced {
                 self.spliced_tokens.pop_front();
@@ -5123,7 +5111,10 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             _ => false,
         };
-        if first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver) && !term_targets_opt_absent {
+        if !ctx.unescaped_literal_payload
+            && first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
+            && !term_targets_opt_absent
+        {
             if from_spliced {
                 self.spliced_tokens.pop_front();
             } else {
@@ -5196,7 +5187,9 @@ impl<'a> DcDocumentNavigator<'a> {
                         Ok(false)
                     }
                 } else {
-                    if first_dc.fills_role_with(DcRole::Escape, ctx.resolver) {
+                    if !ctx.unescaped_literal_payload
+                        && first_dc.fills_role_with(DcRole::Escape, ctx.resolver)
+                    {
                         if from_spliced {
                             self.spliced_tokens.pop_front();
                             let Some(_) = self.spliced_tokens.pop_front() else {
@@ -5231,9 +5224,10 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.spliced_tokens.pop_front();
                         return Ok(true);
                     }
-                    let in_opaque = ctx
-                        .self_dc
-                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
+                    let in_opaque = ctx.unescaped_literal_payload
+                        || ctx
+                            .self_dc
+                            .is_some_and(|s| ctx.resolver.is_opaque_container(s));
                     if in_set {
                         return Ok(false);
                     }
@@ -6136,23 +6130,20 @@ impl<'a> DcDocumentNavigator<'a> {
                         return Ok(false);
                     }
                 };
-                let mut payload_dc_str =
-                    DcString::with_capacity(decoded_payload.len().saturating_mul(4));
-                for dch in decoded_payload {
-                    payload_dc_str.push(dch);
-                }
-                let mut sub_nav = DcDocumentNavigator::from_dc_str(&payload_dc_str);
+                let mut sub_nav = DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
+                sub_nav.spliced_tokens = std::collections::VecDeque::from(decoded_payload);
                 let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
                 sub_ctx.policy.clone_from(&ctx.policy);
                 sub_ctx.depth = ctx.depth.saturating_add(1);
                 sub_ctx.max_depth = ctx.max_depth;
                 sub_ctx.call_stack.clone_from(&ctx.call_stack);
+                sub_ctx.unescaped_literal_payload = true;
                 let sub_ok = sub_nav.eval_pattern(&sub_rule.pattern, &mut sub_ctx)?;
                 ctx.has_errors |= sub_ctx.has_errors;
                 ctx.diagnostics.extend(sub_ctx.diagnostics);
                 if !sub_ok
                     || sub_ctx.has_errors
-                    || sub_nav.position() != sub_nav.active_span().end
+                    || !sub_nav.spliced_tokens.is_empty()
                 {
                     self.restore_checkpoint(term_checkpoint);
                     return Ok(false);
@@ -6245,23 +6236,20 @@ impl<'a> DcDocumentNavigator<'a> {
                             return Ok(false);
                         }
                     };
-                    let mut payload_dc_str =
-                        DcString::with_capacity(decoded_payload.len().saturating_mul(4));
-                    for dch in decoded_payload {
-                        payload_dc_str.push(dch);
-                    }
-                    let mut sub_nav = DcDocumentNavigator::from_dc_str(&payload_dc_str);
+                    let mut sub_nav = DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
+                    sub_nav.spliced_tokens = std::collections::VecDeque::from(decoded_payload);
                     let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
                     sub_ctx.policy.clone_from(&ctx.policy);
                     sub_ctx.depth = ctx.depth.saturating_add(1);
                     sub_ctx.max_depth = ctx.max_depth;
                     sub_ctx.call_stack.clone_from(&ctx.call_stack);
+                    sub_ctx.unescaped_literal_payload = true;
                     let sub_ok = sub_nav.eval_pattern(&sub_rule.pattern, &mut sub_ctx)?;
                     ctx.has_errors |= sub_ctx.has_errors;
                     ctx.diagnostics.extend(sub_ctx.diagnostics);
                     if !sub_ok
                         || sub_ctx.has_errors
-                        || sub_nav.position() != sub_nav.active_span().end
+                        || !sub_nav.spliced_tokens.is_empty()
                     {
                         self.cursor = start_offset;
                         return Ok(false);

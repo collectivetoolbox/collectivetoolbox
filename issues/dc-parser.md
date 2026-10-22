@@ -52,11 +52,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Value Correctness and Fidelity
 
-- [ ] Preserve Dc-native literal/identifier payloads losslessly. Current
-  [literal decoding](../src/formats/dcstring/navigator.rs#L4670) and identifier
-  decoding convert to Rust `String`, including Plane 14 fallback for short Dcs.
-  Cover escaped closers/escape Dcs, long/non-Unicode Dcs, aliases, and exact
-  roundtrips; the fallback is progress, not proof of general losslessness.
 - [ ] Reproduce the remaining converted-flattened-struct and optional-flattened-
   enum derive combinations identified in the October 17 review. Required-field
   presence/finalization regressions already exist in
