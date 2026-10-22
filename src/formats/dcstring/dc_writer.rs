@@ -191,6 +191,7 @@ impl<'output> DcWriter<'output> {
 /// This bounds memory but requires temporary disk space proportional to the
 /// record size. Errors can leave partial output; callers must withhold
 /// their transaction footer until this function succeeds.
+/// FIXME: Will break on `csc archive` of large files.
 pub fn validate_and_write_dc_record(
     output: &mut dyn Write,
     source: Option<&dyn DcBinarySource>,

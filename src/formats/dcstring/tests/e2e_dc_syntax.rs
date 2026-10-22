@@ -2421,4 +2421,119 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_retained_diagnostics_and_custom_resolver_boundaries() -> Result<()> {
+        // 1. decode_frame_with_arena retains projection diagnostics (unknown_field,
+        //    missing_required_field, malformed_field) in arena.diagnostics():
+        let forgiving = DcProjectionPolicy::forgiving();
+        let mut incomplete_doc = DcMstring::new();
+        incomplete_doc.push_char(DcChar::from_short(401));
+        // Unknown field 407:
+        incomplete_doc.push_char(DcChar::from_short(407));
+        "extra".encode_dc_mixed(&mut incomplete_doc)?;
+        // Required field title (400), but count (406) omitted:
+        incomplete_doc.push_char(DcChar::from_short(400));
+        "hello".encode_dc_mixed(&mut incomplete_doc)?;
+        incomplete_doc.push_char(DcChar::from_short(402));
+
+        let mut nav = DcDocumentNavigator::from_mstr(&incomplete_doc);
+        let stub = nav
+            .next_sibling_stub(&forgiving)?
+            .context("Missing frame stub")?;
+        let mut arena = DcSyntaxArena::new();
+        let rec: OverlaySampleRecord =
+            nav.decode_frame_with_arena(&stub, &mut arena, None, &forgiving)?;
+        ensure!(rec.title == "hello", "Expected title == hello");
+        ensure!(rec.count == 0, "Expected defaulted count == 0");
+        ensure!(
+            arena.diagnostics().iter().any(|d| d.message.contains("Unknown Dc tag")),
+            "decode_frame_with_arena must retain unknown_field diagnostic in arena.diagnostics()"
+        );
+        ensure!(
+            arena.diagnostics().iter().any(|d| d.message.contains("Missing required field")),
+            "decode_frame_with_arena must retain missing_required_field diagnostic in arena.diagnostics()"
+        );
+
+        // 2. Malformed field under strict policy records diagnostic without duplication in DcInspection:
+        let mut malformed_doc = DcMstring::new();
+        malformed_doc.push_char(DcChar::from_short(401));
+        malformed_doc.push_char(DcChar::from_short(400));
+        "hello".encode_dc_mixed(&mut malformed_doc)?;
+        malformed_doc.push_char(DcChar::from_short(406));
+        "not_a_number".encode_dc_mixed(&mut malformed_doc)?;
+        malformed_doc.push_char(DcChar::from_short(402));
+
+        let strict_insp =
+            malformed_doc.inspect_with_policy::<OverlaySampleRecord>(&DcProjectionPolicy::strict());
+        ensure!(
+            strict_insp.value().is_none(),
+            "Strict inspection of malformed field must report error"
+        );
+        ensure!(
+            strict_insp.diagnostics().len() == 1,
+            "Expected exactly 1 diagnostic without duplicates, found {}: {:?}",
+            strict_insp.diagnostics().len(),
+            strict_insp.diagnostics()
+        );
+
+        // 3. DcInspection::inspect_with_resolver + replace_field threads custom resolver:
+        let mut registry = SyntaxRuntimeRegistry::default();
+        let synth_rec_open = DcChar::from_short(3801).to_u128();
+        let synth_rec_close = DcChar::from_short(3802).to_u128();
+        let synth_field_title = DcChar::from_short(3803).to_u128();
+        let synth_field_count = DcChar::from_short(3804).to_u128();
+        registry.register_equivalence(synth_rec_open, DcChar::from_short(401).to_u128());
+        registry.register_equivalence(synth_rec_close, DcChar::from_short(402).to_u128());
+        registry.register_equivalence(synth_field_title, DcChar::from_short(400).to_u128());
+        registry.register_equivalence(synth_field_count, DcChar::from_short(406).to_u128());
+
+        let mut overlay_doc = DcMstring::new();
+        overlay_doc.push_char(DcChar::from_u128(synth_rec_open));
+        overlay_doc.push_char(DcChar::from_u128(synth_field_title));
+        "before".encode_dc_mixed(&mut overlay_doc)?;
+        overlay_doc.push_char(DcChar::from_u128(synth_field_count));
+        10u64.encode_dc_mixed(&mut overlay_doc)?;
+        overlay_doc.push_char(DcChar::from_u128(synth_rec_close));
+
+        let overlay_insp =
+            overlay_doc.inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
+        let updated_rec = OverlaySampleRecord {
+            title: "after".to_owned(),
+            count: 10,
+        };
+        let replaced_doc = overlay_insp.replace_field("title", &updated_rec)?;
+        let replaced_rec: OverlaySampleRecord =
+            replaced_doc.decode_with_resolver(registry.resolver(), &DcProjectionPolicy::strict())?;
+        ensure!(replaced_rec.title == "after", "Replaced title mismatch");
+        ensure!(replaced_rec.count == 10, "Replaced count mismatch");
+
+        // 4. Textual binary encapsulation decoding via DcStr::decode_with_resolver uses custom resolver in Cursor::read_payload:
+        let mut enc_registry = SyntaxRuntimeRegistry::default();
+        let synth_digit_zero = DcChar::from_short(3820);
+        enc_registry.register_equivalence(
+            synth_digit_zero.to_u128(),
+            DcChar::from_short(127).to_u128(),
+        );
+        let mut bin_mstr = DcMstring::new();
+        bin_mstr.push_binary(&[0, 0, 0]);
+        let canon_dc_str = bin_mstr.to_dc_string()?;
+        let mut alias_dc_str = ctb_formats_dcstring::DcString::new();
+        for ch in canon_dc_str.chars() {
+            if ch == DcChar::from_short(127) {
+                alias_dc_str.push(synth_digit_zero);
+            } else {
+                alias_dc_str.push(ch);
+            }
+        }
+        let decoded_bin: ctb_formats_dcstring::BinaryPayload =
+            alias_dc_str.decode_with_resolver(enc_registry.resolver(), &DcProjectionPolicy::strict())?;
+        ensure!(
+            decoded_bin.0 == vec![0, 0, 0],
+            "Expected 3 zero bytes from custom base64 digit in textual encapsulation"
+        );
+
+        Ok(())
+    }
 }
+

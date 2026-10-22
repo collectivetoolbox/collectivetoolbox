@@ -207,8 +207,7 @@ pub fn finish_flattened_field<T: DcMixedFlattened>(
     match T::finish_flattened(state, ctx) {
         Ok(value) => Ok(Some(value)),
         Err(error) => {
-            if ctx.policy.malformed_field == crate::DiagnosticAction::Error
-                || ctx.diagnostics().iter().skip(diagnostic_start).any(|diagnostic| diagnostic.is_error)
+            if ctx.diagnostics().iter().skip(diagnostic_start).any(|diagnostic| diagnostic.is_error)
             {
                 return Err(error);
             }
@@ -238,19 +237,11 @@ impl crate::DcMstr {
         &self,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut nav = crate::DcDocumentNavigator::from_mstr(self);
-        let mut arena = crate::DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, policy)?;
-        let roots = arena.roots();
-        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
-            &arena,
-            policy,
+        self.decode_with_resolver_and_context(
+            default_syntax_resolver().as_ref(),
             None,
-            Some(&mut nav),
-        );
-        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
-        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
-        Ok(res)
+            policy,
+        )
     }
 
     /// Interprets the whole string with explicitly supplied outer bindings.
@@ -262,19 +253,11 @@ impl crate::DcMstr {
         context: &crate::SharedValueContext,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut nav = crate::DcDocumentNavigator::from_mstr(self);
-        let mut arena = crate::DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, policy)?;
-        let roots = arena.roots();
-        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
-            &arena,
-            policy,
+        self.decode_with_resolver_and_context(
+            default_syntax_resolver().as_ref(),
             Some(context),
-            Some(&mut nav),
-        );
-        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
-        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
-        Ok(res)
+            policy,
+        )
     }
 
     /// Interprets the string using a custom [`SyntaxRuleResolver`].

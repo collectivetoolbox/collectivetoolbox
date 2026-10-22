@@ -187,7 +187,7 @@ impl<'a> Cursor<'a> {
     /// a raised caller budget cannot exhaust the call stack on adversarial
     /// input. The nesting budget is checked once per payload level entered.
     fn read_payload(&mut self) -> Result<(Metadata<'a>, Vec<u8>)> {
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let resolver = self.resolver;
         let mut frames: Vec<PayloadFrame<'a>> = Vec::new();
         let mut level = loop {
             #[cfg(test)]

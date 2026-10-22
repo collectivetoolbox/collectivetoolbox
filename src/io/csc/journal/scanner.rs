@@ -36,6 +36,25 @@ pub(crate) struct ScanResult {
     pub valid_length: u64,
 }
 
+fn retain_recovery_diagnostics(
+    arena: &DcSyntaxArena<'_>,
+    policy: &DcProjectionPolicy,
+    warnings: &mut Vec<JournalWarningRecord>,
+) {
+    if policy.is_strict() {
+        return;
+    }
+    for diagnostic in arena.diagnostics() {
+        if !diagnostic.message.starts_with("Deprecated Document Character") {
+            warnings.push(JournalWarningRecord {
+                code: "journal-decode-diagnostic".to_owned(),
+                message: diagnostic.message.clone(),
+                timestamp_sec: 0,
+            });
+        }
+    }
+}
+
 fn warning<'source>(
     navigator: &mut DcDocumentNavigator<'source>,
     stub: &DcFrameStub,
@@ -107,6 +126,7 @@ pub(crate) fn scan(
         completed: false,
         valid_length: session_stub.outer_span.end,
     };
+    retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
     loop {
         let stub = match navigator.next_sibling_stub(scan_policy) {
             Ok(Some(stub)) => stub,
@@ -175,6 +195,7 @@ pub(crate) fn scan(
                     members.push(navigator.decode_frame_with_arena::<FileEntityWithPayload>(
                         &child, &mut arena, Some(&context), policy)
                         .with_context(|| format!("Failed to decode FileEntity in batch {sequence}"))?);
+                    retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
                 }
                 navigator.exit_frame()?;
                 result.members.extend(members);
@@ -201,16 +222,19 @@ pub(crate) fn scan(
                         policy,
                     )
                     .context("Invalid journal error record")?;
+                retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
                 result.errors.push(payload.to_record(policy)?);
             }
             head if head == dc::DC_BEGIN_WARNING_RECORD => {
-                result.warnings.push(warning(
+                let w = warning(
                     &mut navigator,
                     &stub,
                     &mut arena,
                     &context,
                     policy,
-                )?);
+                )?;
+                retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
+                result.warnings.push(w);
             }
             head => bail!(
                 "Unsupported journal record {head} at offset {}",

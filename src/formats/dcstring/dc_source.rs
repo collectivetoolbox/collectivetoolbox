@@ -138,6 +138,24 @@ pub trait DcSource {
         &self,
         range: Range<usize>,
         fragment: &DcMstr,
+    ) -> Result<Self::Owned> {
+        self.replace_typed_source_field_with_resolver(
+            range,
+            fragment,
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+        )
+    }
+
+    /// Reconciles a typed replacement with its original source representation
+    /// using `resolver`.
+    ///
+    /// # Errors
+    /// Returns an error for invalid ranges or ambiguous source correspondence.
+    fn replace_typed_source_field_with_resolver(
+        &self,
+        range: Range<usize>,
+        fragment: &DcMstr,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Self::Owned>;
 
     /// Splices an encoded field after checking source and fragment boundaries.
@@ -177,14 +195,19 @@ impl DcSource for DcMstr {
         self.as_bytes()
     }
 
-    fn replace_typed_source_field(&self, range: Range<usize>, fragment: &DcMstr) -> Result<DcMstring> {
+    fn replace_typed_source_field_with_resolver(
+        &self,
+        range: Range<usize>,
+        fragment: &DcMstr,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcMstring> {
         ensure!(range.start >= crate::DCMM_HEADER_LEN, "Cannot select string header");
         let payload = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
         let mut bytes = DcMstring::new().into_bytes();
         bytes.extend_from_slice(payload);
         let original = DcMstring::from_bytes(bytes)?;
         let replacement = DcMstring::from_slice(fragment.as_bytes())?;
-        let revised = crate::source_edit::preserve_source(&original, &replacement)?;
+        let revised = crate::source_edit::preserve_source_with_resolver(&original, &replacement, resolver)?;
         self.replace_source_field(range, &revised)
     }
 
@@ -245,14 +268,19 @@ impl DcSource for DcStr {
         self.as_bytes()
     }
 
-    fn replace_typed_source_field(&self, range: Range<usize>, fragment: &DcMstr) -> Result<DcString> {
+    fn replace_typed_source_field_with_resolver(
+        &self,
+        range: Range<usize>,
+        fragment: &DcMstr,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcString> {
         ensure!(
             self.is_char_boundary(range.start) && self.is_char_boundary(range.end),
             "Source range splits a Dc character"
         );
         let bytes = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
         let replacement = fragment.to_dc_string()?;
-        let revised = crate::source_edit::preserve_text(DcStr::from_bytes(bytes)?, &replacement)?;
+        let revised = crate::source_edit::preserve_text_with_resolver(DcStr::from_bytes(bytes)?, &replacement, resolver)?;
         Ok(DcString::from_dcutf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
     }
 
@@ -284,12 +312,26 @@ impl DcSource for DcStr {
 ///
 /// Failed interpretation retains the source and annotations before the error.
 /// Inspection does not execute the string or gate runtime execution.
-#[derive(Debug)]
 pub struct DcInspection<'a, T, S: DcSource + ?Sized = DcMstr> {
     source: &'a S,
     value: Option<T>,
     fields: Vec<DcFieldAnnotation>,
     diagnostics: Vec<DcDiagnostic>,
+    resolver: Option<&'a dyn SyntaxRuleResolver>,
+}
+
+impl<T: std::fmt::Debug, S: DcSource + std::fmt::Debug + ?Sized> std::fmt::Debug
+    for DcInspection<'_, T, S>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DcInspection")
+            .field("source", &&self.source)
+            .field("value", &self.value)
+            .field("fields", &self.fields)
+            .field("diagnostics", &self.diagnostics)
+            .field("has_resolver", &self.resolver.is_some())
+            .finish()
+    }
 }
 
 impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
@@ -305,7 +347,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         source: &'a S,
         context: Option<&crate::SharedValueContext>,
         policy: &crate::DcProjectionPolicy,
-        resolver: Option<&dyn SyntaxRuleResolver>,
+        resolver: Option<&'a dyn SyntaxRuleResolver>,
     ) -> Self {
         let bytes = source.source_bytes();
         let mut arena = crate::DcSyntaxArena::new();
@@ -321,6 +363,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                             position: 0,
                             error: err.into(),
                         }],
+                        resolver,
                     };
                 }
             }
@@ -336,6 +379,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                             position: 0,
                             error: err.into(),
                         }],
+                        resolver,
                     };
                 }
             }
@@ -351,12 +395,16 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             error: anyhow::anyhow!(diagnostic.message.clone()),
         }).collect();
         if let Err(err) = parsed {
-            diagnostics.push(DcDiagnostic { position: nav.position(), error: err });
+            let err_msg = err.to_string();
+            if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+                diagnostics.push(DcDiagnostic { position: nav.position(), error: err });
+            }
             return Self {
                 source,
                 value: None,
                 fields: Vec::new(),
                 diagnostics,
+                resolver,
             };
         }
 
@@ -392,20 +440,26 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         let value = match result {
             Ok((value, _)) => Some(value),
             Err(e) => {
-                let pos = if ctx_pos != 0 {
-                    ctx_pos
-                } else {
-                    nav.position()
-                };
-                diagnostics.push(DcDiagnostic {
-                    position: pos,
-                    error: e,
-                });
+                let err_msg = e.to_string();
+                if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+                    let pos = if ctx_pos != 0 {
+                        ctx_pos
+                    } else {
+                        nav.position()
+                    };
+                    diagnostics.push(DcDiagnostic {
+                        position: pos,
+                        error: e,
+                    });
+                }
                 None
             }
         };
         if let Some(error) = trailing_error {
-            diagnostics.push(DcDiagnostic { position: ctx_pos, error });
+            let err_msg = error.to_string();
+            if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+                diagnostics.push(DcDiagnostic { position: ctx_pos, error });
+            }
         }
 
         Self {
@@ -413,6 +467,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             value,
             fields,
             diagnostics,
+            resolver,
         }
     }
 
@@ -482,8 +537,16 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         } else {
             updated.encode_dc_field(annotation.field, &mut fragment)?;
         }
-        self.source
-            .replace_typed_source_field(annotation.range(), &fragment)
+        if let Some(resolver) = self.resolver {
+            self.source.replace_typed_source_field_with_resolver(
+                annotation.range(),
+                &fragment,
+                resolver,
+            )
+        } else {
+            self.source
+                .replace_typed_source_field(annotation.range(), &fragment)
+        }
     }
 }
 
@@ -550,16 +613,26 @@ impl DcMstr {
 
     /// Annotates an interpretation with a custom [`SyntaxRuleResolver`].
     #[must_use]
-    pub fn inspect_with_resolver<T: DcMixedDecode>(
-        &self,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> DcInspection<'_, T> {
+    pub fn inspect_with_resolver<'a, T: DcMixedDecode>(
+        &'a self,
+        resolver: &'a dyn SyntaxRuleResolver,
+    ) -> DcInspection<'a, T> {
         DcInspection::read_with_resolver(
             self,
             None,
             &crate::DcProjectionPolicy::strict(),
             Some(resolver),
         )
+    }
+
+    /// Annotates an interpretation with an explicit policy and custom [`SyntaxRuleResolver`].
+    #[must_use]
+    pub fn inspect_with_policy_and_resolver<'a, T: DcMixedDecode>(
+        &'a self,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &'a dyn SyntaxRuleResolver,
+    ) -> DcInspection<'a, T> {
+        DcInspection::read_with_resolver(self, None, policy, Some(resolver))
     }
 }
 
@@ -572,7 +645,11 @@ impl DcStr {
         &self,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        self.decode_internal(None, policy)
+        self.decode_with_resolver_and_context(
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+            None,
+            policy,
+        )
     }
 
     /// Interprets the whole DcUtf string with explicitly supplied bindings.
@@ -584,7 +661,11 @@ impl DcStr {
         context: &crate::SharedValueContext,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        self.decode_internal(Some(context), policy)
+        self.decode_with_resolver_and_context(
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+            Some(context),
+            policy,
+        )
     }
 
     /// Interprets the whole DcUtf string using a custom [`SyntaxRuleResolver`].
@@ -627,26 +708,6 @@ impl DcStr {
         Ok(res)
     }
 
-    fn decode_internal<T: DcMixedDecode>(
-        &self,
-        context: Option<&crate::SharedValueContext>,
-        policy: &crate::DcProjectionPolicy,
-    ) -> Result<T> {
-        let mut nav = crate::DcDocumentNavigator::from_dc_str(self);
-        let mut arena = crate::DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, policy)?;
-        let roots = arena.roots();
-        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
-            &arena,
-            policy,
-            context,
-            Some(&mut nav),
-        );
-        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
-        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
-        Ok(res)
-    }
-
     /// Annotates an interpretation without copying or changing the source.
     #[must_use]
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T, DcStr> {
@@ -681,16 +742,26 @@ impl DcStr {
 
     /// Annotates an interpretation with a custom [`SyntaxRuleResolver`].
     #[must_use]
-    pub fn inspect_with_resolver<T: DcMixedDecode>(
-        &self,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> DcInspection<'_, T, DcStr> {
+    pub fn inspect_with_resolver<'a, T: DcMixedDecode>(
+        &'a self,
+        resolver: &'a dyn SyntaxRuleResolver,
+    ) -> DcInspection<'a, T, DcStr> {
         DcInspection::read_with_resolver(
             self,
             None,
             &crate::DcProjectionPolicy::strict(),
             Some(resolver),
         )
+    }
+
+    /// Annotates an interpretation with an explicit policy and custom [`SyntaxRuleResolver`].
+    #[must_use]
+    pub fn inspect_with_policy_and_resolver<'a, T: DcMixedDecode>(
+        &'a self,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &'a dyn SyntaxRuleResolver,
+    ) -> DcInspection<'a, T, DcStr> {
+        DcInspection::read_with_resolver(self, None, policy, Some(resolver))
     }
 }
 

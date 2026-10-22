@@ -1,14 +1,12 @@
 # Dc Parser
 
 **Partially Implemented.** This is the canonical backlog for Dc syntax parsing,
-validation, projection, and derive work. The
-[dated refactor records](2026-10-13-Dc-syntax-parser-refactor/README.md) provide
-historical context, not current completion or test certification.
+validation, projection, and derive work.
 
-Reviewed against source at `2fe81e7027399dcbceabf3b394f5c94cc814100d` on
-2026-10-21. Rust tests and Clippy were not rerun for this documentation cleanup.
-Checked items below describe bounded implementation evidence, not full feature
-completion. Unchecked review leads require a focused reproduction before fixes.
+Reviewed against source at `1314c0dace0d5137d3c2717d3bc318b01cb24a88` on
+2026-10-22. Checked items below describe bounded implementation evidence, not
+full feature completion. Unchecked review leads require a focused reproduction
+before fixes.
 
 ## Required Behavior
 
@@ -30,15 +28,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Parser and Projection Ownership
 
-- [ ] Finish auditing remaining retained diagnostics across projection,
-  inspection, and journal consumers (`record_diagnostic` now records parser
-  diagnostics in `DcDocumentNavigator` and drains them into `DcSyntaxArena` even
-  on error; verify conversion failures, unknown fields, and missing fields).
-- [ ] Audit remaining default-resolver boundaries rather than repeating the
-  completed role migration. For example,
-  [minimal number readers](../src/formats/dcdata/dc_number_minimal.rs#L71)
-  use default roles/digits. Exercise custom aliases through the public
-  API before deciding which helpers need explicit resolver variants.
 - [ ] Validate ambiguous database grammar and ambiguous derive mappings at
   build time. Equivalence parity is already checked; establish which other
   ambiguity classes remain unsupported.
@@ -46,9 +35,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 - [ ] Audit remaining handwritten structured codecs and grammar-independent
   encoding paths. Writer-based derives exist; do not equate this with all
   serialization being generated from syntax specifications.
-- [ ] Reconcile `DcProjectionPolicy` naming/ownership: it governs both parsing
-  and projection, despite the original distinction. Do not create parallel
-  policy implementations merely to rename it.
 
 ### Value Correctness and Fidelity
 
@@ -85,10 +71,16 @@ completion. Unchecked review leads require a focused reproduction before fixes.
   per-record parser overhead from retained snapshot memory and temporary disk
   use. Keep general hierarchical navigation usable beyond journals.
 - [ ] Decide whether full grammar validation on arbitrary forward-only input is
-  needed. The existing byte-stream copier validates transport/encapsulation,
-  not full grammar; typed-record validation spools to a seekable anonymous file.
-  See [streaming boundaries](2026-10-13-Dc-syntax-parser-refactor/streaming-dc-document-validation.md).
-  Do not treat either as a missing implementation of the other.
+  needed. Seekable documents use [`DcDocumentNavigator::from_dcmm_file`](../src/formats/dcstring/navigator.rs)
+  (`validate_document` / `step_validate_construct`) for full grammar validation
+  with bounded container skipping; [`validate_and_copy_dcmm_stream`](../src/formats/dcstring/navigator.rs)
+  validates transport and encapsulation framing on forward-only `Read -> Write`
+  streams without full grammar rules; and [`validate_and_write_dc_record`](../src/formats/dcstring/navigator.rs)
+  spools typed records to an anonymous seekable temporary file before validated
+  copy-out. Do not treat any of these three entrypoints as a missing
+  implementation of another.
+- /// FIXME: Will break on `csc archive` of large files. Finding a streaming validation strategy will be important.
+pub fn validate_and_write_dc_record(
 
 ### Database and Semantic Decisions
 

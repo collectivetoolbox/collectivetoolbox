@@ -101,8 +101,10 @@ pub use dc::{
     SHORT_DC_REGION_START, long_to_short_dc, short_to_long_dc,
 };
 pub use dc_number_minimal::{
-    dc_base64_char_to_digit, dc_base64_digit_to_char,
-    is_dc_base64_encapsulation_char, u128_to_dc_number_chars,
+    dc_base64_char_to_digit, dc_base64_char_to_digit_with_resolver,
+    dc_base64_digit_to_char, is_dc_base64_encapsulation_char,
+    is_dc_base64_encapsulation_char_with_resolver, read_dc_number_u128,
+    read_dc_number_u128_with_resolver, u128_to_dc_number_chars,
     u128_to_dc_number_short,
 };
 pub use dc_def::{DcDefn, FormatDetails};

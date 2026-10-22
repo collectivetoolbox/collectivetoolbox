@@ -1849,9 +1849,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         #field_ident = Some(Some(val));
                                     }
                                     ::std::result::Result::Err(err) => {
-                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                            return ::std::result::Result::Err(err);
-                                        }
                                         ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
@@ -1868,9 +1865,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         Ok(true)
                                     }
                                     ::std::result::Result::Err(err) => {
-                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                            return ::std::result::Result::Err(err);
-                                        }
                                         ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
@@ -1897,9 +1891,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         #field_ident = Some(val);
                                     }
                                     ::std::result::Result::Err(err) => {
-                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                            return ::std::result::Result::Err(err);
-                                        }
                                         ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
@@ -1916,9 +1907,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         Ok(true)
                                     }
                                     ::std::result::Result::Err(err) => {
-                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                            return ::std::result::Result::Err(err);
-                                        }
                                         ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
@@ -3631,9 +3619,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         )?;
                                     }
                                     ::std::result::Result::Err(err) => {
-                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                            return ::std::result::Result::Err(err);
-                                        }
                                         // Reason for fallback: Malformed field diagnostic message displays <unknown> if field name could not be resolved from tag.
                                         ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,

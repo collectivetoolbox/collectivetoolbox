@@ -989,9 +989,10 @@ pub enum DiagnosticAction {
     Ignore,
 }
 
-/// Caller-specified policy governing how syntax errors, unknown tags,
-/// deprecated constructs, and malformed or missing fields are handled during
-/// Dc document parsing and struct projection.
+/// Unified caller-specified policy governing how syntax errors, unknown tags,
+/// deprecated constructs, malformed or missing fields, and resource budgets
+/// are handled across Dc document parsing, validation, inspection, and typed
+/// projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DcProjectionPolicy {
     /// Framing or syntax rule violation in Stage 1 (e.g. unclosed frame, bad literal header).
@@ -3224,15 +3225,22 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<T> {
         let root_id = self.expand_frame_with_resolver(stub, arena, policy, resolver)?;
-        let mut ctx = DcProjectionContext::with_all_resolvers(
-            arena,
-            policy,
-            context,
-            Some(self),
-            Some(resolver),
-            None,
-        );
-        T::decode_dc_node(&mut ctx, root_id)
+        let (result, projection_diagnostics) = {
+            let mut ctx = DcProjectionContext::with_all_resolvers(
+                arena,
+                policy,
+                context,
+                Some(self),
+                Some(resolver),
+                None,
+            );
+            let res = T::decode_dc_node(&mut ctx, root_id);
+            (res, ctx.diagnostics().to_vec())
+        };
+        for diagnostic in projection_diagnostics {
+            arena.push_diagnostic(diagnostic);
+        }
+        result
     }
 
     /// Decodes a [`DcFrameStub`] into a typed Rust value `T` using the given
@@ -3655,12 +3663,12 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Document nesting depth exceeds maximum limit ({}) at offset {}",
                             policy.max_depth, stub.outer_span.start
                         );
-                        policy.handle(policy.depth_limit_exceeded, &msg)?;
-                        arena.push_diagnostic(SyntaxDiagnostic {
-                            message: msg.clone(),
-                            token_offset: stub.outer_span.start,
-                            is_error: true,
-                        });
+                        nav.record_diagnostic(
+                            policy,
+                            policy.depth_limit_exceeded,
+                            stub.outer_span.start,
+                            msg.clone(),
+                        )?;
                         return Ok(StubStep::Leaf(arena.alloc(
                             stub.outer_span,
                             DcSyntaxKind::Malformed {
@@ -3690,12 +3698,12 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Document nesting depth exceeds maximum limit ({}) at offset {}",
                             policy.max_depth, stub.outer_span.start
                         );
-                        policy.handle(policy.depth_limit_exceeded, &msg)?;
-                        arena.push_diagnostic(SyntaxDiagnostic {
-                            message: msg.clone(),
-                            token_offset: stub.outer_span.start,
-                            is_error: true,
-                        });
+                        nav.record_diagnostic(
+                            policy,
+                            policy.depth_limit_exceeded,
+                            stub.outer_span.start,
+                            msg.clone(),
+                        )?;
                         return Ok(StubStep::Leaf(arena.alloc(
                             stub.outer_span,
                             DcSyntaxKind::Malformed {
@@ -3731,12 +3739,12 @@ impl<'a> DcDocumentNavigator<'a> {
                         "Document nesting depth exceeds maximum limit ({}) at offset {}",
                         policy.max_depth, stub.outer_span.start
                     );
-                    policy.handle(policy.depth_limit_exceeded, &msg)?;
-                    arena.push_diagnostic(SyntaxDiagnostic {
-                        message: msg.clone(),
-                        token_offset: stub.outer_span.start,
-                        is_error: true,
-                    });
+                    nav.record_diagnostic(
+                        policy,
+                        policy.depth_limit_exceeded,
+                        stub.outer_span.start,
+                        msg.clone(),
+                    )?;
                     return Ok(StubStep::Leaf(arena.alloc(
                         stub.outer_span,
                         DcSyntaxKind::Malformed {
@@ -4225,14 +4233,18 @@ impl<'a> DcDocumentNavigator<'a> {
                 if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
                     offset = self.scan_until_token(next_off, ctb_formats_dcdata::dc::DC_END_TYPE_DEF, policy, resolver)?;
                 } else {
-                    policy.handle(
+                    self.record_diagnostic(
+                        policy,
                         policy.syntax_error,
+                        after_opener,
                         format!("Literal at offset {after_opener} is missing Dc 262..263 type header"),
                     )?;
                 }
             } else {
-                policy.handle(
+                self.record_diagnostic(
+                    policy,
                     policy.syntax_error,
+                    after_opener,
                     format!("Unclosed literal at offset {after_opener}: missing Dc 262..263 type header"),
                 )?;
                 return Ok(offset);
@@ -4244,8 +4256,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 if let Some((_, after_escaped)) = self.read_token_or_binary_at(offset)? {
                     offset = after_escaped;
                 } else {
-                    policy.handle(
+                    self.record_diagnostic(
+                        policy,
                         policy.syntax_error,
+                        offset,
                         format!("Dangling escape Dc 255 at offset {offset}"),
                     )?;
                     return Ok(offset);
@@ -4254,8 +4268,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 return Ok(offset);
             }
         }
-        policy.handle(
+        self.record_diagnostic(
+            policy,
             policy.syntax_error,
+            after_opener,
             format!("Unclosed text frame: missing closer {closer:?}"),
         )?;
         Ok(offset)
@@ -4275,8 +4291,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 return Ok(offset);
             }
         }
-        policy.handle(
+        self.record_diagnostic(
+            policy,
             policy.syntax_error,
+            start,
             format!("Unclosed frame starting at {start}: missing closer {closer:?}"),
         )?;
         Ok(offset)
@@ -4335,10 +4353,15 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(u64, u64, bool)> {
         if self.depth() >= policy.max_depth {
-            policy.handle(policy.depth_limit_exceeded, format!(
-                "Container depth limit reached ({}) at offset {after_opener}",
-                policy.max_depth,
-            ))?;
+            self.record_diagnostic(
+                policy,
+                policy.depth_limit_exceeded,
+                after_opener,
+                format!(
+                    "Container depth limit reached ({}) at offset {after_opener}",
+                    policy.max_depth,
+                ),
+            )?;
         }
         let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
         let mut offset = after_opener;
@@ -4350,8 +4373,10 @@ impl<'a> DcDocumentNavigator<'a> {
                     offset = after_escaped;
                     continue;
                 }
-                policy.handle(
+                self.record_diagnostic(
+                    policy,
                     policy.syntax_error,
+                    token_start,
                     format!("Dangling escape Dc 255 at offset {token_start}"),
                 )?;
                 return Ok((next_offset, next_offset, false));
@@ -4426,8 +4451,10 @@ impl<'a> DcDocumentNavigator<'a> {
             // Sacred opener/closer framing: if an inner container was left unclosed
             // before an outer closer on the stack, synchronize at the outer closer.
             if let Some(stack_pos) = closer_stack.iter().rposition(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
-                policy.handle(
+                self.record_diagnostic(
+                    policy,
                     policy.syntax_error,
+                    token_start,
                     format!(
                         "Unclosed inner container before closer {ch:?} at offset {token_start}"
                     ),
@@ -4442,10 +4469,15 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
                 if let Some(inner_closer) = resolver.closer_for_opener(&target) {
                     if self.depth().saturating_add(closer_stack.len()) >= policy.max_depth {
-                        policy.handle(policy.depth_limit_exceeded, format!(
-                            "Container depth limit reached ({}) at offset {token_start}",
-                            policy.max_depth,
-                        ))?;
+                        self.record_diagnostic(
+                            policy,
+                            policy.depth_limit_exceeded,
+                            token_start,
+                            format!(
+                                "Container depth limit reached ({}) at offset {token_start}",
+                                policy.max_depth,
+                            ),
+                        )?;
                     }
                     closer_stack.try_reserve(1)?;
                     closer_stack.push((
@@ -4457,8 +4489,10 @@ impl<'a> DcDocumentNavigator<'a> {
             offset = next_offset;
         }
 
-        policy.handle(
+        self.record_diagnostic(
+            policy,
             policy.syntax_error,
+            after_opener,
             format!("Unclosed container {opener:?}..{closer:?} starting at offset {after_opener}"),
         )?;
         Ok((offset, offset, false))
@@ -4491,15 +4525,19 @@ impl<'a> DcDocumentNavigator<'a> {
 
         // Expect trailing 545 SectionDigest + [checksum] (203..204)
         let Some((digest_tag, after_digest_tag)) = self.read_token_or_binary_at(after_closer)? else {
-            policy.handle(
+            self.record_diagnostic(
+                policy,
                 policy.syntax_error,
-                "Missing Dc 545 (SectionDigest) after Dc 544 (EndChecksummedSection)",
+                after_closer,
+                "Missing Dc 545 (SectionDigest) after Dc 544 (EndChecksummedSection)".to_owned(),
             )?;
             return Ok((after_closer, sequence_id, false));
         };
         if !digest_tag.fills_role_with(DcRole::SectionDigest, resolver) {
-            policy.handle(
+            self.record_diagnostic(
+                policy,
                 policy.syntax_error,
+                after_closer,
                 format!("Expected Dc 545 (SectionDigest) after Dc 544, found {digest_tag:?}"),
             )?;
             return Ok((after_closer, sequence_id, false));
@@ -4514,8 +4552,10 @@ impl<'a> DcDocumentNavigator<'a> {
         };
         let checksum_ok = self.eval_term_single(&checksum_term, &mut ctx)?;
         if !checksum_ok {
-            policy.handle(
+            self.record_diagnostic(
+                policy,
                 policy.syntax_error,
+                after_digest_tag,
                 format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
             )?;
         }
@@ -6784,10 +6824,15 @@ impl<'a> DcDocumentNavigator<'a> {
         if let Some(inner) = stub.inner_span {
             if !resolver.is_opaque_container(stub.head_dc.to_u128()) {
                 if depth >= policy.max_depth {
-                    policy.handle(policy.depth_limit_exceeded, format!(
-                        "Document nesting depth exceeds maximum limit ({}) at offset {}",
-                        policy.max_depth, stub.outer_span.start,
-                    ))?;
+                    self.record_diagnostic(
+                        policy,
+                        policy.depth_limit_exceeded,
+                        stub.outer_span.start,
+                        format!(
+                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                            policy.max_depth, stub.outer_span.start,
+                        ),
+                    )?;
                 } else {
                     return Ok(vec![(inner, depth.saturating_add(1))]);
                 }
