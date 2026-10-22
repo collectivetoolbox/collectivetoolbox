@@ -155,7 +155,40 @@ impl<'output> DcWriter<'output> {
         bytes: &[u8],
         metadata: &DcStr,
     ) -> Result<()> {
-        crate::encapsulation::validate_metadata(metadata, bytes)?;
+        self.push_binary_with_metadata_and_policy(
+            bytes,
+            metadata,
+            &crate::DcProjectionPolicy::strict(),
+        )
+    }
+
+    pub fn push_binary_with_metadata_and_policy(
+        &mut self,
+        bytes: &[u8],
+        metadata: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<()> {
+        self.push_binary_with_metadata_policy_and_resolver(
+            bytes,
+            metadata,
+            policy,
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+        )
+    }
+
+    pub fn push_binary_with_metadata_policy_and_resolver(
+        &mut self,
+        bytes: &[u8],
+        metadata: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn crate::SyntaxRuleResolver,
+    ) -> Result<()> {
+        crate::encapsulation::validate_metadata_with_policy_and_resolver(
+            metadata,
+            bytes,
+            policy,
+            resolver,
+        )?;
         self.emit(&crate::dc_mixed::DC_203_BYTES)?;
         self.emit(&[crate::dc_mixed::TYPE_BINARY_METADATA])?;
         self.emit(&u128::try_from(bytes.len())?.to_be_bytes())?;

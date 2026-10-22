@@ -156,6 +156,26 @@ pub trait DcSource {
         range: Range<usize>,
         fragment: &DcMstr,
         resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Self::Owned> {
+        self.replace_typed_source_field_with_policy_and_resolver(
+            range,
+            fragment,
+            &crate::DcProjectionPolicy::strict(),
+            resolver,
+        )
+    }
+
+    /// Reconciles a typed replacement with its original source representation
+    /// using `policy` and `resolver`.
+    ///
+    /// # Errors
+    /// Returns an error for invalid ranges or ambiguous source correspondence.
+    fn replace_typed_source_field_with_policy_and_resolver(
+        &self,
+        range: Range<usize>,
+        fragment: &DcMstr,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Self::Owned>;
 
     /// Splices an encoded field after checking source and fragment boundaries.
@@ -195,19 +215,20 @@ impl DcSource for DcMstr {
         self.as_bytes()
     }
 
-    fn replace_typed_source_field_with_resolver(
+    fn replace_typed_source_field_with_policy_and_resolver(
         &self,
         range: Range<usize>,
         fragment: &DcMstr,
+        policy: &crate::DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcMstring> {
         ensure!(range.start >= crate::DCMM_HEADER_LEN, "Cannot select string header");
         let payload = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
         let mut bytes = DcMstring::new().into_bytes();
         bytes.extend_from_slice(payload);
-        let original = DcMstring::from_bytes(bytes)?;
-        let replacement = DcMstring::from_slice(fragment.as_bytes())?;
-        let revised = crate::source_edit::preserve_source_with_resolver(&original, &replacement, resolver)?;
+        let original = DcMstring::from_bytes_with_policy(bytes, policy)?;
+        let replacement = DcMstring::from_slice_with_policy(fragment.as_bytes(), policy)?;
+        let revised = crate::source_edit::preserve_source_with_policy_and_resolver(&original, &replacement, policy, resolver)?;
         self.replace_source_field(range, &revised)
     }
 
@@ -268,10 +289,11 @@ impl DcSource for DcStr {
         self.as_bytes()
     }
 
-    fn replace_typed_source_field_with_resolver(
+    fn replace_typed_source_field_with_policy_and_resolver(
         &self,
         range: Range<usize>,
         fragment: &DcMstr,
+        policy: &crate::DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcString> {
         ensure!(
@@ -279,8 +301,8 @@ impl DcSource for DcStr {
             "Source range splits a Dc character"
         );
         let bytes = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
-        let replacement = fragment.to_dc_string()?;
-        let revised = crate::source_edit::preserve_text_with_resolver(DcStr::from_bytes(bytes)?, &replacement, resolver)?;
+        let replacement = fragment.to_dc_string_with_policy_and_resolver(policy, resolver)?;
+        let revised = crate::source_edit::preserve_text_with_policy_and_resolver(DcStr::from_bytes(bytes)?, &replacement, policy, resolver)?;
         Ok(DcString::from_dcutf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
     }
 
@@ -317,6 +339,7 @@ pub struct DcInspection<'a, T, S: DcSource + ?Sized = DcMstr> {
     value: Option<T>,
     fields: Vec<DcFieldAnnotation>,
     diagnostics: Vec<DcDiagnostic>,
+    policy: crate::DcProjectionPolicy,
     resolver: Option<&'a dyn SyntaxRuleResolver>,
 }
 
@@ -363,6 +386,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                             position: 0,
                             error: err.into(),
                         }],
+                        policy: policy.clone(),
                         resolver,
                     };
                 }
@@ -379,6 +403,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                             position: 0,
                             error: err.into(),
                         }],
+                        policy: policy.clone(),
                         resolver,
                     };
                 }
@@ -404,6 +429,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                 value: None,
                 fields: Vec::new(),
                 diagnostics,
+                policy: policy.clone(),
                 resolver,
             };
         }
@@ -467,6 +493,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             value,
             fields,
             diagnostics,
+            policy: policy.clone(),
             resolver,
         }
     }
@@ -537,15 +564,24 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         } else {
             updated.encode_dc_field(annotation.field, &mut fragment)?;
         }
+        let strict_with_limits = crate::DcProjectionPolicy::strict()
+            .with_max_depth(self.policy.max_depth, crate::DiagnosticAction::Error)
+            .with_max_encapsulation_metadata_depth(self.policy.max_encapsulation_metadata_depth)
+            .with_max_encapsulation_payload_bytes(self.policy.max_encapsulation_payload_bytes);
         if let Some(resolver) = self.resolver {
-            self.source.replace_typed_source_field_with_resolver(
+            self.source.replace_typed_source_field_with_policy_and_resolver(
                 annotation.range(),
                 &fragment,
+                &strict_with_limits,
                 resolver,
             )
         } else {
-            self.source
-                .replace_typed_source_field(annotation.range(), &fragment)
+            self.source.replace_typed_source_field_with_policy_and_resolver(
+                annotation.range(),
+                &fragment,
+                &strict_with_limits,
+                ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+            )
         }
     }
 }

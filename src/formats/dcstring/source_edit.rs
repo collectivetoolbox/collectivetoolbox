@@ -408,7 +408,12 @@ pub fn preserve_source(
     old: &DcMstring,
     new: &DcMstring,
 ) -> Result<DcMstring> {
-    preserve_source_with_resolver(old, new, default_syntax_resolver().as_ref())
+    preserve_source_with_policy_and_resolver(
+        old,
+        new,
+        &crate::DcProjectionPolicy::strict(),
+        default_syntax_resolver().as_ref(),
+    )
 }
 
 pub fn preserve_source_with_resolver(
@@ -416,22 +421,35 @@ pub fn preserve_source_with_resolver(
     new: &DcMstring,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<DcMstring> {
+    preserve_source_with_policy_and_resolver(
+        old,
+        new,
+        &crate::DcProjectionPolicy::strict(),
+        resolver,
+    )
+}
+
+pub fn preserve_source_with_policy_and_resolver(
+    old: &DcMstring,
+    new: &DcMstring,
+    policy: &crate::DcProjectionPolicy,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
     if old == new {
         return Ok(old.clone());
     }
-    let strict = crate::DcProjectionPolicy::strict();
     let mut old_arena = crate::DcSyntaxArena::new();
     crate::DcDocumentNavigator::parse_document_arena_with_resolver(
         old.as_bytes(),
         &mut old_arena,
-        &strict,
+        policy,
         resolver,
     )?;
     let mut new_arena = crate::DcSyntaxArena::new();
     crate::DcDocumentNavigator::parse_document_arena_with_resolver(
         new.as_bytes(),
         &mut new_arena,
-        &strict,
+        policy,
         resolver,
     )?;
 
@@ -455,7 +473,12 @@ pub fn preserve_text(
     old: &crate::DcStr,
     new: &crate::DcStr,
 ) -> Result<crate::DcString> {
-    preserve_text_with_resolver(old, new, default_syntax_resolver().as_ref())
+    preserve_text_with_policy_and_resolver(
+        old,
+        new,
+        &crate::DcProjectionPolicy::strict(),
+        default_syntax_resolver().as_ref(),
+    )
 }
 
 pub fn preserve_text_with_resolver(
@@ -463,22 +486,35 @@ pub fn preserve_text_with_resolver(
     new: &crate::DcStr,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<crate::DcString> {
+    preserve_text_with_policy_and_resolver(
+        old,
+        new,
+        &crate::DcProjectionPolicy::strict(),
+        resolver,
+    )
+}
+
+pub fn preserve_text_with_policy_and_resolver(
+    old: &crate::DcStr,
+    new: &crate::DcStr,
+    policy: &crate::DcProjectionPolicy,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<crate::DcString> {
     if old == new {
         return Ok(old.to_owned());
     }
-    let strict = crate::DcProjectionPolicy::strict();
     let mut old_arena = crate::DcSyntaxArena::new();
     crate::DcDocumentNavigator::parse_document_arena_with_resolver(
         old.as_bytes(),
         &mut old_arena,
-        &strict,
+        policy,
         resolver,
     )?;
     let mut new_arena = crate::DcSyntaxArena::new();
     crate::DcDocumentNavigator::parse_document_arena_with_resolver(
         new.as_bytes(),
         &mut new_arena,
-        &strict,
+        policy,
         resolver,
     )?;
 

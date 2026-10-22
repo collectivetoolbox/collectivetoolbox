@@ -730,6 +730,106 @@ fn test_challenge_flattened_finalization_policy() -> Result<()> {
 }
 
 #[crate::ctb_test]
+fn test_challenge_converted_and_optional_flattened_combinations() -> Result<()> {
+    #[derive(Debug, Default, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 490, end = 491)]
+    struct InnerMarker {
+        #[dc(492, default, omit_default)]
+        icon: i16,
+    }
+
+    #[derive(Debug, Default, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct MarkerRecord {
+        #[dc(403, default, omit_default)]
+        file_type: String,
+        #[dc(406, nested = 490, default)]
+        marker: InnerMarker,
+    }
+
+    #[derive(Debug, Default, PartialEq, Eq, DcMixed)]
+    #[dc(flatten, try_from = MarkerRecord, try_into = MarkerRecord)]
+    struct ConvertedFlattenedMarker {
+        file_type: String,
+    }
+
+    impl From<MarkerRecord> for ConvertedFlattenedMarker {
+        fn from(value: MarkerRecord) -> Self {
+            Self { file_type: value.file_type }
+        }
+    }
+
+    impl From<&ConvertedFlattenedMarker> for MarkerRecord {
+        fn from(value: &ConvertedFlattenedMarker) -> Self {
+            Self {
+                file_type: value.file_type.clone(),
+                marker: InnerMarker::default(),
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(flatten)]
+    struct FlattenedOuter {
+        #[dc(405)]
+        id: u32,
+        #[dc(flatten, nested = (403, 406, 490))]
+        converted: Option<ConvertedFlattenedMarker>,
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    enum VariantWithOptionalFlattened {
+        #[dc(422)]
+        Item {
+            #[dc(flatten, nested = (403, 406, 490))]
+            converted: Option<ConvertedFlattenedMarker>,
+        },
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    for value in [
+        FlattenedOuter { id: 7, converted: None },
+        FlattenedOuter {
+            id: 7,
+            converted: Some(ConvertedFlattenedMarker::default()),
+        },
+        FlattenedOuter {
+            id: 7,
+            converted: Some(ConvertedFlattenedMarker { file_type: "TEXT".to_owned() }),
+        },
+    ] {
+        let encoded = value.to_dc_mixed()?;
+        ensure!(encoded.decode::<FlattenedOuter>(&strict)? == value);
+    }
+
+    for value in [
+        VariantWithOptionalFlattened::Item { converted: None },
+        VariantWithOptionalFlattened::Item {
+            converted: Some(ConvertedFlattenedMarker::default()),
+        },
+        VariantWithOptionalFlattened::Item {
+            converted: Some(ConvertedFlattenedMarker { file_type: "APPL".to_owned() }),
+        },
+    ] {
+        let encoded = value.to_dc_mixed()?;
+        ensure!(encoded.decode::<VariantWithOptionalFlattened>(&strict)? == value);
+    }
+
+    let mut arena = DcSyntaxArena::new();
+    let val_source = "EDIT".to_owned().to_dc_mixed()?;
+    let mut nav = DcDocumentNavigator::from_mstr(&val_source);
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let val_id = arena.roots().first().copied().context("Missing literal root")?;
+    let mut ctx = DcProjectionContext::new(&arena, &strict);
+    let mut target = ConvertedFlattenedMarker::default();
+    ensure!(target.decode_field(DcChar::from_short(403), &mut ctx, val_id)?);
+    ensure!(target.file_type == "EDIT");
+
+    Ok(())
+}
+
+#[crate::ctb_test]
 fn test_challenge_named_enum_malformed_field_policy() -> Result<()> {
     #[derive(Debug, PartialEq, Eq, DcMixed)]
     #[dc(begin = 317, end = 318)]

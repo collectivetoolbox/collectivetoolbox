@@ -2535,5 +2535,219 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_spliced_streams_multi_token_outer_closers_and_quoted_content() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+
+        // 1. lang.say (Dc 256) inside a struct container (401..402) emitting:
+        //    - Field 400 ("title") whose quoted literal payload contains an unescaped outer closer Dc 402
+        //      and an escaped Dc 261 (255 261)
+        //    - Field 406 ("count") = 42
+        //    - The outer container closer Dc 402 itself!
+        let mut say_payload = DcMstring::new();
+        say_payload.push_char(DcChar::from_short(400));
+        say_payload.push_char(DcChar::from_short(260));
+        say_payload.push_char(DcChar::from_short(262));
+        say_payload.push_char(DcChar::from_short(264));
+        say_payload.push_char(DcChar::from_short(263));
+        say_payload.push_char(DcChar::from_char('A'));
+        say_payload.push_char(DcChar::from_short(402)); // unescaped 402 inside quoted literal
+        say_payload.push_char(DcChar::from_short(255));
+        say_payload.push_char(DcChar::from_short(261)); // escaped 261 inside quoted literal
+        say_payload.push_char(DcChar::from_char('B'));
+        say_payload.push_char(DcChar::from_short(261));
+        say_payload.push_char(DcChar::from_short(406));
+        42u64.encode_dc_mixed(&mut say_payload)?;
+        say_payload.push_char(DcChar::from_short(402)); // emitted outer closer 402
+
+        let say_payload_str = say_payload.to_dc_string()?;
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(401));
+        doc.push_char(DcChar::from_short(256));
+        doc.push_char(DcChar::from_short(258));
+        say_payload_str.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(259));
+
+        // Validate document grammar and decode via typed projection:
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        nav.validate_document(&strict)?;
+
+        #[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+        #[dc(begin = 401, end = 402)]
+        struct SplicedDcMstrRecord {
+            #[dc(400)]
+            title: DcMstring,
+            #[dc(406)]
+            count: u64,
+        }
+
+        let decoded: SplicedDcMstrRecord = doc.decode(&strict)?;
+        let expected_title: DcMstring = [
+            DcChar::from_char('A'),
+            DcChar::from_short(402),
+            DcChar::from_short(261),
+            DcChar::from_char('B'),
+        ]
+        .into_iter()
+        .collect();
+        ensure!(
+            decoded.title == expected_title,
+            "Spliced literal containing outer closer 402 and escaped 261 must decode losslessly"
+        );
+        ensure!(
+            decoded.count == 42,
+            "Spliced multi-token field after literal must decode before emitted closer 402"
+        );
+
+        // 2. lang.say inside a list container (310 275 ... 311) emitting an escaped closer (255 311),
+        //    a separator (312), a nested list (310 275 517 311), and the outer closer (311):
+        let mut list_say = DcMstring::new();
+        list_say.push_char(DcChar::from_short(255));
+        list_say.push_char(DcChar::from_short(311)); // escaped 311 atom
+        list_say.push_char(DcChar::from_short(312));
+        list_say.push_char(DcChar::from_short(517)); // true atom
+        list_say.push_char(DcChar::from_short(311)); // actual outer list closer
+
+        let list_say_str = list_say.to_dc_string()?;
+        let mut list_doc = DcMstring::new();
+        list_doc.push_char(DcChar::from_short(310));
+        list_doc.push_char(DcChar::from_short(275));
+        list_doc.push_char(DcChar::from_short(256));
+        list_doc.push_char(DcChar::from_short(258));
+        list_say_str.encode_dc_mixed(&mut list_doc)?;
+        list_doc.push_char(DcChar::from_short(259));
+
+        let mut list_nav = DcDocumentNavigator::from_mstr(&list_doc);
+        list_nav.validate_document(&strict)?;
+        let mut list_arena = DcSyntaxArena::new();
+        let mut list_nav2 = DcDocumentNavigator::from_mstr(&list_doc);
+        list_nav2.parse_document_into_arena(&mut list_arena, &strict)?;
+        let list_root = *list_arena.roots().first().context("Missing list root")?;
+        let list_node = list_arena.node(list_root).context("Missing list node")?;
+        let children = list_node.children();
+        let operands = list_arena.split_operands(&children[1..]);
+        ensure!(
+            operands.len() == 2,
+            "Expected 2 list elements separated by 312, found {}",
+            operands.len()
+        );
+        let first_elem = list_arena
+            .node(*operands[0].first().context("Missing first element")?)
+            .context("Missing first element node")?;
+        ensure!(
+            first_elem.is_escaped_atom()
+                && matches!(first_elem.kind, DcSyntaxKind::Atom(ch) if ch == DcChar::from_short(311)),
+            "First spliced element must be recognized as an escaped Dc 311 atom"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_raised_depth_limits_across_phases() -> Result<()> {
+        // Build a 160-deep nested list structure (exceeds DEFAULT_MAX_PROJECTION_DEPTH = 128)
+        let raised_depth = 160usize;
+        let handle = std::thread::Builder::new()
+            .name("dc-raised-depth-qualification".to_owned())
+            .stack_size(2 * 1024 * 1024)
+            .spawn(move || -> Result<()> {
+                let mut doc = DcMstring::new();
+                for _ in 0..raised_depth {
+                    doc.push_char(DcChar::from_short(310));
+                    doc.push_char(DcChar::from_short(275));
+                }
+                7u64.encode_dc_mixed(&mut doc)?;
+                for _ in 0..raised_depth {
+                    doc.push_char(DcChar::from_short(311));
+                }
+
+                // 1. Default strict policy (max_depth = 128) rejects:
+                let default_strict = DcProjectionPolicy::strict();
+                let mut nav_default = DcDocumentNavigator::from_mstr(&doc);
+                ensure!(
+                    nav_default.validate_document(&default_strict).is_err(),
+                    "Default strict policy must reject 160-deep document"
+                );
+
+                // 2. Raised depth policy (max_depth = 200) succeeds across validation and arena construction:
+                let raised_policy =
+                    DcProjectionPolicy::strict().with_max_depth(200, DiagnosticAction::Error);
+                let mut nav_raised = DcDocumentNavigator::from_mstr(&doc);
+                nav_raised.validate_document(&raised_policy)?;
+
+                let mut arena = DcSyntaxArena::new();
+                let mut nav_arena = DcDocumentNavigator::from_mstr(&doc);
+                nav_arena.parse_document_into_arena(&mut arena, &raised_policy)?;
+                ensure!(!arena.roots().is_empty(), "Expected root node in raised-depth arena");
+
+                // 3. Projection depth enforcement on deeply nested Vec<Vec<Vec<Vec<u64>>>>:
+                let vec4 = vec![vec![vec![vec![99u64]]]];
+                let vec4_doc = vec4.to_dc_mixed()?;
+                let low_proj_policy =
+                    DcProjectionPolicy::strict().with_max_depth(2, DiagnosticAction::Error);
+                // Even if arena has all nodes, projection with max_depth=2 must reject 4-deep Vec:
+                let mut vec4_arena = DcSyntaxArena::new();
+                let mut vec4_nav = DcDocumentNavigator::from_mstr(&vec4_doc);
+                vec4_nav.parse_document_into_arena(&mut vec4_arena, &raised_policy)?;
+                let mut proj_ctx =
+                    ctb_formats_dcstring::DcProjectionContext::new(&vec4_arena, &low_proj_policy);
+                let root_id = *vec4_arena.roots().first().context("Missing vec4 root")?;
+                ensure!(
+                    <Vec<Vec<Vec<Vec<u64>>>> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(
+                        &mut proj_ctx,
+                        root_id
+                    )
+                    .is_err(),
+                    "Projection must enforce policy.max_depth across nested Vec decoding"
+                );
+                let decoded_vec4: Vec<Vec<Vec<Vec<u64>>>> = vec4_doc.decode(&raised_policy)?;
+                ensure!(decoded_vec4 == vec4, "Raised-depth Vec4 projection mismatch");
+
+                // 4. Inspection, source editing (`preserve_source_with_policy_and_resolver`), and output with raised depth:
+                let mut rec_doc = DcMstring::new();
+                rec_doc.push_char(DcChar::from_short(401));
+                rec_doc.push_char(DcChar::from_short(400));
+                "deep".encode_dc_mixed(&mut rec_doc)?;
+                rec_doc.push_char(DcChar::from_short(406));
+                1u64.encode_dc_mixed(&mut rec_doc)?;
+                rec_doc.push_char(DcChar::from_short(402));
+
+                let insp = rec_doc.inspect_with_policy::<OverlaySampleRecord>(&raised_policy);
+                let updated = OverlaySampleRecord {
+                    title: "edited_deep".to_owned(),
+                    count: 2,
+                };
+                let edited = insp.replace_field("title", &updated)?;
+                let edited_text = edited.to_dc_string_with_policy(&raised_policy)?;
+                let roundtripped: OverlaySampleRecord = edited_text.decode(&raised_policy)?;
+                ensure!(roundtripped.title == "edited_deep", "Edited title mismatch");
+                ensure!(roundtripped.count == 1, "Unedited count field must be preserved");
+
+                // Also verify preserve_source_with_policy_and_resolver on the 160-deep document:
+                let mut doc2 = DcMstring::new();
+                for _ in 0..raised_depth {
+                    doc2.push_char(DcChar::from_short(310));
+                    doc2.push_char(DcChar::from_short(275));
+                }
+                8u64.encode_dc_mixed(&mut doc2)?;
+                for _ in 0..raised_depth {
+                    doc2.push_char(DcChar::from_short(311));
+                }
+                let reconciled =
+                    ctb_formats_dcstring::source_edit::preserve_source_with_policy_and_resolver(
+                        &doc,
+                        &doc2,
+                        &raised_policy,
+                        ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+                    )?;
+                ensure!(reconciled == doc2, "Reconciled 160-deep document mismatch");
+
+                Ok(())
+            })?;
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("Thread panicked during raised depth qualification"))?
+    }
 }
 

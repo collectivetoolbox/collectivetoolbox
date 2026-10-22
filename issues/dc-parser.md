@@ -32,40 +32,13 @@ before fixes.
   build time. Equivalence parity is already checked; establish which other
   ambiguity classes remain unsupported.
 - [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (note that this is different from the current accepted style guide, which forbids @ident only for enums/structs).
+  - [ ] Alternatively: Instead of annotating structs/enums directly in code with Dcs, maybe use a new @struct()/@enum() note in the database and generate the structs from there?
 - [ ] Audit remaining handwritten structured codecs and grammar-independent
   encoding paths. Writer-based derives exist; do not equate this with all
   serialization being generated from syntax specifications.
 
-### Value Correctness and Fidelity
-
-- [ ] Reproduce the remaining converted-flattened-struct and optional-flattened-
-  enum derive combinations identified in the October 17 review. Required-field
-  presence/finalization regressions already exist in
-  [projection tests](../src/formats/dcstring/tests/challenge_m2_projection.rs#L592).
-- [ ] Qualify equivalent/partially equivalent representations generically,
-  including timestamp resolution, extent fields, and nested collection/optional
-  combinations. Existing equivalents and expression tests are not proof that
-  every target type accepts every valid representation.
-- [ ] Verify runtime-produced streams through both projection and splicing,
-  including multi-token values, emitted outer closers, and quoted content.
-  [Expression/overlay tests](../src/formats/dcstring/tests/e2e_dc_syntax.rs#L1010)
-  already exist; extend them instead of reviving synthetic-node insertion.
-- [ ] Audit timestamp decoding for omitted required fields defaulting to epoch,
-  duplicate-field replacement, and retained unknown `EnvDescription.extra`
-  fields. These historical CSC reports need reproduction against current
-  derives; do not add another timestamp codec.
-
 ### Resource and Streaming Limits
 
-- [ ] Add a textual encapsulation payload-allocation budget before decoding.
-  Metadata-byte and metadata-depth budgets already exist and do not bound the
-  complete decoded payload allocation.
-- [ ] Provide caller-configurable variants for policy-free encapsulation
-  utilities (`from_dc_str`, `push_binary_with_metadata`, `to_dc_string`,
-  `validate_metadata`, `write_text`), which currently enforce default limits.
-- [ ] Qualify raised depth limits across syntax evaluation, arena construction,
-  projection, editing, and output. A configurable knob is implemented; accepting
-  a deeper document must not merely move stack exhaustion into another phase.
 - [ ] Measure memory on large records/journals and exercise 32-bit offsets above
   4 GiB, short reads/writes, truncated tokens, and allocation failures. Separate
   per-record parser overhead from retained snapshot memory and temporary disk

@@ -51,6 +51,7 @@ struct Cursor<'a> {
     chars: DcChars<'a>,
     checksum_action: crate::DiagnosticAction,
     max_depth: usize,
+    max_payload_bytes: u64,
     resolver: &'a dyn SyntaxRuleResolver,
 }
 
@@ -65,6 +66,7 @@ impl<'a> Cursor<'a> {
             chars: source.chars(),
             checksum_action: policy.syntax_error,
             max_depth: policy.max_encapsulation_metadata_depth,
+            max_payload_bytes: policy.max_encapsulation_payload_bytes,
             resolver,
         }
     }
@@ -123,7 +125,15 @@ impl<'a> Cursor<'a> {
         let resolver = self.resolver;
         let length =
             crate::dc_number::read_dc_number_from_reader_with_resolver(|| self.next(), resolver)?;
-        Ok(Some(usize::try_from(&length).map_err(|_| {
+        let length_u64 = u64::try_from(&length).map_err(|_| {
+            anyhow::anyhow!("Invalid encapsulation byte length")
+        })?;
+        ensure!(
+            length_u64 <= self.max_payload_bytes,
+            "Encapsulation payload length ({length_u64} bytes) exceeds resource limit ({} bytes)",
+            self.max_payload_bytes
+        );
+        Ok(Some(usize::try_from(length_u64).map_err(|_| {
             anyhow::anyhow!("Invalid encapsulation byte length")
         })?))
     }
@@ -159,22 +169,41 @@ impl<'a> Cursor<'a> {
 
     fn read_body(&mut self, length: Option<usize>) -> Result<Vec<u8>> {
         let mut digits = Vec::new();
+        let mut non_padding_digits: u64 = 0;
         loop {
             let ch = self.next()?;
             if self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::EndEncapsulationBinary) {
                 break;
             }
+            let is_digit = self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Digit);
+            let is_padding = self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Padding);
             ensure!(
-                self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Digit)
-                    || self.resolver.token_fills_role(ch.to_u128(), ctb_formats_dcdata::syntax::DcRole::Base64Padding),
+                is_digit || is_padding,
                 "Expected base64 Dc in binary encapsulation"
             );
+            if is_digit {
+                non_padding_digits = non_padding_digits.saturating_add(1);
+                let min_decoded_bytes = non_padding_digits
+                    .saturating_mul(3)
+                    .checked_div(4)
+                    .context("Base64 byte budget division")?;
+                ensure!(
+                    min_decoded_bytes <= self.max_payload_bytes,
+                    "Encapsulation payload exceeds resource limit ({} bytes)",
+                    self.max_payload_bytes
+                );
+            }
             let canon_u128 = self.resolver.canonical_token(ch.to_u128());
             let canon_ch = DcChar::from_u128(canon_u128);
             let short = canon_ch.to_short()?;
             digits.push(short);
         }
         let data = ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&digits)?;
+        ensure!(
+            u64::try_from(data.len())? <= self.max_payload_bytes,
+            "Encapsulation payload exceeds resource limit ({} bytes)",
+            self.max_payload_bytes
+        );
         if let Some(length) = length {
             ensure!(length == data.len(), "Encapsulation byte length mismatch");
         }
@@ -439,7 +468,32 @@ pub(crate) fn write_text(
     data: &[u8],
     metadata: &DcStr,
 ) -> Result<()> {
-    let metadata = parse_metadata(metadata)?;
+    write_text_with_policy(target, data, metadata, &crate::DcProjectionPolicy::strict())
+}
+
+pub(crate) fn write_text_with_policy(
+    target: &mut DcString,
+    data: &[u8],
+    metadata: &DcStr,
+    policy: &crate::DcProjectionPolicy,
+) -> Result<()> {
+    write_text_with_policy_and_resolver(
+        target,
+        data,
+        metadata,
+        policy,
+        default_syntax_resolver().as_ref(),
+    )
+}
+
+pub(crate) fn write_text_with_policy_and_resolver(
+    target: &mut DcString,
+    data: &[u8],
+    metadata: &DcStr,
+    policy: &crate::DcProjectionPolicy,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<()> {
+    let metadata = parse_metadata_with_policy_and_resolver(metadata, policy, resolver)?;
     target.push(DC_START_ENCAPSULATION_BINARY);
     if let Some(data_type) = metadata.data_type {
         target.push_dc_str(data_type);
@@ -932,6 +986,51 @@ mod tests {
             bail!("Expected Binary node");
         };
         assert_eq!(payload.materialize_bytes()?, outermost);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn encapsulation_payload_budget_and_policy_configurable_utilities() -> Result<()> {
+        let payload = b"0123456789abcdef";
+        let mut text = DcString::new();
+        write_text(&mut text, payload, &DcString::new())?;
+
+        let tight = crate::DcProjectionPolicy::strict()
+            .with_max_encapsulation_payload_bytes(8);
+        assert!(parse_text_with_policy(&text, &tight).is_err());
+        assert!(DcMstring::from_dc_str_with_policy(&text, &tight).is_err());
+
+        let sufficient = crate::DcProjectionPolicy::strict()
+            .with_max_encapsulation_payload_bytes(16);
+        assert_eq!(parse_text_with_policy(&text, &sufficient)?.1, payload);
+        let restored = DcMstring::from_dc_str_with_policy(&text, &sufficient)?;
+        assert_eq!(restored.to_dc_string_with_policy(&sufficient)?, text);
+
+        // Unnumbered legacy base64 body also respects max_encapsulation_payload_bytes before decoding.
+        let mut legacy = DcString::new();
+        legacy.push(DC_START_ENCAPSULATION_BINARY);
+        for short in ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(payload)? {
+            legacy.push(DcChar::from_short(short));
+        }
+        legacy.push(DC_END_ENCAPSULATION_BINARY);
+        assert!(parse_text_with_policy(&legacy, &tight).is_err());
+        assert_eq!(parse_text_with_policy(&legacy, &sufficient)?.1, payload);
+
+        // Policy-configurable utilities (push_binary_with_metadata_and_policy, write_text_with_policy,
+        // to_dc_string_with_policy, from_dc_str_with_policy) honor caller policy on unsupported checksums.
+        let md5_checksum = checksum_text(
+            FormatId::Md5.dc_char().context("Missing MD5 type")?,
+            &[0_u8; 16],
+        )?;
+        let forgiving = crate::DcProjectionPolicy::forgiving_quiet();
+        let mut mixed = DcMstring::new();
+        assert!(mixed.push_binary_with_metadata(payload, &md5_checksum).is_err());
+        mixed.push_binary_with_metadata_and_policy(payload, &md5_checksum, &forgiving)?;
+        assert!(mixed.to_dc_string().is_err());
+        let text_md5 = mixed.to_dc_string_with_policy(&forgiving)?;
+        assert!(DcMstring::from_dc_str(&text_md5).is_err());
+        let roundtripped = DcMstring::from_dc_str_with_policy(&text_md5, &forgiving)?;
+        assert_eq!(roundtripped.as_bytes(), mixed.as_bytes());
         Ok(())
     }
 }

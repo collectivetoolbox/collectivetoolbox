@@ -264,37 +264,42 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
         };
         if first.fills_role_with(DcRole::LangSay, resolver) {
             let mut in_str = false;
+            let mut expect_hdr = false;
             let mut in_hdr = false;
             let mut chars = Vec::new();
             let mut iter = call_tokens.iter().skip(1).peekable();
             while let Some(&tok) = iter.next() {
-                if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
-                    in_str = true;
+                if !in_str {
+                    if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
+                        in_str = true;
+                        expect_hdr = true;
+                    }
                     continue;
+                }
+                if expect_hdr {
+                    expect_hdr = false;
+                    if tok.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                        in_hdr = true;
+                        continue;
+                    }
+                }
+                if in_hdr {
+                    if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
+                        in_hdr = false;
+                    }
+                    continue;
+                }
+                if tok.fills_role_with(DcRole::Escape, resolver) {
+                    if let Some(&escaped) = iter.next() {
+                        chars.push(escaped);
+                        continue;
+                    }
                 }
                 if tok.fills_role_with(DcRole::EndLiteral, resolver) {
                     in_str = false;
                     continue;
                 }
-                if in_str {
-                    if tok.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                        in_hdr = true;
-                        continue;
-                    }
-                    if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
-                        in_hdr = false;
-                        continue;
-                    }
-                    if !in_hdr {
-                        if tok.fills_role_with(DcRole::Escape, resolver) {
-                            if let Some(&escaped) = iter.next() {
-                                chars.push(escaped);
-                                continue;
-                            }
-                        }
-                        chars.push(tok);
-                    }
-                }
+                chars.push(tok);
             }
             return Ok(Some(chars));
         }
@@ -977,6 +982,10 @@ pub const MAX_BINARY_METADATA_BYTES: u64 = 1_048_576;
 /// textual binary encapsulation metadata.
 pub const DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH: usize = 32;
 
+/// Default maximum decoded payload size allowed when parsing a textual binary
+/// encapsulation into memory.
+pub const DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES: u64 = 67_108_864;
+
 /// Action to take when a syntax or projection anomaly is encountered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticAction {
@@ -1019,6 +1028,10 @@ pub struct DcProjectionPolicy {
     /// binary encapsulation metadata. Exceeding this resource budget is an
     /// error under every diagnostic policy.
     pub max_encapsulation_metadata_depth: usize,
+    /// Maximum decoded payload bytes allowed when parsing a textual binary
+    /// encapsulation into memory. Exceeding this resource budget is an error
+    /// under every diagnostic policy.
+    pub max_encapsulation_payload_bytes: u64,
 }
 
 impl DcProjectionPolicy {
@@ -1037,6 +1050,7 @@ impl DcProjectionPolicy {
             depth_limit_exceeded: DiagnosticAction::Error,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
             max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -1055,6 +1069,7 @@ impl DcProjectionPolicy {
             depth_limit_exceeded: DiagnosticAction::Warn,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
             max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -1072,6 +1087,7 @@ impl DcProjectionPolicy {
             depth_limit_exceeded: DiagnosticAction::Ignore,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
             max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -1102,6 +1118,17 @@ impl DcProjectionPolicy {
         max_depth: usize,
     ) -> Self {
         self.max_encapsulation_metadata_depth = max_depth;
+        self
+    }
+
+    /// Sets the decoded payload allocation budget for textual binary
+    /// encapsulations.
+    #[must_use]
+    pub const fn with_max_encapsulation_payload_bytes(
+        mut self,
+        max_bytes: u64,
+    ) -> Self {
+        self.max_encapsulation_payload_bytes = max_bytes;
         self
     }
 
@@ -1512,6 +1539,8 @@ pub struct DcSyntaxNode<'a> {
     pub span: DcByteSpan,
     /// Syntactic kind and payload.
     pub kind: DcSyntaxKind<'a>,
+    /// True if this node is an `Atom` that was escaped by `Dc 255` (`Escape`).
+    pub escaped: bool,
 }
 
 impl<'a> DcSyntaxNode<'a> {
@@ -1545,7 +1574,7 @@ impl<'a> DcSyntaxNode<'a> {
     #[must_use]
     pub fn is_escaped_atom(&self) -> bool {
         match self.kind {
-            DcSyntaxKind::Atom(ch) => self.span.len() > dc_char_utf8e128_len(ch),
+            DcSyntaxKind::Atom(ch) => self.escaped || self.span.len() > dc_char_utf8e128_len(ch),
             _ => false,
         }
     }
@@ -1590,7 +1619,22 @@ impl<'a> DcSyntaxArena<'a> {
     /// Allocates a node in the arena and returns its [`NodeId`].
     pub fn alloc(&mut self, span: DcByteSpan, kind: DcSyntaxKind<'a>) -> NodeId {
         let id = NodeId(self.nodes.len());
-        self.nodes.push(DcSyntaxNode { span, kind });
+        self.nodes.push(DcSyntaxNode {
+            span,
+            kind,
+            escaped: false,
+        });
+        id
+    }
+
+    /// Allocates an escaped atom node in the arena and returns its [`NodeId`].
+    pub fn alloc_escaped_atom(&mut self, span: DcByteSpan, ch: DcChar) -> NodeId {
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(DcSyntaxNode {
+            span,
+            kind: DcSyntaxKind::Atom(ch),
+            escaped: true,
+        });
         id
     }
 
@@ -2429,6 +2473,31 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcFrameStub>> {
         if let Some(&head_dc) = self.spliced_tokens.front() {
+            if head_dc.fills_role_with(DcRole::Escape, resolver) {
+                self.spliced_tokens.pop_front();
+                let Some(escaped_dc) = self.spliced_tokens.pop_front() else {
+                    self.syntax_issue(
+                        policy,
+                        self.cursor,
+                        format!("Dangling escape Dc 255 in spliced stream at offset {}", self.cursor),
+                    )?;
+                    return Ok(Some(DcFrameStub {
+                        head_dc,
+                        closer_dc: None,
+                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                        inner_span: None,
+                        header_info: DcFrameHeaderInfo::None,
+                    }));
+                };
+                return Ok(Some(DcFrameStub {
+                    head_dc: escaped_dc,
+                    closer_dc: None,
+                    outer_span: DcByteSpan::new(self.cursor, self.cursor),
+                    inner_span: None,
+                    header_info: DcFrameHeaderInfo::Escaped,
+                }));
+            }
+
             if let Some((_, _, Some(expected_closer))) = self.level_stack.last() {
                 if *expected_closer == head_dc || resolver.is_equivalent_to(head_dc.to_u128(), expected_closer.to_u128()) {
                     self.spliced_tokens.pop_front();
@@ -2442,7 +2511,17 @@ impl<'a> DcDocumentNavigator<'a> {
                     .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
-                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                let mut has_unescaped_closer = false;
+                let mut check_iter = self.spliced_tokens.iter().skip(1);
+                while let Some(&t) = check_iter.next() {
+                    if t.fills_role_with(DcRole::Escape, resolver) {
+                        let _ = check_iter.next();
+                    } else if t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128()) {
+                        has_unescaped_closer = true;
+                        break;
+                    }
+                }
+                if has_unescaped_closer {
                     self.spliced_tokens.pop_front();
                     let mut type_header = Vec::new();
                     if let Some(&hdr_open) = self.spliced_tokens.front() {
@@ -2458,13 +2537,12 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     let mut decoded = DcMstring::new();
                     while let Some(tok) = self.spliced_tokens.pop_front() {
-                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
-                            break;
-                        }
                         if tok.fills_role_with(DcRole::Escape, resolver) {
                             if let Some(escaped) = self.spliced_tokens.pop_front() {
                                 decoded.push_char(escaped);
                             }
+                        } else if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                            break;
                         } else {
                             decoded.push_char(tok);
                         }
@@ -2485,17 +2563,26 @@ impl<'a> DcDocumentNavigator<'a> {
                     .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
-                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
+                let mut has_unescaped_closer = false;
+                let mut check_iter = self.spliced_tokens.iter().skip(1);
+                while let Some(&t) = check_iter.next() {
+                    if t.fills_role_with(DcRole::Escape, resolver) {
+                        let _ = check_iter.next();
+                    } else if t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128()) {
+                        has_unescaped_closer = true;
+                        break;
+                    }
+                }
+                if has_unescaped_closer {
                     self.spliced_tokens.pop_front();
                     let mut name = DcMstring::new();
                     while let Some(tok) = self.spliced_tokens.pop_front() {
-                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
-                            break;
-                        }
                         if tok.fills_role_with(DcRole::Escape, resolver) {
                             if let Some(escaped) = self.spliced_tokens.pop_front() {
                                 name.push_char(escaped);
                             }
+                        } else if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                            break;
                         } else {
                             name.push_char(tok);
                         }
@@ -2946,9 +3033,11 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<()> {
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
+        let saved_spliced = self.spliced_tokens.clone();
         let result = (|| -> Result<()> {
             self.active_span = outer;
             self.cursor = outer.start;
+            self.spliced_tokens.clear();
             if let Some(rule) = resolver.resolve_rule(target) {
                 let mut ctx = SyntaxEvalContext::new(resolver, Some(target.to_u128()));
                 ctx.policy.clone_from(policy);
@@ -2963,6 +3052,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             self.active_span = inner;
             self.cursor = inner.start;
+            self.spliced_tokens.clear();
             let header = resolver.container_header_elements(target);
             if !header.is_empty() {
                 let mut ctx = SyntaxEvalContext::new(resolver, Some(target.to_u128()));
@@ -3006,6 +3096,7 @@ impl<'a> DcDocumentNavigator<'a> {
         })();
         self.active_span = saved_span;
         self.cursor = saved_cursor;
+        self.spliced_tokens = saved_spliced;
         result
     }
 
@@ -3616,7 +3707,7 @@ impl<'a> DcDocumentNavigator<'a> {
             match &stub.header_info {
                 DcFrameHeaderInfo::Escaped => {
                     return Ok(StubStep::Leaf(
-                        arena.alloc(stub.outer_span, DcSyntaxKind::Atom(stub.head_dc)),
+                        arena.alloc_escaped_atom(stub.outer_span, stub.head_dc),
                     ));
                 }
                 DcFrameHeaderInfo::SplicedLiteral { type_header, decoded } => {
@@ -4408,7 +4499,64 @@ impl<'a> DcDocumentNavigator<'a> {
                     let call_dcs: Vec<DcChar> = call_tokens.into_iter().map(DcChar::from_u128).collect();
                     let evaluator = DefaultDcExpressionEvaluator;
                     if let Ok(Some(spliced)) = evaluator.eval_stream_splice(&call_dcs, resolver) {
-                        for tok in spliced {
+                        let mut spliced_iter = spliced.into_iter();
+                        while let Some(tok) = spliced_iter.next() {
+                            if tok.fills_role_with(DcRole::Escape, resolver) {
+                                let _ = spliced_iter.next();
+                                continue;
+                            }
+                            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
+                                if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
+                                    closer_stack.pop();
+                                    if closer_stack.is_empty() {
+                                        return Ok((after_say, after_say, true));
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
+                                let lit_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(260)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                                while let Some(inner_tok) = spliced_iter.next() {
+                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
+                                        let _ = spliced_iter.next();
+                                    } else if inner_tok == lit_closer || resolver.is_equivalent_to(inner_tok.to_u128(), lit_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+                                let id_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(270)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                                while let Some(inner_tok) = spliced_iter.next() {
+                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
+                                        let _ = spliced_iter.next();
+                                    } else if inner_tok == id_closer || resolver.is_equivalent_to(inner_tok.to_u128(), id_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginNumber, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
+                                let num_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(6)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                                for inner_tok in spliced_iter.by_ref() {
+                                    if inner_tok == num_closer || resolver.is_equivalent_to(inner_tok.to_u128(), num_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
                             if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
                                 closer_stack.pop();
                                 if closer_stack.is_empty() {
@@ -5084,98 +5232,128 @@ impl<'a> DcDocumentNavigator<'a> {
         let start_offset = self.cursor;
         let first = first_dc.to_u128();
 
-        // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
-        let is_equiv_wrapper =
-            !ctx.unescaped_literal_payload && ctx.resolver.is_representation_set(first);
-        let term_targets_equiv = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.resolver.is_representation_set(t.to_u128())
+            // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
+            let term_targets_opt_present = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
+                }
+                _ => false,
+            };
+            if !ctx.unescaped_literal_payload
+                && first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
+                && !term_targets_opt_present
+            {
+                let opt_checkpoint = self.save_checkpoint();
+                if from_spliced {
+                    self.spliced_tokens.pop_front();
+                    while let Some(&next_tok) = self.spliced_tokens.front() {
+                        if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
+                            self.spliced_tokens.pop_front();
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    self.cursor = after_first;
+                    while let Some((next_tok, next)) = self.read_token_or_binary_at(self.cursor)? {
+                        if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
+                            self.cursor = next;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if self.eval_term_single(term, ctx)? {
+                    return Ok(true);
+                }
+                ctx.has_errors = false;
+                self.restore_checkpoint(opt_checkpoint);
             }
-            _ => false,
-        };
-        if is_equiv_wrapper && !term_targets_equiv {
-            let equiv_checkpoint = self.save_checkpoint();
-            if let Some(wrapper_target) = CharTarget::from_u128(first) {
-                if let Some(rule) = ctx.resolver.resolve_rule(&wrapper_target) {
-                    let old_self = ctx.self_dc;
-                    ctx.self_dc = Some(first);
-                    let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                    ctx.self_dc = old_self;
-                    if matched {
-                        let wrapper_end = self.cursor;
-                        if !self.eval_constrained_equivalent_list(
-                            after_first,
-                            wrapper_end,
-                            term,
-                            ctx,
-                        )? {
+            let term_targets_opt_absent = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
+                }
+                _ => false,
+            };
+            if !ctx.unescaped_literal_payload
+                && first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
+                && !term_targets_opt_absent
+            {
+                if from_spliced {
+                    self.spliced_tokens.pop_front();
+                } else {
+                    self.cursor = after_first;
+                }
+                return Ok(true);
+            }
+
+            let (first_dc, after_first) = if from_spliced {
+                let Some(&ch) = self.spliced_tokens.front() else {
+                    return Ok(false);
+                };
+                (ch, self.cursor)
+            } else {
+                let Some((dc, after)) = self.read_token_or_binary_at(self.cursor)? else {
+                    return Ok(false);
+                };
+                (dc, after)
+            };
+            let start_offset = self.cursor;
+            let first = first_dc.to_u128();
+
+            // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
+            let is_equiv_wrapper =
+                !ctx.unescaped_literal_payload && ctx.resolver.is_representation_set(first);
+            let term_targets_equiv = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.resolver.is_representation_set(t.to_u128())
+                }
+                _ => false,
+            };
+            if is_equiv_wrapper && !term_targets_equiv {
+                let equiv_checkpoint = self.save_checkpoint();
+                if let Some((list_open, after_list_open)) = self.read_token_or_binary_at(after_first)? {
+                    if list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
+                        // Reason for fallback: default closer for BeginList is DC_END_LIST.
+                        let list_closer = CharTarget::from_u128(list_open.to_u128())
+                            .and_then(|t| ctx.resolver.closer_for_opener(&t))
+                            .map(DcChar::from_u128)
+                            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+                        if let Ok((_, wrapper_end, _)) = self.scan_balanced_container(
+                            after_list_open,
+                            list_open,
+                            list_closer,
+                            &ctx.policy,
+                            ctx.resolver,
+                        ) {
+                            let old_self = ctx.self_dc;
+                            ctx.self_dc = Some(first);
+                            let ok = self.eval_constrained_equivalent_list(
+                                after_first,
+                                wrapper_end,
+                                term,
+                                ctx,
+                            )?;
+                            ctx.self_dc = old_self;
+                            if ok {
+                                self.cursor = wrapper_end;
+                                return Ok(true);
+                            }
+                            ctx.has_errors = false;
                             self.restore_checkpoint(equiv_checkpoint);
                             return Ok(false);
                         }
-                        self.cursor = wrapper_end;
-                        return Ok(true);
-                    }
-                    self.restore_checkpoint(equiv_checkpoint);
-                }
-            }
-        }
-
-        // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
-        let term_targets_opt_present = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
-            }
-            _ => false,
-        };
-        if !ctx.unescaped_literal_payload
-            && first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
-            && !term_targets_opt_present
-        {
-            let opt_checkpoint = self.save_checkpoint();
-            if from_spliced {
-                self.spliced_tokens.pop_front();
-                while let Some(&next_tok) = self.spliced_tokens.front() {
-                    if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
-                        self.spliced_tokens.pop_front();
-                    } else {
-                        break;
                     }
                 }
-            } else {
-                self.cursor = after_first;
-                while let Some((next_tok, next)) = self.read_token_or_binary_at(self.cursor)? {
-                    if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
-                        self.cursor = next;
-                    } else {
-                        break;
-                    }
-                }
+                ctx.has_errors = false;
+                self.restore_checkpoint(equiv_checkpoint);
             }
-            if self.eval_term_single(term, ctx)? {
-                return Ok(true);
-            }
-            self.restore_checkpoint(opt_checkpoint);
-        }
-        let term_targets_opt_absent = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
-            }
-            _ => false,
-        };
-        if !ctx.unescaped_literal_payload
-            && first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
-            && !term_targets_opt_absent
-        {
-            if from_spliced {
-                self.spliced_tokens.pop_front();
-            } else {
-                self.cursor = after_first;
-            }
-            return Ok(true);
-        }
 
         match term {
             SyntaxTerm::SelfChar => {
@@ -5270,14 +5448,48 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.cursor = after_esc;
                         return Ok(true);
                     }
-                    if from_spliced {
-                        if in_set {
-                            self.restore_checkpoint(term_checkpoint);
-                            return Ok(false);
+                if from_spliced {
+                    if !ctx.unescaped_literal_payload {
+                        if first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
+                            return self.eval_literal_frame(None, ctx);
                         }
-                        self.spliced_tokens.pop_front();
-                        return Ok(true);
+                        if first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
+                            return self.eval_identifier_frame(ctx);
+                        }
+                        if first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
+                            return self.eval_number_frame(None, None, ctx);
+                        }
+                        if let Some(target) = CharTarget::from_u128(first) {
+                            if let Some(closer_u128) = ctx.resolver.closer_for_opener(&target) {
+                                let closer_dc = DcChar::from_u128(closer_u128);
+                                self.spliced_tokens.pop_front();
+                                let mut depth = 1usize;
+                                while let Some(tok) = self.spliced_tokens.pop_front() {
+                                    if tok.fills_role_with(DcRole::Escape, ctx.resolver) {
+                                        let _ = self.spliced_tokens.pop_front();
+                                        continue;
+                                    }
+                                    if tok == closer_dc || ctx.resolver.is_equivalent_to(tok.to_u128(), closer_dc.to_u128()) {
+                                        depth = depth.saturating_sub(1);
+                                        if depth == 0 {
+                                            return Ok(true);
+                                        }
+                                    } else if tok == first_dc || ctx.resolver.is_equivalent_to(tok.to_u128(), first) {
+                                        depth = depth.saturating_add(1);
+                                    }
+                                }
+                                self.restore_checkpoint(term_checkpoint);
+                                return Ok(false);
+                            }
+                        }
                     }
+                    if in_set {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    }
+                    self.spliced_tokens.pop_front();
+                    return Ok(true);
+                }
                     let in_opaque = ctx.unescaped_literal_payload
                         || ctx
                             .self_dc
@@ -5473,7 +5685,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         });
                         return Ok(false);
                     }
-                    let frame_key = format!("named:{name}");
+                    let frame_key = format!("named:{name}@{start_offset}:{}", self.spliced_tokens.len());
                     if ctx.call_stack.contains(&frame_key) {
                         return Ok(false);
                     }
@@ -5633,7 +5845,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.restore_checkpoint(term_checkpoint);
                     return Ok(false);
                 }
-                let frame_key = format!("rule:{target}");
+                let frame_key = format!("rule:{target}@{start_offset}:{}", self.spliced_tokens.len());
                 if ctx.call_stack.contains(&frame_key) {
                     self.restore_checkpoint(term_checkpoint);
                     return Ok(false);
@@ -5898,7 +6110,10 @@ impl<'a> DcDocumentNavigator<'a> {
             capture_var: None,
         };
         let num_pos = self.cursor;
-        if !self.eval_term_single(&num_term, &mut sub_ctx)? {
+        let mut num_ctx = sub_ctx.clone();
+        if self.eval_term_single(&num_term, &mut num_ctx)? && !num_ctx.has_errors {
+            sub_ctx = num_ctx;
+        } else {
             self.cursor = num_pos;
         }
         let type_term = SyntaxTerm::NamedConstruct {
@@ -5906,7 +6121,7 @@ impl<'a> DcDocumentNavigator<'a> {
             subtype: None,
             capture_var: None,
         };
-        if !self.eval_term_single(&type_term, &mut sub_ctx)? {
+        if !self.eval_term_single(&type_term, &mut sub_ctx)? || sub_ctx.has_errors {
             self.active_span = saved_span;
             return Ok(false);
         }
@@ -5926,25 +6141,57 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.cursor = after_tok;
                 continue;
             }
+            self.cursor = elem_start;
+            self.active_span = saved_span;
             let mut cand_ctx = sub_ctx.clone();
             let cand_ok = self.eval_term_single(term, &mut cand_ctx)?;
-            if cand_ok && !cand_ctx.has_errors && self.cursor > elem_start {
+            self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+            if cand_ok && !cand_ctx.has_errors && self.cursor > elem_start && self.cursor <= list_body_end {
                 matched_any = true;
                 continue;
             }
             self.cursor = elem_start;
             if let Some(unconstrained) = unconstrained_term(term) {
+                self.active_span = saved_span;
                 let mut trial_ctx = sub_ctx.clone();
-                if self.eval_term_single(&unconstrained, &mut trial_ctx)? && !trial_ctx.has_errors {
+                let trial_ok = self.eval_term_single(&unconstrained, &mut trial_ctx)?;
+                self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+                if trial_ok && !trial_ctx.has_errors && self.cursor <= list_body_end {
                     self.active_span = saved_span;
                     return Ok(false);
                 }
                 self.cursor = elem_start;
             }
-            if !self.eval_term_single(&value_term, &mut sub_ctx)? || self.cursor <= elem_start {
-                self.active_span = saved_span;
-                return Ok(false);
+            self.active_span = saved_span;
+            let mut val_ctx = sub_ctx.clone();
+            let val_ok = self.eval_term_single(&value_term, &mut val_ctx)?;
+            self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+            if val_ok
+                && !val_ctx.has_errors
+                && self.cursor > elem_start
+                && self.cursor <= list_body_end
+            {
+                continue;
             }
+            self.cursor = elem_start;
+            if let Some(target) = CharTarget::from_u128(tok.to_u128()) {
+                if ctx.resolver.resolve_rule(&target).is_some_and(|rule| rule.pattern.starts_with_self()) {
+                    self.active_span = saved_span;
+                    let mut rule_ctx = sub_ctx.clone();
+                    let rule_ok = self.eval_term_single(&SyntaxTerm::RuleRef { target }, &mut rule_ctx)?;
+                    self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+                    if rule_ok
+                        && !rule_ctx.has_errors
+                        && self.cursor > elem_start
+                        && self.cursor <= list_body_end
+                    {
+                        continue;
+                    }
+                    self.cursor = elem_start;
+                }
+            }
+            self.active_span = saved_span;
+            return Ok(false);
         }
         self.active_span = saved_span;
         Ok(matched_any)
@@ -7035,6 +7282,19 @@ fn eval_format_number_bounds(
             resolver.matches_script("Formats:number", dc_id)
                 || resolver.matches_script("Formats:number_abstract", dc_id)
         }),
+    }
+}
+
+fn pattern_starts_with_self_or_charset(pattern: &SyntaxPattern) -> bool {
+    match pattern {
+        SyntaxPattern::Sequence(elems) => elems.first().is_some_and(|e| match &e.term {
+            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+            SyntaxTerm::Group(sub) => pattern_starts_with_self_or_charset(sub),
+            _ => false,
+        }),
+        SyntaxPattern::Alternation(branches) => {
+            branches.iter().any(pattern_starts_with_self_or_charset)
+        }
     }
 }
 

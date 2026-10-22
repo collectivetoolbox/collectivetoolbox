@@ -175,7 +175,7 @@ struct StructDcAttr {
 #[derive(Clone, Debug)]
 enum EquivalentItem {
     Number,
-    Dc(u128),
+    Dc,
 }
 
 struct FieldDcAttr {
@@ -590,14 +590,13 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                                         if item_str == "number" {
                                             eq_list.push(EquivalentItem::Number);
                                         } else {
-                                            let gid = parse_shorthand_str(&item_str, item_ident.span())?;
-                                            eq_list.push(EquivalentItem::Dc(gid));
+                                            let _gid = parse_shorthand_str(&item_str, item_ident.span())?;
+                                            eq_list.push(EquivalentItem::Dc);
                                         }
                                     } else if content.peek(syn::LitInt) {
                                         let lit: syn::LitInt = content.parse()?;
-                                        let val: u32 = lit.base10_parse()?;
-                                        let gid = SHORT_DC_REGION_START.saturating_add(u128::from(val));
-                                        eq_list.push(EquivalentItem::Dc(gid));
+                                        let _val: u32 = lit.base10_parse()?;
+                                        eq_list.push(EquivalentItem::Dc);
                                     } else {
                                         return Err(content.error("Expected `number` or Dc identifier in equivalents"));
                                     }
@@ -940,15 +939,16 @@ fn generate_field_value_decoder(
 
     if attr.checksum || attr.binary {
         let raw_extract = quote! {
-            let unwrap_id = ctx.unwrap_transparent(#node_id_expr)?;
-            let unwrap_node = ctx.node(unwrap_id)?;
-            let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
-                #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                    ctx.materialize_binary(payload)
-                        .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+            let raw_bytes: ::std::borrow::Cow<'_, [u8]> = ctx.decode_transparent(#node_id_expr, |ctx, unwrap_id| {
+                let unwrap_node = ctx.node(unwrap_id)?;
+                match &unwrap_node.kind {
+                    #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                        ctx.materialize_binary(payload)
+                            .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))
+                    }
+                    other => #anyhow_path::bail!("Expected Binary node for binary/checksum payload for field `{}`, found {other:?}", stringify!(#field_ident)),
                 }
-                other => #anyhow_path::bail!("Expected Binary node for binary/checksum payload for field `{}`, found {other:?}", stringify!(#field_ident)),
-            };
+            })?;
         };
         return Ok(if let Some(inner_ty) = inner_opt {
             quote! {
@@ -973,8 +973,7 @@ fn generate_field_value_decoder(
     if attr.equivalents.is_some() {
         return Ok(quote! {
             {
-                ctx.decode_equivalent(#node_id_expr, |ctx, eq_id| {
-                    let eq_id = ctx.unwrap_equivalent_or_self(eq_id)?;
+                ctx.decode_transparent(#node_id_expr, |ctx, eq_id| {
                     let eq_node = ctx.node(eq_id)?;
                     if matches!(eq_node.kind, #crate_root::navigator::DcSyntaxKind::Number { .. }) {
                         <#field_ty as #crate_root::dc_mixed_serde::DcMixedNumber>::decode_dc_number(ctx, eq_id)
@@ -990,42 +989,36 @@ fn generate_field_value_decoder(
         if is_vec {
             return Ok(quote! {
                 {
-                    let cnode = ctx.node(ctx.unwrap_transparent(#node_id_expr)?)?;
-                    let children = match &cnode.kind {
-                        #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
-                        other => #anyhow_path::bail!("Expected Container for bounded field `{}`, found {other:?}", stringify!(#field_ident)),
-                    };
-                    if let [single_child] = children.as_slice() {
-                        // Reason for fallback: When transparent unwrapping fails or yields a non-list node, fall back to decoding `single_child` as a single element of the Vec.
-                        let unwrapped_child = ctx.unwrap_transparent_matching(*single_child, |id| {
-                            ctx.node(id).is_ok_and(|n| {
-                                matches!(&n.kind, #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, #crate_root::DcRole::BeginList))
-                            })
-                        }).unwrap_or(*single_child);
-                        if let Ok(first_node) = ctx.node(unwrapped_child) {
-                            if matches!(&first_node.kind, #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, #crate_root::DcRole::BeginList)) {
-                                <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrapped_child)?
-                            } else {
-                                let mut list = ::std::vec::Vec::new();
-                                for &child_id in children {
-                                    list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
-                                }
-                                list
+                    ctx.decode_transparent(#node_id_expr, |ctx, cand_id| {
+                        let cnode = ctx.node(cand_id)?;
+                        let children = match &cnode.kind {
+                            #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
+                            other => #anyhow_path::bail!("Expected Container for bounded field `{}`, found {other:?}", stringify!(#field_ident)),
+                        };
+                        if let [single_child] = children.as_slice() {
+                            if let Ok(list) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, *single_child) {
+                                return Ok(list);
                             }
+                            if let Ok(elem) = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, *single_child) {
+                                return Ok(::std::vec![elem]);
+                            }
+                            let cands = ctx.transparent_candidates(*single_child)?;
+                            if cands.len() > 1 {
+                                let mut list = ::std::vec::Vec::with_capacity(cands.len());
+                                for &cid in &cands {
+                                    list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, cid)?);
+                                }
+                                return Ok(list);
+                            }
+                            Ok(::std::vec![<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, *single_child)?])
                         } else {
                             let mut list = ::std::vec::Vec::new();
                             for &child_id in children {
                                 list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
                             }
-                            list
+                            Ok(list)
                         }
-                    } else {
-                        let mut list = ::std::vec::Vec::new();
-                        for &child_id in children {
-                            list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
-                        }
-                        list
-                    }
+                    })?
                 }
             });
         }
@@ -1237,26 +1230,27 @@ fn expand_named_representation(
                 #(#encode_parts)*
                 encoding.encode_end_to(mst)?;
             }, quote! {
-                let node_id = ctx.unwrap_transparent(node_id)?;
-                let (encoding, entries) = ctx.extract_kv_map_entries(node_id)?;
+                ctx.decode_transparent(node_id, |ctx, node_id| {
+                    let (encoding, entries) = ctx.extract_kv_map_entries(node_id)?;
 
-                #(#field_inits)*
+                    #(#field_inits)*
 
-                for entry_res in entries {
-                    let (k_id, val_id, entry_span, start_pos) = entry_res?;
-                    ctx.current_position = start_pos;
-                    let key = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, k_id)?;
-                    match &key {
-                        #(#decode_parts)*
-                        _ => {
-                            ctx.handle_unconsumed_or_incomplete(
-                                &[format!("Unknown map key {:?} for {}", key, stringify!(#type_name))],
-                                &[],
-                            )?;
+                    for entry_res in entries {
+                        let (k_id, val_id, entry_span, start_pos) = entry_res?;
+                        ctx.current_position = start_pos;
+                        let key = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, k_id)?;
+                        match &key {
+                            #(#decode_parts)*
+                            _ => {
+                                ctx.handle_unconsumed_or_incomplete(
+                                    &[format!("Unknown map key {:?} for {}", key, stringify!(#type_name))],
+                                    &[],
+                                )?;
+                            }
                         }
                     }
-                }
-                Self { #(#construct_fields),* }
+                    Ok(Self { #(#construct_fields),* })
+                })?
             })
         }
         Data::Enum(data) if names => {
@@ -1300,15 +1294,16 @@ fn expand_named_representation(
                             (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value))?; },
                              quote! {
                                 {
-                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
-                                    let unwrap_node = ctx.node(unwrap_id)?;
-                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                            ctx.materialize_binary(payload)
-                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = ctx.decode_transparent(val_id, |ctx, unwrap_id| {
+                                        let unwrap_node = ctx.node(unwrap_id)?;
+                                        match &unwrap_node.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                                ctx.materialize_binary(payload)
+                                                    .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))
+                                            }
+                                            other => #anyhow_path::bail!("Expected Binary node for variant payload, found {other:?}"),
                                         }
-                                        other => #anyhow_path::bail!("Expected Binary node for variant payload, found {other:?}"),
-                                    };
+                                    })?;
                                     <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                         .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))?
                                 }
@@ -1335,32 +1330,33 @@ fn expand_named_representation(
             let encode_end = end.map(|id| quote! { mst.push_char(#crate_root::DcChar::from_u128(#id))?; });
             let decode_body = if begin.is_some() {
                 quote! {
-                    let node_id = ctx.unwrap_transparent(node_id)?;
-                    let node = ctx.node(node_id)?;
-                    let children = match &node.kind {
-                        #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
-                        other => #anyhow_path::bail!("Expected Container for names enum, found {other:?}"),
-                    };
-                    let filtered_children: ::std::vec::Vec<#crate_root::NodeId> = children
-                        .iter()
-                        .copied()
-                        .filter(|&id| {
-                            if let Ok(n) = ctx.node(id) {
-                                !matches!(n.kind, #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, #crate_root::DcRole::TypeAny) || ctx.token_fills_role(ch, #crate_root::DcRole::ListElementSeparator))
-                            } else {
-                                true
-                            }
-                        })
-                        .collect();
-                    let name_id = filtered_children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Missing variant name"))?;
-                    let name = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, name_id)?;
-                    // Reason for fallback: Unit variants in named enums do not have a separate value node; fall back to name_id.
-                    let val_id = filtered_children.get(1).copied().unwrap_or(name_id);
-                    let value = match &name {
-                        #(#decode_parts)*
-                        _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
-                    };
-                    value
+                    ctx.decode_transparent(node_id, |ctx, node_id| {
+                        let node = ctx.node(node_id)?;
+                        let children = match &node.kind {
+                            #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
+                            other => #anyhow_path::bail!("Expected Container for names enum, found {other:?}"),
+                        };
+                        let filtered_children: ::std::vec::Vec<#crate_root::NodeId> = children
+                            .iter()
+                            .copied()
+                            .filter(|&id| {
+                                if let Ok(n) = ctx.node(id) {
+                                    !matches!(n.kind, #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, #crate_root::DcRole::TypeAny) || ctx.token_fills_role(ch, #crate_root::DcRole::ListElementSeparator))
+                                } else {
+                                    true
+                                }
+                            })
+                            .collect();
+                        let name_id = filtered_children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Missing variant name"))?;
+                        let name = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, name_id)?;
+                        // Reason for fallback: Unit variants in named enums do not have a separate value node; fall back to name_id.
+                        let val_id = filtered_children.get(1).copied().unwrap_or(name_id);
+                        let value = match &name {
+                            #(#decode_parts)*
+                            _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
+                        };
+                        Ok(value)
+                    })?
                 }
             } else {
                 quote! {
@@ -1460,6 +1456,29 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let flattened_impl = if cattrs.flatten {
                 quote! {
                     #[automatically_derived]
+                    impl #impl_generics #type_name #ty_generics #where_clause {
+                        #[allow(dead_code)]
+                        pub fn decode_field(
+                            &mut self,
+                            tag: impl Into<u128>,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            let mut repr: #try_from_ty = match ::std::convert::TryFrom::try_from(&*self) {
+                                ::std::result::Result::Ok(repr) => repr,
+                                ::std::result::Result::Err(_) => <#try_from_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default(),
+                            };
+                            let matched = repr.decode_field(tag, ctx, node_id)?;
+                            if matched {
+                                if let ::std::result::Result::Ok(updated) = <Self as ::std::convert::TryFrom<#try_from_ty>>::try_from(repr) {
+                                    *self = updated;
+                                }
+                            }
+                            Ok(matched)
+                        }
+                    }
+
+                    #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
                         type State = <#try_from_ty as #crate_root::DcMixedFlattened>::State;
 
@@ -1471,6 +1490,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let repr: #try_into_ty = ::std::convert::TryFrom::try_from(self)
                                 .map_err(|e| #anyhow_path::anyhow!("Failed to convert for encoding: {e}"))?;
                             <#try_into_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(&repr, mst, context)
+                        }
+
+                        fn encode_empty_flattened_marker(
+                            &self,
+                            mst: &mut #crate_root::DcWriter<'_>,
+                            context: &#crate_root::SharedValueContext,
+                        ) -> #anyhow_path::Result<()> {
+                            let repr: #try_into_ty = ::std::convert::TryFrom::try_from(self)
+                                .map_err(|e| #anyhow_path::anyhow!("Failed to convert for encoding: {e}"))?;
+                            <#try_into_ty as #crate_root::DcMixedFlattened>::encode_empty_flattened_marker(&repr, mst, context)
                         }
 
                         fn decode_flattened_field(
@@ -1578,28 +1607,29 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                            let unwrap_node = ctx.node(unwrap_id)?;
-                            let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                    ctx.materialize_binary(payload)
-                                        .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => {
-                                    let arg_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for {}", stringify!(#type_name)))?;
-                                    let inner_node = ctx.node(arg_id)?;
-                                    match &inner_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                            ctx.materialize_binary(payload)
-                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
-                                        }
-                                        other => #anyhow_path::bail!("Expected Binary node inside tagged construct for {}, found {other:?}", stringify!(#type_name)),
+                            ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                                let unwrap_node = ctx.node(unwrap_id)?;
+                                let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                        ctx.materialize_binary(payload)
+                                            .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
                                     }
-                                }
-                                other => #anyhow_path::bail!("Expected Binary node for {}, found {other:?}", stringify!(#type_name)),
-                            };
-                            <Self as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
-                                .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)))
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => {
+                                        let arg_id = args.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for {}", stringify!(#type_name)))?;
+                                        let inner_node = ctx.node(arg_id)?;
+                                        match &inner_node.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                                ctx.materialize_binary(payload)
+                                                    .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                            }
+                                            other => #anyhow_path::bail!("Expected Binary node inside tagged construct for {}, found {other:?}", stringify!(#type_name)),
+                                        }
+                                    }
+                                    other => #anyhow_path::bail!("Expected Binary node for {}, found {other:?}", stringify!(#type_name)),
+                                };
+                                <Self as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                    .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)))
+                            })
                         }
                     }
                 });
@@ -1650,7 +1680,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             if let Some(inner_ty) = extract_type_from_option(field_ty) {
                                 encode_stmts.push(quote! {
                                     if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                        let before_len = mst.len();
                                         <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                        if mst.len() == before_len {
+                                            <#inner_ty as #crate_root::DcMixedFlattened>::encode_empty_flattened_marker(item, mst, context)?;
+                                        }
                                     }
                                 });
                                 field_inits.push(quote! {
@@ -2124,13 +2158,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                            let unwrap_node = ctx.node(unwrap_id)?;
-                            let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
-                                _ => ::std::vec![unwrap_id],
-                            };
-                            Self::decode_dc_fields(ctx, &child_ids)
+                            ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                                let unwrap_node = ctx.node(unwrap_id)?;
+                                let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
+                                    _ => ::std::vec![unwrap_id],
+                                };
+                                Self::decode_dc_fields(ctx, &child_ids)
+                            })
                         }
                     }
                 });
@@ -2298,79 +2333,80 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                            let unwrap_node = ctx.node(unwrap_id)?;
-                            let (opener, closer, children) = match &unwrap_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, closer, children, .. } => (*opener, *closer, children),
-                                other => #anyhow_path::bail!("Expected Container for flag struct {}, found {other:?}", stringify!(#type_name)),
-                            };
-                            if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) || !ctx.tokens_equivalent(closer.to_u128(), #end_dc) {
-                                #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
-                            }
-                            let mut result = Self::default();
-                            if children.is_empty() {
-                                return Ok(result);
-                            }
-                            if ctx.policy.is_strict() {
-                                if children.len() != 1 {
-                                    #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
-                                }
-                                let list_id = children[0];
-                                let list_node = ctx.node(list_id)?;
-                                 let list_children = match &list_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if ctx.token_fills_role(*opener, #crate_root::syntax::DcRole::BeginList) => lc,
-                                    _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
+                            ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                                let unwrap_node = ctx.node(unwrap_id)?;
+                                let (opener, closer, children) = match &unwrap_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, closer, children, .. } => (*opener, *closer, children),
+                                    other => #anyhow_path::bail!("Expected Container for flag struct {}, found {other:?}", stringify!(#type_name)),
                                 };
-                                let mut iter = list_children.iter().copied();
-                                let first_id = iter.next().ok_or_else(|| #anyhow_path::anyhow!("Empty list in flag struct {}", stringify!(#type_name)))?;
-                                let first_node = ctx.node(first_id)?;
-                                match &first_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, #crate_root::syntax::DcRole::TypeAny) => {}
-                                    _ => #anyhow_path::bail!("Flag list container missing leading element separator (Dc 275)"),
+                                if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) || !ctx.tokens_equivalent(closer.to_u128(), #end_dc) {
+                                    #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
                                 }
-                                let mut expecting_separator = false;
-                                for item_id in iter {
-                                    let item_node = ctx.node(item_id)?;
-                                    if expecting_separator {
-                                        match &item_node.kind {
-                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, #crate_root::syntax::DcRole::ListElementSeparator) => {
-                                                expecting_separator = false;
-                                                continue;
+                                let mut result = Self::default();
+                                if children.is_empty() {
+                                    return Ok(result);
+                                }
+                                if ctx.policy.is_strict() {
+                                    if children.len() != 1 {
+                                        #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
+                                    }
+                                    let list_id = children[0];
+                                    let list_node = ctx.node(list_id)?;
+                                     let list_children = match &list_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if ctx.token_fills_role(*opener, #crate_root::syntax::DcRole::BeginList) => lc,
+                                        _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
+                                    };
+                                    let mut iter = list_children.iter().copied();
+                                    let first_id = iter.next().ok_or_else(|| #anyhow_path::anyhow!("Empty list in flag struct {}", stringify!(#type_name)))?;
+                                    let first_node = ctx.node(first_id)?;
+                                    match &first_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, #crate_root::syntax::DcRole::TypeAny) => {}
+                                        _ => #anyhow_path::bail!("Flag list container missing leading element separator (Dc 275)"),
+                                    }
+                                    let mut expecting_separator = false;
+                                    for item_id in iter {
+                                        let item_node = ctx.node(item_id)?;
+                                        if expecting_separator {
+                                            match &item_node.kind {
+                                                #crate_root::navigator::DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, #crate_root::syntax::DcRole::ListElementSeparator) => {
+                                                    expecting_separator = false;
+                                                    continue;
+                                                }
+                                                _ => #anyhow_path::bail!("Missing list element separator (Dc 312) in flag struct {}", stringify!(#type_name)),
                                             }
-                                            _ => #anyhow_path::bail!("Missing list element separator (Dc 312) in flag struct {}", stringify!(#type_name)),
+                                        }
+                                        let tag = match &item_node.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
+                                            other => #anyhow_path::bail!("Unexpected syntax node in strict flag list: {other:?}"),
+                                        };
+                                        let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
+                                        let matched = result.decode_field(tag, ctx, item_id)?;
+                                        if !matched {
+                                            ctx.handle_unconsumed_or_incomplete(
+                                                &[format!("Unknown flag Dc {tag:#X} in strict flag struct {}", stringify!(#type_name))],
+                                                &[],
+                                            )?;
+                                        }
+                                        expecting_separator = true;
+                                    }
+                                    if !expecting_separator && list_children.len() > 1 {
+                                        #anyhow_path::bail!("Trailing separator or malformed structure in strict flag list");
+                                    }
+                                } else {
+                                    let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, unwrap_id)?;
+                                    for (tag, item_id) in flag_items {
+                                        let matched = result.decode_field(tag, ctx, item_id)?;
+                                        if !matched {
+                                            ctx.handle_unconsumed_or_incomplete(
+                                                &[format!("Unknown flag Dc {tag:#X} for {}", stringify!(#type_name))],
+                                                &[],
+                                            )?;
                                         }
                                     }
-                                    let tag = match &item_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
-                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
-                                        other => #anyhow_path::bail!("Unexpected syntax node in strict flag list: {other:?}"),
-                                    };
-                                    let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
-                                    let matched = result.decode_field(tag, ctx, item_id)?;
-                                    if !matched {
-                                        ctx.handle_unconsumed_or_incomplete(
-                                            &[format!("Unknown flag Dc {tag:#X} in strict flag struct {}", stringify!(#type_name))],
-                                            &[],
-                                        )?;
-                                    }
-                                    expecting_separator = true;
                                 }
-                                if !expecting_separator && list_children.len() > 1 {
-                                    #anyhow_path::bail!("Trailing separator or malformed structure in strict flag list");
-                                }
-                            } else {
-                                let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, unwrap_id)?;
-                                for (tag, item_id) in flag_items {
-                                    let matched = result.decode_field(tag, ctx, item_id)?;
-                                    if !matched {
-                                        ctx.handle_unconsumed_or_incomplete(
-                                            &[format!("Unknown flag Dc {tag:#X} for {}", stringify!(#type_name))],
-                                            &[],
-                                        )?;
-                                    }
-                                }
-                            }
-                            Ok(result)
+                                Ok(result)
+                            })
                         }
                     }
                 });
@@ -2728,7 +2764,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     #crate_root::DcMixedNumber::encode_dc_number(&self.#field_ident, mst)?;
                                 });
                             }
-                            EquivalentItem::Dc(_) => {
+                            EquivalentItem::Dc => {
                                 eq_encoders.push(quote! {
                                     #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(&self.#field_ident, mst, context)?;
                                 });
@@ -3506,68 +3542,31 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         node_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<Self> {
-                        let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                        let node = ctx.node(unwrap_id)?;
-                        let children = match &node.kind {
-                            #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
-                                if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) {
-                                    #anyhow_path::bail!(
-                                        "Expected opener {:#X} for {}, found {:#X}",
-                                        #begin_dc,
-                                        stringify!(#type_name),
-                                        opener.to_u128()
-                                    );
+                        ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                            let node = ctx.node(unwrap_id)?;
+                            let children = match &node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
+                                    if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) {
+                                        #anyhow_path::bail!(
+                                            "Expected opener {:#X} for {}, found {:#X}",
+                                            #begin_dc,
+                                            stringify!(#type_name),
+                                            opener.to_u128()
+                                        );
+                                    }
+                                    children
                                 }
-                                children
+                                other => #anyhow_path::bail!(
+                                    "Expected Container for struct {}, found {other:?}",
+                                    stringify!(#type_name)
+                                ),
+                            };
+                            let mut fields = ::std::vec::Vec::new();
+                            for &raw_child_id in children {
+                                fields.push(ctx.extract_field_projection_spec(raw_child_id)?);
                             }
-                            other => #anyhow_path::bail!(
-                                "Expected Container for struct {}, found {other:?}",
-                                stringify!(#type_name)
-                            ),
-                        };
-                        let mut fields = ::std::vec::Vec::new();
-                        for &raw_child_id in children {
-                            let raw_child_node = ctx.node(raw_child_id)?;
-                            let child_id = if ctx.is_representation_set_node(raw_child_node)
-                                || matches!(
-                                    &raw_child_node.kind,
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
-                                    | #crate_root::navigator::DcSyntaxKind::Tagged { tag: opener, .. }
-                                        if ctx.token_fills_role(*opener, #crate_root::DcRole::OptionalPresent)
-                                )
-                            {
-                                ctx.unwrap_transparent(raw_child_id)?
-                            } else {
-                                raw_child_id
-                            };
-                            let child_node = ctx.node(child_id)?;
-                            let (tag, val_id) = match &child_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    let arg_id = match args.as_slice() {
-                                        [single_arg] => *single_arg,
-                                        _ => child_id,
-                                    };
-                                    (tag.to_u128(), arg_id)
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                    (opener.to_u128(), child_id)
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                    (ch.to_u128(), child_id)
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Assignment { .. } => {
-                                    (#crate_root::dc::DC_ASSIGN.to_u128(), child_id)
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Identifier { .. } => {
-                                    (#crate_root::dc::DC_BEGIN_IDENTIFIER.to_u128(), child_id)
-                                }
-                                _ => (0, child_id),
-                            };
-                            fields.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
-                                tag, value_node: val_id, source_node: child_id,
-                            });
-                        }
-                        Self::decode_dc_projected_fields(ctx, &fields)
+                            Self::decode_dc_projected_fields(ctx, &fields)
+                        })
                     }
                 }
 
@@ -3580,24 +3579,28 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx.enter_record();
                         let result = (|| {
                             #(#field_inits)*
-                            for &__dc_field_spec in __dc_projected_fields {
-                                let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
-                                let val_id = __dc_field_spec.value_node;
-                                let child_id = __dc_field_spec.source_node;
-                                let unwrap_id = child_id;
-                                ctx.current_position = ctx.node(child_id)?.span.start;
-                                let field_name = match tag {
-                                    #(#field_name_arms)*
-                                    _ => None,
-                                };
-                                let field_res: #anyhow_path::Result<bool> = (|| {
+                            for &raw_spec in __dc_projected_fields {
+                                let (__dc_field_spec, field_res) = ctx.decode_field_candidates(raw_spec, |ctx, __dc_field_spec| {
+                                    let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
+                                    let val_id = __dc_field_spec.value_node;
+                                    let child_id = __dc_field_spec.source_node;
+                                    let unwrap_id = child_id;
+                                    ctx.current_position = ctx.node(child_id)?.span.start;
                                     match tag {
                                         #shared_decode
                                         #(#decode_arms)*
                                         #unmatched_decode_arm
                                     }
                                     Ok(true)
-                                })();
+                                })?;
+                                let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
+                                let val_id = __dc_field_spec.value_node;
+                                let child_id = __dc_field_spec.source_node;
+                                ctx.current_position = ctx.node(child_id)?.span.start;
+                                let field_name = match tag {
+                                    #(#field_name_arms)*
+                                    _ => None,
+                                };
                                 match field_res {
                                     ::std::result::Result::Ok(true) => {
                                         if let Some(field_name) = field_name {
@@ -3782,15 +3785,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             decode_variants.push(quote! {
                                 _t if ctx.tokens_equivalent(_t, #tag_id) => {
                                     let val_id = val_id.ok_or_else(|| #anyhow_path::anyhow!("Empty tagged construct for binary variant `{}` in enum {}", stringify!(#variant_ident), stringify!(#type_name)))?;
-                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
-                                    let unwrap_node = ctx.node(unwrap_id)?;
-                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                            ctx.materialize_binary(payload)
-                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = ctx.decode_transparent(val_id, |ctx, unwrap_id| {
+                                        let unwrap_node = ctx.node(unwrap_id)?;
+                                        match &unwrap_node.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                                ctx.materialize_binary(payload)
+                                                    .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))
+                                            }
+                                            other => #anyhow_path::bail!("Expected Binary node for binary payload in variant {}, found {other:?}", stringify!(#variant_ident)),
                                         }
-                                        other => #anyhow_path::bail!("Expected Binary node for binary payload in variant {}, found {other:?}", stringify!(#variant_ident)),
-                                    };
+                                    })?;
                                     let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for variant `{}`: {e}", stringify!(#variant_ident)))?;
                                     Self::#variant_ident(val)
@@ -3878,8 +3882,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                                 if let Some(inner_ty) = extract_type_from_option(f_ty) {
                                     encode_fields.push(quote! {
-                                        if let ::std::option::Option::Some(ref item) = #f_ident {
+                                        if let ::std::option::Option::Some(item) = #f_ident {
+                                            let before_len = mst.len();
                                             <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                            if mst.len() == before_len {
+                                                <#inner_ty as #crate_root::DcMixedFlattened>::encode_empty_flattened_marker(item, mst, context)?;
+                                            }
                                         }
                                     });
                                     v_field_inits.push(quote! {
@@ -4071,38 +4079,38 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     #crate_root::navigator::DcSyntaxKind::Atom(_) => if children.len() > 1 { &children[1..] } else { &[] },
                                     _ => &[],
                                 };
-                                for &ch_id in field_ids {
-                                    let ch_node = ctx.node(ch_id)?;
-                                    ctx.current_position = ch_node.span.start;
-                                    let (ch_tag, child_val_id) = match &ch_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                            let ::std::option::Option::Some(&first_arg) = args.first() else {
-                                                ctx.handle_unconsumed_or_incomplete(
-                                                    &[format!("Empty tagged field {:#X} in variant `{}` of enum {}", tag.to_u128(), stringify!(#variant_ident), stringify!(#type_name))],
-                                                    &[],
-                                                )?;
-                                                continue;
-                                            };
-                                            let arg_id = if args.len() > 1 { ch_id } else { first_arg };
-                                            (tag.to_u128(), arg_id)
+                                for &raw_ch_id in field_ids {
+                                    let raw_spec = ctx.extract_field_projection_spec(raw_ch_id)?;
+                                    let mut empty_tagged = None;
+                                    let (spec, field_result) = ctx.decode_field_candidates(raw_spec, |ctx, spec| {
+                                        let ch_id = spec.source_node;
+                                        let ch_node = ctx.node(ch_id)?;
+                                        ctx.current_position = ch_node.span.start;
+                                        if let #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } = &ch_node.kind {
+                                            if args.is_empty() {
+                                                empty_tagged = ::std::option::Option::Some(tag.to_u128());
+                                                return Ok(false);
+                                            }
                                         }
-                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                            (opener.to_u128(), ch_id)
-                                        }
-                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                            (ch.to_u128(), ch_id)
-                                        }
-                                        _ => (0, ch_id),
-                                    };
-                                    let unwrap_id = ch_id;
-                                    let ch_tag = ctx.canonical_token(#crate_root::DcChar::from_u128(ch_tag)).to_u128();
-                                    let field_result: #anyhow_path::Result<bool> = (|| {
+                                        let child_val_id = spec.value_node;
+                                        let unwrap_id = ch_id;
+                                        let ch_tag = ctx.canonical_token(#crate_root::DcChar::from_u128(spec.tag)).to_u128();
                                         match ch_tag {
                                             #(#v_field_arms)*
                                             _ => return Ok(false),
                                         }
                                         Ok(true)
-                                    })();
+                                    })?;
+                                    if let ::std::option::Option::Some(empty_tag) = empty_tagged {
+                                        if !matches!(field_result, Ok(true)) {
+                                            ctx.handle_unconsumed_or_incomplete(
+                                                &[format!("Empty tagged field {:#X} in variant `{}` of enum {}", empty_tag, stringify!(#variant_ident), stringify!(#type_name))],
+                                                &[],
+                                            )?;
+                                            continue;
+                                        }
+                                    }
+                                    let ch_tag = ctx.canonical_token(#crate_root::DcChar::from_u128(spec.tag)).to_u128();
                                     match field_result {
                                         Ok(true) => {}
                                         Ok(false) => ctx.handle_unconsumed_or_incomplete(
@@ -4150,57 +4158,60 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                            let node = ctx.node(unwrap_id)?;
-                            let children = match &node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
-                                    if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) {
-                                        #anyhow_path::bail!(
-                                            "Expected opener {:#X} for enum {}, found {:#X}",
-                                            #begin_dc,
-                                            stringify!(#type_name),
-                                            opener.to_u128()
-                                        );
+                            ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                                let node = ctx.node(unwrap_id)?;
+                                let children = match &node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
+                                        if !ctx.tokens_equivalent(opener.to_u128(), #begin_dc) {
+                                            #anyhow_path::bail!(
+                                                "Expected opener {:#X} for enum {}, found {:#X}",
+                                                #begin_dc,
+                                                stringify!(#type_name),
+                                                opener.to_u128()
+                                            );
+                                        }
+                                        children
                                     }
-                                    children
-                                }
-                                other => #anyhow_path::bail!(
-                                    "Expected Container for enum {}, found {other:?}",
-                                    stringify!(#type_name)
-                                ),
-                            };
-                            let variant_id = children.first().copied().ok_or_else(|| {
-                                #anyhow_path::anyhow!("Empty container for enum {}", stringify!(#type_name))
-                            })?;
-                            let variant_node = ctx.node(variant_id)?;
-                            let (tag, val_id) = match &variant_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    (tag.to_u128(), args.first().copied())
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                    (opener.to_u128(), ::std::option::Option::Some(variant_id))
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                    let ch_tag = ch.to_u128();
-                                    (ch_tag, ::std::option::Option::Some(variant_id))
-                                }
-                                other => #anyhow_path::bail!(
-                                    "Unexpected node {other:?} for variant in enum {}",
-                                    stringify!(#type_name)
-                                ),
-                            };
-                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
-                            let res = match tag {
-                                #(#decode_variants)*
-                                other => {
-                                    #anyhow_path::bail!(
-                                        "Unexpected Dc tag {:#X} for enum {}",
-                                        other,
+                                    other => #anyhow_path::bail!(
+                                        "Expected Container for enum {}, found {other:?}",
                                         stringify!(#type_name)
-                                    );
-                                }
-                            };
-                            Ok(res)
+                                    ),
+                                };
+                                let raw_variant_id = children.first().copied().ok_or_else(|| {
+                                    #anyhow_path::anyhow!("Empty container for enum {}", stringify!(#type_name))
+                                })?;
+                                ctx.decode_transparent(raw_variant_id, |ctx, variant_id| {
+                                    let variant_node = ctx.node(variant_id)?;
+                                    let (tag, val_id) = match &variant_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                            (tag.to_u128(), args.first().copied())
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                            (opener.to_u128(), ::std::option::Option::Some(variant_id))
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                            let ch_tag = ch.to_u128();
+                                            (ch_tag, ::std::option::Option::Some(variant_id))
+                                        }
+                                        other => #anyhow_path::bail!(
+                                            "Unexpected node {other:?} for variant in enum {}",
+                                            stringify!(#type_name)
+                                        ),
+                                    };
+                                    let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
+                                    let res = match tag {
+                                        #(#decode_variants)*
+                                        other => {
+                                            #anyhow_path::bail!(
+                                                "Unexpected Dc tag {:#X} for enum {}",
+                                                other,
+                                                stringify!(#type_name)
+                                            );
+                                        }
+                                    };
+                                    Ok(res)
+                                })
+                            })
                         }
                     }
                 });
@@ -4229,36 +4240,37 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
-                            let variant_node = ctx.node(unwrap_id)?;
-                            let children = variant_node.children();
-                            let (tag, val_id) = match &variant_node.kind {
-                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                    (tag.to_u128(), args.first().copied())
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                    (opener.to_u128(), ::std::option::Option::Some(unwrap_id))
-                                }
-                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                    (ch.to_u128(), ::std::option::Option::Some(unwrap_id))
-                                }
-                                other => #anyhow_path::bail!(
-                                    "Unexpected node {other:?} for enum {}",
-                                    stringify!(#type_name)
-                                ),
-                            };
-                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
-                            let res = match tag {
-                                #(#decode_variants)*
-                                other => {
-                                    #anyhow_path::bail!(
-                                        "Unexpected Dc tag {:#X} for enum {}",
-                                        other,
+                            ctx.decode_transparent(node_id, |ctx, unwrap_id| {
+                                let variant_node = ctx.node(unwrap_id)?;
+                                let children = variant_node.children();
+                                let (tag, val_id) = match &variant_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                        (tag.to_u128(), args.first().copied())
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                        (opener.to_u128(), ::std::option::Option::Some(unwrap_id))
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                        (ch.to_u128(), ::std::option::Option::Some(unwrap_id))
+                                    }
+                                    other => #anyhow_path::bail!(
+                                        "Unexpected node {other:?} for enum {}",
                                         stringify!(#type_name)
-                                    );
-                                }
-                            };
-                            Ok(res)
+                                    ),
+                                };
+                                let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
+                                let res = match tag {
+                                    #(#decode_variants)*
+                                    other => {
+                                        #anyhow_path::bail!(
+                                            "Unexpected Dc tag {:#X} for enum {}",
+                                            other,
+                                            stringify!(#type_name)
+                                        );
+                                    }
+                                };
+                                Ok(res)
+                            })
                         }
                     }
                 })

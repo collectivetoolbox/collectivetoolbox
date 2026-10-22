@@ -394,17 +394,16 @@ impl DcMixedDecode for BinaryPayload {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-            ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Binary { .. }))
-        })?;
-        let payload = match &ctx.node(node_id)?.kind {
-            DcSyntaxKind::Binary { payload, .. } => payload.clone(),
-            other => bail!("Expected Binary node for BinaryPayload, found {other:?}"),
-        };
-        let bytes = ctx
-            .materialize_binary(&payload)
-            .context("Failed to materialize binary payload in DcSyntaxNode")?;
-        Ok(Self(bytes.into_owned()))
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let payload = match &ctx.node(node_id)?.kind {
+                DcSyntaxKind::Binary { payload, .. } => payload.clone(),
+                other => bail!("Expected Binary node for BinaryPayload, found {other:?}"),
+            };
+            let bytes = ctx
+                .materialize_binary(&payload)
+                .context("Failed to materialize binary payload in DcSyntaxNode")?;
+            Ok(Self(bytes.into_owned()))
+        })
     }
 }
 
@@ -421,27 +420,26 @@ impl DcMixedEncode for LazyBinaryPayload {
 impl DcMixedDecode for LazyBinaryPayload {
     fn decode_dc_node(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<Self> {
         use crate::navigator::BinaryPayloadRef;
-        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-            ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Binary { .. }))
-        })?;
-        let payload = match &ctx.node(node_id)?.kind {
-            DcSyntaxKind::Binary { payload, .. } => payload,
-            other => bail!("Expected binary payload, found {other:?}"),
-        };
-        let owned = match payload {
-            BinaryPayloadRef::Source { source_id, len } => BinaryPayloadRef::Source { source_id: *source_id, len: *len },
-            BinaryPayloadRef::Borrowed(bytes) => BinaryPayloadRef::Inline(bytes.to_vec()),
-            BinaryPayloadRef::Inline(bytes) => BinaryPayloadRef::Inline(bytes.clone()),
-            BinaryPayloadRef::FileSpan { file_offset, len, checksum, checksum_action } => {
-                BinaryPayloadRef::FileSpan {
-                    file_offset: *file_offset,
-                    len: *len,
-                    checksum: checksum.clone(),
-                    checksum_action: *checksum_action,
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let payload = match &ctx.node(node_id)?.kind {
+                DcSyntaxKind::Binary { payload, .. } => payload,
+                other => bail!("Expected binary payload, found {other:?}"),
+            };
+            let owned = match payload {
+                BinaryPayloadRef::Source { source_id, len } => BinaryPayloadRef::Source { source_id: *source_id, len: *len },
+                BinaryPayloadRef::Borrowed(bytes) => BinaryPayloadRef::Inline(bytes.to_vec()),
+                BinaryPayloadRef::Inline(bytes) => BinaryPayloadRef::Inline(bytes.clone()),
+                BinaryPayloadRef::FileSpan { file_offset, len, checksum, checksum_action } => {
+                    BinaryPayloadRef::FileSpan {
+                        file_offset: *file_offset,
+                        len: *len,
+                        checksum: checksum.clone(),
+                        checksum_action: *checksum_action,
+                    }
                 }
-            }
-        };
-        Ok(Self(owned))
+            };
+            Ok(Self(owned))
+        })
     }
 }
 
@@ -518,144 +516,147 @@ impl DcMixedDecode for DcRawValue {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mut curr_id = node_id;
-        while let Ok(node) = ctx.node(curr_id) {
-            match &node.kind {
-                DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
-                    let Some(&first_arg) = args.first() else {
-                        bail!("Empty optional tagged construct (Dc 315)");
-                    };
-                    curr_id = first_arg;
+        ctx.with_projection_depth(node_id, |ctx| {
+            let mut curr_id = node_id;
+            while let Ok(node) = ctx.node(curr_id) {
+                match &node.kind {
+                    DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
+                        let Some(&first_arg) = args.first() else {
+                            bail!("Empty optional tagged construct (Dc 315)");
+                        };
+                        curr_id = first_arg;
+                    }
+                    DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
+                        let Some(&first_child) = children.first() else {
+                            bail!("Empty optional container (Dc 315)");
+                        };
+                        curr_id = first_child;
+                    }
+                    _ => break,
                 }
-                DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
-                    let Some(&first_child) = children.first() else {
-                        bail!("Empty optional container (Dc 315)");
-                    };
-                    curr_id = first_child;
-                }
-                _ => break,
             }
-        }
 
-        let node = ctx.node(curr_id)?;
-        let candidate_children: Option<Vec<NodeId>> = match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. }
-                if ctx.token_fills_role(*opener, DcRole::PartiallyEquivalentRepresentations) =>
-            {
-                if children.len() == 1 {
-                    let Some(&first_id) = children.first() else {
-                        bail!("Missing child in partially equivalent container");
-                    };
-                    let first_child = ctx.node(first_id)?;
-                    if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_child.kind {
-                        if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
-                            Some(inner.clone())
+            let node = ctx.node(curr_id)?;
+            let candidate_children: Option<Vec<NodeId>> = match &node.kind {
+                DcSyntaxKind::Container { opener, children, .. }
+                    if ctx.token_fills_role(*opener, DcRole::PartiallyEquivalentRepresentations) =>
+                {
+                    if children.len() == 1 {
+                        let Some(&first_id) = children.first() else {
+                            bail!("Missing child in partially equivalent container");
+                        };
+                        let first_child = ctx.node(first_id)?;
+                        if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_child.kind {
+                            if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
+                                Some(inner.clone())
+                            } else {
+                                Some(children.clone())
+                            }
                         } else {
                             Some(children.clone())
                         }
                     } else {
                         Some(children.clone())
                     }
-                } else {
-                    Some(children.clone())
                 }
-            }
-            DcSyntaxKind::Tagged { tag, args }
-                if ctx.token_fills_role(*tag, DcRole::PartiallyEquivalentRepresentations) =>
-            {
-                if let Some(&first_arg) = args.first() {
-                    let first_node = ctx.node(first_arg)?;
-                    if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_node.kind {
-                        if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
-                            Some(inner.clone())
+                DcSyntaxKind::Tagged { tag, args }
+                    if ctx.token_fills_role(*tag, DcRole::PartiallyEquivalentRepresentations) =>
+                {
+                    if let Some(&first_arg) = args.first() {
+                        let first_node = ctx.node(first_arg)?;
+                        if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_node.kind {
+                            if ctx.token_fills_role(*child_opener, DcRole::BeginList) {
+                                Some(inner.clone())
+                            } else {
+                                Some(args.clone())
+                            }
                         } else {
                             Some(args.clone())
                         }
                     } else {
-                        Some(args.clone())
+                        Some(Vec::new())
                     }
-                } else {
-                    Some(Vec::new())
+                }
+                _ => None,
+            };
+
+            if let Some(child_ids) = candidate_children {
+                let mut items = Vec::new();
+                for cid in child_ids {
+                    let cnode = ctx.node(cid)?;
+                    match &cnode.kind {
+                        DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::TypeAny) || ctx.token_fills_role(*ch, DcRole::ListElementSeparator) => continue,
+                        DcSyntaxKind::Tagged { tag, .. } if ctx.token_fills_role(*tag, DcRole::TypeAny) || ctx.token_fills_role(*tag, DcRole::ListElementSeparator) => continue,
+                        _ => {}
+                    }
+                    items.push(Self::decode_dc_node(ctx, cid)?);
+                }
+                return Ok(Self::PartiallyEquivalent(items));
+            }
+
+            let unwrap_id = ctx.unwrap_transparent(curr_id)?;
+            if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
+                let path_fmt = format_dc_char(FormatId::FilePath)?;
+                if ctx.tokens_equivalent(fmt, path_fmt) {
+                    let segments = decode_filepath_segments(ctx, unwrap_id)?;
+                    return Ok(Self::FilePathSegments(segments));
                 }
             }
-            _ => None,
-        };
 
-        if let Some(child_ids) = candidate_children {
-            let mut items = Vec::new();
-            for cid in child_ids {
-                let cnode = ctx.node(cid)?;
-                match &cnode.kind {
-                    DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::TypeAny) || ctx.token_fills_role(*ch, DcRole::ListElementSeparator) => continue,
-                    DcSyntaxKind::Tagged { tag, .. } if ctx.token_fills_role(*tag, DcRole::TypeAny) || ctx.token_fills_role(*tag, DcRole::ListElementSeparator) => continue,
-                    _ => {}
-                }
-                items.push(Self::decode_dc_node(ctx, cid)?);
-            }
-            return Ok(Self::PartiallyEquivalent(items));
-        }
-
-        let unwrap_id = ctx.unwrap_transparent(curr_id)?;
-        if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
-            let path_fmt = format_dc_char(FormatId::FilePath)?;
-            if ctx.tokens_equivalent(fmt, path_fmt) {
-                let segments = decode_filepath_segments(ctx, unwrap_id)?;
-                return Ok(Self::FilePathSegments(segments));
-            }
-        }
-
-        let unwrap_node = ctx.node(unwrap_id)?;
-        match &unwrap_node.kind {
-            DcSyntaxKind::Binary { checksum_format, payload, .. } => {
-                let bytes = ctx.materialize_binary(payload)?.into_owned();
-                let format = checksum_format
-                    .map(|dc| {
-                        let canon = ctx.canonical_token(dc);
-                        FormatId::from_dc_id(canon.to_u128()).context("Unsupported binary format identifier")
+            let unwrap_node = ctx.node(unwrap_id)?;
+            match &unwrap_node.kind {
+                DcSyntaxKind::Binary { checksum_format, payload, .. } => {
+                    let bytes = ctx.materialize_binary(payload)?.into_owned();
+                    let format = checksum_format
+                        .map(|dc| {
+                            let canon = ctx.canonical_token(dc);
+                            FormatId::from_dc_id(canon.to_u128()).context("Unsupported binary format identifier")
+                        })
+                        .transpose()?;
+                    Ok(Self::Binary {
+                        format,
+                        with_sha256: false,
+                        bytes,
                     })
-                    .transpose()?;
-                Ok(Self::Binary {
-                    format,
-                    with_sha256: false,
-                    bytes,
-                })
+                }
+                DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => {
+                    let units = Vec::<u16>::decode_dc_node(ctx, unwrap_id)?;
+                    Ok(Self::U16List(units))
+                }
+                DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
+                    let s = String::decode_dc_node(ctx, unwrap_id)?;
+                    Ok(Self::String(s))
+                }
+                other => bail!("Unsupported syntax node kind for DcRawValue: {other:?}"),
             }
-            DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => {
-                let units = Vec::<u16>::decode_dc_node(ctx, unwrap_id)?;
-                Ok(Self::U16List(units))
-            }
-            DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
-                let s = String::decode_dc_node(ctx, unwrap_id)?;
-                Ok(Self::String(s))
-            }
-            other => bail!("Unsupported syntax node kind for DcRawValue: {other:?}"),
-        }
+        })
     }
 }
 
 fn decode_integer_node(
-    ctx: &DcProjectionContext<'_, '_>,
+    ctx: &mut DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<malachite::Integer> {
-    let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-        ctx.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Number { .. }))
-    })?;
-    let node = ctx.node(node_id)?;
-    match &node.kind {
-        DcSyntaxKind::Number { digits, .. } => {
-            crate::dc_number::parse_dc_number_digits_with_resolver(digits, ctx.resolver())
+    ctx.decode_transparent(node_id, |ctx, node_id| {
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Number { digits, .. } => {
+                crate::dc_number::parse_dc_number_digits_with_resolver(digits, ctx.resolver())
+            }
+            other => bail!("Expected Number node for integer, found {other:?}"),
         }
-        other => bail!("Expected Number node for integer, found {other:?}"),
-    }
+    })
 }
 
 fn decode_natural_node(
-    ctx: &DcProjectionContext<'_, '_>,
+    ctx: &mut DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<malachite::Natural> {
-    let int_val = decode_integer_node(ctx, node_id)?;
-    ensure!(int_val >= 0, "Expected non-negative integer for Natural, found negative");
-    Ok(int_val.unsigned_abs_ref().clone())
+    ctx.decode_transparent(node_id, |ctx, node_id| {
+        let int_val = decode_integer_node(ctx, node_id)?;
+        ensure!(int_val >= 0, "Expected non-negative integer for Natural, found negative");
+        Ok(int_val.unsigned_abs_ref().clone())
+    })
 }
 
 /// Execution context for projecting typed values from parsed syntax nodes in a [`DcSyntaxArena`].
@@ -674,6 +675,8 @@ pub struct DcProjectionContext<'a, 'ctx> {
     pub annotating: bool,
     /// Current record nesting depth.
     pub record_depth: usize,
+    /// Current non-record container projection nesting depth.
+    pub container_depth: usize,
     /// Current stream or node byte offset for diagnostics.
     pub current_position: u64,
     diagnostics: Vec<ctb_formats_dcdata::syntax::SyntaxDiagnostic>,
@@ -716,6 +719,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
+            container_depth: 0,
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver: None,
@@ -841,6 +845,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
+            container_depth: 0,
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver,
@@ -868,6 +873,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
+            container_depth: 0,
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver,
@@ -891,6 +897,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
+            container_depth: 0,
             current_position: 0,
             diagnostics: Vec::new(),
             binary_resolver: None,
@@ -994,6 +1001,30 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     #[doc(hidden)]
     pub fn leave_record(&mut self) {
         self.record_depth = self.record_depth.saturating_sub(1);
+    }
+
+    /// Executes `f` while tracking projection recursion depth against `policy.max_depth`.
+    pub fn with_projection_depth<R>(
+        &mut self,
+        node_id: NodeId,
+        f: impl FnOnce(&mut Self) -> Result<R>,
+    ) -> Result<R> {
+        let total_depth = self.record_depth.saturating_add(self.container_depth);
+        if total_depth >= self.policy.max_depth {
+            if let Ok(node) = self.node(node_id) {
+                self.current_position = node.span.start;
+            }
+            let msg = format!(
+                "Projection nesting depth exceeds maximum limit ({}) at offset {}",
+                self.policy.max_depth, self.current_position
+            );
+            self.handle_diagnostic(self.policy.depth_limit_exceeded, msg.clone())?;
+            bail!("{msg}");
+        }
+        self.container_depth = self.container_depth.saturating_add(1);
+        let res = f(self);
+        self.container_depth = self.container_depth.saturating_sub(1);
+        res
     }
 
     #[doc(hidden)]
@@ -1190,17 +1221,19 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         Ok(node_id)
     }
 
-    /// Extracts all candidate representation node IDs from an equivalent or partially
-    /// equivalent representations container (`Dc 397` or `Dc 398`), filtering out
-    /// type headers and list element separators.
-    ///
-    /// If `node_id` is not an equivalent representation set, returns a single-element
-    /// vector containing `node_id`.
-    pub fn equivalent_candidates(&self, node_id: NodeId) -> Result<Vec<NodeId>> {
-        let node_id = self.resolve_expression_or_self(node_id)?;
+    fn collect_transparent_candidates(
+        &self,
+        node_id: NodeId,
+        unwrap_optional: bool,
+        visited: &mut Vec<NodeId>,
+        out: &mut Vec<NodeId>,
+    ) -> Result<()> {
+        if visited.contains(&node_id) {
+            bail!("Cycle detected while unwrapping transparent Dc wrappers at {node_id:?}");
+        }
+        visited.push(node_id);
         let node = self.node(node_id)?;
         if self.is_representation_set_node(node) {
-            let mut candidates = Vec::new();
             let raw_children = match &node.kind {
                 DcSyntaxKind::Container { children, .. } => children.as_slice(),
                 DcSyntaxKind::Tagged { args, .. } => {
@@ -1217,6 +1250,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 }
                 _ => &[],
             };
+            let mut found_any = false;
             for &child_id in raw_children {
                 let child = self.node(child_id)?;
                 if let DcSyntaxKind::Atom(ch) = child.kind {
@@ -1227,13 +1261,91 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         continue;
                     }
                 }
-                candidates.push(child_id);
+                found_any = true;
+                self.collect_transparent_candidates(child_id, unwrap_optional, visited, out)?;
             }
-            ensure!(!candidates.is_empty(), "Empty equivalent representations list");
-            Ok(candidates)
-        } else {
-            Ok(vec![node_id])
+            visited.pop();
+            ensure!(found_any, "Empty equivalent representations list");
+            return Ok(());
         }
+
+        if unwrap_optional {
+            match &node.kind {
+                DcSyntaxKind::Container { opener, children, .. }
+                    if self.token_fills_role(*opener, DcRole::OptionalPresent) =>
+                {
+                    let inner_id = *children
+                        .first()
+                        .context("Empty optional container (Dc 315)")?;
+                    let res = self.collect_transparent_candidates(
+                        inner_id,
+                        unwrap_optional,
+                        visited,
+                        out,
+                    );
+                    visited.pop();
+                    return res;
+                }
+                DcSyntaxKind::Tagged { tag, args }
+                    if self.token_fills_role(*tag, DcRole::OptionalPresent) =>
+                {
+                    let inner_id = *args
+                        .first()
+                        .context("Empty optional tagged construct (Dc 315)")?;
+                    let res = self.collect_transparent_candidates(
+                        inner_id,
+                        unwrap_optional,
+                        visited,
+                        out,
+                    );
+                    visited.pop();
+                    return res;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(resolved) = self.resolve_expression_node(node_id)? {
+            if resolved != node_id {
+                let res = self.collect_transparent_candidates(
+                    resolved,
+                    unwrap_optional,
+                    visited,
+                    out,
+                );
+                visited.pop();
+                return res;
+            }
+        }
+
+        out.push(node_id);
+        visited.pop();
+        Ok(())
+    }
+
+    /// Extracts all concrete candidate node IDs after unwrapping optional (`Dc 315`),
+    /// expression (`Dc 540`, `Dc 276`, `Dc 279`), and equivalent/partially-equivalent
+    /// (`Dc 397`, `Dc 538`) wrappers.
+    pub fn transparent_candidates(&self, node_id: NodeId) -> Result<Vec<NodeId>> {
+        let mut visited = Vec::new();
+        let mut out = Vec::new();
+        self.collect_transparent_candidates(node_id, true, &mut visited, &mut out)?;
+        ensure!(!out.is_empty(), "Empty equivalent representations list");
+        Ok(out)
+    }
+
+    /// Extracts all candidate representation node IDs from an equivalent or partially
+    /// equivalent representations container (`Dc 397` or `Dc 398`), filtering out
+    /// type headers and list element separators.
+    ///
+    /// If `node_id` is not an equivalent representation set, returns a single-element
+    /// vector containing `node_id`.
+    pub fn equivalent_candidates(&self, node_id: NodeId) -> Result<Vec<NodeId>> {
+        let mut visited = Vec::new();
+        let mut out = Vec::new();
+        self.collect_transparent_candidates(node_id, false, &mut visited, &mut out)?;
+        ensure!(!out.is_empty(), "Empty equivalent representations list");
+        Ok(out)
     }
 
     /// Unwraps equivalent representation containers (`Dc 397` or `Dc 398`) to a child
@@ -1265,12 +1377,70 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     /// Unwraps equivalent representation containers (`Dc 397` or `Dc 398`) or expression
     /// nodes (`Dc 540`, `Dc 276`, `Dc 279`) to their primary child.
     pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
-        let node_id = self.resolve_expression_or_self(node_id)?;
         let candidates = self.equivalent_candidates(node_id)?;
         candidates
             .first()
             .copied()
             .context("Empty equivalent representations list")
+    }
+
+    fn decode_candidates<T, F>(
+        &mut self,
+        candidates: &[NodeId],
+        mut decode_fn: F,
+    ) -> Result<T>
+    where
+        F: FnMut(&mut Self, NodeId) -> Result<T>,
+    {
+        if candidates.is_empty() {
+            bail!("Empty equivalent representations candidate set");
+        }
+        if let [single] = candidates {
+            return decode_fn(self, *single);
+        }
+        let mut first_recovered: Option<(
+            T,
+            Vec<ctb_formats_dcdata::syntax::SyntaxDiagnostic>,
+            Vec<DcFieldAnnotation>,
+            u64,
+        )> = None;
+        let mut last_err = None;
+        for &cand_id in candidates {
+            let saved_diag_len = self.diagnostics.len();
+            let saved_ann_len = self.annotations.len();
+            let saved_pos = self.current_position;
+            match decode_fn(self, cand_id) {
+                Ok(val) if self.diagnostics.len() == saved_diag_len => return Ok(val),
+                Ok(val) => {
+                    if first_recovered.is_none() {
+                        let new_diags = self.diagnostics.split_off(saved_diag_len);
+                        let new_anns = self.annotations.split_off(saved_ann_len);
+                        first_recovered = Some((val, new_diags, new_anns, self.current_position));
+                    } else {
+                        self.diagnostics.truncate(saved_diag_len);
+                        self.annotations.truncate(saved_ann_len);
+                    }
+                    self.current_position = saved_pos;
+                }
+                Err(err) => {
+                    self.diagnostics.truncate(saved_diag_len);
+                    self.annotations.truncate(saved_ann_len);
+                    self.current_position = saved_pos;
+                    last_err = Some(err);
+                }
+            }
+        }
+        if let Some((val, diags, anns, pos)) = first_recovered {
+            self.diagnostics.extend(diags);
+            self.annotations.extend(anns);
+            self.current_position = pos;
+            return Ok(val);
+        }
+        if let Some(err) = last_err {
+            Err(err)
+        } else {
+            bail!("Empty equivalent representations candidate set")
+        }
     }
 
     /// Attempts to decode a typed value from an equivalent representation set by
@@ -1279,31 +1449,13 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     pub fn decode_equivalent<T, F>(
         &mut self,
         node_id: NodeId,
-        mut decode_fn: F,
+        decode_fn: F,
     ) -> Result<T>
     where
         F: FnMut(&mut Self, NodeId) -> Result<T>,
     {
         let candidates = self.equivalent_candidates(node_id)?;
-        if candidates.is_empty() {
-            bail!("Empty equivalent representations candidate set");
-        }
-        if candidates.len() == 1 {
-            let target_id = *candidates.first().context("Candidate set is non-empty")?;
-            return decode_fn(self, target_id);
-        }
-        let mut last_err = None;
-        for &cand_id in &candidates {
-            match decode_fn(self, cand_id) {
-                Ok(val) => return Ok(val),
-                Err(err) => last_err = Some(err),
-            }
-        }
-        if let Some(err) = last_err {
-            Err(err)
-        } else {
-            bail!("Empty equivalent representations candidate set")
-        }
+        self.decode_candidates(&candidates, decode_fn)
     }
 
     /// Transparently decodes a target type from `node_id`, unwrapping optionals (`Dc 315`),
@@ -1313,43 +1465,144 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     pub fn decode_transparent<T, F>(
         &mut self,
         node_id: NodeId,
-        mut decode_fn: F,
+        decode_fn: F,
     ) -> Result<T>
     where
         F: FnMut(&mut Self, NodeId) -> Result<T>,
     {
-        let unwrapped_id = self.unwrap_transparent(node_id)?;
-        self.decode_equivalent(unwrapped_id, decode_fn)
+        let candidates = self.transparent_candidates(node_id)?;
+        self.decode_candidates(&candidates, decode_fn)
+    }
+
+    /// Extracts the field tag, value node, and source node for a struct or variant child node.
+    pub fn extract_field_projection_spec(&self, child_id: NodeId) -> Result<FieldProjectionSpec> {
+        let child_node = self.node(child_id)?;
+        let (tag, value_node) = match &child_node.kind {
+            DcSyntaxKind::Tagged { tag, args } => {
+                let arg_id = match args.as_slice() {
+                    [single_arg] => *single_arg,
+                    _ => child_id,
+                };
+                (tag.to_u128(), arg_id)
+            }
+            DcSyntaxKind::Container { opener, .. } => (opener.to_u128(), child_id),
+            DcSyntaxKind::Atom(ch) => (ch.to_u128(), child_id),
+            DcSyntaxKind::Assignment { .. } => (crate::dc::DC_ASSIGN.to_u128(), child_id),
+            DcSyntaxKind::Identifier { .. } => (crate::dc::DC_BEGIN_IDENTIFIER.to_u128(), child_id),
+            _ => (0, child_id),
+        };
+        Ok(FieldProjectionSpec {
+            tag,
+            value_node,
+            source_node: child_id,
+        })
+    }
+
+    /// Evaluates a field-decoding closure across transparent candidates (`Dc 397`, `Dc 398`,
+    /// `Dc 315`) when a struct or enum-variant field entry is wrapped in a representation set.
+    pub fn decode_field_candidates<F>(
+        &mut self,
+        spec: FieldProjectionSpec,
+        mut decode_fn: F,
+    ) -> Result<(FieldProjectionSpec, Result<bool>)>
+    where
+        F: FnMut(&mut Self, FieldProjectionSpec) -> Result<bool>,
+    {
+        let raw_node = self.node(spec.source_node)?;
+        let is_wrapped = self.is_representation_set_node(raw_node)
+            || matches!(
+                &raw_node.kind,
+                DcSyntaxKind::Container { opener, .. } | DcSyntaxKind::Tagged { tag: opener, .. }
+                    if self.token_fills_role(*opener, DcRole::OptionalPresent)
+            );
+        if !is_wrapped {
+            let res = decode_fn(self, spec);
+            return Ok((spec, res));
+        }
+        let candidates = self.transparent_candidates(spec.source_node)?;
+        if let [single] = candidates.as_slice() {
+            let resolved = self.extract_field_projection_spec(*single)?;
+            let res = decode_fn(self, resolved);
+            return Ok((resolved, res));
+        }
+        let mut fallback_spec = None;
+        for &cand_id in &candidates {
+            let cand_spec = self.extract_field_projection_spec(cand_id)?;
+            if cand_spec.tag == 0 {
+                continue;
+            }
+            let saved_diag_len = self.diagnostics.len();
+            let saved_ann_len = self.annotations.len();
+            let saved_pos = self.current_position;
+            match decode_fn(self, cand_spec) {
+                Ok(true) if self.diagnostics.len() == saved_diag_len => {
+                    return Ok((cand_spec, Ok(true)));
+                }
+                Ok(true) => {
+                    if fallback_spec.is_none() {
+                        fallback_spec = Some(cand_spec);
+                    }
+                    self.diagnostics.truncate(saved_diag_len);
+                    self.annotations.truncate(saved_ann_len);
+                    self.current_position = saved_pos;
+                }
+                Ok(false) => {
+                    self.diagnostics.truncate(saved_diag_len);
+                    self.annotations.truncate(saved_ann_len);
+                    self.current_position = saved_pos;
+                }
+                Err(_) => {
+                    if fallback_spec.is_none() {
+                        fallback_spec = Some(cand_spec);
+                    }
+                    self.diagnostics.truncate(saved_diag_len);
+                    self.annotations.truncate(saved_ann_len);
+                    self.current_position = saved_pos;
+                }
+            }
+        }
+        let chosen = if let Some(fb) = fallback_spec {
+            fb
+        } else if let Some(&first_id) = candidates.first() {
+            self.extract_field_projection_spec(first_id)?
+        } else {
+            spec
+        };
+        let res = decode_fn(self, chosen);
+        Ok((chosen, res))
     }
 
     /// Unwraps an optional marker (`Dc 315` or `Dc 316`).
     /// Returns `Ok(None)` for absent, `Ok(Some(inner_id))` for present.
-    pub fn unwrap_optional_node(&self, node_id: NodeId) -> Result<Option<NodeId>> {
-        let node_id = self.unwrap_equivalent_matching(node_id, |cand_id| {
-            if let Ok(cand) = self.node(cand_id) {
-                match &cand.kind {
-                    DcSyntaxKind::Atom(ch) => self.token_fills_role(*ch, DcRole::OptionalAbsent),
-                    DcSyntaxKind::Tagged { tag, .. } => self.token_fills_role(*tag, DcRole::OptionalPresent),
-                    DcSyntaxKind::Container { opener, .. } => self.token_fills_role(*opener, DcRole::OptionalPresent),
-                    _ => false,
+    pub fn unwrap_optional_node(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
+        self.decode_equivalent(node_id, |ctx, cand_id| {
+            let cand_id = ctx.resolve_expression_node(cand_id)?.unwrap_or(cand_id);
+            let node = ctx.node(cand_id)?;
+            match &node.kind {
+                DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::OptionalAbsent) => {
+                    Ok(None)
                 }
-            } else {
-                false
+                DcSyntaxKind::Tagged { tag, args }
+                    if ctx.token_fills_role(*tag, DcRole::OptionalPresent) =>
+                {
+                    let inner = args
+                        .first()
+                        .copied()
+                        .context("Empty optional tagged construct (Dc 315)")?;
+                    Ok(Some(inner))
+                }
+                DcSyntaxKind::Container { opener, children, .. }
+                    if ctx.token_fills_role(*opener, DcRole::OptionalPresent) =>
+                {
+                    let inner = children
+                        .first()
+                        .copied()
+                        .context("Empty optional container (Dc 315)")?;
+                    Ok(Some(inner))
+                }
+                _ => Ok(Some(cand_id)),
             }
-        })?;
-        let node = self.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Atom(ch) if self.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
-            DcSyntaxKind::Tagged { tag, args } if self.token_fills_role(*tag, DcRole::OptionalPresent) => {
-                let inner = args.first().copied().context("Empty optional tagged construct (Dc 315)")?;
-                Ok(Some(inner))
-            }
-            DcSyntaxKind::Container { opener, children, .. } if self.token_fills_role(*opener, DcRole::OptionalPresent) => {
-                let inner = children.first().copied().context("Empty optional container (Dc 315)")?;
-                Ok(Some(inner))
-            }
-            _ => Ok(Some(node_id)),
-        }
+        })
     }
 
     /// Unwraps a format representation container (`511 [format] [payload] 512`).
@@ -1689,20 +1942,14 @@ impl DcMixedDecode for crate::DcMstring {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-            ctx.node(id).is_ok_and(|n| {
-                matches!(
-                    n.kind,
-                    DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. }
-                )
-            })
-        })?;
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
-            DcSyntaxKind::Identifier { name } => Ok(name.clone()),
-            other => bail!("Expected Literal or Identifier node for DcMstring, found {other:?}"),
-        }
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let node = ctx.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
+                DcSyntaxKind::Identifier { name } => Ok(name.clone()),
+                other => bail!("Expected Literal or Identifier node for DcMstring, found {other:?}"),
+            }
+        })
     }
 }
 
@@ -1725,9 +1972,12 @@ impl DcMixedDecode for crate::DcString {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
-        mstr.to_dc_string()
-            .map_err(|e| anyhow::anyhow!("Failed to convert decoded literal/identifier to DcString: {e}"))
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
+            mstr.to_dc_string().map_err(|e| {
+                anyhow::anyhow!("Failed to convert decoded literal/identifier to DcString: {e}")
+            })
+        })
     }
 }
 
@@ -1761,16 +2011,18 @@ impl DcMixedDecode for String {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
-        let dc_str = mstr.to_dc_string()?;
-        let mut out = String::with_capacity(dc_str.len());
-        for ch in dc_str.chars() {
-            let c = ch
-                .as_char()
-                .context("Cannot project non-Unicode DcMstr into a Rust String")?;
-            out.push(c);
-        }
-        Ok(out)
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
+            let dc_str = mstr.to_dc_string()?;
+            let mut out = String::with_capacity(dc_str.len());
+            for ch in dc_str.chars() {
+                let c = ch
+                    .as_char()
+                    .context("Cannot project non-Unicode DcMstr into a Rust String")?;
+                out.push(c);
+            }
+            Ok(out)
+        })
     }
 }
 
@@ -1802,35 +2054,25 @@ impl DcMixedDecode for bool {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-            ctx.node(id).is_ok_and(|n| {
-                matches!(
-                    &n.kind,
-                    DcSyntaxKind::Atom(ch)
-                        if ctx.token_fills_role(*ch, DcRole::BooleanTrue)
-                            || ctx.token_fills_role(*ch, DcRole::BooleanFalse)
-                            || ctx.token_fills_role(*ch, DcRole::Positive)
-                            || ctx.token_fills_role(*ch, DcRole::Negative)
-                )
-            })
-        })?;
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Atom(ch) => {
-                if ctx.token_fills_role(*ch, DcRole::BooleanTrue)
-                    || ctx.token_fills_role(*ch, DcRole::Positive)
-                {
-                    Ok(true)
-                } else if ctx.token_fills_role(*ch, DcRole::BooleanFalse)
-                    || ctx.token_fills_role(*ch, DcRole::Negative)
-                {
-                    Ok(false)
-                } else {
-                    bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {ch:?}")
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let node = ctx.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Atom(ch) => {
+                    if ctx.token_fills_role(*ch, DcRole::BooleanTrue)
+                        || ctx.token_fills_role(*ch, DcRole::Positive)
+                    {
+                        Ok(true)
+                    } else if ctx.token_fills_role(*ch, DcRole::BooleanFalse)
+                        || ctx.token_fills_role(*ch, DcRole::Negative)
+                    {
+                        Ok(false)
+                    } else {
+                        bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {ch:?}")
+                    }
                 }
+                other => bail!("Expected Atom node for bool, found {other:?}"),
             }
-            other => bail!("Expected Atom node for bool, found {other:?}"),
-        }
+        })
     }
 }
 
@@ -1854,8 +2096,10 @@ macro_rules! impl_dc_mixed_integer_signed {
                     ctx: &mut DcProjectionContext<'_, '_>,
                     node_id: NodeId,
                 ) -> Result<Self> {
-                    let val = decode_integer_node(ctx, node_id)?;
-                    <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
+                    ctx.decode_transparent(node_id, |ctx, node_id| {
+                        let val = decode_integer_node(ctx, node_id)?;
+                        <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
+                    })
                 }
             }
         )*
@@ -1882,8 +2126,10 @@ macro_rules! impl_dc_mixed_integer_unsigned {
                     ctx: &mut DcProjectionContext<'_, '_>,
                     node_id: NodeId,
                 ) -> Result<Self> {
-                    let val = decode_natural_node(ctx, node_id)?;
-                    <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
+                    ctx.decode_transparent(node_id, |ctx, node_id| {
+                        let val = decode_natural_node(ctx, node_id)?;
+                        <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
+                    })
                 }
             }
         )*
@@ -1978,13 +2224,10 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         roots: &[NodeId],
     ) -> Result<(Self, usize)> {
         let root = roots.first().copied().context("Empty document cannot be decoded into pair")?;
-        let local = ctx.node(ctx.unwrap_transparent(root)?)?;
-        if matches!(local.kind, DcSyntaxKind::Container { .. })
-            || matches!(&local.kind, DcSyntaxKind::Tagged { args, .. } if args.len() >= 2)
-        {
-            return Ok((Self::decode_dc_node(ctx, root)?, 1));
-        }
         if let [first, second, ..] = roots {
+            if let Ok(pair) = Self::decode_dc_node(ctx, *first) {
+                return Ok((pair, 1));
+            }
             let pair = (A::decode_dc_node(ctx, *first)?, B::decode_dc_node(ctx, *second)?);
             return Ok((pair, 2));
         }
@@ -1995,62 +2238,63 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mut node_id = ctx.unwrap_transparent(node_id)?;
-        if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
-            let candidate = ctx.unwrap_transparent(payload_id)?;
-            if matches!(
-                ctx.node(candidate)?.kind,
-                DcSyntaxKind::Container { .. } | DcSyntaxKind::Tagged { .. }
-            ) {
-                node_id = candidate;
-            }
-        }
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. } => {
-                let child_slice = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation) && children.len() >= 3 {
-                    children.get(1..).context("Format representation container missing payload children")?
-                } else {
-                    children.as_slice()
-                };
-                let is_list = ctx.token_fills_role(*opener, DcRole::BeginList);
-                let filtered: Vec<NodeId> = child_slice
-                    .iter()
-                    .copied()
-                    .filter(|&id| {
-                        if let Ok(n) = ctx.node(id) {
-                            !matches!(
-                                n.kind,
-                                DcSyntaxKind::Atom(ch)
-                                    if ctx.token_fills_role(ch, DcRole::ListElementSeparator)
-                                        || (is_list && ctx.token_fills_role(ch, DcRole::TypeToken))
-                            )
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
-                if let [single] = filtered.as_slice() {
-                    return Self::decode_dc_node(ctx, *single);
-                }
-                if let (Some(&first), Some(&second)) = (filtered.first(), filtered.get(1)) {
-                    let a = A::decode_dc_node(ctx, first)?;
-                    let b = B::decode_dc_node(ctx, second)?;
-                    ctx.handle_remaining_nodes(filtered.get(2..).context("Missing pair children")?)?;
-                    return Ok((a, b));
+        ctx.decode_transparent(node_id, |ctx, mut node_id| {
+            if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
+                let candidate = ctx.unwrap_transparent(payload_id)?;
+                if matches!(
+                    ctx.node(candidate)?.kind,
+                    DcSyntaxKind::Container { .. } | DcSyntaxKind::Tagged { .. }
+                ) {
+                    node_id = candidate;
                 }
             }
-            DcSyntaxKind::Tagged { args, .. } => {
-                if let (Some(&first), Some(&second)) = (args.first(), args.get(1)) {
-                    let a = A::decode_dc_node(ctx, first)?;
-                    let b = B::decode_dc_node(ctx, second)?;
-                    ctx.handle_remaining_nodes(args.get(2..).context("Missing pair arguments")?)?;
-                    return Ok((a, b));
+            let node = ctx.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Container { opener, children, .. } => {
+                    let child_slice = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation) && children.len() >= 3 {
+                        children.get(1..).context("Format representation container missing payload children")?
+                    } else {
+                        children.as_slice()
+                    };
+                    let is_list = ctx.token_fills_role(*opener, DcRole::BeginList);
+                    let filtered: Vec<NodeId> = child_slice
+                        .iter()
+                        .copied()
+                        .filter(|&id| {
+                            if let Ok(n) = ctx.node(id) {
+                                !matches!(
+                                    n.kind,
+                                    DcSyntaxKind::Atom(ch)
+                                        if ctx.token_fills_role(ch, DcRole::ListElementSeparator)
+                                            || (is_list && ctx.token_fills_role(ch, DcRole::TypeToken))
+                                )
+                            } else {
+                                true
+                            }
+                        })
+                        .collect();
+                    if let [single] = filtered.as_slice() {
+                        return Self::decode_dc_node(ctx, *single);
+                    }
+                    if let (Some(&first), Some(&second)) = (filtered.first(), filtered.get(1)) {
+                        let a = A::decode_dc_node(ctx, first)?;
+                        let b = B::decode_dc_node(ctx, second)?;
+                        ctx.handle_remaining_nodes(filtered.get(2..).context("Missing pair children")?)?;
+                        return Ok((a, b));
+                    }
                 }
+                DcSyntaxKind::Tagged { args, .. } => {
+                    if let (Some(&first), Some(&second)) = (args.first(), args.get(1)) {
+                        let a = A::decode_dc_node(ctx, first)?;
+                        let b = B::decode_dc_node(ctx, second)?;
+                        ctx.handle_remaining_nodes(args.get(2..).context("Missing pair arguments")?)?;
+                        return Ok((a, b));
+                    }
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        bail!("Expected Container or Tagged node with 2 elements for pair (A, B), found {:?}", node.kind)
+            bail!("Expected Container or Tagged node with 2 elements for pair (A, B), found {:?}", node.kind)
+        })
     }
 }
 
@@ -2077,21 +2321,23 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        ctx.decode_equivalent(node_id, |ctx, cand_id| {
-            let node_id = ctx.unwrap_equivalent_or_self(cand_id)?;
-            let node = ctx.node(node_id)?;
-            match &node.kind {
-                DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
-                DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
-                    let inner = args.first().copied().context("Missing value after Dc 315")?;
-                    T::decode_dc_node(ctx, inner).map(Some)
+        ctx.with_projection_depth(node_id, |ctx| {
+            ctx.decode_equivalent(node_id, |ctx, cand_id| {
+                let node_id = ctx.unwrap_equivalent_or_self(cand_id)?;
+                let node = ctx.node(node_id)?;
+                match &node.kind {
+                    DcSyntaxKind::Atom(ch) if ctx.token_fills_role(*ch, DcRole::OptionalAbsent) => Ok(None),
+                    DcSyntaxKind::Tagged { tag, args } if ctx.token_fills_role(*tag, DcRole::OptionalPresent) => {
+                        let inner = args.first().copied().context("Missing value after Dc 315")?;
+                        T::decode_dc_node(ctx, inner).map(Some)
+                    }
+                    DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
+                        let inner = children.first().copied().context("Missing value in Dc 315 container")?;
+                        T::decode_dc_node(ctx, inner).map(Some)
+                    }
+                    _ => bail!("Expected Option marker (Dc 315 or 316), found {:?}", node.kind),
                 }
-                DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::OptionalPresent) => {
-                    let inner = children.first().copied().context("Missing value in Dc 315 container")?;
-                    T::decode_dc_node(ctx, inner).map(Some)
-                }
-                _ => bail!("Expected Option marker (Dc 315 or 316), found {:?}", node.kind),
-            }
+            })
         })
     }
 }
@@ -2119,59 +2365,58 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let mut node_id = ctx.unwrap_transparent_matching(node_id, |id| {
-            ctx.node(id).is_ok_and(|n| {
-                matches!(&n.kind, DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, DcRole::BeginList))
-            })
-        })?;
-        if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
-            node_id = ctx.unwrap_transparent(payload_id)?;
-        }
-        let node = ctx.node(node_id)?;
-        let children = match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
-            other => bail!("Expected List container (Dc 310) for Vec, found {other:?}"),
-        };
-
-        let mut iter = children.iter().copied().peekable();
-
-        if let Some(&first_id) = iter.peek() {
-            let first_node = ctx.node(first_id)?;
-            if matches!(first_node.kind, DcSyntaxKind::Number { .. }) {
-                let second_id = children.get(1).copied();
-                let is_followed_by_type = if let Some(sec_id) = second_id {
-                    let sec_node = ctx.node(sec_id)?;
-                    matches!(sec_node.kind, DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, DcRole::TypeToken))
-                } else {
-                    false
+        ctx.with_projection_depth(node_id, |ctx| {
+            ctx.decode_transparent(node_id, |ctx, mut node_id| {
+                if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
+                    node_id = ctx.unwrap_transparent(payload_id)?;
+                }
+                let node = ctx.node(node_id)?;
+                let children = match &node.kind {
+                    DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
+                    other => bail!("Expected List container (Dc 310) for Vec, found {other:?}"),
                 };
-                if is_followed_by_type {
-                    let _ = iter.next();
-                }
-            }
-        }
 
-        if let Some(&id) = iter.peek() {
-            let n = ctx.node(id)?;
-            if let DcSyntaxKind::Atom(ch) = &n.kind {
-                if ctx.token_fills_role(*ch, DcRole::TypeToken) {
-                    let _ = iter.next();
-                }
-            }
-        }
+                let mut iter = children.iter().copied().peekable();
 
-        let mut list = Vec::new();
-        for child_id in iter {
-            let child_node = ctx.node(child_id)?;
-            if let DcSyntaxKind::Atom(ch) = &child_node.kind {
-                if ctx.token_fills_role(*ch, DcRole::ListElementSeparator) {
-                    continue;
+                if let Some(&first_id) = iter.peek() {
+                    let first_node = ctx.node(first_id)?;
+                    if matches!(first_node.kind, DcSyntaxKind::Number { .. }) {
+                        let second_id = children.get(1).copied();
+                        let is_followed_by_type = if let Some(sec_id) = second_id {
+                            let sec_node = ctx.node(sec_id)?;
+                            matches!(sec_node.kind, DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, DcRole::TypeToken))
+                        } else {
+                            false
+                        };
+                        if is_followed_by_type {
+                            let _ = iter.next();
+                        }
+                    }
                 }
-            }
-            list.push(T::decode_dc_node(ctx, child_id)?);
-        }
 
-        Ok(list)
+                if let Some(&id) = iter.peek() {
+                    let n = ctx.node(id)?;
+                    if let DcSyntaxKind::Atom(ch) = &n.kind {
+                        if ctx.token_fills_role(*ch, DcRole::TypeToken) {
+                            let _ = iter.next();
+                        }
+                    }
+                }
+
+                let mut list = Vec::new();
+                for child_id in iter {
+                    let child_node = ctx.node(child_id)?;
+                    if let DcSyntaxKind::Atom(ch) = &child_node.kind {
+                        if ctx.token_fills_role(*ch, DcRole::ListElementSeparator) {
+                            continue;
+                        }
+                    }
+                    list.push(T::decode_dc_node(ctx, child_id)?);
+                }
+
+                Ok(list)
+            })
+        })
     }
 }
 
@@ -2196,16 +2441,17 @@ impl DcMixedDecode for Ipv4Addr {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
         let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
-        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if ctx.tokens_equivalent(fmt, ipv4_fmt) {
-                let val = u32::decode_dc_node(ctx, payload_id)?;
-                return Ok(Ipv4Addr::from(val));
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+                if ctx.tokens_equivalent(fmt, ipv4_fmt) {
+                    let val = u32::decode_dc_node(ctx, payload_id)?;
+                    return Ok(Ipv4Addr::from(val));
+                }
             }
-        }
-        let node = ctx.node(node_id)?;
-        bail!("Expected format representation (Dc 511 + f490) for IPv4 address, found {:?}", node.kind)
+            let node = ctx.node(node_id)?;
+            bail!("Expected format representation (Dc 511 + f490) for IPv4 address, found {:?}", node.kind)
+        })
     }
 }
 
@@ -2225,16 +2471,17 @@ impl DcMixedDecode for Ipv6Addr {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
         let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
-        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if ctx.tokens_equivalent(fmt, ipv6_fmt) {
-                let val = u128::decode_dc_node(ctx, payload_id)?;
-                return Ok(Ipv6Addr::from(val));
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+                if ctx.tokens_equivalent(fmt, ipv6_fmt) {
+                    let val = u128::decode_dc_node(ctx, payload_id)?;
+                    return Ok(Ipv6Addr::from(val));
+                }
             }
-        }
-        let node = ctx.node(node_id)?;
-        bail!("Expected format representation (Dc 511 + f491) for IPv6 address, found {:?}", node.kind)
+            let node = ctx.node(node_id)?;
+            bail!("Expected format representation (Dc 511 + f491) for IPv6 address, found {:?}", node.kind)
+        })
     }
 }
 
@@ -2252,20 +2499,21 @@ impl DcMixedDecode for std::net::IpAddr {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
         let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
         let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
-        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if ctx.tokens_equivalent(fmt, ipv4_fmt) {
-                let val = u32::decode_dc_node(ctx, payload_id)?;
-                return Ok(Self::V4(Ipv4Addr::from(val)));
-            } else if ctx.tokens_equivalent(fmt, ipv6_fmt) {
-                let val = u128::decode_dc_node(ctx, payload_id)?;
-                return Ok(Self::V6(Ipv6Addr::from(val)));
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+                if ctx.tokens_equivalent(fmt, ipv4_fmt) {
+                    let val = u32::decode_dc_node(ctx, payload_id)?;
+                    return Ok(Self::V4(Ipv4Addr::from(val)));
+                } else if ctx.tokens_equivalent(fmt, ipv6_fmt) {
+                    let val = u128::decode_dc_node(ctx, payload_id)?;
+                    return Ok(Self::V6(Ipv6Addr::from(val)));
+                }
             }
-        }
-        let node = ctx.node(node_id)?;
-        bail!("Expected format representation (Dc 511 + f490/f491) for IP address, found {:?}", node.kind)
+            let node = ctx.node(node_id)?;
+            bail!("Expected format representation (Dc 511 + f490/f491) for IP address, found {:?}", node.kind)
+        })
     }
 }
 
@@ -2282,19 +2530,20 @@ impl DcMixedDecode for ctb_formats_utilities::FormatId {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Atom(ch) => {
-                let canon = ctx.canonical_token(*ch);
-                if let Some(fid) = Self::from_dc_id(canon.0) {
-                    Ok(fid)
-                } else {
-                    bail!("Unknown format DC character {ch:?}")
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let node = ctx.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Atom(ch) => {
+                    let canon = ctx.canonical_token(*ch);
+                    if let Some(fid) = Self::from_dc_id(canon.0) {
+                        Ok(fid)
+                    } else {
+                        bail!("Unknown format DC character {ch:?}")
+                    }
                 }
+                other => bail!("Expected Atom for FormatId, found {other:?}"),
             }
-            other => bail!("Expected Atom for FormatId, found {other:?}"),
-        }
+        })
     }
 }
 
@@ -2332,18 +2581,21 @@ where
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let (_opener, pairs) = ctx
-            .arena
-            .extract_kv_map_node_pairs_with_resolver(node_id, ctx.resolver())?;
+        ctx.with_projection_depth(node_id, |ctx| {
+            ctx.decode_transparent(node_id, |ctx, node_id| {
+                let (_opener, pairs) = ctx
+                    .arena
+                    .extract_kv_map_node_pairs_with_resolver(node_id, ctx.resolver())?;
 
-        let mut map = BTreeMap::new();
-        for (k_node_id, v_node_id) in pairs {
-            let key = K::decode_dc_node(ctx, k_node_id)?;
-            let value = V::decode_dc_node(ctx, v_node_id)?;
-            ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
-        }
-        Ok(map)
+                let mut map = BTreeMap::new();
+                for (k_node_id, v_node_id) in pairs {
+                    let key = K::decode_dc_node(ctx, k_node_id)?;
+                    let value = V::decode_dc_node(ctx, v_node_id)?;
+                    ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
+                }
+                Ok(map)
+            })
+        })
     }
 }
 
@@ -2472,33 +2724,34 @@ pub fn decode_format_representation<T: DcMixedDecode>(
     node_id: NodeId,
     format: DcChar,
 ) -> Result<T> {
-    let node_id = ctx.unwrap_transparent(node_id)?;
-    if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-        if ctx.tokens_equivalent(fmt, format) {
-            return T::decode_dc_node(ctx, payload_id);
+    ctx.decode_transparent(node_id, |ctx, node_id| {
+        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+            if ctx.tokens_equivalent(fmt, format) {
+                return T::decode_dc_node(ctx, payload_id);
+            }
+            bail!("Format representation mismatch: expected {format:?}, found {fmt:?}");
         }
-        bail!("Format representation mismatch: expected {format:?}, found {fmt:?}");
-    }
-    let node = ctx.node(node_id)?;
-    if let DcSyntaxKind::Container { opener, closer: _, header: _, children, trailing: _, unclosed: _ } = &node.kind {
-        if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
-            && let Some(&first_child) = children.first()
-        {
-            let fmt_node = ctx.node(first_child)?;
-            let fmt_matches = match &fmt_node.kind {
-                DcSyntaxKind::Atom(ch) => ctx.tokens_equivalent(*ch, format),
-                _ => false,
-            };
-            if fmt_matches {
-                return T::decode_dc_node(ctx, node_id);
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, closer: _, header: _, children, trailing: _, unclosed: _ } = &node.kind {
+            if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
+                && let Some(&first_child) = children.first()
+            {
+                let fmt_node = ctx.node(first_child)?;
+                let fmt_matches = match &fmt_node.kind {
+                    DcSyntaxKind::Atom(ch) => ctx.tokens_equivalent(*ch, format),
+                    _ => false,
+                };
+                if fmt_matches {
+                    return T::decode_dc_node(ctx, node_id);
+                }
             }
         }
-    }
-    // Direct or inline representation when not wrapped in a Dc 511 container:
-    if let Ok(val) = T::decode_dc_node(ctx, node_id) {
-        return Ok(val);
-    }
-    bail!("Expected format representation container (Dc 511 + {format:?}) or valid inline representation, found {:?}", node.kind)
+        // Direct or inline representation when not wrapped in a Dc 511 container:
+        if let Ok(val) = T::decode_dc_node(ctx, node_id) {
+            return Ok(val);
+        }
+        bail!("Expected format representation container (Dc 511 + {format:?}) or valid inline representation, found {:?}", node.kind)
+    })
 }
 
 /// Extracts flag items `(tag, item_id)` from a flags container node.
@@ -2722,79 +2975,80 @@ pub fn decode_filepath_segments(
     ctx: &mut DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<Vec<Vec<u8>>> {
-    let node_id = ctx.unwrap_transparent(node_id)?;
-    let (fmt, inner_id) = ctx.unwrap_format_representation(node_id)?
-        .context("Expected format representation container for FilePath")?;
     let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
     let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-    ensure!(ctx.tokens_equivalent(fmt, path_format), "Expected FilePath format identifier in Dc 511");
+    ctx.decode_transparent(node_id, |ctx, node_id| {
+        let (fmt, inner_id) = ctx.unwrap_format_representation(node_id)?
+            .context("Expected format representation container for FilePath")?;
+        ensure!(ctx.tokens_equivalent(fmt, path_format), "Expected FilePath format identifier in Dc 511");
 
-    let inner_node = ctx.node(inner_id)?;
-    let children = match &inner_node.kind {
-        DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
-        other => bail!("Expected List container inside FilePath format representation, found {other:?}"),
-    };
+        let inner_node = ctx.node(inner_id)?;
+        let children = match &inner_node.kind {
+            DcSyntaxKind::Container { opener, children, .. } if ctx.token_fills_role(*opener, DcRole::BeginList) => children,
+            other => bail!("Expected List container inside FilePath format representation, found {other:?}"),
+        };
 
-    let mut iter = children.iter().copied().peekable();
-    if let Some(&first_id) = iter.peek() {
-        let first_node = ctx.node(first_id)?;
-        match &first_node.kind {
-            DcSyntaxKind::Tagged { tag, .. }
-                if ctx.token_fills_role(*tag, DcRole::TypeUnion)
-                    || ctx.token_fills_role(*tag, DcRole::TypeIntersection) =>
-            {
-                let _ = iter.next();
-            }
-            DcSyntaxKind::Atom(ch)
-                if ctx.token_fills_role(*ch, DcRole::TypeUnion)
-                    || ctx.token_fills_role(*ch, DcRole::TypeIntersection) =>
-            {
-                let _ = iter.next();
-                if let Some(&next_id) = iter.peek() {
-                    if let DcSyntaxKind::Atom(ch2) = ctx.node(next_id)?.kind {
-                        if ctx.tokens_equivalent(ch2, filename_format) {
-                            let _ = iter.next();
-                            if let Some(&third_id) = iter.peek() {
-                                if let DcSyntaxKind::Atom(ch3) = ctx.node(third_id)?.kind {
-                                    if ctx.token_fills_role(ch3, DcRole::FilePathDelimiter) {
-                                        let _ = iter.next();
+        let mut iter = children.iter().copied().peekable();
+        if let Some(&first_id) = iter.peek() {
+            let first_node = ctx.node(first_id)?;
+            match &first_node.kind {
+                DcSyntaxKind::Tagged { tag, .. }
+                    if ctx.token_fills_role(*tag, DcRole::TypeUnion)
+                        || ctx.token_fills_role(*tag, DcRole::TypeIntersection) =>
+                {
+                    let _ = iter.next();
+                }
+                DcSyntaxKind::Atom(ch)
+                    if ctx.token_fills_role(*ch, DcRole::TypeUnion)
+                        || ctx.token_fills_role(*ch, DcRole::TypeIntersection) =>
+                {
+                    let _ = iter.next();
+                    if let Some(&next_id) = iter.peek() {
+                        if let DcSyntaxKind::Atom(ch2) = ctx.node(next_id)?.kind {
+                            if ctx.tokens_equivalent(ch2, filename_format) {
+                                let _ = iter.next();
+                                if let Some(&third_id) = iter.peek() {
+                                    if let DcSyntaxKind::Atom(ch3) = ctx.node(third_id)?.kind {
+                                        if ctx.token_fills_role(ch3, DcRole::FilePathDelimiter) {
+                                            let _ = iter.next();
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-            _ => {}
-        }
-    }
-
-    let mut segments = vec![Vec::new()];
-    let mut previous_was_filename = false;
-
-    for child_id in iter {
-        let child_node = ctx.node(child_id)?;
-        if let DcSyntaxKind::Atom(ch) = child_node.kind {
-            if ctx.token_fills_role(ch, DcRole::FilePathDelimiter) {
-                segments.push(Vec::new());
-                previous_was_filename = false;
-                continue;
+                _ => {}
             }
         }
-        ensure!(!previous_was_filename, "Missing delimiter between filename segments");
-        let (child_fmt, payload_id) = match ctx.unwrap_format_representation(child_id)? {
-            Some(p) => p,
-            None => bail!("Expected format representation for filename segment, found {:?}", ctx.node(child_id)?.kind),
-        };
-        ensure!(ctx.tokens_equivalent(child_fmt, filename_format), "Unexpected format for filename segment: {child_fmt:?}");
-        let segment = decode_filename_bytes(ctx, payload_id)?;
-        ensure!(!segment.is_empty(), "Empty filename segment");
-        ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
-        *segments.last_mut().context("Missing filepath segment")? = segment;
-        previous_was_filename = true;
-    }
 
-    Ok(segments)
+        let mut segments = vec![Vec::new()];
+        let mut previous_was_filename = false;
+
+        for child_id in iter {
+            let child_node = ctx.node(child_id)?;
+            if let DcSyntaxKind::Atom(ch) = child_node.kind {
+                if ctx.token_fills_role(ch, DcRole::FilePathDelimiter) {
+                    segments.push(Vec::new());
+                    previous_was_filename = false;
+                    continue;
+                }
+            }
+            ensure!(!previous_was_filename, "Missing delimiter between filename segments");
+            let (child_fmt, payload_id) = match ctx.unwrap_format_representation(child_id)? {
+                Some(p) => p,
+                None => bail!("Expected format representation for filename segment, found {:?}", ctx.node(child_id)?.kind),
+            };
+            ensure!(ctx.tokens_equivalent(child_fmt, filename_format), "Unexpected format for filename segment: {child_fmt:?}");
+            let segment = decode_filename_bytes(ctx, payload_id)?;
+            ensure!(!segment.is_empty(), "Empty filename segment");
+            ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
+            *segments.last_mut().context("Missing filepath segment")? = segment;
+            previous_was_filename = true;
+        }
+
+        Ok(segments)
+    })
 }
 
 impl DcMixedDecode for PathBuf {
@@ -2802,18 +3056,19 @@ impl DcMixedDecode for PathBuf {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        if let Some((fmt, _)) = ctx.unwrap_format_representation(node_id)? {
-            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-            if ctx.tokens_equivalent(fmt, path_format) {
-                let segments = decode_filepath_segments(ctx, node_id)?;
-                ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
-                    "Filename segment contains a path delimiter");
-                return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
+        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            if let Some((fmt, _)) = ctx.unwrap_format_representation(node_id)? {
+                if ctx.tokens_equivalent(fmt, path_format) {
+                    let segments = decode_filepath_segments(ctx, node_id)?;
+                    ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
+                        "Filename segment contains a path delimiter");
+                    return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
+                }
             }
-        }
-        let node = ctx.node(node_id)?;
-        bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind)
+            let node = ctx.node(node_id)?;
+            bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind)
+        })
     }
 }
 
@@ -2864,49 +3119,83 @@ impl DcMixedEncode for SystemTime {
     }
 }
 
+fn decode_system_time_candidate(
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+) -> Result<(FormatId, SystemTime)> {
+    let node = ctx.node(node_id)?;
+    if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+        if ctx.token_fills_role(*opener, DcRole::BeginTimeMoment) {
+            let Some(&first_child) = children.first() else {
+                bail!("Empty time moment container (Dc 390..391)");
+            };
+            let first = ctx.node(first_child)?;
+            let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
+                let canon_tag = ctx.canonical_token(*tag);
+                let fid = FormatId::from_dc_id(canon_tag.0)
+                    .context("Expected date format token after 390")?;
+                let Some(&arg_id) = args.first() else {
+                    bail!("Missing number after format token in Dc 390..391");
+                };
+                (fid, arg_id)
+            } else if let DcSyntaxKind::Atom(ch) = &first.kind {
+                let canon_ch = ctx.canonical_token(*ch);
+                let fid = FormatId::from_dc_id(canon_ch.0)
+                    .context("Expected date format token after 390")?;
+                let Some(&second_child) = children.get(1) else {
+                    bail!("Missing number after format token in Dc 390..391");
+                };
+                (fid, second_child)
+            } else {
+                bail!("Expected date format token after 390");
+            };
+            let nanos = match fid {
+                FormatId::SecondsSinceEpoch => i128::from(i64::decode_dc_node(ctx, num_id)?)
+                    .checked_mul(1_000_000_000)
+                    .context("Seconds to nanoseconds overflow")?,
+                FormatId::NsSinceEpoch => i128::decode_dc_node(ctx, num_id)?,
+                _ => bail!("Unsupported SystemTime format: {fid:?}"),
+            };
+            return Ok((fid, system_time_from_signed_nanos(nanos)?));
+        }
+    }
+    bail!("Expected time moment container (Dc 390..391) for SystemTime, found {:?}", node.kind)
+}
+
 impl DcMixedDecode for SystemTime {
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::BeginTimeMoment) {
-                let Some(&first_child) = children.first() else {
-                    bail!("Empty time moment container (Dc 390..391)");
-                };
-                let first = ctx.node(first_child)?;
-                let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
-                    let canon_tag = ctx.canonical_token(*tag);
-                    let fid = FormatId::from_dc_id(canon_tag.0)
-                        .context("Expected date format token after 390")?;
-                    let Some(&arg_id) = args.first() else {
-                        bail!("Missing number after format token in Dc 390..391");
-                    };
-                    (fid, arg_id)
-                } else if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let canon_ch = ctx.canonical_token(*ch);
-                    let fid = FormatId::from_dc_id(canon_ch.0)
-                        .context("Expected date format token after 390")?;
-                    let Some(&second_child) = children.get(1) else {
-                        bail!("Missing number after format token in Dc 390..391");
-                    };
-                    (fid, second_child)
-                } else {
-                    bail!("Expected date format token after 390");
-                };
-                let nanos = match fid {
-                    FormatId::SecondsSinceEpoch => i128::from(i64::decode_dc_node(ctx, num_id)?)
-                        .checked_mul(1_000_000_000)
-                        .context("Seconds to nanoseconds overflow")?,
-                    FormatId::NsSinceEpoch => i128::decode_dc_node(ctx, num_id)?,
-                    _ => bail!("Unsupported SystemTime format: {fid:?}"),
-                };
-                return system_time_from_signed_nanos(nanos);
-            }
+        let mut candidates = ctx.transparent_candidates(node_id)?;
+        if candidates.len() > 1 {
+            candidates.sort_by_key(|&cand_id| {
+                let is_ns = ctx.node(cand_id).ok().is_some_and(|n| {
+                    if let DcSyntaxKind::Container { opener, children, .. } = &n.kind
+                        && ctx.token_fills_role(*opener, DcRole::BeginTimeMoment)
+                        && let Some(&first_child) = children.first()
+                        && let Ok(first) = ctx.node(first_child)
+                    {
+                        let ch = match &first.kind {
+                            DcSyntaxKind::Tagged { tag, .. } => Some(*tag),
+                            DcSyntaxKind::Atom(ch) => Some(*ch),
+                            _ => None,
+                        };
+                        ch.is_some_and(|c| {
+                            FormatId::from_dc_id(ctx.canonical_token(c).0)
+                                == Some(FormatId::NsSinceEpoch)
+                        })
+                    } else {
+                        false
+                    }
+                });
+                u8::from(!is_ns)
+            });
         }
-        bail!("Expected time moment container (Dc 390..391) for SystemTime, found {:?}", node.kind)
+        ctx.decode_candidates(&candidates, |ctx, cand_id| {
+            let (_fid, ts) = decode_system_time_candidate(ctx, cand_id)?;
+            Ok(ts)
+        })
     }
 }
 
@@ -2920,54 +3209,89 @@ impl DcMixedEncode for Duration {
     }
 }
 
+fn decode_duration_candidate(
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+) -> Result<(FormatId, Duration)> {
+    let node = ctx.node(node_id)?;
+    if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+        if ctx.token_fills_role(*opener, DcRole::BeginDateMagnitude)
+            || ctx.token_fills_role(*opener, DcRole::BeginDateDuration)
+        {
+            let Some(&first_child) = children.first() else {
+                bail!("Empty duration container ({opener})");
+            };
+            let first = ctx.node(first_child)?;
+            let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
+                let canon_tag = ctx.canonical_token(*tag);
+                let fid = FormatId::from_dc_id(canon_tag.0)
+                    .context("Expected date/duration format token")?;
+                let Some(&arg_id) = args.first() else {
+                    bail!("Missing number after format token in duration");
+                };
+                (fid, arg_id)
+            } else if let DcSyntaxKind::Atom(ch) = &first.kind {
+                let canon_ch = ctx.canonical_token(*ch);
+                let fid = FormatId::from_dc_id(canon_ch.0)
+                    .context("Expected date/duration format token")?;
+                let Some(&second_child) = children.get(1) else {
+                    bail!("Missing number after format token in duration");
+                };
+                (fid, second_child)
+            } else {
+                bail!("Expected date/duration format token");
+            };
+            let dur = match fid {
+                FormatId::Second => Duration::from_secs(u64::decode_dc_node(ctx, num_id)?),
+                FormatId::Nanosecond => {
+                    let nanos = u128::decode_dc_node(ctx, num_id)?;
+                    let seconds = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                    let sub_nanos = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                    Duration::new(seconds, sub_nanos)
+                }
+                _ => bail!("Unsupported Duration format: {fid:?}"),
+            };
+            return Ok((fid, dur));
+        }
+    }
+    bail!("Expected duration container (Dc 393..394 or 395..396) for Duration, found {:?}", node.kind)
+}
+
 impl DcMixedDecode for Duration {
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::BeginDateMagnitude)
-                || ctx.token_fills_role(*opener, DcRole::BeginDateDuration)
-            {
-                let Some(&first_child) = children.first() else {
-                    bail!("Empty duration container ({opener})");
-                };
-                let first = ctx.node(first_child)?;
-                let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
-                    let canon_tag = ctx.canonical_token(*tag);
-                    let fid = FormatId::from_dc_id(canon_tag.0)
-                        .context("Expected date/duration format token")?;
-                    let Some(&arg_id) = args.first() else {
-                        bail!("Missing number after format token in duration");
-                    };
-                    (fid, arg_id)
-                } else if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let canon_ch = ctx.canonical_token(*ch);
-                    let fid = FormatId::from_dc_id(canon_ch.0)
-                        .context("Expected date/duration format token")?;
-                    let Some(&second_child) = children.get(1) else {
-                        bail!("Missing number after format token in duration");
-                    };
-                    (fid, second_child)
-                } else {
-                    bail!("Expected date/duration format token");
-                };
-                let dur = match fid {
-                    FormatId::Second => Duration::from_secs(u64::decode_dc_node(ctx, num_id)?),
-                    FormatId::Nanosecond => {
-                        let nanos = u128::decode_dc_node(ctx, num_id)?;
-                        let seconds = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                        let sub_nanos = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                        Duration::new(seconds, sub_nanos)
+        let mut candidates = ctx.transparent_candidates(node_id)?;
+        if candidates.len() > 1 {
+            candidates.sort_by_key(|&cand_id| {
+                let is_ns = ctx.node(cand_id).ok().is_some_and(|n| {
+                    if let DcSyntaxKind::Container { opener, children, .. } = &n.kind
+                        && (ctx.token_fills_role(*opener, DcRole::BeginDateMagnitude)
+                            || ctx.token_fills_role(*opener, DcRole::BeginDateDuration))
+                        && let Some(&first_child) = children.first()
+                        && let Ok(first) = ctx.node(first_child)
+                    {
+                        let ch = match &first.kind {
+                            DcSyntaxKind::Tagged { tag, .. } => Some(*tag),
+                            DcSyntaxKind::Atom(ch) => Some(*ch),
+                            _ => None,
+                        };
+                        ch.is_some_and(|c| {
+                            FormatId::from_dc_id(ctx.canonical_token(c).0)
+                                == Some(FormatId::Nanosecond)
+                        })
+                    } else {
+                        false
                     }
-                    _ => bail!("Unsupported Duration format: {fid:?}"),
-                };
-                return Ok(dur);
-            }
+                });
+                u8::from(!is_ns)
+            });
         }
-        bail!("Expected duration container (Dc 393..394 or 395..396) for Duration, found {:?}", node.kind)
+        ctx.decode_candidates(&candidates, |ctx, cand_id| {
+            let (_fid, dur) = decode_duration_candidate(ctx, cand_id)?;
+            Ok(dur)
+        })
     }
 }
 
@@ -2989,15 +3313,10 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
         roots: &[NodeId],
     ) -> Result<(Self, usize)> {
         let root = roots.first().copied().context("Empty document cannot be decoded into array")?;
-        let local = ctx.node(ctx.unwrap_transparent(root)?)?;
-        if matches!(&local.kind, DcSyntaxKind::Container { opener, .. }
-            if ctx.token_fills_role(*opener, DcRole::BeginList)
-                || ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation))
-            || matches!(&local.kind, DcSyntaxKind::Tagged { args, .. } if args.len() == N)
-        {
-            return Ok((Self::decode_dc_node(ctx, root)?, 1));
-        }
         if roots.len() > 1 {
+            if let Ok(arr) = Self::decode_dc_node(ctx, root) {
+                return Ok((arr, 1));
+            }
             let mut items = Vec::with_capacity(N);
             for &root in roots.iter().take(N) {
                 items.push(T::decode_dc_node(ctx, root)?);
@@ -3014,49 +3333,50 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if ctx.token_fills_role(*opener, DcRole::BeginList)
-                || ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
-            {
-                let child_slice: &[NodeId] = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
-                    && children.len() == N.saturating_add(1)
+        ctx.decode_transparent(node_id, |ctx, node_id| {
+            let node = ctx.node(node_id)?;
+            if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+                if ctx.token_fills_role(*opener, DcRole::BeginList)
+                    || ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
                 {
-                    match children.split_first() {
-                        Some((_, rest)) => rest,
-                        None => &[],
-                    }
-                } else {
-                    children.as_slice()
-                };
-                let mut items: Vec<T> = Vec::with_capacity(N);
-                for &child_id in child_slice {
-                    let child = ctx.node(child_id)?;
-                    if let DcSyntaxKind::Atom(ch) = child.kind {
-                        if ctx.token_fills_role(ch, DcRole::ListElementSeparator) || ctx.token_fills_role(ch, DcRole::TypeToken) {
-                            continue;
+                    let child_slice: &[NodeId] = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation)
+                        && children.len() == N.saturating_add(1)
+                    {
+                        match children.split_first() {
+                            Some((_, rest)) => rest,
+                            None => &[],
                         }
+                    } else {
+                        children.as_slice()
+                    };
+                    let mut items: Vec<T> = Vec::with_capacity(N);
+                    for &child_id in child_slice {
+                        let child = ctx.node(child_id)?;
+                        if let DcSyntaxKind::Atom(ch) = child.kind {
+                            if ctx.token_fills_role(ch, DcRole::ListElementSeparator) || ctx.token_fills_role(ch, DcRole::TypeToken) {
+                                continue;
+                            }
+                        }
+                        items.push(T::decode_dc_node(ctx, child_id)?);
                     }
-                    items.push(T::decode_dc_node(ctx, child_id)?);
+                    return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
                 }
-                return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
             }
-        }
-        if let DcSyntaxKind::Tagged { args, .. } = &node.kind {
-            if args.len() == N {
-                let mut items: Vec<T> = Vec::with_capacity(N);
-                for &arg_id in args {
-                    items.push(T::decode_dc_node(ctx, arg_id)?);
+            if let DcSyntaxKind::Tagged { args, .. } = &node.kind {
+                if args.len() == N {
+                    let mut items: Vec<T> = Vec::with_capacity(N);
+                    for &arg_id in args {
+                        items.push(T::decode_dc_node(ctx, arg_id)?);
+                    }
+                    return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
                 }
-                return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
             }
-        }
-        if N == 1 {
-            let item = T::decode_dc_node(ctx, node_id)?;
-            return vec![item].try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"));
-        }
-        bail!("Expected container or {N} local elements for [T; {N}], found {:?}", node.kind)
+            if N == 1 {
+                let item = T::decode_dc_node(ctx, node_id)?;
+                return vec![item].try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"));
+            }
+            bail!("Expected container or {N} local elements for [T; {N}], found {:?}", node.kind)
+        })
     }
 }
 
@@ -4512,6 +4832,185 @@ mod tests {
         assert!(
             !arena_forgiving.diagnostics().is_empty(),
             "Forgiving policy should record a diagnostic when max_depth is exceeded"
+        );
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, crate::DcMixed)]
+    enum SampleExtent {
+        #[dc(374)]
+        Data {
+            #[dc(376)]
+            offset: u64,
+            #[dc(377)]
+            length: u64,
+        },
+        #[dc(375)]
+        Hole {
+            #[dc(376)]
+            offset: u64,
+            #[dc(377)]
+            length: u64,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, crate::DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    struct SampleExtentAndTimeRecord {
+        #[dc(329)]
+        modified_time: Option<SystemTime>,
+        #[dc(begin = 372, end = 373)]
+        extents: Vec<SampleExtent>,
+        #[dc(348)]
+        nested: Option<Vec<Option<BTreeMap<String, Option<u64>>>>>,
+    }
+
+    #[crate::ctb_test]
+    fn test_generic_equivalent_and_partially_equivalent_representations() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+
+        // 1. SystemTime and Duration in 397/538 prefer nanosecond resolution when coarse seconds is listed first
+        let target_time = std::time::UNIX_EPOCH
+            .checked_add(Duration::new(1_700_000_000, 987_654_321))
+            .context("Failed to construct target_time")?;
+        let mut time_eq = DcMstring::new();
+        time_eq.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        time_eq.push_char(DC_BEGIN_LIST);
+        time_eq.push_char(DC_TYPE_ANY);
+        time_eq.push_char(DC_BEGIN_TIME_MOMENT);
+        time_eq.push_char(format_dc_char(FormatId::SecondsSinceEpoch)?);
+        1_700_000_000_i64.encode_dc_mixed(&mut time_eq)?;
+        time_eq.push_char(DC_END_TIME_MOMENT);
+        time_eq.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        target_time.encode_dc_mixed(&mut time_eq)?;
+        time_eq.push_char(DC_END_LIST);
+        assert_eq!(time_eq.decode::<SystemTime>(&strict)?, target_time);
+
+        let target_dur = Duration::new(42, 123_456_789);
+        let mut dur_eq = DcMstring::new();
+        dur_eq.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        dur_eq.push_char(DC_BEGIN_LIST);
+        dur_eq.push_char(DC_TYPE_ANY);
+        dur_eq.push_char(DC_BEGIN_DATE_MAGNITUDE);
+        dur_eq.push_char(format_dc_char(FormatId::Second)?);
+        42_u64.encode_dc_mixed(&mut dur_eq)?;
+        dur_eq.push_char(DC_END_DATE_MAGNITUDE);
+        dur_eq.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        target_dur.encode_dc_mixed(&mut dur_eq)?;
+        dur_eq.push_char(DC_END_LIST);
+        assert_eq!(dur_eq.decode::<Duration>(&strict)?, target_dur);
+
+        // 2. Bounded Vec<SampleExtent> and enum struct-variant fields wrapped in 397/538
+        let expected_extents = vec![
+            SampleExtent::Data {
+                offset: 0,
+                length: 4096,
+            },
+            SampleExtent::Hole {
+                offset: 4096,
+                length: 8192,
+            },
+        ];
+        let mut expected_map = BTreeMap::new();
+        expected_map.insert("alpha".to_owned(), Some(77_u64));
+        let expected_nested = Some(vec![Some(expected_map.clone()), None]);
+
+        let mut rec_doc = DcMstring::new();
+        rec_doc.push_char(DcChar::from_short(317));
+        // modified_time wrapped in 397 (with an untagged label candidate first) and 561 (coarse seconds first, nanosecond second)
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "Modified: yesterday".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        rec_doc.push_char(DcChar::from_short(329));
+        rec_doc.push_char(DC_OPTIONAL_PRESENT);
+        rec_doc.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        rec_doc.push_char(DC_BEGIN_TIME_MOMENT);
+        rec_doc.push_char(format_dc_char(FormatId::SecondsSinceEpoch)?);
+        1_700_000_000_i64.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_TIME_MOMENT);
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        target_time.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DC_END_LIST);
+
+        // extents (372..373) where first extent is wrapped in 397 with a non-extent candidate first,
+        // and second extent has its variant fields wrapped in 397/561
+        rec_doc.push_char(DcChar::from_short(372));
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "extent_0_label".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        expected_extents[0].encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_LIST);
+
+        rec_doc.push_char(DcChar::from_short(375));
+        rec_doc.push_char(DcChar::from_short(376));
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "offset 4096".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        4096_u64.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DcChar::from_short(377));
+        rec_doc.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "8192 bytes".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        8192_u64.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DcChar::from_short(373));
+
+        // nested Option<Vec<Option<BTreeMap<String, Option<u64>>>>> with 397/561 at multiple levels
+        rec_doc.push_char(DcChar::from_short(348));
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "summary_fallback".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        rec_doc.push_char(DC_OPTIONAL_PRESENT);
+        rec_doc.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        999_u64.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "not_an_option".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        rec_doc.push_char(DC_OPTIONAL_PRESENT);
+        rec_doc.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        rec_doc.push_char(DC_BEGIN_LIST);
+        rec_doc.push_char(DC_TYPE_ANY);
+        "not_a_map".encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        expected_map.encode_dc_mixed(&mut rec_doc)?;
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        rec_doc.push_char(DC_OPTIONAL_ABSENT);
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DC_END_LIST);
+        rec_doc.push_char(DcChar::from_short(318));
+
+        let decoded = rec_doc.decode::<SampleExtentAndTimeRecord>(&strict)?;
+        assert_eq!(
+            decoded,
+            SampleExtentAndTimeRecord {
+                modified_time: Some(target_time),
+                extents: expected_extents,
+                nested: expected_nested,
+            }
         );
         Ok(())
     }

@@ -467,6 +467,28 @@ impl DcMstr {
     /// # Errors
     /// Returns error if base64 encoding fails.
     pub fn to_dc_string(&self) -> Result<DcString> {
+        self.to_dc_string_with_policy(&crate::DcProjectionPolicy::strict())
+    }
+
+    /// Converts this `DcMstr` into a standard `DcString` (DcUtf) representation
+    /// using the provided [`crate::DcProjectionPolicy`].
+    pub fn to_dc_string_with_policy(
+        &self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<DcString> {
+        self.to_dc_string_with_policy_and_resolver(
+            policy,
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+        )
+    }
+
+    /// Converts this `DcMstr` into a standard `DcString` (DcUtf) representation
+    /// using the provided [`crate::DcProjectionPolicy`] and [`crate::SyntaxRuleResolver`].
+    pub fn to_dc_string_with_policy_and_resolver(
+        &self,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn crate::SyntaxRuleResolver,
+    ) -> Result<DcString> {
         let mut out = DcString::new();
         for chunk in self.chunks() {
             match chunk {
@@ -479,10 +501,22 @@ impl DcMstr {
                     } else {
                         DcString::new()
                     };
-                    crate::encapsulation::write_text(&mut out, data, &metadata)?;
+                    crate::encapsulation::write_text_with_policy_and_resolver(
+                        &mut out,
+                        data,
+                        &metadata,
+                        policy,
+                        resolver,
+                    )?;
                 }
                 DcMixed::BinaryWithMetadata { data, metadata } => {
-                    crate::encapsulation::write_text(&mut out, data, metadata)?;
+                    crate::encapsulation::write_text_with_policy_and_resolver(
+                        &mut out,
+                        data,
+                        metadata,
+                        policy,
+                        resolver,
+                    )?;
                 }
             }
         }
@@ -627,12 +661,38 @@ impl DcMstring {
         Ok(Self { inner: bytes })
     }
 
+    /// Validates an owned `Vec<u8>` as `DcMixed` using `policy` and wraps it in `DcMstring`.
+    ///
+    /// # Errors
+    /// Returns `DcMixedError` if the bytes do not conform to the `DcMixed` specification.
+    pub fn from_bytes_with_policy(
+        bytes: Vec<u8>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self, DcMixedError> {
+        let _ = DcMstr::from_bytes_with_policy(&bytes, policy)?;
+        Ok(Self { inner: bytes })
+    }
+
     /// Validates a borrowed `&[u8]` as `DcMixed` and creates an owned `DcMstring`.
     ///
     /// # Errors
     /// Returns `DcMixedError` if the slice does not conform to the `DcMixed` specification.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, DcMixedError> {
         validate_dcmst(bytes)?;
+        Ok(Self {
+            inner: bytes.to_vec(),
+        })
+    }
+
+    /// Validates a borrowed `&[u8]` as `DcMixed` using `policy` and creates an owned `DcMstring`.
+    ///
+    /// # Errors
+    /// Returns `DcMixedError` if the slice does not conform to the `DcMixed` specification.
+    pub fn from_slice_with_policy(
+        bytes: &[u8],
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self, DcMixedError> {
+        let _ = DcMstr::from_bytes_with_policy(bytes, policy)?;
         Ok(Self {
             inner: bytes.to_vec(),
         })
@@ -660,6 +720,29 @@ impl DcMstring {
     /// Returns an error for malformed encapsulations or invalid lengths and
     /// checksums. Base64 spelling and framing may be normalized.
     pub fn from_dc_str(s: &DcStr) -> Result<Self> {
+        Self::from_dc_str_with_policy(s, &crate::DcProjectionPolicy::strict())
+    }
+
+    /// Converts a standard `DcStr` (DcUtf) into a `DcMstring` document using
+    /// the provided [`crate::DcProjectionPolicy`].
+    pub fn from_dc_str_with_policy(
+        s: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
+        Self::from_dc_str_with_policy_and_resolver(
+            s,
+            policy,
+            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+        )
+    }
+
+    /// Converts a standard `DcStr` (DcUtf) into a `DcMstring` document using
+    /// the provided [`crate::DcProjectionPolicy`] and [`crate::SyntaxRuleResolver`].
+    pub fn from_dc_str_with_policy_and_resolver(
+        s: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn crate::SyntaxRuleResolver,
+    ) -> Result<Self> {
         let mut mst = Self::new();
         let mut offset = 0usize;
         while offset < s.len() {
@@ -669,9 +752,10 @@ impl DcMstring {
                 None => anyhow::bail!("Missing Dc character"),
             };
             let ch = DcChar(val);
-            if ch.fills_role(DcRole::StartEncapsulationBinary) {
-                let (metadata, data, consumed) = crate::encapsulation::parse_text(remaining)?;
-                mst.push_binary_with_metadata(&data, &metadata)?;
+            if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+                let (metadata, data, consumed) =
+                    crate::encapsulation::parse_text_with_policy_and_resolver(remaining, policy, resolver)?;
+                mst.push_binary_with_metadata_policy_and_resolver(&data, &metadata, policy, resolver)?;
                 offset = offset.saturating_add(consumed);
             } else {
                 mst.push_char(ch);
@@ -686,9 +770,27 @@ impl DcMstring {
         Self::from_dc_str(s)
     }
 
+    /// Converts a standard `DcString` (DcUtf) into a `DcMstring` document using
+    /// the provided [`crate::DcProjectionPolicy`].
+    pub fn from_dc_string_with_policy(
+        s: &DcString,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
+        Self::from_dc_str_with_policy(s, policy)
+    }
+
     /// Converts this `DcMstring` into a standard `DcString` (DcUtf) representation.
     pub fn to_dc_string(&self) -> Result<DcString> {
         DcMstr::to_dc_string(self)
+    }
+
+    /// Converts this `DcMstring` into a standard `DcString` (DcUtf) representation
+    /// using the provided [`crate::DcProjectionPolicy`].
+    pub fn to_dc_string_with_policy(
+        &self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<DcString> {
+        DcMstr::to_dc_string_with_policy(self, policy)
     }
 
     /// Borrows this `DcMstring` as a `&DcMstr` slice.
@@ -742,6 +844,34 @@ impl DcMstring {
     /// Returns an error for invalid metadata or a mismatched checksum.
     pub fn push_binary_with_metadata(&mut self, data: &[u8], metadata: &DcStr) -> Result<()> {
         self.writer().push_binary_with_metadata(data, metadata)
+    }
+
+    /// Appends binary data with `[type]? [checksum]?` DcUtf metadata using the
+    /// provided [`crate::DcProjectionPolicy`].
+    pub fn push_binary_with_metadata_and_policy(
+        &mut self,
+        data: &[u8],
+        metadata: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<()> {
+        self.writer().push_binary_with_metadata_and_policy(data, metadata, policy)
+    }
+
+    /// Appends binary data with `[type]? [checksum]?` DcUtf metadata using the
+    /// provided [`crate::DcProjectionPolicy`] and [`crate::SyntaxRuleResolver`].
+    pub fn push_binary_with_metadata_policy_and_resolver(
+        &mut self,
+        data: &[u8],
+        metadata: &DcStr,
+        policy: &crate::DcProjectionPolicy,
+        resolver: &dyn crate::SyntaxRuleResolver,
+    ) -> Result<()> {
+        self.writer().push_binary_with_metadata_policy_and_resolver(
+            data,
+            metadata,
+            policy,
+            resolver,
+        )
     }
 
     /// Appends a type-2 binary payload with a DcUtf SHA-256 checksum.

@@ -861,26 +861,6 @@ impl FileTimestamps {
         }
         Ok(())
     }
-
-    /// Decodes a flattened timestamp field directly into `self`.
-    pub fn decode_field(
-        &mut self,
-        tag: u128,
-        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
-        val_id: ctb_formats_dcstring::NodeId,
-    ) -> Result<bool> {
-        let mut dc = match FileTimestampsDc::try_from(&*self) {
-            Ok(dc) => dc,
-            Err(_) => FileTimestampsDc::default(),
-        };
-        let res = dc.decode_field(tag, ctx, val_id)?;
-        if res {
-            if let Ok(updated) = Self::try_from(dc) {
-                *self = updated;
-            }
-        }
-        Ok(res)
-    }
 }
 
 pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::FileTime> {
@@ -1835,6 +1815,38 @@ mod tests {
             ..ts
         };
         ctb_formats_dcstring::assert_dc_roundtrip(&pre_epoch).unwrap();
+
+        let strict = ctb_formats_dcstring::DcProjectionPolicy::strict();
+        let quiet = ctb_formats_dcstring::DcProjectionPolicy::forgiving_quiet();
+        let mut missing_ctime = DcMstring::new();
+        missing_ctime.push_char(DcChar::from_short(321));
+        missing_ctime.push_char(DcChar::from_short(330));
+        SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(10)).unwrap().encode_dc_mixed(&mut missing_ctime).unwrap();
+        missing_ctime.push_char(DcChar::from_short(329));
+        SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(20)).unwrap().encode_dc_mixed(&mut missing_ctime).unwrap();
+        missing_ctime.push_char(DcChar::from_short(322));
+        assert!(missing_ctime.decode::<FileMetadata>(&strict).is_err());
+        let view = missing_ctime.inspect_with_policy::<FileMetadata>(&quiet);
+        assert!(view.diagnostic().is_some());
+        let recovered_ts = view.value().and_then(|m| m.timestamps.as_ref()).expect("Forgiving timestamps");
+        assert_eq!(recovered_ts.atime_sec, 10);
+        assert_eq!(recovered_ts.mtime_sec, 20);
+        assert_eq!(recovered_ts.ctime_sec, 0);
+
+        let mut env_unknown = DcMstring::new();
+        env_unknown.push_char(DcChar::from_short(340));
+        env_unknown.push_char(DcChar::from_short(342));
+        "linux".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        env_unknown.push_char(DcChar::from_short(344));
+        64_u8.encode_dc_mixed(&mut env_unknown).unwrap();
+        env_unknown.push_char(DcChar::from_short(343));
+        "0.1.0".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        env_unknown.push_char(DcChar::from_short(600));
+        "future-env-field".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        env_unknown.push_char(DcChar::from_short(341));
+        assert!(env_unknown.decode::<EnvDescription>(&strict).is_err());
+        let env_view = env_unknown.inspect_with_policy::<EnvDescription>(&quiet);
+        assert!(env_view.diagnostic().is_some());
     }
 
     #[cfg(target_os = "linux")]

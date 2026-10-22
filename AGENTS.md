@@ -36,6 +36,7 @@
   1. **Create a handoff artifact up front**: Before or immediately after your first batch of reads, create a `handoff-notes.md` artifact in the current conversation folder (not user facing; do not request feedback).
   2. **Cap read batches and append findings every batch**: Read at most ~3,200–4,800 lines (4–6 full `view_file` calls) per step. After each batch—before or alongside issuing the next batch of `view_file` calls—update `handoff-notes.md` with: (a) exact files and line ranges fully inspected, (b) every concrete finding/bug with exact `file:line` references, and (c) the remaining queue of files/line ranges.
   3. **Recover on compaction**: Before resuming after any context reset/compaction, read `handoff-notes.md` before doing anything else so no findings or line-range tracking are lost across compaction.
+  4. **Trim or summarize** completed/resolved tasks if it's getting long, to maintain focus on current work.
 
 ## Reporting, Status Tracking, and Scope Honesty
 - **Lead responses with what is left, broken, or deferred**:
