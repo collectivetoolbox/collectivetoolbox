@@ -225,7 +225,10 @@ pub fn decode_dc_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: Node
 /// Reads a Unicode identifier without interpreting its name as an expression.
 pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<String> {
     let name = decode_dc_identifier(ctx, node_id)?;
-    name.to_unicode_string_with_resolver(ctx.resolver())
+    Ok(name
+        .as_str()
+        .context("Identifier contains non-Unicode Document Characters")?
+        .to_owned())
 }
 
 /// Assigns a field from a lexically bound value using identifiers, not strings.
@@ -245,7 +248,10 @@ pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: N
     let node = ctx.node(node_id)?;
     match &node.kind {
         crate::navigator::DcSyntaxKind::Assignment { ident, value } => {
-            let ident_str = ident.to_unicode_string_with_resolver(ctx.resolver())?;
+            let ident_str = ident
+                .as_str()
+                .context("Assignment identifier contains non-Unicode Document Characters")?
+                .to_owned();
             let val_node = ctx.node(*value)?;
             match &val_node.kind {
                 crate::navigator::DcSyntaxKind::Tagged { tag, args }

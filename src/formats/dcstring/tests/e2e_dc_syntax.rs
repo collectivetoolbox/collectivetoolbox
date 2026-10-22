@@ -2350,7 +2350,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
             "String::decode must reject literals containing non-Unicode Dcs"
         );
 
-        // Single-token <equiv> alias of a Unicode scalar decodes to String via resolver:
+        // Single-token <equiv> alias of a Unicode scalar is preserved in DcMstring without
+        // lossy canonicalization, and rejected by pure-UTF-8 String::decode:
         let mut registry = SyntaxRuntimeRegistry::new();
         let alias_dc = DcChar::from_short(9850);
         registry.register_equivalence(alias_dc.to_u128(), u128::from(u32::from('Z')));
@@ -2364,11 +2365,11 @@ mod dynamic_runtime_equivalence_overlay_tests {
             preserved_mstr == alias_payload,
             "DcMstring decode must preserve original alias DcChar without lossy canonicalization"
         );
-        let projected_str: String =
-            encoded_alias_lit.decode_with_resolver(registry.resolver(), &policy)?;
         ensure!(
-            projected_str == "AZB",
-            "String decode with resolver must resolve single-token Unicode alias to 'AZB', got {projected_str}"
+            encoded_alias_lit
+                .decode_with_resolver::<String>(registry.resolver(), &policy)
+                .is_err(),
+            "String decode must reject non-Unicode DcChar even if it has a runtime equivalence"
         );
 
         // 2. Constrained [string:...] rule over unescaped literal payload containing
@@ -2378,7 +2379,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let mut eval_ctx = SyntaxEvalContext::new(&**resolver, None);
         let constrained_term = SyntaxTerm::NamedConstruct {
             name: "string".to_owned(),
-            subtype: Some(":u0041 517 260 261 255 f494 [^] u03a9".to_owned()),
+            subtype: Some(":u0041 517 260 261 255 f494 [^0] u03a9".to_owned()),
             capture_var: None,
         };
         ensure!(

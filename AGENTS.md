@@ -133,6 +133,7 @@
   - Dcs represent semantic/ontological entities, never Rust fields or serialization structures. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent.
   - Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
   - Dc IDs and semantic meaning are stable and cannot be changed or reassigned. Dc names and syntax are not stable at this time.
+- **Strings**: Reach for `DcMstr` / `DcMstring` by default for almost all Dc string use cases. Avoid converting to Rust `String`.
 
 ## Architecture & Workspace Layout
 - **Multi-process architecture**: The main `ctb-workspace` (`src/workspace/`) process manages application state and spawns subprocesses (`ctb-renderer` in `src/renderer/`, `ctb-io-webui` in `src/io/webui/`, `ctb-storage` in `src/storage/`, etc.) over socket-based IPC (`ctb_utilities`).

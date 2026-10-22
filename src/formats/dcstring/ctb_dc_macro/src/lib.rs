@@ -1791,7 +1791,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
                             decode_arms.push(quote! {
-                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
+                                _t if ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1807,7 +1807,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             decode_field_arms.push(quote! {
-                                _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
+                                _t if ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::StartEncapsulationBinary) => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -2029,7 +2029,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ) -> #anyhow_path::Result<Self> {
                             #(#field_inits)*
                             for &__dc_field_spec in __dc_projected_fields {
-                                let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
+                                let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
                                 let val_id = __dc_field_spec.value_node;
                                 let unwrap_id = __dc_field_spec.source_node;
                                 ctx.current_position = ctx.node(__dc_field_spec.source_node)?.span.start;
@@ -2063,7 +2063,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
-                            let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag.into())).to_u128();
+                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag.into())).to_u128();
                             let val_id = node_id;
                             let unwrap_id = node_id;
                             match tag {
@@ -2250,7 +2250,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
                             let _ = node_id;
-                            let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag.into())).to_u128();
+                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag.into())).to_u128();
                             match tag {
                                 #(#decode_flag_arms)*
                                 _ => Ok(false),
@@ -2357,7 +2357,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
                                         other => #anyhow_path::bail!("Unexpected syntax node in strict flag list: {other:?}"),
                                     };
-                                    let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag)).to_u128();
+                                    let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
                                     let matched = result.decode_field(tag, ctx, item_id)?;
                                     if !matched {
                                         ctx.handle_unconsumed_or_incomplete(
@@ -3385,8 +3385,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
-                    _t if ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BeginIdentifier)
-                        || ctx.token_fills_role(#crate_root::utilities::DcChar::from_u128(_t), #crate_root::syntax::DcRole::Assign) => {
+                    _t if ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BeginIdentifier)
+                        || ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::Assign) => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
                         match field.as_str() {
                             #(#shared_decode_arms)*
@@ -3452,7 +3452,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         node_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<bool> {
-                        let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag.into())).to_u128();
+                        let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag.into())).to_u128();
                         let val_id = node_id;
                         let unwrap_id = node_id;
                         match tag {
@@ -3593,7 +3593,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let result = (|| {
                             #(#field_inits)*
                             for &__dc_field_spec in __dc_projected_fields {
-                                let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
+                                let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(__dc_field_spec.tag)).to_u128();
                                 let val_id = __dc_field_spec.value_node;
                                 let child_id = __dc_field_spec.source_node;
                                 let unwrap_id = child_id;
@@ -4110,7 +4110,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         _ => (0, ch_id),
                                     };
                                     let unwrap_id = ch_id;
-                                    let ch_tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(ch_tag)).to_u128();
+                                    let ch_tag = ctx.canonical_token(#crate_root::DcChar::from_u128(ch_tag)).to_u128();
                                     let field_result: #anyhow_path::Result<bool> = (|| {
                                         match ch_tag {
                                             #(#v_field_arms)*
@@ -4204,7 +4204,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     stringify!(#type_name)
                                 ),
                             };
-                            let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag)).to_u128();
+                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
                             let res = match tag {
                                 #(#decode_variants)*
                                 other => {
@@ -4262,7 +4262,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     stringify!(#type_name)
                                 ),
                             };
-                            let tag = ctx.canonical_token(#crate_root::utilities::DcChar::from_u128(tag)).to_u128();
+                            let tag = ctx.canonical_token(#crate_root::DcChar::from_u128(tag)).to_u128();
                             let res = match tag {
                                 #(#decode_variants)*
                                 other => {

@@ -1016,7 +1016,7 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
     let mut mst_extra = DcMstring::new();
     mst_extra.push_char(DcChar::from_short(323));
     // Unknown atom
-    mst_extra.push_char(DcChar::from_short(299));
+    mst_extra.push_char(DcChar::from_short(999));
     // Valid StreamKind
     StreamKind::NtfsAlternateDataStream.encode_dc_mixed(&mut mst_extra)?;
     // Unknown integer

@@ -1092,7 +1092,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node = self.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Assignment { ident, value } => {
-                let ident_str = ident.to_unicode_string_with_resolver(self.resolver())?;
+                let ident_str = ident
+                    .as_str()
+                    .context("Assignment identifier contains non-Unicode Document Characters")?
+                    .to_owned();
                 let decoded = T::decode_dc_node(self, *value)?;
                 let arc = Arc::new(decoded);
                 self.reference_scope.insert(ident_str, Arc::clone(&arc))?;
@@ -1788,7 +1791,10 @@ impl DcMixedDecode for String {
         node_id: NodeId,
     ) -> Result<Self> {
         let mstr = crate::DcMstring::decode_dc_node(ctx, node_id)?;
-        mstr.to_unicode_string_with_resolver(ctx.resolver())
+        Ok(mstr
+            .as_str()
+            .context("Cannot project non-Unicode DcMstr into a Rust String")?
+            .to_owned())
     }
 }
 
@@ -2712,7 +2718,11 @@ fn decode_filename_bytes(
             Ok(ctx.materialize_binary(&payload)?.into_owned())
         }
         DcSyntaxKind::Literal { decoded, .. } => {
-            Ok(decoded.to_unicode_string_with_resolver(ctx.resolver())?.into_bytes())
+            Ok(decoded
+                .as_str()
+                .context("Path segment string literal contains non-Unicode Document Characters")?
+                .as_bytes()
+                .to_vec())
         }
         other => bail!(
             "Expected binary, string literal, or equivalent container for filename, found {other:?}"

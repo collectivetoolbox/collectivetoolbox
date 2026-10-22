@@ -514,52 +514,6 @@ impl DcMstr {
         self.as_dc_str()?.as_str()
     }
 
-    /// Converts this `DcMstr` into a Rust `String` if it contains only Unicode
-    /// scalar characters (or single-token `<equiv>` aliases of Unicode scalars).
-    ///
-    /// # Errors
-    /// Returns an error if the `DcMstr` contains embedded binary chunks or
-    /// non-Unicode Document Characters.
-    pub fn to_unicode_string(&self) -> Result<String> {
-        self.to_unicode_string_with_resolver(
-            ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
-        )
-    }
-
-    /// Converts this `DcMstr` into a Rust `String` using `resolver` to resolve
-    /// single-token `<equiv>` aliases of Unicode scalar characters.
-    ///
-    /// # Errors
-    /// Returns an error if the `DcMstr` contains embedded binary chunks or
-    /// non-Unicode Document Characters.
-    pub fn to_unicode_string_with_resolver(
-        &self,
-        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
-    ) -> Result<String> {
-        if let Some(s) = self.as_str() {
-            return Ok(s.to_owned());
-        }
-        let text = self
-            .as_dc_str()
-            .context("Cannot project binary DcMstr chunk into a Unicode String")?;
-        let mut out = String::with_capacity(text.len());
-        for ch in text.chars() {
-            if let Some(c) = ch.as_char() {
-                out.push(c);
-                continue;
-            }
-            let canonical = resolver.canonical_token(ch.to_u128());
-            if let Ok(cp) = u32::try_from(canonical) {
-                if let Some(c) = char::from_u32(cp) {
-                    out.push(c);
-                    continue;
-                }
-            }
-            bail!("Non-Unicode character {ch:?} cannot be projected into a Unicode String");
-        }
-        Ok(out)
-    }
-
     /// Converts this `DcMstr` into a token stream of native `u128` character
     /// identifiers suitable for syntax parsing and validation.
     ///
