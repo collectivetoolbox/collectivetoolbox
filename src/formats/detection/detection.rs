@@ -2230,6 +2230,7 @@ mod tests {
             kind: ctb_io_file::StreamKind::MacOsResourceFork,
             entity: Box::new(stream_entity),
             data: Some(fork),
+            payload: None,
         });
 
         let mut source = DiskPayloadSource::open(&empty_path).unwrap();

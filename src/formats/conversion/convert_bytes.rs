@@ -361,7 +361,7 @@ mod tests {
         .expect("convert utf8");
         assert_eq!(res.detected_format, FormatId::Utf8);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "Hello, world!"
         );
 
@@ -385,7 +385,7 @@ mod tests {
         .expect("autodetect single byte ascii");
         assert_eq!(res.detected_format, FormatId::Ascii);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "A"
         );
     }
@@ -401,7 +401,7 @@ mod tests {
         .expect("convert dcal");
         assert_eq!(res.detected_format, FormatId::Dcal);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "ABC"
         );
 
@@ -425,7 +425,7 @@ mod tests {
         .expect("convert dctext");
         assert_eq!(res.detected_format, FormatId::DcText);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "Hello A!"
         );
 
@@ -446,7 +446,7 @@ mod tests {
         .expect("autodetect dctext without filename");
         assert_eq!(res_no_hint.detected_format, FormatId::DcText);
         assert_eq!(
-            res_no_hint.document.to_dc_string().unwrap().as_str().unwrap(),
+            res_no_hint.document,
             "Hello A!"
         );
     }
@@ -490,7 +490,7 @@ mod tests {
         .expect("convert ascii");
         assert_eq!(res.detected_format, FormatId::Ascii);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "Hello, ASCII world!\n"
         );
 
@@ -519,7 +519,7 @@ mod tests {
         .expect("convert ascii safe subset");
         assert_eq!(res.detected_format, FormatId::AsciiSafeSubset);
         assert_eq!(
-            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            res.document,
             "Safe Line 1\nSafe Line 2\n"
         );
 

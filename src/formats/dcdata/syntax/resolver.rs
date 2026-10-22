@@ -974,7 +974,9 @@ impl DatasetRuleResolver {
                 (Some(s_c), Some(t_c)) => {
                     let s_gid: u128 = s_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
                     let t_gid: u128 = t_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
+                    // Reason for fallback: token not in canonical_map is self-canonical.
                     let s_canon = resolver.canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                    // Reason for fallback: token not in canonical_map is self-canonical.
                     let t_canon = resolver.canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
                     ensure!(
                         s_canon == t_canon,
@@ -1016,14 +1018,17 @@ impl DatasetRuleResolver {
         for (opener, closer) in delimiter_pairs {
             let opener_u128 = opener.to_u128();
             let canonical_opener_u128 = resolver.canonical_token(opener_u128);
+            // Reason for fallback: unrepresentable canonical GID defaults to original opener.
             let canonical_opener_target =
                 CharTarget::from_u128(canonical_opener_u128).unwrap_or(opener);
             let canonical_closer = resolver.canonical_token(closer);
 
+            // Reason for fallback: tokens without equivalents use empty set.
             let opener_members = resolver
                 .semantic_equivalents
                 .get(&opener_u128)
                 .unwrap_or(&empty_set);
+            // Reason for fallback: tokens without equivalents use empty set.
             let closer_members = resolver
                 .semantic_equivalents
                 .get(&closer)
@@ -1119,6 +1124,7 @@ impl DatasetRuleResolver {
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
     fn canonical_token(&self, token: u128) -> u128 {
+        // Reason for fallback: tokens not present in canonical_map are self-canonical.
         self.canonical_map.get(&token).copied().unwrap_or(token)
     }
 

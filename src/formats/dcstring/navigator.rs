@@ -177,6 +177,7 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             if !list_open.fills_role_with(DcRole::BeginList, resolver) {
                 return Ok(None);
             }
+            // Reason for fallback: default closing delimiter for BeginList is DC_END_LIST.
             let list_closer = CharTarget::from_u128(list_open.to_u128())
                 .and_then(|t| resolver.closer_for_opener(&t))
                 .map(DcChar::from_u128)
@@ -2436,6 +2437,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
 
             if head_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
                 let closer = resolver
                     .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
                     .map(DcChar::from_u128)
@@ -2478,6 +2480,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
 
             if head_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
                 let closer = resolver
                     .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
                     .map(DcChar::from_u128)
@@ -2508,6 +2511,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
 
             if head_dc.fills_role_with(DcRole::BeginNumber, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
                 let closer = resolver
                     .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(6)))
                     .map(DcChar::from_u128)
@@ -2516,6 +2520,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.spliced_tokens.pop_front();
                     let format = match self.spliced_tokens.front() {
                         Some(&tok) if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) => DC_INTEGER,
+                        // Reason for fallback: popped number format token defaults to DC_INTEGER.
                         Some(_) => self.spliced_tokens.pop_front().unwrap_or(DC_INTEGER),
                         None => DC_INTEGER,
                     };
@@ -2638,10 +2643,12 @@ impl<'a> DcDocumentNavigator<'a> {
         // 2. Check if this is a literal (260..261) or identifier (270..271)
         if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) || first_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
             let closer = if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
                 resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL)
             } else {
+                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
                 resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER)
@@ -2681,6 +2688,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
         // 3. Check if this is a number (6..7)
         if first_dc.fills_role_with(DcRole::BeginNumber, resolver) {
+            // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
             let closer = resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(6)))
                 .map(DcChar::from_u128)
                 .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
@@ -3042,6 +3050,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Ok(expected) = usize::try_from(&length) else {
             return self.syntax_issue(policy, inner.start, "Invalid declared list length".to_owned());
         };
+        // Reason for fallback: ListElementSeparator role defaults to Dc 312.
         let sep_u128 = DcRole::ListElementSeparator
             .defining_short()
             .map_or(312u128, |s| DcChar::from_short(s).to_u128());
@@ -3104,6 +3113,7 @@ impl<'a> DcDocumentNavigator<'a> {
             if !list_open.fills_role_with(DcRole::BeginList, resolver) {
                 return self.syntax_issue(policy, span.start, "Equivalent representations require a list".to_owned());
             }
+            // Reason for fallback: default closer for BeginList is DC_END_LIST.
             let list_closer = resolver
                 .closer_for_opener(&CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?)
                 .map(DcChar::from_u128)
@@ -3178,6 +3188,7 @@ impl<'a> DcDocumentNavigator<'a> {
             if !next_dc.fills_role_with(DcRole::BeginParameter, resolver) {
                 break;
             }
+            // Reason for fallback: default closer for BeginParameter is DC_END_PARAMETER.
             let closer = CharTarget::from_u128(next_dc.to_u128())
                 .and_then(|t| resolver.closer_for_opener(&t))
                 .map(DcChar::from_u128)
@@ -4420,6 +4431,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 continue;
             }
             if ch.fills_role_with(DcRole::BeginLiteral, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
                 let lit_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(260)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
@@ -4427,6 +4439,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 continue;
             }
             if ch.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
                 let id_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(270)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
@@ -4434,6 +4447,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 continue;
             }
             if ch.fills_role_with(DcRole::BeginNumber, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
                 let num_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(6)))
                     .map(DcChar::from_u128)
                     .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
@@ -5496,6 +5510,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                     mstr.push_char(ch.to_u128());
                                 }
                                 let mut sub_nav = DcDocumentNavigator::from_mstr(&mstr);
+                                // Reason for fallback: length overflow yields 0 for an empty span.
                                 let list_end = u64::try_from(mstr.len()).unwrap_or(0);
                                 matched = sub_nav.eval_list_constraints(
                                     0,
@@ -5531,6 +5546,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 if name != "value" && first_dc.fills_role_with(DcRole::EvaluableExpressionStarter, ctx.resolver) {
                     let checkpoint = self.save_checkpoint();
                     if let Ok(Some(stub)) = self.next_sibling_stub_with_resolver(&ctx.policy, ctx.resolver) {
+                        // Reason for fallback: unreadable token spans yield empty token vector.
                         let expr_tokens = self.read_tokens_in_span(stub.outer_span).unwrap_or_default();
                         let expr_dc_chars: Vec<DcChar> = expr_tokens.into_iter().map(DcChar::from_u128).collect();
                         let req = ValueRequirement::NamedConstruct {
@@ -5858,6 +5874,7 @@ impl<'a> DcDocumentNavigator<'a> {
         if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
             return Ok(false);
         }
+        // Reason for fallback: default closer for BeginList is DC_END_LIST.
         let list_closer = CharTarget::from_u128(list_open.to_u128())
             .and_then(|t| ctx.resolver.closer_for_opener(&t))
             .map(DcChar::from_u128)
@@ -6522,6 +6539,7 @@ impl<'a> DcDocumentNavigator<'a> {
         if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
             return Ok(false);
         }
+        // Reason for fallback: default closer for BeginList is DC_END_LIST.
         let list_closer = CharTarget::from_u128(list_open.to_u128())
             .and_then(|t| ctx.resolver.closer_for_opener(&t))
             .map(DcChar::from_u128)
@@ -6901,6 +6919,7 @@ fn check_single_number_subtype(
         }
         eval_format_number_bounds(fmt, val, resolver)
     } else if let Some(rule) = resolver.resolve_named_type(part) {
+        // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
         check_pattern_number_constraint(rule, val, resolver).unwrap_or(false)
     } else if let Some(rest) = part.strip_prefix("<=") {
         parse_bound(rest).is_some_and(|b| val <= &b)
@@ -7086,6 +7105,7 @@ fn check_type_compatibility(
         && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
     {
         let end_idx = type_tokens.len().saturating_sub(1);
+        // Reason for fallback: slice range out of bounds defaults to empty slice.
         type_tokens.get(1..end_idx).unwrap_or(&[])
     } else {
         type_tokens
@@ -7245,6 +7265,7 @@ fn check_type_compatibility(
                 subtype: req_subtype.map(str::to_owned),
                 capture_var: None,
             };
+            // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).
             nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
                 && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
         } else {
@@ -7266,6 +7287,7 @@ fn type_statically_satisfies_subtype(
         && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
     {
         let end_idx = type_tokens.len().saturating_sub(1);
+        // Reason for fallback: slice range out of bounds defaults to empty slice.
         type_tokens.get(1..end_idx).unwrap_or(&[])
     } else {
         type_tokens

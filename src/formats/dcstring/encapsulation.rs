@@ -259,9 +259,9 @@ struct PayloadLevel<'a> {
 
 fn single_format(data_type: &DcStr, resolver: &dyn SyntaxRuleResolver) -> Result<FormatId> {
     let mut chars: Vec<DcChar> = data_type.chars().collect();
-    if chars.len() >= 2
-        && resolver.token_fills_role(chars.first().map_or(0, |c| c.to_u128()), DcRole::BeginTypeDef)
-        && resolver.token_fills_role(chars.last().map_or(0, |c| c.to_u128()), DcRole::EndTypeDef)
+    if let (Some(first), Some(last)) = (chars.first(), chars.last())
+        && resolver.token_fills_role(first.to_u128(), DcRole::BeginTypeDef)
+        && resolver.token_fills_role(last.to_u128(), DcRole::EndTypeDef)
     {
         chars.pop();
         chars.remove(0);

@@ -1543,6 +1543,7 @@ where
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
+    // Reason for fallback: when format_registry is not provided, no formats are considered deprecated.
     let deprecated_format_ids: HashSet<usize> = format_registry
         .map(|reg| {
             reg.formats_by_id
@@ -1757,7 +1758,9 @@ where
         }
         match (s.to_global_id(), t.to_global_id()) {
             (Ok(s_gid), Ok(t_gid)) => {
+                // Reason for fallback: tokens not in canonical_map are self-canonical.
                 let s_canon = canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                // Reason for fallback: token not in canonical_map is self-canonical.
                 let t_canon = canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
                 s_canon == t_canon
             }

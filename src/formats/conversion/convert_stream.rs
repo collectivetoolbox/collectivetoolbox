@@ -363,7 +363,7 @@ mod tests {
 
         let dcmm = DcMstring::from_bytes(out).expect("validate dcmm");
         assert_eq!(
-            dcmm.to_dc_string().unwrap().as_str().unwrap(),
+            dcmm,
             "Streaming UTF-8 text document"
         );
     }

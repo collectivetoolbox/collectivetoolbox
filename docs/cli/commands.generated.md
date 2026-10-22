@@ -167,6 +167,10 @@ Options:
       --overwrite                  Replace existing regular files atomically; merge existing directories
       --trust-symlink-targets      Preserve link targets verbatim, including targets outside destination
       --best-effort-metadata       Report filesystem metadata losses instead of requiring exact restoration
+      --strict                     Require every timestamp check, including hard platform limits
+      --check-atime                Verify restored access times
+      --check-ctime                Verify change times even where the platform cannot restore them
+      --check-birthtime            Verify birth times even where the platform cannot restore them
       --copy-specials-as-specials  Permit restoration of FIFOs and device nodes as special files
       --recover                    Extract committed members from incomplete archives or archives containing capture errors
   -h, --help                       Print help
@@ -470,6 +474,8 @@ Options:
           Explicitly check access time (atime) differences in post-copy verification
       --check-ctime
           Explicitly check status/metadata change time (ctime) differences in post-copy verification
+      --check-birthtime
+          Require birth-time equality even on platforms unable to restore it
       --strict
           Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification
       --delete-manifest-after
@@ -567,6 +573,8 @@ Options:
           Explicitly check access time (atime) differences in post-copy verification
       --check-ctime
           Explicitly check status/metadata change time (ctime) differences in post-copy verification
+      --check-birthtime
+          Require birth-time equality even on platforms unable to restore it
       --strict
           Enforce strictest verification settings, enabling --check-atime and --check-ctime in post-copy verification
       --delete-manifest-after
@@ -641,6 +649,8 @@ Options:
           Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
       --check-ctime
           Explicitly enforce status/metadata change time (ctime) verification
+      --check-birthtime
+          Require birth-time equality even on platforms unable to restore it
       --ignore-owner
           Ignore ownership (UID and GID) differences
       --ignore-perms
@@ -708,6 +718,7 @@ Options:
       --ignore-mtime          Ignore modification time (mtime) differences during verification
       --ignore-ctime          Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
       --check-ctime           Explicitly enforce status/metadata change time (ctime) verification
+      --check-birthtime       Require birth-time equality even on platforms unable to restore it
       --ignore-owner          Ignore ownership (UID and GID) differences
       --ignore-perms          Ignore file mode / permission differences
       --ignore-flags          Ignore semantic file flags differences

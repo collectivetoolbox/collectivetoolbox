@@ -1465,7 +1465,9 @@ fn parse_files_manifest(
 }
 
 fn is_archive_org_host(host: &str) -> bool {
+    // Reason for fallback: if host has no colon separator, use host as-is.
     let host_no_port = host.split(':').next().unwrap_or(host);
+    // Reason for fallback: if host has no trailing dot, use host_no_port as-is.
     let host_clean = host_no_port.strip_suffix('.').unwrap_or(host_no_port);
     host_clean.eq_ignore_ascii_case("archive.org")
         || host_clean
@@ -1474,7 +1476,9 @@ fn is_archive_org_host(host: &str) -> bool {
 }
 
 fn is_wayback_host(host: &str) -> bool {
+    // Reason for fallback: if host has no colon separator, use host as-is.
     let host_no_port = host.split(':').next().unwrap_or(host);
+    // Reason for fallback: if host has no trailing dot, use host_no_port as-is.
     let host_clean = host_no_port.strip_suffix('.').unwrap_or(host_no_port);
     host_clean.eq_ignore_ascii_case("web.archive.org")
 }

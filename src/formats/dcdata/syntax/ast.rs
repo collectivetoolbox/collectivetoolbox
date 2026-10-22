@@ -296,6 +296,7 @@ pub fn normalize_syntax_pattern(
     let norm_target = |ct: &CharTarget| -> CharTarget {
         let gid = ct.to_u128();
         if let Some(&canon_gid) = canonical_map.get(&gid) {
+            // Reason for fallback: unrepresentable canonical GID defaults to original CharTarget.
             CharTarget::from_u128(canon_gid).unwrap_or_else(|| ct.clone())
         } else {
             ct.clone()
@@ -308,8 +309,10 @@ pub fn normalize_syntax_pattern(
             _ => {
                 if let Some(self_id) = self_short {
                     let self_gid = DcChar::from_short(self_id).to_u128();
+                    // Reason for fallback: token not in canonical_map is self-canonical.
                     let canon_self = canonical_map.get(&self_gid).copied().unwrap_or(self_gid);
                     let ct_gid = ct.to_u128();
+                    // Reason for fallback: token not in canonical_map is self-canonical.
                     let canon_ct = canonical_map.get(&ct_gid).copied().unwrap_or(ct_gid);
                     canon_self == canon_ct
                 } else {

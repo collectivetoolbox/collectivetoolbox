@@ -295,9 +295,9 @@ pub fn get_companion_path(
             // Reason for fallback: top-level files have no parent directory
             // component, defaulting to empty path
             let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
+            let mut name = std::ffi::OsString::from("._");
             // Reason for fallback: path without a file name component defaults
             // to original file name
-            let mut name = std::ffi::OsString::from("._");
             name.push(rel.file_name().unwrap_or(file_name.as_os_str()));
             base.join("__MACOSX")
                 .join(rel_parent)

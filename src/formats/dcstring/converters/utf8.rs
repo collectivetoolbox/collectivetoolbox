@@ -235,7 +235,7 @@ pub fn dclist_to_utf8(
                         }
                     }
                     let lookup_short = if canon_dc >= SHORT_DC_REGION_START {
-                        // Reason for unwrap_or: If offset from SHORT_DC_REGION_START exceeds u32, fallback to original short_dc.
+                        // Reason for fallback: If offset from SHORT_DC_REGION_START exceeds u32, fallback to original short_dc.
                         u32::try_from(canon_dc.saturating_sub(SHORT_DC_REGION_START)).unwrap_or(short_dc)
                     } else {
                         short_dc

@@ -502,6 +502,7 @@ impl Iterator for DirectoryTraverser {
                     OnTraversalError::Capture => (None, vec![format!("Failed reading directory {}: {error:#}", path.display())]),
                 },
             };
+            // Reason for fallback: root path lacks a file name component and defaults to empty OsString.
             let file_name = path.file_name().map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
             return Some(Ok(DirEntryItem {
                 path, relative_path, file_name, symlink_metadata: metadata,
