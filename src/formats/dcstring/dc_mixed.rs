@@ -489,31 +489,6 @@ impl DcMstr {
         Ok(out)
     }
 
-    /// Returns the payload as a borrowed [`DcStr`] if this `DcMstr` contains only
-    /// text (no embedded binary chunks).
-    #[must_use]
-    pub fn as_dc_str(&self) -> Option<&DcStr> {
-        if self.is_empty() {
-            #[expect(
-                unsafe_code,
-                reason = "An empty byte slice is trivially valid UTF-8e-128"
-            )]
-            return Some(unsafe { DcStr::from_bytes_unchecked(&[]) });
-        }
-        let mut chunks = self.chunks();
-        match (chunks.next(), chunks.next()) {
-            (Some(DcMixed::Text(text)), None) => Some(text),
-            _ => None,
-        }
-    }
-
-    /// Returns the payload as a borrowed UTF-8 `&str` if this `DcMstr` contains
-    /// only valid Unicode scalar text (no non-Unicode Dcs and no binary chunks).
-    #[must_use]
-    pub fn as_str(&self) -> Option<&str> {
-        self.as_dc_str()?.as_str()
-    }
-
     /// Converts this `DcMstr` into a token stream of native `u128` character
     /// identifiers suitable for syntax parsing and validation.
     ///
@@ -528,21 +503,21 @@ impl DcMstr {
 impl PartialEq<str> for DcMstr {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        self.as_str() == Some(other)
+        self == DcMstring::from(other).as_mstr()
     }
 }
 
 impl PartialEq<&str> for DcMstr {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
-        self.as_str() == Some(*other)
+        self == DcMstring::from(*other).as_mstr()
     }
 }
 
 impl PartialEq<DcStr> for DcMstr {
     #[inline]
     fn eq(&self, other: &DcStr) -> bool {
-        self.as_dc_str() == Some(other)
+        DcMstring::from_dc_str(other).is_ok_and(|mst| self == mst.as_mstr())
     }
 }
 
@@ -714,6 +689,13 @@ impl DcMstring {
     /// Converts this `DcMstring` into a standard `DcString` (DcUtf) representation.
     pub fn to_dc_string(&self) -> Result<DcString> {
         DcMstr::to_dc_string(self)
+    }
+
+    /// Borrows this `DcMstring` as a `&DcMstr` slice.
+    #[inline]
+    #[must_use]
+    pub fn as_mstr(&self) -> &DcMstr {
+        self
     }
 
     /// Consumes this `DcMstring` and returns the underlying byte vector.
@@ -997,6 +979,13 @@ impl From<&DcMstr> for DcMstring {
     }
 }
 
+impl From<&DcMstring> for DcMstring {
+    #[inline]
+    fn from(s: &DcMstring) -> Self {
+        s.clone()
+    }
+}
+
 impl FromIterator<DcChar> for DcMstring {
     fn from_iter<I: IntoIterator<Item = DcChar>>(iter: I) -> Self {
         let mut mst = Self::new();
@@ -1036,42 +1025,42 @@ impl Extend<char> for DcMstring {
 impl PartialEq<str> for DcMstring {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        self.as_str() == Some(other)
+        self.as_mstr() == other
     }
 }
 
 impl PartialEq<&str> for DcMstring {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
-        self.as_str() == Some(*other)
+        self.as_mstr() == *other
     }
 }
 
 impl PartialEq<String> for DcMstring {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        self.as_str() == Some(other.as_str())
+        self.as_mstr() == other.as_str()
     }
 }
 
 impl PartialEq<DcStr> for DcMstring {
     #[inline]
     fn eq(&self, other: &DcStr) -> bool {
-        self.as_dc_str() == Some(other)
+        self.as_mstr() == other
     }
 }
 
 impl PartialEq<&DcStr> for DcMstring {
     #[inline]
     fn eq(&self, other: &&DcStr) -> bool {
-        self.as_dc_str() == Some(*other)
+        self.as_mstr() == *other
     }
 }
 
 impl PartialEq<DcString> for DcMstring {
     #[inline]
     fn eq(&self, other: &DcString) -> bool {
-        self.as_dc_str() == Some(other.as_ref())
+        self.as_mstr() == &**other
     }
 }
 
@@ -2112,12 +2101,12 @@ mod tests {
         let chunks: Vec<DcMixed<'_>> = mst.chunks().collect();
         assert_eq!(chunks.len(), 4);
 
-        assert_eq!(chunks[0].as_text().unwrap().as_str(), Some("ArchiveHeader\n"));
+        assert_eq!(chunks[0].as_text().unwrap(), "ArchiveHeader\n");
         assert_eq!(chunks[1].as_binary(), Some(payload1.as_slice()));
         assert_eq!(chunks[1].sha256(), None);
         assert!(chunks[1].verify_checksum());
 
-        assert_eq!(chunks[2].as_text().unwrap().as_str(), Some("\nSeparator\n"));
+        assert_eq!(chunks[2].as_text().unwrap(), "\nSeparator\n");
         assert_eq!(chunks[3].as_binary(), Some(payload2.as_slice()));
         let DcMixed::BinaryWithMetadata { metadata, .. } = &chunks[3] else {
             panic!("Expected metadata-bearing binary chunk");
@@ -2241,9 +2230,9 @@ mod tests {
 
         let chunks: Vec<DcMixed<'_>> = round_tripped.chunks().collect();
         assert_eq!(chunks.len(), 3);
-        assert_eq!(chunks[0].as_text().unwrap().as_str(), Some("File: test.bin\nSize: 12\n"));
+        assert_eq!(chunks[0].as_text().unwrap(), "File: test.bin\nSize: 12\n");
         assert_eq!(chunks[1].as_binary(), Some(bin_data.as_slice()));
-        assert_eq!(chunks[2].as_text().unwrap().as_str(), Some("\nFooter"));
+        assert_eq!(chunks[2].as_text().unwrap(), "\nFooter");
     }
 
     #[crate::ctb_test]

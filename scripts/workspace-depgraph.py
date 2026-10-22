@@ -157,19 +157,25 @@ def get_color_scheme(name: str) -> Tuple[str, str, str]:
     """Returns (fill_color, border_color, text_color) based on crate subsystem."""
     if "macro" in name:
         return "#f5f3ff", "#8b5cf6", "#4c1d95"  # Purple / Macro
-    if name.startswith("ctb-formats"):
+    if name.startswith("ctb-formats") or name == "kaitai":
         return "#ecfdf5", "#10b981", "#064e3b"  # Emerald / Formats
     if name.startswith("ctb-io"):
-        return "#fffbeb", "#f59e0b", "#78350f"  # Amber / I/O
+        return "#fff7ed", "#ea580c", "#7c2d12"  # Orange / I/O
     if name.startswith("ctb-storage"):
         return "#eff6ff", "#3b82f6", "#1e3a8a"  # Blue / Storage
+    if "network" in name:
+        return "#ecfeff", "#06b6d4", "#155e75"  # Cyan / Network
+    if "runtime" in name:
+        return "#e0e7ff", "#6366f1", "#312e81"  # Indigo / Runtime
+    if "renderer" in name:
+        return "#fffbeb", "#f59e0b", "#78350f"  # Amber / Renderer
     if name.startswith("ctb-workspace"):
         return "#fdf2f8", "#ec4899", "#831843"  # Pink / Workspace Core
     if name in {"ctoolbox", "ctb-installer", "ctb-cli"}:
         return "#fef2f2", "#ef4444", "#7f1d1d"  # Red / Applications
     if name.startswith("ctb-utilities") or name.startswith("ctb-build"):
         return "#f8fafc", "#64748b", "#0f172a"  # Slate / Utilities & Build
-    return "#f0fdfa", "#14b8a6", "#134e4a"      # Teal / Standalone crates
+    return "#f5f5f4", "#a8a29e", "#44403c"      # Stone / Unclassified
 
 
 def generate_mermaid(
@@ -225,9 +231,8 @@ def generate_builtin_svg(
     # Order nodes within each layer using horizontal barycenter to reduce crossings
     node_x: Dict[str, float] = {}
     for l_idx, bucket in enumerate(layer_buckets):
-        if l_idx == 0:
-            bucket.sort()
-        else:
+        bucket.sort()
+        if l_idx > 0:
             def get_barycenter(name: str) -> float:
                 deps = adj.get(name, set())
                 pos = [node_x[d] for d in deps if d in node_x]
@@ -309,12 +314,15 @@ def generate_builtin_svg(
     legend_items = [
         ("Macro", "#f5f3ff", "#8b5cf6"),
         ("Formats", "#ecfdf5", "#10b981"),
-        ("I/O", "#fffbeb", "#f59e0b"),
+        ("I/O", "#fff7ed", "#ea580c"),
         ("Storage", "#eff6ff", "#3b82f6"),
+        ("Network", "#ecfeff", "#06b6d4"),
+        ("Runtime", "#e0e7ff", "#6366f1"),
+        ("Renderer", "#fffbeb", "#f59e0b"),
         ("Workspace", "#fdf2f8", "#ec4899"),
         ("Apps & CLI", "#fef2f2", "#ef4444"),
         ("Utilities/Build", "#f8fafc", "#64748b"),
-        ("Standalone", "#f0fdfa", "#14b8a6"),
+        ("Unclassified", "#f5f5f4", "#a8a29e"),
     ]
     legend_start_x = pad_x + 10
     legend_y = 86
@@ -420,7 +428,7 @@ Generates a workspace crate dependency diagram with zero-dependency crates at th
 
 Options:
   -h, --help            Show this help message and exit
-  -o, --output FILE     Output file path (default: 'workspace-dependencies.svg' or stdout for text)
+  -o, --output FILE     Output file path (default: 'docs/workspace-dependencies.generated.svg' or stdout for text)
   -f, --format FORMAT   Output format: svg (default), mermaid, or text
   --flow DIRECTION      Flow direction: 'down' (default, foundation at top pointing to consumers)
                         or 'up' (arrows point up toward dependencies)
@@ -559,7 +567,7 @@ def main() -> None:
         print(f"Generated {target_format.upper()} diagram at: {opts.output}")
     else:
         if target_format == "svg":
-            default_out = "docs/workspace-dependencies.svg"
+            default_out = "docs/workspace-dependencies.generated.svg"
             with open(default_out, "w", encoding="utf-8") as f:
                 f.write(output_content)
             print(f"Generated SVG diagram at: {default_out}")

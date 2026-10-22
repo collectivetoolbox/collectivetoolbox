@@ -542,9 +542,6 @@ pub fn utf8_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> 
 /// Converts a `DcMstring` to UTF-8 bytes.
 pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
-    if let Some(s) = dc_string.as_str() {
-        return Ok((s.as_bytes().to_vec(), FormatLog::default()));
-    }
     let dclist = dc_string.to_dclist();
     let conv = dclist_to_utf8(&dclist, &DcListUtf8Settings::default())?;
     Ok((conv.result, conv.log))

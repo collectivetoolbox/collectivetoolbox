@@ -1215,7 +1215,7 @@ fn expand_named_representation(
                     let mut #field_ident: ::std::option::Option<#field_ty> = None;
                 });
                 decode_parts.push(quote! {
-                    #key => {
+                    _k if *_k == #key => {
                         #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate map key {}", #key);
                         #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?);
                         ctx.annotate_map_field(::std::any::type_name::<Self>(), stringify!(#field_ident), entry_span.clone(), encoding);
@@ -1245,8 +1245,8 @@ fn expand_named_representation(
                 for entry_res in entries {
                     let (k_id, val_id, entry_span, start_pos) = entry_res?;
                     ctx.current_position = start_pos;
-                    let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, k_id)?;
-                    match key.as_str() {
+                    let key = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, k_id)?;
+                    match &key {
                         #(#decode_parts)*
                         _ => {
                             ctx.handle_unconsumed_or_incomplete(
@@ -1291,7 +1291,7 @@ fn expand_named_representation(
                 match &variant.fields {
                     Fields::Unit if !binary => {
                         encode_parts.push(quote! { Self::#variant_ident => #crate_root::DcMixedEncode::encode_dc_mixed_to_with_context(#name, mst, context)?, });
-                        decode_parts.push(quote! { #name => Self::#variant_ident, });
+                        decode_parts.push(quote! { _n if *_n == #name => Self::#variant_ident, });
                     }
                     Fields::Unnamed(fields) if fields.unnamed.len() == 1 && begin.is_some() => {
                         let field = fields.unnamed.first().ok_or_else(|| syn::Error::new(variant.span(), "Missing variant payload"))?;
@@ -1324,7 +1324,7 @@ fn expand_named_representation(
                                 #encode_value
                             }
                         });
-                        decode_parts.push(quote! { #name => {
+                        decode_parts.push(quote! { _n if *_n == #name => {
                             Self::#variant_ident(#decode_value)
                         }, });
                     }
@@ -1353,10 +1353,10 @@ fn expand_named_representation(
                         })
                         .collect();
                     let name_id = filtered_children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Missing variant name"))?;
-                    let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, name_id)?;
+                    let name = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, name_id)?;
                     // Reason for fallback: Unit variants in named enums do not have a separate value node; fall back to name_id.
                     let val_id = filtered_children.get(1).copied().unwrap_or(name_id);
-                    let value = match name.as_str() {
+                    let value = match &name {
                         #(#decode_parts)*
                         _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
                     };
@@ -1364,9 +1364,9 @@ fn expand_named_representation(
                 }
             } else {
                 quote! {
-                    let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, node_id)?;
+                    let name = <#crate_root::DcMstring as #crate_root::DcMixedDecode>::decode_dc_node(ctx, node_id)?;
                     let val_id = node_id;
-                    let value = match name.as_str() {
+                    let value = match &name {
                         #(#decode_parts)*
                         _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
                     };
@@ -2715,7 +2715,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         _t if [#(#nested_ids),*].iter().any(|&expected| ctx.tokens_equivalent(_t, expected)) => { self.#field_ident = #inline; Ok(true) }
                     });
                     shared_decode_arms.push(quote! {
-                        #shared_name => {
+                        _f if *_f == #shared_name => {
                             #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
                             #field_ident = Some(#reference);
                             if let Ok(range) = ctx.node(child_id)?.span.to_usize_range() {
@@ -3388,7 +3388,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     _t if ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BeginIdentifier)
                         || ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::Assign) => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
-                        match field.as_str() {
+                        match &field {
                             #(#shared_decode_arms)*
                             _ => #anyhow_path::bail!("Unknown shared field {:?}", field),
                         }

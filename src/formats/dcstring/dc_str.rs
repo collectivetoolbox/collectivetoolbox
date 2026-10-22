@@ -189,16 +189,6 @@ impl DcStr {
         }
     }
 
-    /// Zero-copy conversion to a standard Rust `&str` if this slice contains
-    /// exclusively valid Unicode characters (no extended `0xFF` sequences).
-    #[must_use]
-    pub fn as_str(&self) -> Option<&str> {
-        if self.inner.contains(&0xFF) {
-            return None;
-        }
-        std::str::from_utf8(&self.inner).ok()
-    }
-
     /// Decodes all Document Character IDs into a `Vec<u128>`.
     #[must_use]
     pub fn to_dclist(&self) -> Vec<u128> {
@@ -217,6 +207,27 @@ impl<'a> From<&'a str> for &'a DcStr {
         unsafe {
             DcStr::from_bytes_unchecked(s.as_bytes())
         }
+    }
+}
+
+impl PartialEq<str> for DcStr {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self == <&Self>::from(other)
+    }
+}
+
+impl PartialEq<&str> for DcStr {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self == <&Self>::from(*other)
+    }
+}
+
+impl PartialEq<String> for DcStr {
+    #[inline]
+    fn eq(&self, other: &String) -> bool {
+        self == <&Self>::from(other.as_str())
     }
 }
 

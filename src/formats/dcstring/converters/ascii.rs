@@ -366,10 +366,7 @@ mod tests {
         let input = b"Hello, World!\nTesting ASCII 123.";
         let (doc, log) = ascii_to_dcmstring(input).expect("parse ascii");
         assert!(log.has_no_warnings_or_errors());
-        assert_eq!(
-            doc.to_dc_string().unwrap().as_str().unwrap(),
-            "Hello, World!\nTesting ASCII 123."
-        );
+        assert_eq!(doc, "Hello, World!\nTesting ASCII 123.");
 
         let (bytes, export_log) = dcmstring_to_ascii(&doc).expect("export ascii");
         assert!(export_log.has_no_warnings_or_errors());
@@ -394,19 +391,13 @@ mod tests {
         let (doc, log) =
             ascii_to_dcmstring_with_settings(invalid, &settings).expect("parse");
         assert!(log.has_warnings());
-        assert_eq!(
-            doc.to_dc_string().unwrap().as_str().unwrap(),
-            "Hello \u{FFFD} World"
-        );
+        assert_eq!(doc, "Hello \u{FFFD} World");
 
         let byte_test = b"a\xffb";
         let (doc2, log2) =
             ascii_to_dcmstring_with_settings(byte_test, &settings).expect("parse");
         assert!(log2.has_warnings());
-        assert_eq!(
-            doc2.to_dc_string().unwrap().as_str().unwrap(),
-            "a\u{FFFD}b"
-        );
+        assert_eq!(doc2, "a\u{FFFD}b");
     }
 
     #[crate::ctb_test]
@@ -454,10 +445,7 @@ mod tests {
         let (doc, log) =
             ascii_safe_subset_to_dcmstring(input).expect("parse safe subset");
         assert!(log.has_no_warnings_or_errors());
-        assert_eq!(
-            doc.to_dc_string().unwrap().as_str().unwrap(),
-            "Line 1\nLine 2\n"
-        );
+        assert_eq!(doc, "Line 1\nLine 2\n");
 
         let (out, out_log) =
             dcmstring_to_ascii_safe_subset(&doc).expect("export safe subset");

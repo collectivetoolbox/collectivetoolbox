@@ -330,11 +330,23 @@ export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_li
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
 
+    echo "Generating workspace dependency diagram..."
+    if command -v python3 >/dev/null 2>&1; then
+        python3 scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+    elif command -v ctb >/dev/null 2>&1; then
+        ctb python scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+    else
+        cargo run ${offline} --quiet -p ctb-formats-python --bin ctb-python -- scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+    fi
+
     cargo doc --workspace ${offline} --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
     # Re-run for ctoolbox so all re-exported crate links resolve (requires other crates' docs on disk)
     cargo doc -p ctoolbox ${offline} --no-deps --target=x86_64-unknown-linux-musl
     mkdir -p built/docs
     cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
+    if [[ -f docs/workspace-dependencies.generated.svg ]]; then
+        cp docs/workspace-dependencies.generated.svg built/docs/
+    fi
     if [[ "$clean_targets" == "true" ]]; then
         rm -rf target/x86_64-unknown-linux-musl/doc target/doc
     fi

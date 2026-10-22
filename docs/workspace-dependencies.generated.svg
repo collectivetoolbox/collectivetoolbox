@@ -1,0 +1,1517 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6425 2298" width="6425" height="2298">
+<defs>
+  <marker id="arrow-down" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+  </marker>
+  <marker id="arrow-up" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+  </marker>
+  <style type="text/css"><![CDATA[
+    text { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .header-title { font-size: 20px; font-weight: 700; fill: #0f172a; }
+    .header-sub { font-size: 12px; font-weight: 400; fill: #475569; }
+    .legend-text { font-size: 11px; font-weight: 500; fill: #334155; }
+    .layer-label { font-size: 11px; fill: #64748b; font-weight: 600; }
+    .layer-divider { stroke: #e2e8f0; stroke-dasharray: 4, 4; stroke-width: 1; }
+    .node-rect { transition: filter 0.15s ease, stroke-width 0.15s ease; cursor: pointer; }
+    .node:hover .node-rect { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.18)); stroke-width: 2.2px; }
+    .node-text { font-size: 11px; font-weight: 500; pointer-events: none; }
+    .edge-path { stroke: #cbd5e1; stroke-width: 1.25; fill: none; transition: stroke 0.15s; }
+    .edge-path:hover { stroke: #2563eb; stroke-width: 2.5; }
+  ]]></style>
+</defs>
+<rect width="6425" height="2298" fill="#f8fafc" />
+<!-- Header Title & Subtitle -->
+<text x="40" y="42" class="header-title">Collective Toolbox – Workspace Crate Dependency Graph</text>
+<text x="40" y="65" class="header-sub">Base Crates at Top (0 Workspace Dependencies) → Arrows point down toward consumers (103 workspace crates)</text>
+<!-- Legend -->
+<g id="legend">
+  <rect x="230" y="76" width="14" height="14" rx="3" ry="3" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.2" />
+  <text x="249" y="87" class="legend-text">Macro</text>
+  <rect x="318" y="76" width="14" height="14" rx="3" ry="3" fill="#ecfdf5" stroke="#10b981" stroke-width="1.2" />
+  <text x="337" y="87" class="legend-text">Formats</text>
+  <rect x="422" y="76" width="14" height="14" rx="3" ry="3" fill="#fff7ed" stroke="#ea580c" stroke-width="1.2" />
+  <text x="441" y="87" class="legend-text">I/O</text>
+  <rect x="494" y="76" width="14" height="14" rx="3" ry="3" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.2" />
+  <text x="513" y="87" class="legend-text">Storage</text>
+  <rect x="598" y="76" width="14" height="14" rx="3" ry="3" fill="#ecfeff" stroke="#06b6d4" stroke-width="1.2" />
+  <text x="617" y="87" class="legend-text">Network</text>
+  <rect x="702" y="76" width="14" height="14" rx="3" ry="3" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.2" />
+  <text x="721" y="87" class="legend-text">Runtime</text>
+  <rect x="806" y="76" width="14" height="14" rx="3" ry="3" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2" />
+  <text x="825" y="87" class="legend-text">Renderer</text>
+  <rect x="918" y="76" width="14" height="14" rx="3" ry="3" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.2" />
+  <text x="937" y="87" class="legend-text">Workspace</text>
+  <rect x="1038" y="76" width="14" height="14" rx="3" ry="3" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2" />
+  <text x="1057" y="87" class="legend-text">Apps &amp; CLI</text>
+  <rect x="1166" y="76" width="14" height="14" rx="3" ry="3" fill="#f8fafc" stroke="#64748b" stroke-width="1.2" />
+  <text x="1185" y="87" class="legend-text">Utilities/Build</text>
+  <rect x="1334" y="76" width="14" height="14" rx="3" ry="3" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.2" />
+  <text x="1353" y="87" class="legend-text">Unclassified</text>
+</g>
+<!-- Layer Guides -->
+<text x="35" y="126.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 0 (0 Workspace Deps)</text>
+<line x1="35" y1="182.0" x2="6385" y2="182.0" class="layer-divider" />
+<text x="35" y="238.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 1</text>
+<line x1="35" y1="294.0" x2="6385" y2="294.0" class="layer-divider" />
+<text x="35" y="350.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 2</text>
+<line x1="35" y1="406.0" x2="6385" y2="406.0" class="layer-divider" />
+<text x="35" y="462.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 3</text>
+<line x1="35" y1="518.0" x2="6385" y2="518.0" class="layer-divider" />
+<text x="35" y="574.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 4</text>
+<line x1="35" y1="630.0" x2="6385" y2="630.0" class="layer-divider" />
+<text x="35" y="686.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 5</text>
+<line x1="35" y1="742.0" x2="6385" y2="742.0" class="layer-divider" />
+<text x="35" y="798.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 6</text>
+<line x1="35" y1="854.0" x2="6385" y2="854.0" class="layer-divider" />
+<text x="35" y="910.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 7</text>
+<line x1="35" y1="966.0" x2="6385" y2="966.0" class="layer-divider" />
+<text x="35" y="1022.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 8</text>
+<line x1="35" y1="1078.0" x2="6385" y2="1078.0" class="layer-divider" />
+<text x="35" y="1134.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 9</text>
+<line x1="35" y1="1190.0" x2="6385" y2="1190.0" class="layer-divider" />
+<text x="35" y="1246.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 10</text>
+<line x1="35" y1="1302.0" x2="6385" y2="1302.0" class="layer-divider" />
+<text x="35" y="1358.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 11</text>
+<line x1="35" y1="1414.0" x2="6385" y2="1414.0" class="layer-divider" />
+<text x="35" y="1470.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 12</text>
+<line x1="35" y1="1526.0" x2="6385" y2="1526.0" class="layer-divider" />
+<text x="35" y="1582.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 13</text>
+<line x1="35" y1="1638.0" x2="6385" y2="1638.0" class="layer-divider" />
+<text x="35" y="1694.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 14</text>
+<line x1="35" y1="1750.0" x2="6385" y2="1750.0" class="layer-divider" />
+<text x="35" y="1806.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 15</text>
+<line x1="35" y1="1862.0" x2="6385" y2="1862.0" class="layer-divider" />
+<text x="35" y="1918.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 16</text>
+<line x1="35" y1="1974.0" x2="6385" y2="1974.0" class="layer-divider" />
+<text x="35" y="2030.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 17</text>
+<line x1="35" y1="2086.0" x2="6385" y2="2086.0" class="layer-divider" />
+<text x="35" y="2142.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 18</text>
+<!-- Edges -->
+<g id="edges">
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 307.5 406.0, 307.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 506.5 406.0, 506.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2695.5 142.0 C 2695.5 182.0, 3392.0 182.0, 3392.0 222.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1710.0 C 3392.0 1750.0, 3392.0 1750.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1710.0 C 3193.0 1750.0, 3392.0 1750.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 1150.0 C 2894.5 1470.0, 3392.0 1470.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1150.0 C 3093.5 1470.0, 3392.0 1470.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 478.0 C 3093.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1582.0, 3392.0 1582.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1598.0 C 3093.5 1694.0, 3392.0 1694.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4486.5 478.0 C 4486.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1358.0, 3392.0 1358.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1358.0, 3392.0 1358.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6078.5 478.0 C 6078.5 518.0, 3690.5 518.0, 3690.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1486.0 C 3093.5 1638.0, 3193.0 1638.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1710.0 C 3392.0 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1710.0 C 3193.0 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 1150.0 C 2894.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2098.5 926.0 C 2098.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1150.0 C 3093.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2695.5 478.0 C 2695.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 478.0 C 3093.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1582.0, 3193.0 1582.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 1150.0 C 3690.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1598.0 C 3093.5 1694.0, 3193.0 1694.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4486.5 478.0 C 4486.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 705.5 406.0, 705.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 2795.0 1190.0, 2795.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1501.5 854.0, 1501.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 904.5 406.0, 904.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3093.5 1414.0, 3093.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1700.5 854.0, 1700.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1899.5 854.0, 1899.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2496.5 926.0 C 2496.5 966.0, 3193.0 966.0, 3193.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1103.5 478.0 C 1103.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1302.5 478.0 C 1302.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1501.5 478.0 C 1501.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1700.5 478.0 C 1700.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 478.0 C 1899.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 590.0 C 2894.5 1022.0, 3491.5 1022.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2098.5 478.0 C 2098.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2496.5 478.0 C 2496.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3491.5 1414.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1103.5 406.0, 1103.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1598.0 C 3491.5 1638.0, 3392.0 1638.0, 3392.0 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1302.5 406.0, 1302.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1501.5 406.0, 1501.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1700.5 406.0, 1700.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1899.5 406.0, 1899.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2297.5 478.0 C 2297.5 518.0, 2894.5 518.0, 2894.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2098.5 406.0, 2098.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2297.5 406.0, 2297.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2496.5 406.0, 2496.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1598.0 C 3491.5 1638.0, 3193.0 1638.0, 3193.0 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1598.0 C 3292.5 1638.0, 3193.0 1638.0, 3193.0 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 590.0 C 3491.5 630.0, 3392.0 630.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 478.0 C 5083.5 574.0, 3392.0 574.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6078.5 478.0 C 6078.5 574.0, 3392.0 574.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 2894.5 1022.0, 2894.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 2894.5 1078.0, 2894.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 590.0 C 3690.5 854.0, 3292.5 854.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1078.0, 3292.5 1078.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1038.0 C 3392.0 1078.0, 3292.5 1078.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2098.5 854.0, 2098.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1501.5 926.0 C 1501.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1486.0 C 3491.5 1526.0, 3491.5 1526.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2695.5 926.0 C 2695.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 926.0 C 4685.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1078.0, 3093.5 1078.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2695.5 406.0, 2695.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1700.5 926.0 C 1700.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2496.5 926.0 C 2496.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4486.5 926.0 C 4486.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4884.5 926.0 C 4884.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2297.5 854.0, 2297.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2297.5 926.0 C 2297.5 966.0, 2795.0 966.0, 2795.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2894.5 406.0, 2894.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3093.5 406.0, 3093.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3292.5 406.0, 3292.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 590.0 C 3093.5 966.0, 3093.5 966.0, 3093.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3790.0 1262.0 C 3790.0 1302.0, 3093.5 1302.0, 3093.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3491.5 406.0, 3491.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 478.0 C 3491.5 518.0, 3093.5 518.0, 3093.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 478.0 C 3690.5 518.0, 3093.5 518.0, 3093.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3690.5 406.0, 3690.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 926.0 C 3491.5 1022.0, 3690.5 1022.0, 3690.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2994.0 1038.0 C 2994.0 1078.0, 3690.5 1078.0, 3690.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 1150.0 C 3690.5 1190.0, 3591.0 1190.0, 3591.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3889.5 406.0, 3889.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4088.5 406.0, 4088.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2496.5 854.0, 2496.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2695.5 854.0, 2695.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4287.5 406.0, 4287.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3093.5 1526.0, 3093.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4486.5 406.0, 4486.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2894.5 854.0, 2894.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3093.5 854.0, 3093.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3292.5 854.0, 3292.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3491.5 854.0, 3491.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4685.5 406.0, 4685.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3690.5 854.0, 3690.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 478.0 C 2894.5 742.0, 3790.0 742.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 742.0, 3790.0 742.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4486.5 926.0 C 4486.5 966.0, 3790.0 966.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3392.0 1190.0, 3392.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3591.0 1038.0 C 3591.0 1134.0, 3392.0 1134.0, 3392.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3889.5 854.0, 3889.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4088.5 854.0, 4088.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5879.5 478.0 C 5879.5 518.0, 3491.5 518.0, 3491.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4884.5 406.0, 4884.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4287.5 854.0, 4287.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5083.5 406.0, 5083.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4486.5 854.0, 4486.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 702.0 C 3392.0 742.0, 3292.5 742.0, 3292.5 782.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4685.5 854.0, 4685.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 6277.5 406.0, 6277.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3889.5 142.0 C 3889.5 294.0, 6277.5 294.0, 6277.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 926.0 C 3093.5 966.0, 3591.0 966.0, 3591.0 1006.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4884.5 854.0, 4884.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 5083.5 854.0, 5083.5 894.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 705.5 478.0 C 705.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 904.5 478.0 C 904.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 3491.5 1022.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 3491.5 1078.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3889.5 478.0 C 3889.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 702.0 C 3193.0 910.0, 3491.5 910.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1374.0 C 3491.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 926.0 C 3690.5 1246.0, 3292.5 1246.0, 3292.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3292.5 1526.0, 3292.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 2994.0 1190.0, 2994.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2795.0 1262.0 C 2795.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1262.0 C 3392.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3889.5 926.0 C 3889.5 1134.0, 3292.5 1134.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2994.0 1262.0 C 2994.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5282.5 406.0, 5282.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 506.5 478.0 C 506.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4088.5 478.0 C 4088.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4287.5 478.0 C 4287.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 926.0 C 2894.5 1134.0, 3491.5 1134.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3790.0 1038.0 C 3790.0 1190.0, 3491.5 1190.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4287.5 926.0 C 4287.5 1134.0, 3491.5 1134.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1150.0 C 3491.5 1246.0, 3491.5 1246.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2994.0 1262.0 C 2994.0 1302.0, 3491.5 1302.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5282.5 478.0 C 5282.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3790.0 1262.0 C 3790.0 1302.0, 3491.5 1302.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5481.5 406.0, 5481.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5680.5 406.0, 5680.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3193.0 1190.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 307.5 478.0 C 307.5 854.0, 3790.0 854.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3790.0 1190.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 478.0 C 2894.5 854.0, 3790.0 854.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4088.5 926.0 C 4088.5 1078.0, 3790.0 1078.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5879.5 406.0, 5879.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 6078.5 406.0, 6078.5 446.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 254.0 C 3392.0 294.0, 3292.5 294.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 142.0 C 2894.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 142.0 C 3292.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 142.0 C 3690.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1934.0 C 3292.5 1974.0, 3292.5 1974.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1822.0 C 3392.0 1862.0, 3292.5 1862.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1822.0 C 3193.0 1862.0, 3292.5 1862.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5481.5 478.0 C 5481.5 1190.0, 3292.5 1190.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5680.5 478.0 C 5680.5 1190.0, 3292.5 1190.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1582.0, 3292.5 1582.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6078.5 478.0 C 6078.5 518.0, 3292.5 518.0, 3292.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4088.5 142.0 C 4088.5 350.0, 3292.5 350.0, 3292.5 558.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 590.0 C 3292.5 630.0, 3193.0 630.0, 3193.0 670.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 254.0 C 3193.0 462.0, 3193.0 462.0, 3193.0 670.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3591.0 1262.0 C 3591.0 1694.0, 3292.5 1694.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 142.0 C 3093.5 1134.0, 3292.5 1134.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 142.0 C 3491.5 1134.0, 3292.5 1134.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 2046.0 C 3292.5 2086.0, 3292.5 2086.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2496.5 142.0 C 2496.5 182.0, 3193.0 182.0, 3193.0 222.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2297.5 926.0 C 2297.5 966.0, 2994.0 966.0, 2994.0 1006.0" marker-end="url(#arrow-down)" />
+</g>
+<!-- Nodes -->
+<g id="nodes">
+  <g class="node">
+    <title>Crate: constify
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  egui_software_backend</title>
+    <rect class="node-rect" x="2409.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="2496.5" y="126.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">constify</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-api-client
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-storage</title>
+    <rect class="node-rect" x="220.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="307.5" y="462.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">ctb-api-client</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-build-info
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="419.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#f8fafc" stroke="#64748b" stroke-width="1.3" />
+    <text class="node-text" x="506.5" y="462.0" fill="#0f172a" text-anchor="middle" dominant-baseline="middle">ctb-build-info</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-build-support
+Layer: 1
+
+Depends on (1):
+  ctb-formats-ctb-asset-bundle
+
+Depended on by (1):
+  ctb-utilities</title>
+    <rect class="node-rect" x="3304.5" y="222.0" width="175" height="32" rx="5" ry="5" fill="#f8fafc" stroke="#64748b" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="238.0" fill="#0f172a" text-anchor="middle" dominant-baseline="middle">ctb-build-support</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-cli
+Layer: 15
+
+Depends on (12):
+  ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-dceutils, ctb-formats-docker, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
+
+Depended on by (1):
+  ctb-workspace-ipc</title>
+    <rect class="node-rect" x="3304.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1806.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-cli</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-dc-macro
+Layer: 4
+
+Depends on (1):
+  ctb-storage-minimal
+
+Depended on by (1):
+  ctb-formats-dcstring</title>
+    <rect class="node-rect" x="3603.0" y="558.0" width="175" height="32" rx="5" ry="5" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="574.0" fill="#4c1d95" text-anchor="middle" dominant-baseline="middle">ctb-dc-macro</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats
+Layer: 15
+
+Depends on (16):
+  ctb-formats-archive, ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-dceutils, ctb-formats-dct-el, ctb-formats-docker, ctb-formats-dpkg, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-kaitai, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
+
+Depended on by (1):
+  ctb-workspace-ipc</title>
+    <rect class="node-rect" x="3105.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1806.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-alias
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-installer</title>
+    <rect class="node-rect" x="618.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="705.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-alias</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-apple-single-double
+Layer: 10
+
+Depends on (1):
+  ctb-formats-dcstring
+
+Depended on by (1):
+  ctb-io-file</title>
+    <rect class="node-rect" x="2707.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2795.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-apple-single-double</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-apple-types
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-detection</title>
+    <rect class="node-rect" x="1414.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1501.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-apple-types</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-applescript
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-installer</title>
+    <rect class="node-rect" x="817.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="904.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-applescript</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-archive
+Layer: 12
+
+Depends on (1):
+  ctb-io-file
+
+Depended on by (1):
+  ctb-formats</title>
+    <rect class="node-rect" x="3006.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1470.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-archive</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-base16b
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-eite</title>
+    <rect class="node-rect" x="1613.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1700.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-base16b</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-base64
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (3):
+  ctb-formats-dceutils, ctb-formats-eite, ctb-installer</title>
+    <rect class="node-rect" x="1812.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1899.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-base64</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-checksum
+Layer: 8
+
+Depends on (1):
+  ctb-formats-math
+
+Depended on by (2):
+  ctb-formats-dcstring, ctb-formats-docker</title>
+    <rect class="node-rect" x="3105.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-checksum</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression
+Layer: 12
+
+Depends on (9):
+  ctb-formats-compression-bzip, ctb-formats-compression-compact, ctb-formats-compression-compress, ctb-formats-compression-freeze, ctb-formats-compression-libraries, ctb-formats-compression-pack, ctb-formats-compression-rzip, ctb-formats-compression-szip, ctb-io-file
+
+Depended on by (1):
+  ctb-formats-detection</title>
+    <rect class="node-rect" x="3404.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1470.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-bzip
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="1016.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1103.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-bzip</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-cli
+Layer: 14
+
+Depends on (1):
+  ctb-formats-detection
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3304.5" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-cli</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-compact
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="1215.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1302.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-compact</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-compress
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="1414.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1501.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-compress</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-freeze
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="1613.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1700.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-freeze</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-libraries
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="1812.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="1899.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-libraries</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-pack
+Layer: 4
+
+Depends on (1):
+  ctb-formats-compression-sco-compress
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="2807.0" y="558.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="574.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-pack</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-rzip
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="2011.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2098.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-rzip</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-sco-compress
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression-pack</title>
+    <rect class="node-rect" x="2210.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2297.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-sco-compress</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-compression-szip
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-compression</title>
+    <rect class="node-rect" x="2409.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2496.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-szip</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-conversion
+Layer: 14
+
+Depends on (2):
+  ctb-formats-detection, ctb-io-csc
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3105.5" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-conversion</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-ctb-asset-bundle
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-build-support</title>
+    <rect class="node-rect" x="2608.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2695.5" y="126.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-ctb-asset-bundle</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-dcdata
+Layer: 5
+
+Depends on (3):
+  ctb-formats-unicode, ctb-formats-utf-8e-128, ctb-storage-minimal
+
+Depended on by (1):
+  ctb-formats-utilities</title>
+    <rect class="node-rect" x="3304.5" y="670.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="686.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dcdata</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-dceutils
+Layer: 9
+
+Depends on (2):
+  ctb-formats-base64, ctb-formats-hexdump
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="2807.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dceutils</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-dcstring
+Layer: 9
+
+Depends on (3):
+  ctb-dc-macro, ctb-formats-checksum, ctb-formats-eite
+
+Depended on by (5):
+  ctb-formats-apple-single-double, ctb-formats-text-extraction, ctb-io-environment, ctb-runtime, ctb-storage</title>
+    <rect class="node-rect" x="3205.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dcstring</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-dct-el
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats</title>
+    <rect class="node-rect" x="2011.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2098.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dct-el</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-detection
+Layer: 13
+
+Depends on (6):
+  ctb-formats-apple-types, ctb-formats-compression, ctb-formats-ipaddr, ctb-formats-mime, ctb-formats-uri, ctb-formats-uuid
+
+Depended on by (2):
+  ctb-formats-compression-cli, ctb-formats-conversion</title>
+    <rect class="node-rect" x="3404.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-detection</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-docker
+Layer: 9
+
+Depends on (1):
+  ctb-formats-checksum
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3006.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-docker</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-dpkg
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats</title>
+    <rect class="node-rect" x="2608.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2695.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dpkg</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-eite
+Layer: 8
+
+Depends on (5):
+  ctb-formats-base16b, ctb-formats-base64, ctb-formats-math, ctb-formats-utf8, ctb-formats-wtf8
+
+Depended on by (1):
+  ctb-formats-dcstring</title>
+    <rect class="node-rect" x="3304.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-eite</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-encoding
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (2):
+  ctb-formats-hexdump, kaitai</title>
+    <rect class="node-rect" x="2210.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2297.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-encoding</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-hexdump
+Layer: 8
+
+Depends on (1):
+  ctb-formats-encoding
+
+Depended on by (2):
+  ctb-formats-dceutils, ctb-installer</title>
+    <rect class="node-rect" x="2707.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2795.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-hexdump</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-html
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-formats-syndication, ctb-storage</title>
+    <rect class="node-rect" x="2807.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-html</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-internetarchive
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3006.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-internetarchive</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-ipaddr
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-formats-detection, ctb-io-webui</title>
+    <rect class="node-rect" x="3205.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-ipaddr</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-javascript
+Layer: 11
+
+Depends on (2):
+  ctb-formats-javascript-bootstrap-ts, ctb-storage
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3006.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1358.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-javascript</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-javascript-boa-host
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-javascript-bootstrap-ts</title>
+    <rect class="node-rect" x="3404.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-javascript-boa-host</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-javascript-bootstrap-ts
+Layer: 4
+
+Depends on (2):
+  ctb-formats-javascript-boa-host, ctb-formats-json
+
+Depended on by (1):
+  ctb-formats-javascript</title>
+    <rect class="node-rect" x="3006.0" y="558.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="574.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-javascript-bootstrap-ts</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-json
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-javascript-bootstrap-ts</title>
+    <rect class="node-rect" x="3603.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-json</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-kaitai
+Layer: 9
+
+Depends on (2):
+  ctb-formats-rust, kaitai
+
+Depended on by (2):
+  ctb-formats, ctb-formats-kaitai-spec-rust</title>
+    <rect class="node-rect" x="3603.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-kaitai-spec-rust
+Layer: 10
+
+Depends on (1):
+  ctb-formats-kaitai
+
+Depended on by (1):
+  ctoolbox</title>
+    <rect class="node-rect" x="3503.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3591.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai-spec-rust</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-lnk
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-installer</title>
+    <rect class="node-rect" x="3802.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3889.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-lnk</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-markdown
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="4001.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4088.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-markdown</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-math
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (2):
+  ctb-formats-checksum, ctb-formats-eite</title>
+    <rect class="node-rect" x="2409.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2496.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-math</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-mime
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-detection</title>
+    <rect class="node-rect" x="2608.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2695.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-mime</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-multipart
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="4200.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4287.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-multipart</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-pan
+Layer: 13
+
+Depends on (1):
+  ctb-io
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3006.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-pan</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-pdf
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="4399.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4486.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-pdf</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-pem
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="2807.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-pem</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-perl
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-wfscan</title>
+    <rect class="node-rect" x="3006.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-perl</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-python
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="3205.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-python</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-rust
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-kaitai</title>
+    <rect class="node-rect" x="3404.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-rust</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-stagel
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="4598.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4685.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-stagel</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-string
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-io-csc</title>
+    <rect class="node-rect" x="3603.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-string</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-syndication
+Layer: 8
+
+Depends on (3):
+  ctb-formats-html, ctb-formats-uri, ctb-formats-utf8
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="3702.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3790.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-syndication</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-text-extraction
+Layer: 10
+
+Depends on (2):
+  ctb-formats-dcstring, ctb-formats-wfscan
+
+Depended on by (1):
+  ctb-io-file</title>
+    <rect class="node-rect" x="3304.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-text-extraction</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-time
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-io-file</title>
+    <rect class="node-rect" x="3802.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3889.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-time</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-troff
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-storage</title>
+    <rect class="node-rect" x="4001.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4088.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-troff</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-unicode
+Layer: 4
+
+Depends on (1):
+  ctb-storage-asset-bundle
+
+Depended on by (1):
+  ctb-formats-dcdata</title>
+    <rect class="node-rect" x="3404.0" y="558.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="574.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-unicode</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-uri
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (2):
+  ctb-formats-detection, ctb-formats-syndication</title>
+    <rect class="node-rect" x="4797.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4884.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-uri</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-useragent
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="4200.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4287.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-useragent</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-utf-8e-128
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-dcdata</title>
+    <rect class="node-rect" x="4996.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="5083.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-utf-8e-128</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-utf8
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (2):
+  ctb-formats-eite, ctb-formats-syndication</title>
+    <rect class="node-rect" x="4399.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4486.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-utf8</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-utilities
+Layer: 6
+
+Depends on (1):
+  ctb-formats-dcdata
+
+Depended on by (19):
+  ctb-formats-apple-types, ctb-formats-base16b, ctb-formats-base64, ctb-formats-dct-el, ctb-formats-encoding, ctb-formats-math, ctb-formats-mime, ctb-formats-pem, ctb-formats-perl, ctb-formats-python, ctb-formats-rust, ctb-formats-string, ctb-formats-time, ctb-formats-troff, ctb-formats-useragent, ctb-formats-utf8, ctb-formats-uuid, ctb-formats-wtf8, ctb-formats-x86</title>
+    <rect class="node-rect" x="3205.0" y="782.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="798.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-utilities</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-uuid
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-detection</title>
+    <rect class="node-rect" x="4598.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4685.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-uuid</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-warc
+Layer: 3
+
+Depends on (2):
+  ctb-utilities, warcat
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="6190.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="6277.5" y="462.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-warc</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-wfscan
+Layer: 8
+
+Depends on (1):
+  ctb-formats-perl
+
+Depended on by (1):
+  ctb-formats-text-extraction</title>
+    <rect class="node-rect" x="3503.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3591.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-wfscan</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-wtf8
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (1):
+  ctb-formats-eite</title>
+    <rect class="node-rect" x="4797.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="4884.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-wtf8</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-formats-x86
+Layer: 7
+
+Depends on (1):
+  ctb-formats-utilities
+
+Depended on by (2):
+  ctb-cli, ctb-formats</title>
+    <rect class="node-rect" x="4996.0" y="894.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="5083.5" y="910.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-x86</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-installer
+Layer: 9
+
+Depends on (6):
+  ctb-formats-alias, ctb-formats-applescript, ctb-formats-base64, ctb-formats-hexdump, ctb-formats-lnk, ctb-workspace-x11-client-egui
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="3404.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1134.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-installer</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io
+Layer: 12
+
+Depends on (2):
+  ctb-io-file, ctb-io-webui
+
+Depended on by (2):
+  ctb-formats-pan, ctb-io-csc</title>
+    <rect class="node-rect" x="3205.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1470.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io-csc
+Layer: 13
+
+Depends on (2):
+  ctb-formats-string, ctb-io
+
+Depended on by (1):
+  ctb-formats-conversion</title>
+    <rect class="node-rect" x="3205.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1582.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-csc</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io-environment
+Layer: 10
+
+Depends on (1):
+  ctb-formats-dcstring
+
+Depended on by (2):
+  ctb-io-file, ctb-io-webui</title>
+    <rect class="node-rect" x="2906.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="2994.0" y="1246.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-environment</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io-file
+Layer: 11
+
+Depends on (4):
+  ctb-formats-apple-single-double, ctb-formats-text-extraction, ctb-formats-time, ctb-io-environment
+
+Depended on by (3):
+  ctb-formats-archive, ctb-formats-compression, ctb-io</title>
+    <rect class="node-rect" x="3205.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1358.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-file</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io-system
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-io-webui</title>
+    <rect class="node-rect" x="5195.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="5282.5" y="462.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-system</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-io-webui
+Layer: 11
+
+Depends on (11):
+  ctb-build-info, ctb-formats-ipaddr, ctb-formats-markdown, ctb-formats-multipart, ctb-formats-pem, ctb-formats-syndication, ctb-formats-useragent, ctb-installer, ctb-io-environment, ctb-io-system, ctb-storage
+
+Depended on by (1):
+  ctb-io</title>
+    <rect class="node-rect" x="3404.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1358.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-webui</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-ipc-macro
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-utilities</title>
+    <rect class="node-rect" x="2807.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="126.0" fill="#4c1d95" text-anchor="middle" dominant-baseline="middle">ctb-ipc-macro</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-network
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-workspace-ipc</title>
+    <rect class="node-rect" x="5394.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#ecfeff" stroke="#06b6d4" stroke-width="1.3" />
+    <text class="node-text" x="5481.5" y="462.0" fill="#155e75" text-anchor="middle" dominant-baseline="middle">ctb-network</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-nopersonality
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctoolbox</title>
+    <rect class="node-rect" x="3006.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="126.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">ctb-nopersonality</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-renderer
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-workspace-ipc</title>
+    <rect class="node-rect" x="5593.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.3" />
+    <text class="node-text" x="5680.5" y="462.0" fill="#78350f" text-anchor="middle" dominant-baseline="middle">ctb-renderer</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-runtime
+Layer: 10
+
+Depends on (1):
+  ctb-formats-dcstring
+
+Depended on by (1):
+  ctb-workspace-ipc</title>
+    <rect class="node-rect" x="3105.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1246.0" fill="#312e81" text-anchor="middle" dominant-baseline="middle">ctb-runtime</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-storage
+Layer: 10
+
+Depends on (4):
+  ctb-api-client, ctb-formats-dcstring, ctb-formats-html, ctb-formats-troff
+
+Depended on by (2):
+  ctb-formats-javascript, ctb-io-webui</title>
+    <rect class="node-rect" x="3702.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3" />
+    <text class="node-text" x="3790.0" y="1246.0" fill="#1e3a8a" text-anchor="middle" dominant-baseline="middle">ctb-storage</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-storage-asset-bundle
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (1):
+  ctb-formats-unicode</title>
+    <rect class="node-rect" x="5792.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3" />
+    <text class="node-text" x="5879.5" y="462.0" fill="#1e3a8a" text-anchor="middle" dominant-baseline="middle">ctb-storage-asset-bundle</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-storage-minimal
+Layer: 3
+
+Depends on (1):
+  ctb-utilities
+
+Depended on by (3):
+  ctb-dc-macro, ctb-formats-dcdata, ctb-workspace-x11-client</title>
+    <rect class="node-rect" x="5991.0" y="446.0" width="175" height="32" rx="5" ry="5" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3" />
+    <text class="node-text" x="6078.5" y="462.0" fill="#1e3a8a" text-anchor="middle" dominant-baseline="middle">ctb-storage-minimal</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-test-macro
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-utilities</title>
+    <rect class="node-rect" x="3205.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="126.0" fill="#4c1d95" text-anchor="middle" dominant-baseline="middle">ctb-test-macro</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-utilities
+Layer: 2
+
+Depends on (4):
+  ctb-build-support, ctb-ipc-macro, ctb-test-macro, ctb-workspace-ipc-macro
+
+Depended on by (31):
+  ctb-api-client, ctb-build-info, ctb-formats-alias, ctb-formats-applescript, ctb-formats-compression-bzip, ctb-formats-compression-compact, ctb-formats-compression-compress, ctb-formats-compression-freeze, ctb-formats-compression-libraries, ctb-formats-compression-rzip, ctb-formats-compression-sco-compress, ctb-formats-compression-szip, ctb-formats-dpkg, ctb-formats-html, ctb-formats-internetarchive, ctb-formats-ipaddr, ctb-formats-javascript-boa-host, ctb-formats-json, ctb-formats-lnk, ctb-formats-markdown, ctb-formats-multipart, ctb-formats-pdf, ctb-formats-stagel, ctb-formats-uri, ctb-formats-utf-8e-128, ctb-formats-warc, ctb-io-system, ctb-network, ctb-renderer, ctb-storage-asset-bundle, ctb-storage-minimal</title>
+    <rect class="node-rect" x="3205.0" y="334.0" width="175" height="32" rx="5" ry="5" fill="#f8fafc" stroke="#64748b" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="350.0" fill="#0f172a" text-anchor="middle" dominant-baseline="middle">ctb-utilities</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-v86-posix-init
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctoolbox</title>
+    <rect class="node-rect" x="3404.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="126.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">ctb-v86-posix-init</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-workspace
+Layer: 17
+
+Depends on (1):
+  ctb-workspace-ipc
+
+Depended on by (1):
+  ctoolbox</title>
+    <rect class="node-rect" x="3205.0" y="2014.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="2030.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-workspace-ipc
+Layer: 16
+
+Depends on (5):
+  ctb-cli, ctb-formats, ctb-network, ctb-renderer, ctb-runtime
+
+Depended on by (1):
+  ctb-workspace</title>
+    <rect class="node-rect" x="3205.0" y="1902.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1918.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace-ipc</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-workspace-ipc-macro
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-utilities</title>
+    <rect class="node-rect" x="3603.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="126.0" fill="#4c1d95" text-anchor="middle" dominant-baseline="middle">ctb-workspace-ipc-macro</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-workspace-x11-client
+Layer: 4
+
+Depends on (2):
+  ctb-storage-minimal, yaxi
+
+Depended on by (1):
+  ctb-workspace-x11-client-egui</title>
+    <rect class="node-rect" x="3205.0" y="558.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="574.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace-x11-client</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctb-workspace-x11-client-egui
+Layer: 5
+
+Depends on (2):
+  ctb-workspace-x11-client, egui_software_backend
+
+Depended on by (1):
+  ctb-installer</title>
+    <rect class="node-rect" x="3105.5" y="670.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="686.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace-x11-client-egui</text>
+  </g>
+  <g class="node">
+    <title>Crate: ctoolbox
+Layer: 18
+
+Depends on (4):
+  ctb-formats-kaitai-spec-rust, ctb-nopersonality, ctb-v86-posix-init, ctb-workspace
+
+Depended on by (0):
+  (none)</title>
+    <rect class="node-rect" x="3205.0" y="2126.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="2142.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctoolbox</text>
+  </g>
+  <g class="node">
+    <title>Crate: egui_software_backend
+Layer: 1
+
+Depends on (1):
+  constify
+
+Depended on by (1):
+  ctb-workspace-x11-client-egui</title>
+    <rect class="node-rect" x="3105.5" y="222.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="238.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">egui_software_backend</text>
+  </g>
+  <g class="node">
+    <title>Crate: kaitai
+Layer: 8
+
+Depends on (1):
+  ctb-formats-encoding
+
+Depended on by (1):
+  ctb-formats-kaitai</title>
+    <rect class="node-rect" x="2906.5" y="1006.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2994.0" y="1022.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">kaitai</text>
+  </g>
+  <g class="node">
+    <title>Crate: warcat
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-formats-warc</title>
+    <rect class="node-rect" x="3802.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="3889.5" y="126.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">warcat</text>
+  </g>
+  <g class="node">
+    <title>Crate: yaxi
+Layer: 0
+
+Depends on (0):
+  (none)
+
+Depended on by (1):
+  ctb-workspace-x11-client</title>
+    <rect class="node-rect" x="4001.0" y="110.0" width="175" height="32" rx="5" ry="5" fill="#f5f5f4" stroke="#a8a29e" stroke-width="1.3" />
+    <text class="node-text" x="4088.5" y="126.0" fill="#44403c" text-anchor="middle" dominant-baseline="middle">yaxi</text>
+  </g>
+</g>
+</svg>

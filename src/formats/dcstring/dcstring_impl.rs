@@ -282,6 +282,27 @@ impl Extend<char> for DcString {
     }
 }
 
+impl PartialEq<str> for DcString {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        &**self == <&DcStr>::from(other)
+    }
+}
+
+impl PartialEq<&str> for DcString {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        &**self == <&DcStr>::from(*other)
+    }
+}
+
+impl PartialEq<String> for DcString {
+    #[inline]
+    fn eq(&self, other: &String) -> bool {
+        &**self == <&DcStr>::from(other.as_str())
+    }
+}
+
 impl fmt::Display for DcString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
@@ -362,8 +383,8 @@ mod tests {
         // Slicing
         let sub = &s[0..2];
         assert_eq!(sub.as_bytes(), b"hi");
-        assert_eq!(sub.as_str(), Some("hi"));
-        assert_eq!(s.as_str(), None); // contains SHORT_DC_REGION_START (0xFF)
+        assert_eq!(sub, "hi");
+        assert_ne!(s, "hi "); // contains SHORT_DC_REGION_START (0xFF)
 
         // Iteration
         let chars: Vec<DcChar> = s.chars().collect();
@@ -404,15 +425,15 @@ mod tests {
         // Mutation: pop
         let popped = s.pop();
         assert_eq!(popped, Some(DcChar(SHORT_DC_REGION_START)));
-        assert_eq!(s.as_str(), Some("hi "));
+        assert_eq!(s, "hi ");
 
         // Mutation: truncate
         s.truncate(2);
-        assert_eq!(s.as_str(), Some("hi"));
+        assert_eq!(s, "hi");
 
         // Mutation: retain
         s.retain(|c| c != DcChar::from_char('i'));
-        assert_eq!(s.as_str(), Some("h"));
+        assert_eq!(s, "h");
     }
 
     #[crate::ctb_test]
@@ -438,7 +459,7 @@ mod tests {
 
         // Safe conversion via from_bytes
         let dc_str = DcStr::from_bytes(b"hello").unwrap();
-        assert_eq!(dc_str.as_str(), Some("hello"));
+        assert_eq!(dc_str, "hello");
 
         let dc_string = DcString::from_dcutf(buf).unwrap();
         assert_eq!(dc_string.chars().count(), 4);

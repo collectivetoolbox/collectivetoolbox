@@ -38,8 +38,8 @@ use ctb_formats_dcdata::dc::{
 /// Typed shared values whose definitions are persisted by the caller.
 #[derive(Clone, Default)]
 pub struct SharedValueContext {
-    bindings: BTreeMap<String, Arc<dyn Any + Send + Sync>>,
-    scopes: Vec<BTreeMap<String, Arc<dyn Any + Send + Sync>>>,
+    bindings: BTreeMap<DcMstring, Arc<dyn Any + Send + Sync>>,
+    scopes: Vec<BTreeMap<DcMstring, Arc<dyn Any + Send + Sync>>>,
 }
 
 impl std::fmt::Debug for SharedValueContext {
@@ -51,11 +51,12 @@ impl std::fmt::Debug for SharedValueContext {
 impl SharedValueContext {
     /// Reports whether an enclosing document supplied this binding.
     #[must_use]
-    pub fn contains(&self, name: &str) -> bool {
-        self.lookup(name).is_some()
+    pub fn contains(&self, name: impl Into<DcMstring>) -> bool {
+        let name = name.into();
+        self.lookup(&name).is_some()
     }
 
-    fn lookup(&self, name: &str) -> Option<&Arc<dyn Any + Send + Sync>> {
+    fn lookup(&self, name: &crate::DcMstr) -> Option<&Arc<dyn Any + Send + Sync>> {
         self.scopes.iter().rev().chain(std::iter::once(&self.bindings)).find_map(|scope| scope.get(name))
     }
 
@@ -71,12 +72,12 @@ impl SharedValueContext {
     }
 
     /// Declares a value in the current scope; inner declarations may shadow.
-    pub fn insert<T: Any + Send + Sync>(&mut self, name: impl Into<String>, value: Arc<T>) -> Result<()> {
+    pub fn insert<T: Any + Send + Sync>(&mut self, name: impl Into<DcMstring>, value: Arc<T>) -> Result<()> {
         let name = name.into();
         ensure!(!name.is_empty(), "Shared binding names must not be empty");
         let scope = if let Some(scope) = self.scopes.last() { scope } else { &self.bindings };
         ensure!(!scope.contains_key(&name), "Duplicate shared binding {name:?}");
-        if self.contains(&name) {
+        if self.lookup(&name).is_some() {
             warn_fmt!("Reference declaration {name:?} shadows an enclosing declaration");
         }
         let scope = if let Some(scope) = self.scopes.last_mut() { scope } else { &mut self.bindings };
@@ -85,14 +86,14 @@ impl SharedValueContext {
     }
 
     /// Finds a persisted definition with identical value and type.
-    pub fn binding_for<T: Any + Send + Sync + PartialEq>(&self, value: &Arc<T>) -> Option<&str> {
+    pub fn binding_for<T: Any + Send + Sync + PartialEq>(&self, value: &Arc<T>) -> Option<&crate::DcMstr> {
         self.scopes.iter().rev().chain(std::iter::once(&self.bindings)).flat_map(BTreeMap::iter).find_map(|(name, binding)| {
             if !self.lookup(name).is_some_and(|visible| Arc::ptr_eq(visible, binding)) {
                 return None;
             }
             let stored = binding.downcast_ref::<Arc<T>>()?;
             if Arc::ptr_eq(stored, value) || stored == value {
-                Some(name.as_str())
+                Some(name.as_mstr())
             } else {
                 None
             }
@@ -100,8 +101,9 @@ impl SharedValueContext {
     }
 
     /// Resolves a reference without recapturing or copying its definition.
-    pub fn resolve<T: Any + Send + Sync>(&self, name: &str) -> Result<Arc<T>> {
-        let binding = self.lookup(name).with_context(|| format!("Unresolved shared binding {name:?}"))?;
+    pub fn resolve<T: Any + Send + Sync>(&self, name: impl Into<DcMstring>) -> Result<Arc<T>> {
+        let name = name.into();
+        let binding = self.lookup(&name).with_context(|| format!("Unresolved shared binding {name:?}"))?;
         let value = binding.downcast_ref::<Arc<T>>().with_context(|| format!("Wrong type for shared binding {name:?}"))?;
         Ok(Arc::clone(value))
     }
@@ -143,7 +145,7 @@ where
     T: Any + Send + Sync + PartialEq + serde::Serialize,
 {
     let (key, payload) = if let Some(name) = context.binding_for(value) {
-        ("$dc_shared", serde_json::Value::String(name.to_owned()))
+        ("$dc_shared", serde_json::Value::String(name.to_string()))
     } else {
         ("$dc_inline", serde_json::to_value(value)?)
     };
@@ -193,9 +195,12 @@ pub fn encode_dc_identifier(mst: &mut DcMstring, name: &crate::DcMstr) -> Result
 
 pub fn encode_dc_identifier_to(mst: &mut crate::DcWriter<'_>, name: &crate::DcMstr) -> Result<()> {
     use ctb_formats_dcdata::DcCharExt;
-    let Some(dc_str) = name.as_dc_str() else {
-        bail!("Cannot encode DcMstr containing raw binary chunks as an identifier");
-    };
+    for chunk in name.chunks() {
+        if !matches!(chunk, crate::DcMixed::Text(_)) {
+            bail!("Cannot encode DcMstr containing raw binary chunks as an identifier");
+        }
+    }
+    let dc_str = name.to_dc_string()?;
     ensure!(!dc_str.is_empty(), "Identifiers must not be empty");
     mst.push_char(DC_BEGIN_IDENTIFIER)?;
     for character in dc_str.chars() {
@@ -222,44 +227,37 @@ pub fn decode_dc_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: Node
     }
 }
 
-/// Reads a Unicode identifier without interpreting its name as an expression.
-pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<String> {
-    let name = decode_dc_identifier(ctx, node_id)?;
-    Ok(name
-        .as_str()
-        .context("Identifier contains non-Unicode Document Characters")?
-        .to_owned())
+/// Reads an identifier without interpreting its name as an expression.
+pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<DcMstring> {
+    decode_dc_identifier(ctx, node_id)
 }
 
 /// Assigns a field from a lexically bound value using identifiers, not strings.
-pub fn encode_shared_reference(mst: &mut DcMstring, field: &str, binding: &str) -> Result<()> {
+pub fn encode_shared_reference(mst: &mut DcMstring, field: &str, binding: impl Into<DcMstring>) -> Result<()> {
     encode_shared_reference_to(&mut mst.writer(), field, binding)
 }
 
-pub fn encode_shared_reference_to(mst: &mut crate::DcWriter<'_>, field: &str, binding: &str) -> Result<()> {
+pub fn encode_shared_reference_to(mst: &mut crate::DcWriter<'_>, field: &str, binding: impl Into<DcMstring>) -> Result<()> {
+    let binding = binding.into();
     encode_identifier_to(mst, field)?;
     mst.push_char(DC_ASSIGN)?;
     mst.push_char(DC_REFERENCE_BOUND_VALUE)?;
-    encode_identifier_to(mst, binding)
+    encode_dc_identifier_to(mst, binding.as_mstr())
 }
 
 /// Reads an assignment whose value is a named reference.
-pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<(String, String)> {
+pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<(DcMstring, DcMstring)> {
     let node = ctx.node(node_id)?;
     match &node.kind {
         crate::navigator::DcSyntaxKind::Assignment { ident, value } => {
-            let ident_str = ident
-                .as_str()
-                .context("Assignment identifier contains non-Unicode Document Characters")?
-                .to_owned();
             let val_node = ctx.node(*value)?;
             match &val_node.kind {
                 crate::navigator::DcSyntaxKind::Tagged { tag, args }
                     if ctx.token_fills_role(*tag, ctb_formats_dcdata::syntax::DcRole::ReferenceBoundValue) =>
                 {
                     let target_id = args.first().copied().context("Missing reference target identifier")?;
-                    let target_name = decode_identifier(ctx, target_id)?;
-                    Ok((ident_str, target_name))
+                    let target_name = decode_dc_identifier(ctx, target_id)?;
+                    Ok((ident.clone(), target_name))
                 }
                 other => bail!("Expected reference tag Dc 540 in assignment, found {other:?}"),
             }
@@ -463,7 +461,7 @@ mod tests {
         let distinct = Arc::new(43u64);
         let encoded = shared_to_json(&distinct, &context)?;
         assert_eq!(*shared_from_json::<u64>(encoded, &context)?, 43);
-        assert_eq!(context.binding_for(&Arc::new(42u64)), Some("source"));
+        assert_eq!(context.binding_for(&Arc::new(42u64)), Some(DcMstring::from("source").as_mstr()));
         Ok(())
     }
 }
