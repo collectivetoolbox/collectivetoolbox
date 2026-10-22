@@ -6696,7 +6696,7 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         // 3. Elements separated by Dc 312
-        let mut elem_count = malachite::Integer::from(0);
+        let mut elem_count: usize = 0;
         let mut expect_elem = false;
         while self.cursor < list_body_end {
             let elem_start = self.cursor;
@@ -6707,7 +6707,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.active_span = saved_span;
                 return Ok(false);
             }
-            elem_count += malachite::Integer::from(1);
+            elem_count = elem_count.saturating_add(1);
             expect_elem = false;
             if self.cursor < list_body_end {
                 let Some((sep_tok, after_sep)) = self.read_token_or_binary_at(self.cursor)? else {
@@ -6727,13 +6727,14 @@ impl<'a> DcDocumentNavigator<'a> {
         if expect_elem {
             return Ok(false);
         }
+        let total_count = malachite::Integer::from(elem_count);
         if let Some(hdr) = header_count {
-            if hdr != elem_count {
+            if hdr != total_count {
                 return Ok(false);
             }
         }
         if let Some(exp) = expected_len {
-            if exp != elem_count {
+            if exp != total_count {
                 return Ok(false);
             }
         }

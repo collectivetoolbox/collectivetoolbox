@@ -270,7 +270,7 @@ fn single_format(data_type: &DcStr, resolver: &dyn SyntaxRuleResolver) -> Result
         chars.len() == 1,
         "Checksum requires a single hash format"
     );
-    let ch = chars[0];
+    let ch = *chars.first().context("Checksum requires a single hash format")?;
     let canon = resolver.canonical_token(ch.to_u128());
     let format = FormatId::from_dc_id(canon)
         .context("Unknown checksum format")?;

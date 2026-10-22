@@ -1640,7 +1640,15 @@ mod tests {
         });
         assert_eq!(source.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
         let inspection = source.inspect::<FileMetadata>();
-        assert!(inspection.diagnostic().is_none());
+        assert!(
+            !inspection.diagnostics().is_empty()
+                && inspection
+                    .diagnostics()
+                    .iter()
+                    .all(|d| d.error().to_string().starts_with("Deprecated")),
+            "Expected only deprecation warnings, got: {:?}",
+            inspection.diagnostics()
+        );
         let updated = inspection.replace_field("native", &expected)?;
         assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
         assert_eq!(updated.as_bytes(), source.as_bytes());
