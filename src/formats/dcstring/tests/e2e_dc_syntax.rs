@@ -548,6 +548,35 @@ mod tier2_boundary_corner_cases {
         wrong_resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         vec![true, true].encode_dc_mixed(&mut wrong_resolution)?;
         ensure!(validate_dc_mixed_strict(&wrong_resolution).is_err(), "Representations bypassed datemagnitude operand type");
+
+        // Dc 388..389 (`:~ ([list:Semantic:fileflag] | [539:])? 389`) accepts 397/561 wrapping
+        // both branches of the grouped alternation without explicit `| [397:] | [561:]` in CSV,
+        // while still rejecting non-fileflag Dcs inside the list branch.
+        let mut valid_flags = DcMstring::new();
+        for short_id in [388u32, 397, 310, 275, 310, 275, 409, 311, 312, 539] {
+            valid_flags.push_char(DcChar::from_short(short_id));
+        }
+        valid_flags.push_binary(&[1u8, 2u8]);
+        valid_flags.push_char(DcChar::from_short(311));
+        valid_flags.push_char(DcChar::from_short(389));
+        validate_dc_mixed_strict(&valid_flags)?;
+
+        let mut invalid_flags = DcMstring::new();
+        for short_id in [388u32, 397, 310, 275, 310, 275, 403, 311, 311, 389] {
+            invalid_flags.push_char(DcChar::from_short(short_id));
+        }
+        ensure!(
+            validate_dc_mixed_strict(&invalid_flags).is_err(),
+            "Dc 388 equivalent wrapper must reject non-fileflag Dc 403 inside [list:Semantic:fileflag]"
+        );
+
+        // [format] named type (`:[f0..f1114111]`) accepts the full allocated format region up to f1114111
+        let mut max_format_repr = DcMstring::new();
+        max_format_repr.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
+        max_format_repr.push_char(DcChar::from_format(1_114_111));
+        max_format_repr.push_char(DC_BOOLEAN_TRUE);
+        max_format_repr.push_char(DC_END_FORMAT_REPRESENTATION);
+        validate_dc_mixed_strict(&max_format_repr)?;
         Ok(())
     }
 

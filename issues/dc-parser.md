@@ -30,14 +30,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Parser and Projection Ownership
 
-- [x] Finish parser-owned `Dc 313..314` deprecation handling and reconcile the
-  `strict()` deprecation contract: removed duplicate legacy map warnings from
-  [macro codegen](../src/formats/dcstring/ctb_dc_macro/src/lib.rs#L1235) and
-  [arena classification](../src/formats/dcstring/navigator.rs#L3662) so
-  [the scanner](../src/formats/dcstring/navigator.rs#L2718) emits and records
-  the deprecation diagnostic once, while `DcProjectionPolicy::strict()` keeps
-  `deprecated_syntax: DiagnosticAction::Warn` (since deprecated Dcs remain valid
-  legacy documents).
 - [ ] Finish auditing remaining retained diagnostics across projection,
   inspection, and journal consumers (`record_diagnostic` now records parser
   diagnostics in `DcDocumentNavigator` and drains them into `DcSyntaxArena` even
@@ -117,10 +109,6 @@ completion. Unchecked review leads require a focused reproduction before fixes.
 
 ### Database and Semantic Decisions
 
-- [ ] Resolve the literal `f632` cap in
-  [the named format rule](../src/formats/dcdata/data/README-named-types.csv#L10):
-  distinguish recognized formats from allocated reference space. If it means
-  defined formats, derive the boundary from the database.
 - [ ] Specify downstream expansion of multi-token `<equiv>` decompositions,
   such as `f350 f351`. Single-token canonical equivalence and rejection of
   conflicting single-token syntax on decompositions are already implemented.
@@ -180,6 +168,11 @@ their surrounding contracts have no remaining gaps.
   [dc_writer](../src/formats/dcstring/dc_writer.rs#L194) and the
   [shared file encoder](../src/io/file/encoding.rs#L179). Journal/archive work
   must reuse this path, not introduce another serialization grammar.
+- [x] `Dc 255` single-token role stripping, parser-owned `Dc 313..314`
+  deprecation diagnostics (`strict()` warns once and records the diagnostic in
+  `DcSyntaxArena`), `[format]` named type covering `:[f0..f1114111]`, `Dc 388`
+  implicit `397`/`561` evaluation over grouped alternations, and composite
+  framed pair `(u32, bool)` + `Vec<u32>` projection through `397 [list] -> 315`.
 
 ## Related and Deferred Work
 
@@ -215,14 +208,6 @@ not a broad Rust rebuild.
 
 ## Recovered From Pre-Cleanup `issues/` (To Filter)
 
-- [ ] Remove the accidental explicit `| [397:] | [561:]` from `Dc 388` in
-  [semantic.csv](../src/formats/dcdata/data/categories/semantic.csv#L93) and
-  allow `eval_constrained_equivalent_list` in
-  [navigator.rs](../src/formats/dcstring/navigator.rs#L5066) to evaluate
-  grouped alternations inside `397` / `561` (`378` and non-grouped operands
-  already support implicit `397` / `561`; `Dc 255` single-token role stripping
-  and arena/projection preservation of escaped atoms are now implemented via
-  `DcFrameHeaderInfo::Escaped` and `DcSyntaxNode::is_escaped_atom()`).
 - [ ] Replace remaining hardcoded English-name, script-name, and `@ident` role classification in `src/build_support/dc_codegen.rs:373-398` with data-driven `@roleDef()` CSV annotations (`name.starts_with("Stream kind:") || name.starts_with("Mac OS Finder label")`, `script == ".EL Routines"`, and hardcoded `@ident` match lists; from `5e3a561bb:issues/issues.md:97-114` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:87`).
 - [ ] Eliminate remaining hardcoded Dc numbers and one-sided canonical token matching in `src/formats/dcstring/ctb_dc_macro/src/lib.rs` (`DcChar::from_short(397)` / `DcChar::from_short(561)` at lines `2022, 2753, 2859, 2861, 3446, 3576, 4179, 4239`, and `ctx.canonical_token(tag)` matched against raw `#all_match_tags` without canonicalizing the annotated side or consulting runtime `equiv_map`; from `5e3a561bb:issues/issues.md:146` and deleted `ad941196f:issues/2026-10-13-Dc-syntax-parser-refactor/2026-10-20-review.md:76`).
 - [ ] Finish auditing and migrating remaining hardcoded Dc comparisons in `src/formats/dcdata/dc_char.rs` and `src/formats/dcdata/format_spec/dc_stream.rs` (`Short(535)`, `Short(258)`, `Short(259)`, `Short(299)`, `Short(300)` at `dc_stream.rs:151-245`; from `5e3a561bb:issues/issues.md:146`).
@@ -232,5 +217,4 @@ not a broad Rust rebuild.
   - `src/formats/dcdata/format.rs:650`: out-of-range format short ID falls back to dummy `0`.
   - `src/formats/dcstring/source_edit.rs:116`: empty malformed token falls back to NUL (`\u{0000}`).
   - `src/formats/dcstring/ctb_dc_macro/src/lib.rs:3535,4072,4164,4225`: empty `Tagged { tag, args }` falls back to passing `child_id`/`ch_id` as its own payload instead of returning a decode error.
-- [ ] Restore the deleted composite framed pair `(u32, bool)` + `Vec<u32>` test through `397 [list] -> 315` in `src/formats/dcstring/tests/` (from `5e3a561bb:issues/2026-10-13-Dc-syntax-parser-refactor/to-review:127-135` and `subplan-2.md:129`).
 - [ ] Check whether `memories/dc-document-parsing.md` should be restored to `memories/` (moved out of `memories/` into `issues/2026-10-13-Dc-syntax-parser-refactor/dc-document-parsing.md` in `787086572` and deleted in `b7e594364`).

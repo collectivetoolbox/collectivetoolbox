@@ -39,8 +39,14 @@ use anyhow::{Context, Result, bail, ensure};
 pub fn parse_target_token(token: &str) -> Option<CharTarget> {
     match ctb_storage_minimal::shorthand::DcShorthand::parse(token).ok()? {
         ctb_storage_minimal::shorthand::DcShorthand::Short(id) => Some(CharTarget::Dc(id)),
-        ctb_storage_minimal::shorthand::DcShorthand::Format(_) => {
-            ctb_utilities::format_id::FormatId::from_shorthand(token).map(CharTarget::Format)
+        ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
+            if let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(token) {
+                Some(CharTarget::Format(fid))
+            } else if id == ctb_storage_minimal::shorthand::MAX_FORMAT_ID {
+                Some(CharTarget::FormatRegionEnd)
+            } else {
+                None
+            }
         }
         ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
             Some(CharTarget::Unicode(cp))

@@ -1259,7 +1259,11 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     {
         let candidates = self.equivalent_candidates(node_id)?;
         for &cand_id in &candidates {
-            if predicate(cand_id) {
+            if predicate(cand_id)
+                || self
+                    .unwrap_transparent(cand_id)
+                    .is_ok_and(|unwrapped| unwrapped != cand_id && predicate(unwrapped))
+            {
                 return Ok(cand_id);
             }
         }
@@ -1958,17 +1962,26 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
                 } else {
                     children.as_slice()
                 };
+                let is_list = ctx.token_fills_role(*opener, DcRole::BeginList);
                 let filtered: Vec<NodeId> = child_slice
                     .iter()
                     .copied()
                     .filter(|&id| {
                         if let Ok(n) = ctx.node(id) {
-                            !matches!(n.kind, DcSyntaxKind::Atom(ch) if ctx.token_fills_role(ch, DcRole::ListElementSeparator))
+                            !matches!(
+                                n.kind,
+                                DcSyntaxKind::Atom(ch)
+                                    if ctx.token_fills_role(ch, DcRole::ListElementSeparator)
+                                        || (is_list && ctx.token_fills_role(ch, DcRole::TypeToken))
+                            )
                         } else {
                             true
                         }
                     })
                     .collect();
+                if let [single] = filtered.as_slice() {
+                    return Self::decode_dc_node(ctx, *single);
+                }
                 if let (Some(&first), Some(&second)) = (filtered.first(), filtered.get(1)) {
                     let a = A::decode_dc_node(ctx, first)?;
                     let b = B::decode_dc_node(ctx, second)?;

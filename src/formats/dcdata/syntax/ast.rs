@@ -35,6 +35,9 @@ pub enum CharTarget {
     Dc(u32),
     /// Format identifier prefixed with `f` (e.g. `f80`).
     Format(ctb_utilities::format_id::FormatId),
+    /// Upper bound of the allocated Format Dc block (`f1114111` / `FORMAT_REGION_END`),
+    /// permitted strictly as a syntax range endpoint (e.g. `[f0..f1114111]`).
+    FormatRegionEnd,
     /// Unicode codepoint prefixed with lowercase `u` (e.g. `u0020`, `u12ab`).
     Unicode(u32),
 }
@@ -65,6 +68,7 @@ impl CharTarget {
                 fid.dc_id()
                     .expect("FormatId always maps to a valid Global Graph Dc ID")
             }
+            Self::FormatRegionEnd => ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END,
             Self::Unicode(cp) => u128::from(*cp),
         }
     }
@@ -77,6 +81,8 @@ impl CharTarget {
             Some(Self::Dc(short))
         } else if let Some(fid) = ctb_utilities::format_id::FormatId::from_dc_id(val) {
             Some(Self::Format(fid))
+        } else if val == ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END {
+            Some(Self::FormatRegionEnd)
         } else if let Ok(cp) = dc.to_unicode() {
             Some(Self::Unicode(cp))
         } else {
@@ -90,6 +96,9 @@ impl std::fmt::Display for CharTarget {
         match self {
             Self::Dc(id) => write!(f, "{id}"),
             Self::Format(id) => write!(f, "{}", id.shorthand()),
+            Self::FormatRegionEnd => {
+                write!(f, "f{}", ctb_storage_minimal::shorthand::MAX_FORMAT_ID)
+            }
             Self::Unicode(cp) => write!(f, "u{cp:04x}"),
         }
     }

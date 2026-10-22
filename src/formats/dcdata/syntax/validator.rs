@@ -244,6 +244,20 @@ fn check_target_reference(
                 );
             }
         }
+        CharTarget::FormatRegionEnd => {
+            if !is_range_endpoint {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!(
+                        "Format ID 'f{}' in syntax rule does not exist in formats registry",
+                        ctb_storage_minimal::shorthand::MAX_FORMAT_ID
+                    ),
+                    Some("Ensure referenced format ID is defined in formats category files"),
+                );
+            }
+        }
         CharTarget::Unicode(cp) => {
             if *cp > 0x0010_FFFF {
                 report.add_error(

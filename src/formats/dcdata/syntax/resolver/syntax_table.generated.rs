@@ -1084,17 +1084,11 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
                     SyntaxPattern::Sequence(vec![
                         SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(539) }, quantifier: Quantifier::ExactOne },
                     ]),
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(397) }, quantifier: Quantifier::ExactOne },
-                    ]),
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(561) }, quantifier: Quantifier::ExactOne },
-                    ]),
                 ])), quantifier: Quantifier::Optional },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(389)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389".to_string(),
+            raw: ":~ ([list:Semantic:fileflag] | [539:])? 389".to_string(),
         },
     );
     resolver.rules.insert(
@@ -2409,7 +2403,7 @@ fn populate_named_types(resolver: &mut DatasetRuleResolver) {
     resolver.named_types.insert(
         "format".to_string(),
         SyntaxPattern::Sequence(vec![
-            SyntaxElement { term: SyntaxTerm::CharRange { start: CharTarget::Format(FormatId::Utf8), end: CharTarget::Format(FormatId::CscJournal4) }, quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharRange { start: CharTarget::Format(FormatId::Utf8), end: CharTarget::FormatRegionEnd }, quantifier: Quantifier::ExactOne },
         ]),
     );
     resolver.named_types.insert(
@@ -3589,7 +3583,7 @@ fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
             exact_tokens: HashSet::new(),
             ranges: vec![
                 (2_228_224_u128, 3_342_335_u128),
-                (2_228_224_u128, 2_228_856_u128),
+                (2_228_224_u128, 3_342_335_u128),
             ],
             scripts: Vec::new(),
         },
@@ -3674,7 +3668,7 @@ fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
             ]),
             ranges: vec![
                 (2_228_224_u128, 3_342_335_u128),
-                (2_228_224_u128, 2_228_856_u128),
+                (2_228_224_u128, 3_342_335_u128),
             ],
             scripts: vec![
                 ".EL Types".to_string(),

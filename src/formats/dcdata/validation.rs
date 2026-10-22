@@ -1380,6 +1380,18 @@ fn validate_target_token(
                 }
             }
         }
+        CharTarget::FormatRegionEnd => {
+            report.add_error(
+                source_file,
+                Some(line_no),
+                Some(col_name),
+                format!(
+                    "Referenced Format ID 'f{}' does not exist in formats registry",
+                    ctb_storage_minimal::shorthand::MAX_FORMAT_ID
+                ),
+                Some("Ensure referenced format ID is defined in formats category files"),
+            );
+        }
         CharTarget::Unicode(cp) => {
             if !ctb_formats_unicode::is_assigned_unicode(cp) {
                 report.add_error(

@@ -90,7 +90,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389",Begins a collection of semantic file flags attached to a file.
+1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:])? 389",Begins a collection of semantic file flags attached to a file.
 1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @closes(388)",Terminates a collection of semantic file flags attached to a file.
 1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,"@ident(""BeginTimeMoment""), @roleDef(), :~ [formats:date] [^391]+ 391",Begins a time moment description.
 1114503,391,End time moment description,0,BN,,!Cx,.Semantic,"@ident(""EndTimeMoment""), @roleDef(), @closes(390)",Terminates a time moment description.

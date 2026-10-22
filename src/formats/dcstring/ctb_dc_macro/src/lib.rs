@@ -990,15 +990,21 @@ fn generate_field_value_decoder(
         if is_vec {
             return Ok(quote! {
                 {
-                    let cnode = ctx.node(#node_id_expr)?;
+                    let cnode = ctx.node(ctx.unwrap_transparent(#node_id_expr)?)?;
                     let children = match &cnode.kind {
                         #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
                         other => #anyhow_path::bail!("Expected Container for bounded field `{}`, found {other:?}", stringify!(#field_ident)),
                     };
-                    if children.len() == 1 {
-                        if let Ok(first_node) = ctx.node(children[0]) {
+                    if let [single_child] = children.as_slice() {
+                        // Reason for fallback: When transparent unwrapping fails or yields a non-list node, fall back to decoding `single_child` as a single element of the Vec.
+                        let unwrapped_child = ctx.unwrap_transparent_matching(*single_child, |id| {
+                            ctx.node(id).is_ok_and(|n| {
+                                matches!(&n.kind, #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, #crate_root::DcRole::BeginList))
+                            })
+                        }).unwrap_or(*single_child);
+                        if let Ok(first_node) = ctx.node(unwrapped_child) {
                             if matches!(&first_node.kind, #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if ctx.token_fills_role(*opener, #crate_root::DcRole::BeginList)) {
-                                <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, children[0])?
+                                <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrapped_child)?
                             } else {
                                 let mut list = ::std::vec::Vec::new();
                                 for &child_id in children {
@@ -3522,7 +3528,20 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ),
                         };
                         let mut fields = ::std::vec::Vec::new();
-                        for &child_id in children {
+                        for &raw_child_id in children {
+                            let raw_child_node = ctx.node(raw_child_id)?;
+                            let child_id = if ctx.is_representation_set_node(raw_child_node)
+                                || matches!(
+                                    &raw_child_node.kind,
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
+                                    | #crate_root::navigator::DcSyntaxKind::Tagged { tag: opener, .. }
+                                        if ctx.token_fills_role(*opener, #crate_root::DcRole::OptionalPresent)
+                                )
+                            {
+                                ctx.unwrap_transparent(raw_child_id)?
+                            } else {
+                                raw_child_id
+                            };
                             let child_node = ctx.node(child_id)?;
                             let (tag, val_id) = match &child_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {

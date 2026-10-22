@@ -600,7 +600,94 @@ mod challenge3_transparent_unwrapping {
 
         let mut ctx_vec = DcProjectionContext::new(&arena_vec, &policy);
         let val_vec = Option::<Vec<u32>>::decode_dc_node(&mut ctx_vec, root_vec)?;
-        ensure!(val_vec == Some(vec_data), "Vec unwrapping mismatch");
+        ensure!(val_vec == Some(vec_data.clone()), "Option<Vec> unwrapping mismatch");
+        let direct_vec = Vec::<u32>::decode_dc_node(&mut ctx_vec, root_vec)?;
+        ensure!(direct_vec == vec_data, "Direct Vec unwrapping mismatch");
+
+        // 5. Composite framed pair (u32, bool) = (777, true) through 397 [list] -> 315
+        let pair: (u32, bool) = (777, true);
+        let mut mst_pair = DcMstring::new();
+        mst_pair.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        mst_pair.push_char(DC_BEGIN_LIST);
+        mst_pair.push_char(DC_TYPE_WILDCARD);
+        mst_pair.push_char(DC_OPTIONAL_PRESENT);
+        pair.encode_dc_mixed(&mut mst_pair)?;
+        mst_pair.push_char(DC_END_LIST);
+
+        let mut nav_pair = DcDocumentNavigator::from_mstr(&mst_pair);
+        let mut arena_pair = DcSyntaxArena::new();
+        nav_pair.parse_document_into_arena(&mut arena_pair, &policy)?;
+        let root_pair = arena_pair.roots()[0];
+        let mut ctx_pair = DcProjectionContext::new(&arena_pair, &policy);
+        let decoded_pair = <(u32, bool)>::decode_dc_node(&mut ctx_pair, root_pair)?;
+        ensure!(decoded_pair == pair, "Composite pair (777, true) unwrapping mismatch");
+
+        // 6. #[derive(DcMixed)] struct with framed and tagged (u32, bool) + Vec<u32> fields
+        // wrapped in 397 [list] -> 315
+        #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+        #[dc(begin = 401, end = 402)]
+        struct FramedPairAndVecRecord {
+            #[dc(begin = 490, end = 491)]
+            bounded_pair: (u32, bool),
+            #[dc(begin = 340, end = 341)]
+            bounded_vec: Vec<u32>,
+            #[dc(short = 406)]
+            tagged_pair: (u32, bool),
+            #[dc(short = 408)]
+            tagged_vec: Vec<u32>,
+        }
+
+        let mut mst_rec = DcMstring::new();
+        mst_rec.push_char(DcChar::from_short(401));
+        // bounded_pair wrapped inside 490..491 via 397 [list] -> 315
+        mst_rec.push_char(DcChar::from_short(490));
+        mst_rec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        mst_rec.push_char(DC_BEGIN_LIST);
+        mst_rec.push_char(DC_TYPE_WILDCARD);
+        mst_rec.push_char(DC_OPTIONAL_PRESENT);
+        pair.encode_dc_mixed(&mut mst_rec)?;
+        mst_rec.push_char(DC_END_LIST);
+        mst_rec.push_char(DcChar::from_short(491));
+        // bounded_vec wrapped inside 340..341 via 397 [list] -> 315
+        mst_rec.push_char(DcChar::from_short(340));
+        mst_rec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        mst_rec.push_char(DC_BEGIN_LIST);
+        mst_rec.push_char(DC_TYPE_WILDCARD);
+        mst_rec.push_char(DC_OPTIONAL_PRESENT);
+        vec_data.encode_dc_mixed(&mut mst_rec)?;
+        mst_rec.push_char(DC_END_LIST);
+        mst_rec.push_char(DcChar::from_short(341));
+        // tagged_pair wrapped via 397 [list] -> 315
+        mst_rec.push_char(DcChar::from_short(406));
+        mst_rec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        mst_rec.push_char(DC_BEGIN_LIST);
+        mst_rec.push_char(DC_TYPE_WILDCARD);
+        mst_rec.push_char(DC_OPTIONAL_PRESENT);
+        pair.encode_dc_mixed(&mut mst_rec)?;
+        mst_rec.push_char(DC_END_LIST);
+        // tagged_vec wrapped via 397 [list] -> 315
+        for &item in &vec_data {
+            mst_rec.push_char(DcChar::from_short(408));
+            mst_rec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+            mst_rec.push_char(DC_BEGIN_LIST);
+            mst_rec.push_char(DC_TYPE_WILDCARD);
+            mst_rec.push_char(DC_OPTIONAL_PRESENT);
+            item.encode_dc_mixed(&mut mst_rec)?;
+            mst_rec.push_char(DC_END_LIST);
+        }
+        mst_rec.push_char(DcChar::from_short(402));
+
+        let decoded_rec: FramedPairAndVecRecord = mst_rec.decode(&policy)?;
+        ensure!(
+            decoded_rec
+                == FramedPairAndVecRecord {
+                    bounded_pair: pair,
+                    bounded_vec: vec_data.clone(),
+                    tagged_pair: pair,
+                    tagged_vec: vec_data,
+                },
+            "Derive macro FramedPairAndVecRecord through 397 [list] -> 315 mismatch: {decoded_rec:?}"
+        );
 
         Ok(())
     }
@@ -608,7 +695,7 @@ mod challenge3_transparent_unwrapping {
     /// Verifies that `Vec<T>` and `(A, B)` call `unwrap_transparent` and properly
     /// unwrap transparent optional (`315`) wrappers.
     #[crate::ctb_test]
-    fn test_adversarial_bare_vec_and_tuple_do_not_unwrap_transparent_optionals() -> Result<()> {
+    fn test_adversarial_bare_vec_and_tuple_unwrap_transparent_optionals() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
 
         // 315 wrapping a Vec<u32>

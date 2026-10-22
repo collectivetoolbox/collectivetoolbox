@@ -3115,7 +3115,6 @@ impl<'a> DcDocumentNavigator<'a> {
                 return self.syntax_issue(policy, after_open, "Equivalent list header mismatch".to_owned());
             }
             let value = SyntaxTerm::NamedConstruct { name: "value".to_owned(), subtype: None, capture_var: None };
-            let fallback = SyntaxTerm::CharSet { negated: true, members: Vec::new() };
             let mut previous_was_separator = true;
             while self.cursor < body_end {
                 let start = self.cursor;
@@ -3143,8 +3142,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.cursor = start;
                     }
                 }
-                let mut trial = ctx.clone();
-                if !self.eval_term_single(&fallback, &mut trial)? || self.cursor <= start {
+                if self.next_sibling_stub_with_resolver(policy, resolver)?.is_none() || self.cursor <= start {
                     self.cursor = after;
                 }
             }
@@ -5046,10 +5044,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             _ => false,
         };
-        if is_equiv_wrapper
-            && !matches!(term, SyntaxTerm::Group(pattern) if pattern_has_payload_constraint(pattern))
-            && !term_targets_equiv
-        {
+        if is_equiv_wrapper && !term_targets_equiv {
             let equiv_checkpoint = self.save_checkpoint();
             if let Some(wrapper_target) = CharTarget::from_u128(first) {
                 if let Some(rule) = ctx.resolver.resolve_rule(&wrapper_target) {
@@ -5837,12 +5832,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 continue;
             }
             self.cursor = elem_start;
-            if let SyntaxTerm::NamedConstruct { name, .. } = term {
-                let unconstrained = SyntaxTerm::NamedConstruct {
-                    name: name.clone(),
-                    subtype: None,
-                    capture_var: None,
-                };
+            if let Some(unconstrained) = unconstrained_term(term) {
                 let mut trial_ctx = sub_ctx.clone();
                 if self.eval_term_single(&unconstrained, &mut trial_ctx)? && !trial_ctx.has_errors {
                     self.active_span = saved_span;
@@ -6701,17 +6691,53 @@ fn eval_format_number_bounds(fmt: FormatId, val: &malachite::Integer) -> bool {
     }
 }
 
-fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {
-    match pattern {
-        SyntaxPattern::Sequence(elements) => elements.iter().any(|element| match &element.term {
-            SyntaxTerm::NamedConstruct {
-                subtype: Some(_),
-                ..
-            } => true,
-            SyntaxTerm::Group(pattern) => pattern_has_payload_constraint(pattern),
-            _ => false,
+fn unconstrained_term(term: &SyntaxTerm) -> Option<SyntaxTerm> {
+    match term {
+        SyntaxTerm::NamedConstruct {
+            name,
+            subtype: Some(_),
+            ..
+        } => Some(SyntaxTerm::NamedConstruct {
+            name: name.clone(),
+            subtype: None,
+            capture_var: None,
         }),
-        SyntaxPattern::Alternation(branches) => branches.iter().any(pattern_has_payload_constraint),
+        SyntaxTerm::Group(pattern) => unconstrained_pattern(pattern).map(SyntaxTerm::Group),
+        _ => None,
+    }
+}
+
+fn unconstrained_pattern(pattern: &SyntaxPattern) -> Option<SyntaxPattern> {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => {
+            let mut changed = false;
+            let mut out = Vec::with_capacity(elements.len());
+            for elem in elements {
+                if let Some(u_term) = unconstrained_term(&elem.term) {
+                    changed = true;
+                    out.push(SyntaxElement {
+                        term: u_term,
+                        quantifier: elem.quantifier,
+                    });
+                } else {
+                    out.push(elem.clone());
+                }
+            }
+            changed.then_some(SyntaxPattern::Sequence(out))
+        }
+        SyntaxPattern::Alternation(branches) => {
+            let mut changed = false;
+            let mut out = Vec::with_capacity(branches.len());
+            for branch in branches {
+                if let Some(u_branch) = unconstrained_pattern(branch) {
+                    changed = true;
+                    out.push(u_branch);
+                } else {
+                    out.push(branch.clone());
+                }
+            }
+            changed.then_some(SyntaxPattern::Alternation(out))
+        }
     }
 }
 

@@ -70,6 +70,7 @@ fn emit_char_target(target: &CharTarget) -> String {
         CharTarget::Format(fid) => {
             format!("CharTarget::Format(FormatId::{})", fid.ident())
         }
+        CharTarget::FormatRegionEnd => "CharTarget::FormatRegionEnd".to_string(),
         CharTarget::Unicode(cp) => {
             format!("CharTarget::Unicode({})", group_digits(&cp.to_string()))
         }
