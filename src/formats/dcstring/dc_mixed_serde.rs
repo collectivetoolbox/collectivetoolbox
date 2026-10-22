@@ -99,7 +99,7 @@ pub trait DcMixedEncode {
 
     /// Encodes a new DcUtf string, explicitly converting any encapsulations.
     fn to_dc_string(&self) -> Result<crate::DcString> {
-        self.to_dc_mixed()?.to_dc_string()
+        DcMstr::to_dc_string(&self.to_dc_mixed()?)
     }
 
     /// Serializes a record without a document header.
@@ -1730,10 +1730,12 @@ impl DcMixedDecode for crate::DcMstring {
 
 impl DcMixedEncode for crate::DcMstr {
     fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
-        let Some(dc_str) = self.as_dc_str() else {
-            bail!("Cannot encode DcMstr containing raw binary chunks as a character literal");
-        };
-        dc_str.encode_dc_mixed_to(mst)
+        if let Some(dc_str) = self.as_dc_str() {
+            dc_str.encode_dc_mixed_to(mst)
+        } else {
+            let dc_string = self.to_dc_string()?;
+            dc_string.encode_dc_mixed_to(mst)
+        }
     }
 }
 

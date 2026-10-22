@@ -77,7 +77,10 @@ pub use navigator::{
     SyntaxRuntimeRegistry, SyntaxRuntimeResolver, ValueRequirement,
     validate_dc_mixed_strict, validate_dc_str_strict, validate_dc_tokens_strict,
 };
-pub use shared::{SharedJson, SharedValueContext};
+pub use shared::{
+    SharedJson, SharedValueContext, decode_dc_identifier, decode_identifier,
+    encode_dc_identifier, encode_dc_identifier_to, encode_identifier, encode_identifier_to,
+};
 pub use malachite::{Integer, Natural};
 pub use ctb_formats_utilities::FormatLog;
 pub use ctb_formats_dcdata::dc;

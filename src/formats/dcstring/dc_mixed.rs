@@ -757,6 +757,11 @@ impl DcMstring {
         Self::from_dc_str(s)
     }
 
+    /// Converts this `DcMstring` into a standard `DcString` (DcUtf) representation.
+    pub fn to_dc_string(&self) -> Result<DcString> {
+        DcMstr::to_dc_string(self)
+    }
+
     /// Consumes this `DcMstring` and returns the underlying byte vector.
     #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {

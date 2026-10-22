@@ -274,7 +274,7 @@ def generate_builtin_svg(
         'markerWidth="6" markerHeight="6" orient="auto">',
         '    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />',
         "  </marker>",
-        '  <style type="text/css">',
+        '  <style type="text/css"><![CDATA[',
         '    text { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }',
         '    .header-title { font-size: 20px; font-weight: 700; fill: #0f172a; }',
         '    .header-sub { font-size: 12px; font-weight: 400; fill: #475569; }',
@@ -286,7 +286,7 @@ def generate_builtin_svg(
         '    .node-text { font-size: 11px; font-weight: 500; pointer-events: none; }',
         '    .edge-path { stroke: #cbd5e1; stroke-width: 1.25; fill: none; transition: stroke 0.15s; }',
         '    .edge-path:hover { stroke: #2563eb; stroke-width: 2.5; }',
-        '  </style>',
+        '  ]]></style>',
         "</defs>",
         f'<rect width="{canvas_w}" height="{canvas_h}" fill="#f8fafc" />',
     ]
@@ -327,10 +327,11 @@ def generate_builtin_svg(
             f'fill="{bg}" stroke="{border}" stroke-width="1.2" />'
         )
         svg.append(
-            f'  <text x="{curr_lx + 19}" y="{legend_y + 1}" class="legend-text">{label}</text>'
+            f'  <text x="{curr_lx + 19}" y="{legend_y + 1}" class="legend-text">{html.escape(label)}</text>'
         )
         curr_lx += len(label) * 8 + 48
     svg.append('</g>')
+
 
     # Layer dividers and labels
     svg.append('<!-- Layer Guides -->')
@@ -558,7 +559,7 @@ def main() -> None:
         print(f"Generated {target_format.upper()} diagram at: {opts.output}")
     else:
         if target_format == "svg":
-            default_out = "workspace-dependencies.svg"
+            default_out = "docs/workspace-dependencies.svg"
             with open(default_out, "w", encoding="utf-8") as f:
                 f.write(output_content)
             print(f"Generated SVG diagram at: {default_out}")

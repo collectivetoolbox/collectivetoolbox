@@ -2303,4 +2303,121 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         Ok(())
     }
+
+    /// Verifies that literal, identifier, and assignment payloads preserve all
+    /// Document Characters (`DcChar`s, including short Dcs, long Dcs, format Dcs,
+    /// escaped closers `255 261` / `255 271`, escaped escape `255 255`, and `<equiv>`
+    /// aliases) losslessly in `DcMstring` / `DcString` without Plane 14 substitution.
+    #[crate::ctb_test]
+    fn test_lossless_dc_native_literals_and_identifiers() -> Result<()> {
+        let policy = DcProjectionPolicy::strict();
+
+        // 1. Build a DcMstring containing Unicode scalars, short Dcs, escaped 255,
+        //    escaped 261, a format Dc, and a long Dc:
+        let expected_chars = vec![
+            DcChar::from_char('A'),
+            DcChar::from_short(517),
+            DcChar::from_short(260),
+            DcChar::from_short(261),
+            DcChar::from_short(255),
+            DcChar::from_format(494),
+            DcChar::from_long(123_456_789),
+            DcChar::from_char('Ω'),
+        ];
+        let payload_mstr: DcMstring = expected_chars.iter().copied().collect();
+        let payload_dc_str = payload_mstr.to_dc_string()?;
+
+        // Roundtrip as DcMstring and DcString through DcMixedEncode / DcMixedDecode:
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&payload_mstr)?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&payload_dc_str)?;
+
+        let encoded_lit = payload_mstr.to_dc_mixed()?;
+        let mut arena = DcSyntaxArena::new();
+        let root_id = DcDocumentNavigator::parse_arena(encoded_lit.as_bytes(), &mut arena, &policy)?;
+        let root_node = arena.node(root_id).context("Missing literal root node")?;
+        match &root_node.kind {
+            DcSyntaxKind::Literal { decoded, .. } => {
+                ensure!(*decoded == payload_mstr, "Arena Literal node must preserve exact DcMstring");
+                let actual_chars: Vec<DcChar> = decoded.to_dc_string()?.chars().collect();
+                ensure!(actual_chars == expected_chars, "Decoded DcChar sequence mismatch");
+            }
+            other => bail!("Expected Literal node, found {other:?}"),
+        }
+
+        // Decoding non-Unicode Dcs into a Rust Unicode String must fail cleanly:
+        ensure!(
+            encoded_lit.decode::<String>(&policy).is_err(),
+            "String::decode must reject literals containing non-Unicode Dcs"
+        );
+
+        // Single-token <equiv> alias of a Unicode scalar decodes to String via resolver:
+        let mut registry = SyntaxRuntimeRegistry::new();
+        let alias_dc = DcChar::from_short(9850);
+        registry.register_equivalence(alias_dc.to_u128(), u128::from(u32::from('Z')));
+        let alias_payload: DcMstring = [DcChar::from_char('A'), alias_dc, DcChar::from_char('B')]
+            .into_iter()
+            .collect();
+        let encoded_alias_lit = alias_payload.to_dc_mixed()?;
+        let preserved_mstr: DcMstring =
+            encoded_alias_lit.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(
+            preserved_mstr == alias_payload,
+            "DcMstring decode must preserve original alias DcChar without lossy canonicalization"
+        );
+        let projected_str: String =
+            encoded_alias_lit.decode_with_resolver(registry.resolver(), &policy)?;
+        ensure!(
+            projected_str == "AZB",
+            "String decode with resolver must resolve single-token Unicode alias to 'AZB', got {projected_str}"
+        );
+
+        // 2. Constrained [string:...] rule over unescaped literal payload containing
+        //    escaped closer (261), escaped escape (255), short Dc (517), and long Dc:
+        let mut nav = DcDocumentNavigator::from_mstr(&encoded_lit);
+        let resolver = default_syntax_resolver();
+        let mut eval_ctx = SyntaxEvalContext::new(&**resolver, None);
+        let constrained_term = SyntaxTerm::NamedConstruct {
+            name: "string".to_owned(),
+            subtype: Some(":u0041 517 260 261 255 f494 [^] u03a9".to_owned()),
+            capture_var: None,
+        };
+        ensure!(
+            nav.eval_term_single(&constrained_term, &mut eval_ctx)?,
+            "Constrained [string:...] must match unescaped DcChar sequence losslessly"
+        );
+
+        // 3. Lossless Dc-native identifier (270..271) and lexical assignment / bound reference (540):
+        let ident_chars = vec![
+            DcChar::from_char('v'),
+            DcChar::from_short(517),
+            DcChar::from_short(271),
+            DcChar::from_short(255),
+            DcChar::from_long(987_654_321),
+        ];
+        let ident_mstr: DcMstring = ident_chars.into_iter().collect();
+        let mut single_ident_doc = DcMstring::new();
+        ctb_formats_dcstring::encode_dc_identifier(&mut single_ident_doc, &ident_mstr)?;
+        let decoded_ident: DcMstring = single_ident_doc.decode(&policy)?;
+        ensure!(decoded_ident == ident_mstr, "Identifier DcMstring roundtrip mismatch");
+
+        let mut assign_doc = DcMstring::new();
+        ctb_formats_dcstring::encode_dc_identifier(&mut assign_doc, &ident_mstr)?;
+        assign_doc.push_char(ctb_formats_dcdata::dc::DC_ASSIGN);
+        777u64.encode_dc_mixed(&mut assign_doc)?;
+        assign_doc.push_char(ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE);
+        ctb_formats_dcstring::encode_dc_identifier(&mut assign_doc, &ident_mstr)?;
+
+        let mut assign_nav = DcDocumentNavigator::from_mstr(&assign_doc);
+        let mut assign_arena = DcSyntaxArena::new();
+        assign_nav.parse_document_into_arena(&mut assign_arena, &policy)?;
+        let ref_root = *assign_arena.roots().get(1).context("Missing bound reference root")?;
+        let mut proj_ctx = ctb_formats_dcstring::DcProjectionContext::new(&assign_arena, &policy);
+        let resolved_val: u64 = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut proj_ctx, ref_root)?;
+        ensure!(
+            resolved_val == 777,
+            "Bound reference (540) with non-Unicode Dc identifier must resolve to assigned value 777"
+        );
+
+        Ok(())
+    }
 }
