@@ -67,6 +67,6 @@ pub struct EnvDescription {
 ///  [`EnvironmentCapabilities`] are derived directly from this data and
 ///  can be retrieved via the [`Self::identity`] and [`Self::capabilities`]
 ///  accessors.
-    pub additional_support: Vec < FormatId >,
+    pub supported_formats: Vec < FormatId >,
 }
 

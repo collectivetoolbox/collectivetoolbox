@@ -875,7 +875,7 @@ pub struct EnvDescription {
     /// can be retrieved via the [`Self::identity`] and [`Self::capabilities`]
     /// accessors.
     #[dc(flatten)]
-    pub additional_support: Vec<FormatId>,
+    pub supported_formats: Vec<FormatId>,
 }
 
 impl EnvDescription {
@@ -923,7 +923,7 @@ impl EnvDescription {
     pub(crate) fn capture_quick() -> Self {
         let ident = detect_identity();
         let caps = detect_capabilities();
-        let additional_support = detection::collect_all_format_ids(&ident, &caps);
+        let supported_formats = detection::collect_all_format_ids(&ident, &caps);
 
         let mut local_ips = Vec::new();
         if let Some(v4) = CACHED_LOCAL_IPV4
@@ -975,7 +975,7 @@ impl EnvDescription {
             is_public_website: is_public_website(),
             is_local: is_local(),
             kernel_version: ident.kernel_version,
-            additional_support,
+            supported_formats,
         }
     }
 
@@ -983,7 +983,7 @@ impl EnvDescription {
     #[must_use]
     pub fn identity(&self) -> EnvironmentIdentity {
         let (ident, _) = detection::decode_environment_from_formats(
-            &self.additional_support,
+            &self.supported_formats,
             self.kernel_version.clone(),
         );
         ident
@@ -993,7 +993,7 @@ impl EnvDescription {
     #[must_use]
     pub fn capabilities(&self) -> EnvironmentCapabilities {
         let (_, caps) = detection::decode_environment_from_formats(
-            &self.additional_support,
+            &self.supported_formats,
             self.kernel_version.clone(),
         );
         caps
@@ -1002,7 +1002,7 @@ impl EnvDescription {
     /// Returns the operating system family where this environment originated.
     #[must_use]
     pub fn os_family(&self) -> OsFamily {
-        for format in &self.additional_support {
+        for format in &self.supported_formats {
             if let Some(family) = OsFamily::from_format_id(*format) {
                 return family;
             }
@@ -1033,13 +1033,13 @@ impl EnvDescription {
     /// (identity, capabilities, and families).
     #[must_use]
     pub fn all_format_ids(&self) -> Vec<FormatId> {
-        self.additional_support.clone()
+        self.supported_formats.clone()
     }
 
     /// Check if this environment has a specific [`FormatId`] capability or identity.
     #[must_use]
     pub fn has_format(&self, format: FormatId) -> bool {
-        self.additional_support.contains(&format)
+        self.supported_formats.contains(&format)
     }
 
     /// Check if this environment is compatible with a given target OS format.
@@ -1679,7 +1679,7 @@ mod tests {
         let mut desc = EnvDescription::default();
         assert!(!desc.is_wine());
 
-        desc.additional_support.push(FormatId::Wine);
+        desc.supported_formats.push(FormatId::Wine);
         assert!(desc.is_wine());
 
         let env_arc = Arc::new(desc);
@@ -2076,7 +2076,7 @@ mod tests {
             is_public_website: false,
             is_local: true,
             kernel_version: Some("6.12.11-amd64".to_string()),
-            additional_support: vec![
+            supported_formats: vec![
                 FormatId::GnuLinux,
                 FormatId::Linux,
                 FormatId::amd64,

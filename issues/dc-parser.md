@@ -34,6 +34,9 @@ before fixes.
   encoding paths. Writer-based derives exist; do not equate this with all
   serialization being generated from syntax specifications.
 
+- @roleDef("EvaluableExpressionStarter") should be implicit for `.EL Routines` and a validation error if redundantly added.
+- Assignment operator has @roleDef() but since it's in `.EL Operators` script it should be inferred automatically that it is an operator and not special-cased or given a @roleDef(). Per the syntax declaration it should behave as an alias of its routine equivalent: `:[identifier $ident] ~ [value $val] : lang.assign($ident, $val)`
+
 ### Resource and Streaming Limits
 
 - [ ] Measure memory on large records/journals and exercise 32-bit offsets above
@@ -57,18 +60,13 @@ pub fn validate_and_write_dc_record(
 - [ ] Specify downstream expansion of multi-token `<equiv>` decompositions,
   such as `f350 f351`. Single-token canonical equivalence and rejection of
   conflicting single-token syntax on decompositions are already implemented.
-- [ ] Resolve the retained
-  [flattened name/format FIXME](../src/formats/dcstring/dc_mixed_serde.rs#L4518)
-  and [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38).
+- [ ] Resolve the
+  [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38).
   Restoring a comment or adding an identifier does not resolve its semantics.
 - [ ] Review Remote URI/ETag mappings, String (`f80`) versus Text (`f14`), and
   encoding formats' relationship to Text. Existing Remote fields use filepath
   and payload-checksum meanings; establish intended semantics before changing
   IDs or weakening grammar. These are inherited/approval-sensitive questions.
-- [ ] Reconcile older flag-ontology reports involving Dc 342 and 422/423 against
-  current derives. `FinderLabel` is already derived; no handwritten numeric
-  migration is needed there. Preserve approved Dc meanings and obtain approval
-  for any new concepts.
 
 ### Review and Qualification
 

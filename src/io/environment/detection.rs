@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 /// Operating system, kernel, libc, userspace, and architecture identity.
 ///
 /// The format identifiers comprising this identity are stored losslessly
-/// within the `additional_support` field of [`crate::environment::EnvDescription`]
+/// within the `supported_formats` field of [`crate::environment::EnvDescription`]
 /// (along with its `kernel_version`), and this structured representation can be
 /// retrieved via the [`crate::environment::EnvDescription::identity`] accessor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -65,7 +65,7 @@ pub struct EnvironmentIdentity {
 /// Display, terminal, and interactive rendering capabilities.
 ///
 /// The format identifiers comprising these capabilities are stored losslessly
-/// within the `additional_support` field of [`crate::environment::EnvDescription`],
+/// within the `supported_formats` field of [`crate::environment::EnvDescription`],
 /// and this structured representation can be retrieved via the
 /// [`crate::environment::EnvDescription::capabilities`] accessor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

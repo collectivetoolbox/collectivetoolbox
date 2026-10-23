@@ -48,7 +48,7 @@ fn to_ctb_io_environment_env_description(v: &::ctb_utilities::ipc::service_trait
         is_public_website: v.is_public_website.clone(),
         is_local: v.is_local.clone(),
         kernel_version: v.kernel_version.clone(),
-        additional_support: v.additional_support.clone(),
+        supported_formats: v.supported_formats.clone(),
     }
 }
 

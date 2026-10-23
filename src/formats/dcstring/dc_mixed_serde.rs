@@ -4515,7 +4515,6 @@ mod tests {
         Ok(())
     }
 
-    // FIXME doesn't look right. 422 is File flag: read only; 423 is File flag: reparse. Name and format list should proabbly be alternate representations, and 342 the overarching type for this, maybe?
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
     #[dc(begin = 317, end = 318)]
     struct SampleFlattenedFormatsStruct {

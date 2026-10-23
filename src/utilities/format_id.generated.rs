@@ -81,6 +81,8 @@ pub enum FormatCategory {
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FormatId {
+    /// Dc shorthand ASCII list (Short 0, Category: document)
+    Dcsh,
     /// UTF-8 (Short 0, Category: encoding)
     Utf8,
     /// Internal: Short Dc Array (Short 1, Category: semantic)
@@ -1555,7 +1557,8 @@ impl FormatId {
             | Self::QuartzDisplay
             | Self::Win32Display
             | Self::HeadlessDisplay => FormatCategory::DisplaySystem,
-            Self::DcIntegerList
+            Self::Dcsh
+            | Self::DcIntegerList
             | Self::Html
             | Self::Sems
             | Self::HtmlFragment
@@ -2002,6 +2005,7 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
+            "dcsh" => Some(Self::Dcsh),
             "utf8" | "utf-8" | "txt" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
@@ -2645,6 +2649,7 @@ impl FormatId {
     #[must_use]
     pub const fn ident(&self) -> &'static str {
         match self {
+            Self::Dcsh => "Dcsh",
             Self::Utf8 => "Utf8",
             Self::DcArray => "DcArray",
             Self::DcIntegerList => "DcIntegerList",
@@ -3474,6 +3479,7 @@ impl FormatId {
     #[must_use]
     pub const fn shorthand(&self) -> &'static str {
         match self {
+            Self::Dcsh => "f0",
             Self::Utf8 => "f0",
             Self::DcArray => "f1",
             Self::DcIntegerList => "f2",
@@ -4117,6 +4123,7 @@ impl FormatId {
     pub fn from_shorthand(shorthand: &str) -> Option<Self> {
         let trimmed = shorthand.trim();
         match trimmed {
+            "f0" => Some(Self::Dcsh),
             "f0" => Some(Self::Utf8),
             "f1" => Some(Self::DcArray),
             "f2" => Some(Self::DcIntegerList),
@@ -4760,6 +4767,7 @@ impl FormatId {
     #[must_use]
     pub const fn dc_id(&self) -> Option<u128> {
         match self {
+            Self::Dcsh => Some(2228224_u128),
             Self::Utf8 => Some(2228224_u128),
             Self::DcArray => Some(2228225_u128),
             Self::DcIntegerList => Some(2228226_u128),
@@ -5415,6 +5423,7 @@ impl FormatId {
     #[must_use]
     pub const fn from_dc_id(id: u128) -> Option<Self> {
         match id {
+            2228224_u128 => Some(Self::Dcsh),
             2228224_u128 => Some(Self::Utf8),
             2228225_u128 => Some(Self::DcArray),
             2228226_u128 => Some(Self::DcIntegerList),
@@ -6055,6 +6064,8 @@ impl FormatId {
     }
 }
 
+/// DcChar constant for Format `Dcsh` (Short f0, Category: document): Dc shorthand ASCII list
+pub const DC_DCSH: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
 pub const DC_UTF8: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array
