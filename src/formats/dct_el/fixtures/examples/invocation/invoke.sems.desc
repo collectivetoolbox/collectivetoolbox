@@ -1,0 +1,119 @@
+$ ctb character_description --from dcil '270 264 87 96 96 258 264 259 258 264 270 98 102 105 273 259 258 275 274 259 269' # String foo(String, String qux?, *):
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114199 : <Dc> Latin Letter Lowercase F {<equiv>u66}
+1114208 : <Dc> Latin Letter Lowercase O {<equiv>u6f}
+1114208 : <Dc> Latin Letter Lowercase O {<equiv>u6f}
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114210 : <Dc> Latin Letter Lowercase Q {<equiv>u71}
+1114214 : <Dc> Latin Letter Lowercase U {<equiv>u75}
+1114217 : <Dc> Latin Letter Lowercase X {<equiv>u78}
+1114385 : <Dc> Parameter modifier: Parameter is optional
+1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114387 : <Dc> Built-in type identifier: * (Object or any subtype)
+1114386 : <Dc> Parameter modifier: Parameter should be slurpy
+1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}
+1114381 : <Dc> Assignment operator {syntax: `:[identifier $ident] ~ [value $val] : lang.assign($ident, $val)`}
+$ ctb character_description --from dcil '256 258 276 270 19 97 82 99 277 270 262 278 263 35 271 271 276 270 19 97 82 99 277 270 262 278 263 36 271 271 276 270 262 264 263 98 102 105 271 272' #     say $!par[1]$!par[2]$qux
+1114368 : <Dc> void lang.say(String)
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114131 : <Dc> Exclamation {<equiv>u21}
+1114209 : <Dc> Latin Letter Lowercase P {<equiv>u70}
+1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
+1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
+1114389 : <Dc> Reference list element {syntax: `:( [list] | [string] ) ~ [identifier]`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114390 : <Dc> Built-in type identifier: Number
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114147 : <Dc> One {<equiv>u31}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114131 : <Dc> Exclamation {<equiv>u21}
+1114209 : <Dc> Latin Letter Lowercase P {<equiv>u70}
+1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
+1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
+1114389 : <Dc> Reference list element {syntax: `:( [list] | [string] ) ~ [identifier]`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114390 : <Dc> Built-in type identifier: Number
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114148 : <Dc> Two {<equiv>u32}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114210 : <Dc> Latin Letter Lowercase Q {<equiv>u71}
+1114214 : <Dc> Latin Letter Lowercase U {<equiv>u75}
+1114217 : <Dc> Latin Letter Lowercase X {<equiv>u78}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114384 : <Dc> Leave block level
+$ ctb character_description --from dcil '267' #
+1114379 : <Dc> Whitespace in source {syntax: `:([statement] ~) | (~ ~) | (~ [statement])`}
+$ ctb character_description --from dcil '247 18 69 86 100 101 18 100 90 94 97 93 86 18 90 95 103 96 84 82 101 90 96 95 248' # # Test simple invocation
+1114359 : <Dc> Begin single-line source comment on new line {syntax: `:~ [^248 255]+ 248`}
+1114130 : <Dc> Space (short Dc) {word separator; <equiv>u20}
+1114181 : <Dc> Latin Letter Uppercase T {<equiv>u54}
+1114198 : <Dc> Latin Letter Lowercase E {<equiv>u65}
+1114212 : <Dc> Latin Letter Lowercase S {<equiv>u73}
+1114213 : <Dc> Latin Letter Lowercase T {<equiv>u74}
+1114130 : <Dc> Space (short Dc) {word separator; <equiv>u20}
+1114212 : <Dc> Latin Letter Lowercase S {<equiv>u73}
+1114202 : <Dc> Latin Letter Lowercase I {<equiv>u69}
+1114206 : <Dc> Latin Letter Lowercase M {<equiv>u6d}
+1114209 : <Dc> Latin Letter Lowercase P {<equiv>u70}
+1114205 : <Dc> Latin Letter Lowercase L {<equiv>u6c}
+1114198 : <Dc> Latin Letter Lowercase E {<equiv>u65}
+1114130 : <Dc> Space (short Dc) {word separator; <equiv>u20}
+1114202 : <Dc> Latin Letter Lowercase I {<equiv>u69}
+1114207 : <Dc> Latin Letter Lowercase N {<equiv>u6e}
+1114215 : <Dc> Latin Letter Lowercase V {<equiv>u76}
+1114208 : <Dc> Latin Letter Lowercase O {<equiv>u6f}
+1114196 : <Dc> Latin Letter Lowercase C {<equiv>u63}
+1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
+1114213 : <Dc> Latin Letter Lowercase T {<equiv>u74}
+1114202 : <Dc> Latin Letter Lowercase I {<equiv>u69}
+1114208 : <Dc> Latin Letter Lowercase O {<equiv>u6f}
+1114207 : <Dc> Latin Letter Lowercase N {<equiv>u6e}
+1114360 : <Dc> End single-line source comment {syntax: `:[246 247] [^248 255]+ ~`}
+$ ctb character_description --from dcil '279 276 270 262 264 263 271 258 260 262 264 263 83 82 99 261 259 258 260 262 264 263 83 82 107 261 259' # foo("bar" "baz")
+1114391 : <Dc> Routine invocation {syntax: `:~ [identifier]`}
+1114388 : <Dc> Reference named object {syntax: `:~ ([identifier] | ([type] [identifier]))`}
+1114382 : <Dc> Begin identifier {syntax: `:~ ([^271 255] | (255 (255 | [^255])))+ 271`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114383 : <Dc> End identifier {syntax: `:270 ([^271 255] | (255 (255 | [^255])))+ ~`}
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114372 : <Dc> Begin literal value {syntax: `:~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114195 : <Dc> Latin Letter Lowercase B {<equiv>u62}
+1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
+1114211 : <Dc> Latin Letter Lowercase R {<equiv>u72}
+1114373 : <Dc> End literal value {syntax: `:260 [262:]{1} ([^261 255] | (255 (255 | [^255])))* ~`}
+1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}
+1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}
+1114372 : <Dc> Begin literal value {syntax: `:~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261`}
+1114374 : <Dc> Begin type definition {syntax: `:~ [script:.EL Types] 263`}
+1114376 : <Dc> Built-in type identifier: String {<approx>(f80)}
+1114375 : <Dc> End type definition {syntax: `:262 [script:.EL Types] ~`}
+1114195 : <Dc> Latin Letter Lowercase B {<equiv>u62}
+1114194 : <Dc> Latin Letter Lowercase A {<equiv>u61}
+1114219 : <Dc> Latin Letter Lowercase Z {<equiv>u7a}
+1114373 : <Dc> End literal value {syntax: `:260 [262:]{1} ([^261 255] | (255 (255 | [^255])))* ~`}
+1114371 : <Dc> End parameter {syntax: `:258 [value] ~`}

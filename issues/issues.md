@@ -43,6 +43,7 @@ assuming the current code still has the reported fault.
   `<button>` elements without changing their appearance.
 - [ ] Expand existing JS/frontend tests around these workflows.
 - [ ] Add test for getting help function (from `5e3a561bb:issues/issues.md.backup:6`, distinct from existing `get_test_help_bytes` asset bundle test if referring to CLI/UI help retrieval).
+- [ ] `1114370 : <Dc> Begin parameter {syntax: `:~ [value] 259`}` character description output should use <Dc 123> or <Dc f521> etc. to show the shorthand too.
 
 ## Build, Deployment, and Packaging
 
