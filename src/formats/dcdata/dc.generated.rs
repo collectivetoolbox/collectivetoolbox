@@ -90,7 +90,7 @@ pub const DC_BEGIN_TYPE_DEF: DcChar = DcChar::from_short(262);
 pub const DC_END_TYPE_DEF: DcChar = DcChar::from_short(263);
 /// A specific case of “String” as a format (short-style format ID 80) (Dc 264).
 pub const DC_TYPE_STRING: DcChar = DcChar::from_short(264);
-/// void lang.assign(identifier, value) (Dc 268).
+/// void lang.assign([identifier] identifier, [value] value) (Dc 268).
 pub const DC_LANG_ASSIGN: DcChar = DcChar::from_short(268);
 /// Assignment operator (Dc 269).
 pub const DC_ASSIGN: DcChar = DcChar::from_short(269);

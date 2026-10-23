@@ -1076,5 +1076,9 @@ mod tests {
         let repo_root = find_repository_root_from(manifest).unwrap();
         let merged = generate_merged_csvs(&repo_root).unwrap();
         println!("merged csvs generated: {merged:?}");
+        let syntax_updated =
+            crate::syntax::codegen::generate_syntax_table_file(&repo_root)
+                .unwrap();
+        println!("syntax_table.generated.rs generated: {syntax_updated}");
     }
 }

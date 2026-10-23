@@ -40,10 +40,9 @@ use crate::shared::{
     validate_cross_table_uniqueness, validate_general_category,
 };
 use crate::syntax::{
-    CharTarget, DcSyntaxRule, FormatValidationRegistry, SyntaxElement,
-    SyntaxPattern, SyntaxTerm, build_format_validation_registry,
-    normalize_syntax_pattern, parse_dc_syntax, parse_target_token,
-    validate_dc_syntax,
+    CharTarget, DcSyntaxRule, FormatValidationRegistry,
+    build_format_validation_registry, normalize_syntax_pattern,
+    parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
 use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
 use ctb_storage_minimal::shorthand::parse_unicode_shorthand;
@@ -756,6 +755,171 @@ pub fn validate_dc_aliases_spacing(
     let _ = parse_dc_aliases_column(raw, file_path, line_no, report);
 }
 
+/// Extracts the built-in type name from a `.EL Types` row's `Name` column
+/// (everything after `"Built-in type identifier: "`, before any parenthetical
+/// explanation), excluding wildcard `*`.
+pub fn extract_el_type_name(name: &str) -> Option<String> {
+    let rest = name.strip_prefix("Built-in type identifier: ")?.trim();
+    let base = match rest.find('(') {
+        Some(idx) => rest.get(..idx)?.trim(),
+        None => rest,
+    };
+    if base.is_empty() || base == "*" {
+        None
+    } else {
+        Some(base.to_string())
+    }
+}
+
+/// Derives a [`DcSyntaxRule`] for a `.EL Routines` entry from the parameter
+/// signature in its `Name` column (e.g. `void lang.say([string] text)` ->
+/// `:~ 258 [string $text] 259`).
+pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
+    let trimmed = name.trim();
+    let Some(open_idx) = trimmed.find('(') else {
+        return Ok(Some(parse_dc_syntax(":~")?));
+    };
+    let Some(close_idx) = trimmed.rfind(')') else {
+        bail!("Routine signature '{trimmed}' has '(' without matching ')'");
+    };
+    ensure!(
+        open_idx < close_idx,
+        "Mismatched parentheses in routine signature '{trimmed}'"
+    );
+    let params_raw = trimmed
+        .get(open_idx.saturating_add(1)..close_idx)
+        .unwrap_or("")
+        .trim();
+    if params_raw.is_empty() {
+        return Ok(Some(parse_dc_syntax(":~")?));
+    }
+
+    let mut params = Vec::new();
+    let mut current = String::new();
+    let mut depth_p = 0usize;
+    let mut depth_b = 0usize;
+    for ch in params_raw.chars() {
+        match ch {
+            '(' => {
+                depth_p = depth_p.saturating_add(1);
+                current.push(ch);
+            }
+            ')' => {
+                depth_p = depth_p.saturating_sub(1);
+                current.push(ch);
+            }
+            '[' => {
+                depth_b = depth_b.saturating_add(1);
+                current.push(ch);
+            }
+            ']' => {
+                depth_b = depth_b.saturating_sub(1);
+                current.push(ch);
+            }
+            ',' if depth_p == 0 && depth_b == 0 => {
+                params.push(current.trim().to_string());
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+    if !current.trim().is_empty() {
+        params.push(current.trim().to_string());
+    }
+
+    let mut rule_parts = vec![":~".to_string()];
+    for param in params {
+        let mut alt_branches = Vec::new();
+        let mut branch_cur = String::new();
+        let mut dp = 0usize;
+        let mut db = 0usize;
+        for ch in param.chars() {
+            match ch {
+                '(' => {
+                    dp = dp.saturating_add(1);
+                    branch_cur.push(ch);
+                }
+                ')' => {
+                    dp = dp.saturating_sub(1);
+                    branch_cur.push(ch);
+                }
+                '[' => {
+                    db = db.saturating_add(1);
+                    branch_cur.push(ch);
+                }
+                ']' => {
+                    db = db.saturating_sub(1);
+                    branch_cur.push(ch);
+                }
+                '|' if dp == 0 && db == 0 => {
+                    alt_branches.push(branch_cur.trim().to_string());
+                    branch_cur.clear();
+                }
+                _ => branch_cur.push(ch),
+            }
+        }
+        if !branch_cur.trim().is_empty() {
+            alt_branches.push(branch_cur.trim().to_string());
+        }
+
+        let mut converted_branches = Vec::new();
+        for branch in &alt_branches {
+            let b = branch.trim();
+            ensure!(
+                b.starts_with('['),
+                "Routine parameter '{b}' in '{trimmed}' must start with a bracketed type '[type]'"
+            );
+            let mut close_b_idx = None;
+            let mut b_depth = 0usize;
+            for (i, c) in b.char_indices() {
+                match c {
+                    '[' => b_depth = b_depth.saturating_add(1),
+                    ']' => {
+                        b_depth = b_depth.saturating_sub(1);
+                        if b_depth == 0 {
+                            close_b_idx = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let Some(end_bracket) = close_b_idx else {
+                bail!("Unclosed '[' in routine parameter '{b}' in '{trimmed}'");
+            };
+            let type_content = b
+                .get(1..end_bracket)
+                .context("Invalid bracket slice")?
+                .trim();
+            let param_name = b
+                .get(end_bracket.saturating_add(1)..)
+                .unwrap_or("")
+                .trim();
+            ensure!(
+                !type_content.is_empty(),
+                "Empty type in routine parameter '{b}' in '{trimmed}'"
+            );
+            if param_name.is_empty() {
+                converted_branches.push(format!("[{type_content}]"));
+            } else {
+                let clean_var = param_name.trim_start_matches('$');
+                converted_branches.push(format!("[{type_content} ${clean_var}]"));
+            }
+        }
+
+        if converted_branches.len() == 1 {
+            if let Some(single) = converted_branches.first() {
+                rule_parts.push(format!("258 {single} 259"));
+            }
+        } else {
+            rule_parts.push(format!("258 ({}) 259", converted_branches.join(" | ")));
+        }
+    }
+
+    let raw_rule = rule_parts.join(" ");
+    Ok(Some(parse_dc_syntax(&raw_rule)?))
+}
+
 /// Parses and validates a single Dc category CSV file.
 pub fn validate_dc_category_file(
     csv_bytes: &[u8],
@@ -1114,7 +1278,31 @@ pub fn validate_dc_category_file(
             .collect();
         let annotations = parsed_col.annotations;
 
-        let dc_syntax = if let Some(raw_syn) = &raw_dc_syntax {
+        let dc_syntax = if script == ".EL Routines" {
+            if raw_dc_syntax.is_some() {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Aliases (syntax)"),
+                    "Redundant explicit syntax rule on '.EL Routines' Document Character (syntax is derived automatically from the parameter declaration in Name)"
+                        .to_string(),
+                    Some("Remove explicit ':...' syntax rule from Aliases and declare parameter types in Name"),
+                );
+            }
+            match derive_el_routine_syntax(&name) {
+                Ok(rule) => rule,
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Name (!=deprecated)"),
+                        format!("Failed to derive '.EL Routines' parameter syntax from Name '{name}': {e}"),
+                        Some("Specify parameters in the form 'retType routine.name([type] paramName, ...)'"),
+                    );
+                    None
+                }
+            }
+        } else if let Some(raw_syn) = &raw_dc_syntax {
             match parse_dc_syntax(raw_syn) {
                 Ok(rule) => Some(rule),
                 Err(e) => {
@@ -1236,6 +1424,7 @@ pub fn validate_dc_category_file(
             formal_aliases,
             cross_references,
             annotations,
+            implies: parsed_col.implies,
             syntax: dc_syntax,
             closes: parsed_col.closes,
             description,
@@ -2080,16 +2269,23 @@ where
                 continue;
             };
 
-            let default_named_types = HashSet::new();
-            // Reason for fallback: optional named types registry defaults to empty set when omitted
-            let named_types = known_named_types.unwrap_or(&default_named_types);
+            let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
+            if !combined_named_types.is_empty() {
+                for r in &all_rows {
+                    if r.script == ".EL Types" {
+                        if let Some(el_type_name) = extract_el_type_name(&r.name) {
+                            combined_named_types.insert(el_type_name);
+                        }
+                    }
+                }
+            }
 
             validate_dc_syntax(
                 syntax_rule,
                 short_id_u32,
                 &known_dc_ids,
                 known_format_ids,
-                named_types,
+                &combined_named_types,
                 known_scripts,
                 &known_syntax_targets,
                 format_registry,
@@ -2097,6 +2293,39 @@ where
                 &row.source_file,
                 row.line_number,
             );
+        }
+
+        for imp in &row.implies {
+            let trimmed = imp.trim();
+            if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                if let (Some(short_id), Ok(imp_rule)) = (row.short_id, parse_dc_syntax(&format!(":{trimmed}"))) {
+                    if let Ok(short_id_u32) = u32::try_from(short_id) {
+                        let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
+                        if !combined_named_types.is_empty() {
+                            for r in &all_rows {
+                                if r.script == ".EL Types" {
+                                    if let Some(el_type_name) = extract_el_type_name(&r.name) {
+                                        combined_named_types.insert(el_type_name);
+                                    }
+                                }
+                            }
+                        }
+                        validate_dc_syntax(
+                            &imp_rule,
+                            short_id_u32,
+                            &known_dc_ids,
+                            known_format_ids,
+                            &combined_named_types,
+                            known_scripts,
+                            &known_syntax_targets,
+                            format_registry,
+                            report,
+                            &row.source_file,
+                            row.line_number,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -3806,6 +4035,50 @@ mod tests {
             report_redundant_op
                 .format_report()
                 .contains("Redundant '@roleDef()' on '.EL Operators'")
+        );
+
+        // 11. Redundant explicit syntax rule on .EL Routines fails validation
+        let mut report_redundant_routine_syn = ValidationReport::default();
+        let csv_redundant_routine_syn = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say([string] text),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), @roleDef(), :~ 258 [string $text] 259\",\n";
+        validate_dc_files_data(
+            [("el.csv", &csv_redundant_routine_syn[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_redundant_routine_syn,
+        );
+        assert!(report_redundant_routine_syn.has_errors());
+        assert!(
+            report_redundant_routine_syn
+                .format_report()
+                .contains("Redundant explicit syntax rule on '.EL Routines'")
+        );
+
+        // 12. Derived syntax rule on .EL Routines from parameter declaration in Name
+        let say_rule = derive_el_routine_syntax("void lang.say([string] text)")
+            .unwrap()
+            .unwrap();
+        assert_eq!(say_rule.raw, ":~ 258 [string $text] 259");
+        let assign_rule =
+            derive_el_routine_syntax("void lang.assign([identifier] identifier, [value] value)")
+                .unwrap()
+                .unwrap();
+        assert_eq!(
+            assign_rule.raw,
+            ":~ 258 [identifier $identifier] 259 258 [value $value] 259"
+        );
+        let invoke_rule = derive_el_routine_syntax(
+            "void lang.invoke([Routine] routine | [Routine name] routineName)",
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            invoke_rule.raw,
+            ":~ 258 ([Routine $routine] | [Routine name $routineName]) 259"
         );
     }
 }

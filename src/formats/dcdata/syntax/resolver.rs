@@ -306,6 +306,9 @@ fn term_is_lexical_payload(term: &SyntaxTerm) -> bool {
 }
 
 fn pattern_is_opaque_container(pattern: &SyntaxPattern, closer_token: u128) -> bool {
+    if closer_token == crate::dc::DC_END_IDENTIFIER.to_u128() {
+        return true;
+    }
     let SyntaxPattern::Sequence(elements) = pattern else {
         return false;
     };
@@ -339,6 +342,12 @@ pub fn extract_container_header_elements(
     if !elements
         .first()
         .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
+    {
+        return Vec::new();
+    }
+    if elements
+        .get(1)
+        .is_some_and(|el| el.term == SyntaxTerm::CharRef(CharTarget::Dc(270)))
     {
         return Vec::new();
     }
@@ -790,6 +799,9 @@ impl DatasetRuleResolver {
         // Declared delimiters take precedence: a field ending in a nested
         // representation's closer does not itself open that representation.
         for defn in dc_defns {
+            if defn.script == ".EL Routines" {
+                continue;
+            }
             if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
                 if let (Ok(id), Some(closer)) = (
                     u32::try_from(short_id), detect_container_closer(&rule.pattern),
@@ -879,6 +891,56 @@ impl DatasetRuleResolver {
                         }
                     }
                 }
+            }
+        }
+
+        // 2b. Index built-in type names from `.EL Types` Document Characters
+        for defn in dc_defns {
+            if defn.script != ".EL Types" {
+                continue;
+            }
+            let Some(el_type_name) = crate::validation::extract_el_type_name(&defn.name) else {
+                continue;
+            };
+            let pattern_opt = if let Some(imp) = defn
+                .implies
+                .iter()
+                .map(|s| s.trim())
+                .find(|s| s.starts_with('[') && s.ends_with(']'))
+            {
+                Some(
+                    parse_dc_syntax(&format!(":{imp}"))
+                        .with_context(|| {
+                            format!(
+                                "Invalid @implies syntax '{imp}' on .EL Types '{}'",
+                                defn.name
+                            )
+                        })?
+                        .pattern,
+                )
+            } else {
+                let lower = el_type_name.to_ascii_lowercase();
+                if let Some(existing) = resolver.named_types.get(&lower).cloned() {
+                    Some(existing)
+                } else if let Some(sid) = defn.short_id {
+                    Some(
+                        parse_dc_syntax(&format!(":260 262 {sid} 263 [^261]+ 261"))
+                            .with_context(|| {
+                                format!(
+                                    "Failed to synthesize pattern for .EL Types '{el_type_name}'"
+                                )
+                            })?
+                            .pattern,
+                    )
+                } else {
+                    None
+                }
+            };
+            if let Some(pattern) = pattern_opt {
+                resolver
+                    .named_types
+                    .entry(el_type_name)
+                    .or_insert(pattern);
             }
         }
 
@@ -1022,6 +1084,9 @@ impl DatasetRuleResolver {
             }
         }
         for defn in dc_defns {
+            if defn.script == ".EL Routines" {
+                continue;
+            }
             if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
                 if let (Ok(id), Some(detected_closer)) = (
                     u32::try_from(short_id),

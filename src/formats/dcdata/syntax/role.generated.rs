@@ -80,7 +80,7 @@ pub enum DcRole {
     EndTypeDef,
     /// A specific case of “String” as a format (short-style format ID 80) (`264`).
     TypeString,
-    /// void lang.assign(identifier, value) (`268`).
+    /// void lang.assign([identifier] identifier, [value] value) (`268`).
     LangAssign,
     /// Begins a nonempty name. Dc 255 protects exactly the following Dc from syntactic interpretation. Only an unescaped 271 terminates the name. The name is data; reference or invocation syntax determines how it is used. (`270`).
     BeginIdentifier,

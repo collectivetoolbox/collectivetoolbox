@@ -202,10 +202,16 @@ pub fn encode_dc_identifier_to(mst: &mut crate::DcWriter<'_>, name: &crate::DcMs
     }
     let dc_str = name.to_dc_string()?;
     ensure!(!dc_str.is_empty(), "Identifiers must not be empty");
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
     mst.push_char(DC_BEGIN_IDENTIFIER)?;
-    for character in dc_str.chars() {
+    for (idx, character) in dc_str.chars().enumerate() {
         if character.fills_role(ctb_formats_dcdata::syntax::DcRole::Escape)
             || character.fills_role(ctb_formats_dcdata::syntax::DcRole::EndIdentifier)
+            || (idx == 0
+                && crate::navigator::is_identifier_leading_type_starter(
+                    character,
+                    resolver.as_ref(),
+                ))
         {
             mst.push_char(DC_ESCAPE)?;
         }

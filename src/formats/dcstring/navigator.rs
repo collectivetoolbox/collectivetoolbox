@@ -2132,7 +2132,11 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         };
         if ch.fills_role_with(DcRole::LangSay, resolver) {
-            let end_offset = self.scan_say_frame_at(self.cursor, policy, resolver)?;
+            let Ok(end_offset) =
+                self.scan_say_frame_at(self.cursor, &DcProjectionPolicy::forgiving_quiet(), resolver)
+            else {
+                return Ok(false);
+            };
             let call_tokens = self.read_tokens_in_span(DcByteSpan::new(self.cursor, end_offset))?;
             let call_dcs: Vec<DcChar> = call_tokens.into_iter().map(DcChar::from_u128).collect();
             if let Some(spliced) = evaluator.eval_stream_splice(&call_dcs, resolver)? {
@@ -2575,6 +2579,29 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 if has_unescaped_closer {
                     self.spliced_tokens.pop_front();
+                    if let Some(&first_inner) = self.spliced_tokens.front()
+                        && !first_inner.fills_role_with(DcRole::Escape, resolver)
+                        && first_inner != closer
+                        && !resolver.is_equivalent_to(first_inner.to_u128(), closer.to_u128())
+                    {
+                        if first_inner.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                            if self
+                                .spliced_tokens
+                                .get(1)
+                                .is_some_and(|t| is_single_type_token(*t, resolver))
+                                && self
+                                    .spliced_tokens
+                                    .get(2)
+                                    .is_some_and(|t| t.fills_role_with(DcRole::EndTypeDef, resolver))
+                            {
+                                let _ = self.spliced_tokens.pop_front();
+                                let _ = self.spliced_tokens.pop_front();
+                                let _ = self.spliced_tokens.pop_front();
+                            }
+                        } else if is_single_type_token(first_inner, resolver) {
+                            let _ = self.spliced_tokens.pop_front();
+                        }
+                    }
                     let mut name = DcMstring::new();
                     while let Some(tok) = self.spliced_tokens.pop_front() {
                         if tok.fills_role_with(DcRole::Escape, resolver) {
@@ -2710,21 +2737,11 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         // 1.5. Stream say invocation (Dc 256)
-        if first_dc.fills_role_with(DcRole::LangSay, resolver) {
-            if !self.level_stack.is_empty()
-                && self.splice_stream_invocation(&DefaultDcExpressionEvaluator, resolver, policy)?
-            {
-                return self.scan_sibling_stub_with_resolver(policy, resolver);
-            }
-            let end_offset = self.scan_say_frame_at(start_offset, policy, resolver)?;
-            self.cursor = end_offset;
-            return Ok(Some(DcFrameStub {
-                head_dc: first_dc,
-                closer_dc: None,
-                outer_span: DcByteSpan::new(start_offset, end_offset),
-                inner_span: Some(DcByteSpan::new(after_first, end_offset)),
-                header_info: DcFrameHeaderInfo::None,
-            }));
+        if first_dc.fills_role_with(DcRole::LangSay, resolver)
+            && !self.level_stack.is_empty()
+            && self.splice_stream_invocation(&DefaultDcExpressionEvaluator, resolver, policy)?
+        {
+            return self.scan_sibling_stub_with_resolver(policy, resolver);
         }
 
         // 2. Check if this is a literal (260..261) or identifier (270..271)
@@ -2745,23 +2762,12 @@ impl<'a> DcDocumentNavigator<'a> {
             let mut ctx = SyntaxEvalContext::new(resolver, None);
             ctx.policy.clone_from(policy);
             let matched = if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
-                self.eval_literal_frame(None, &mut ctx)?
+                self.eval_literal_frame(None, None, &mut ctx)?
             } else {
-                self.eval_identifier_frame(&mut ctx)?
+                self.eval_identifier_frame(None, &mut ctx)?
             };
             if !matched || ctx.has_errors {
                 self.syntax_issue(policy, start_offset, format!("Invalid text frame {first_dc:?} at offset {start_offset}"))?;
-            }
-            if first_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                if end_offset
-                    == after_first.saturating_add(dc_char_utf8e128_len(closer))
-                {
-                    self.syntax_issue(
-                        policy,
-                        start_offset,
-                        format!("Empty identifier frame at offset {start_offset}"),
-                    )?;
-                }
             }
             self.cursor = end_offset;
             return Ok(Some(DcFrameStub {
@@ -2885,7 +2891,16 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.cursor = start_offset;
                     let mut ctx = SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
                     ctx.policy.clone_from(policy);
-                    let matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
+                    let mut matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
+                    if matched
+                        && !ctx.has_errors
+                        && resolver.matches_script(".EL Routines", first_dc.to_u128())
+                        && self
+                            .read_token_or_binary_at(self.cursor)?
+                            .is_some_and(|(tok, _)| tok.fills_role_with(DcRole::BeginParameter, resolver))
+                    {
+                        matched = false;
+                    }
                     if matched && !ctx.has_errors {
                         let mut last_end = self.cursor;
                         if first_dc.fills_role_with(DcRole::RoutineInvocation, resolver) {
@@ -3976,18 +3991,43 @@ impl<'a> DcDocumentNavigator<'a> {
                             args,
                         } => {
                             let normalized_args = Self::normalize_field_nodes_with_resolver(args, arena, resolver);
+                            let unwrap_param = |id: NodeId, arena: &DcSyntaxArena<'a>| -> NodeId {
+                                if let Some(DcSyntaxKind::Container {
+                                    opener, children, ..
+                                }) = arena.get(id).map(|n| &n.kind)
+                                    && opener.fills_role_with(DcRole::BeginParameter, resolver)
+                                    && let [single] = children.as_slice()
+                                {
+                                    *single
+                                } else {
+                                    id
+                                }
+                            };
                             if tag.fills_role_with(DcRole::LangAssign, resolver)
-                                && let [ident_id, val_id] = normalized_args.as_slice()
-                                && let Some(DcSyntaxKind::Identifier { name }) = arena.get(*ident_id).map(|n| &n.kind)
+                                && let [raw_ident_id, raw_val_id] = normalized_args.as_slice()
                             {
-                                let ident = name.clone();
-                                arena.alloc(
-                                    outer_span,
-                                    DcSyntaxKind::Assignment {
-                                        ident,
-                                        value: *val_id,
-                                    },
-                                )
+                                let ident_id = unwrap_param(*raw_ident_id, arena);
+                                let val_id = unwrap_param(*raw_val_id, arena);
+                                if let Some(DcSyntaxKind::Identifier { name }) =
+                                    arena.get(ident_id).map(|n| &n.kind)
+                                {
+                                    let ident = name.clone();
+                                    arena.alloc(
+                                        outer_span,
+                                        DcSyntaxKind::Assignment {
+                                            ident,
+                                            value: val_id,
+                                        },
+                                    )
+                                } else {
+                                    arena.alloc(
+                                        outer_span,
+                                        DcSyntaxKind::Tagged {
+                                            tag,
+                                            args: normalized_args,
+                                        },
+                                    )
+                                }
                             } else {
                                 arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args: normalized_args })
                             }
@@ -4442,6 +4482,28 @@ impl<'a> DcDocumentNavigator<'a> {
         ensure!(
             lit_open.fills_role_with(DcRole::BeginLiteral, resolver),
             "Expected literal opener (Dc 260), found {lit_open}"
+        );
+        let Some((hdr_open, after_262)) = self.read_token_or_binary_at(after_lit_open)? else {
+            bail!("Unexpected end of stream: expected Dc 262 after Dc 260");
+        };
+        ensure!(
+            hdr_open.fills_role_with(DcRole::BeginTypeDef, resolver),
+            "Expected Dc 262 after Dc 260 in lang.say"
+        );
+        let Some((type_dc, after_type)) = self.read_token_or_binary_at(after_262)? else {
+            bail!("Unexpected end of stream: expected type after Dc 262");
+        };
+        ensure!(
+            type_dc.fills_role_with(DcRole::TypeString, resolver)
+                || type_dc.fills_role_with(DcRole::TypeAny, resolver),
+            "Expected String type (Dc 264) in lang.say literal, found {type_dc}"
+        );
+        let Some((hdr_close, _)) = self.read_token_or_binary_at(after_type)? else {
+            bail!("Unexpected end of stream: expected Dc 263 after type");
+        };
+        ensure!(
+            hdr_close.fills_role_with(DcRole::EndTypeDef, resolver),
+            "Expected Dc 263 after type in lang.say"
         );
         let lit_end = self.scan_escaped_text_frame(
             after_lit_open,
@@ -5010,6 +5072,33 @@ impl<'a> DcDocumentNavigator<'a> {
         };
         ensure!(first.fills_role_with(DcRole::BeginIdentifier, resolver), "Expected identifier opener (Dc 270), found {first}");
         offset = after_first;
+        if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)?
+            && !ch.fills_role_with(DcRole::Escape, resolver)
+            && !ch.fills_role_with(DcRole::EndIdentifier, resolver)
+        {
+            if ch.fills_role_with(DcRole::BeginTypeDef, resolver)
+                || ch.fills_role_with(DcRole::TypeIntersection, resolver)
+                || ch.fills_role_with(DcRole::TypeUnion, resolver)
+            {
+                let saved_cursor = self.cursor;
+                let saved_span = self.active_span;
+                self.cursor = offset;
+                self.active_span = span;
+                let mut type_ctx = SyntaxEvalContext::new(resolver, None);
+                type_ctx.policy.clone_from(policy);
+                if self.eval_type_constructor(&mut type_ctx).unwrap_or(false)
+                    && !type_ctx.has_errors
+                    && self.cursor > offset
+                    && self.cursor < span.end
+                {
+                    offset = self.cursor;
+                }
+                self.cursor = saved_cursor;
+                self.active_span = saved_span;
+            } else if is_single_type_token(ch, resolver) {
+                offset = next_off;
+            }
+        }
         let mut name = DcMstring::new();
         while offset < span.end {
             let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {
@@ -5465,10 +5554,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 if from_spliced {
                     if !ctx.unescaped_literal_payload {
                         if first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
-                            return self.eval_literal_frame(None, ctx);
+                            return self.eval_literal_frame(None, None, ctx);
                         }
                         if first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
-                            return self.eval_identifier_frame(ctx);
+                            return self.eval_identifier_frame(None, ctx);
                         }
                         if first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
                             return self.eval_number_frame(None, None, ctx);
@@ -5521,11 +5610,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         if first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
                             self.cursor = start_offset;
-                            return self.eval_literal_frame(None, ctx);
+                            return self.eval_literal_frame(None, None, ctx);
                         }
                         if first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
                             self.cursor = start_offset;
-                            return self.eval_identifier_frame(ctx);
+                            return self.eval_identifier_frame(None, ctx);
                         }
                         if first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
                             self.cursor = start_offset;
@@ -5680,11 +5769,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     } else {
                         false
                     }
-                } else if name == "string" {
-                    self.eval_literal_frame(subtype.as_deref(), ctx)?
+                } else if name == "string" || name == "String" {
+                    self.eval_literal_frame(Some(DcRole::TypeString), subtype.as_deref(), ctx)?
+                } else if name == "Routine" {
+                    self.eval_literal_frame(Some(DcRole::TypeRoutine), subtype.as_deref(), ctx)?
+                } else if name == "value" && first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
+                    self.eval_literal_frame(None, None, ctx)?
                 } else if name == "identifier" {
-                    self.eval_identifier_frame(ctx)?
-                } else if name == "number" {
+                    self.eval_identifier_frame(subtype.as_deref(), ctx)?
+                } else if name == "number" || name == "Number" {
                     self.eval_number_frame(subtype.as_deref(), capture_var.as_deref(), ctx)?
                 } else {
                     if ctx.depth >= ctx.max_depth {
@@ -6385,6 +6478,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
     fn eval_literal_frame(
         &mut self,
+        expected_type_role: Option<DcRole>,
         subtype: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
@@ -6407,6 +6501,13 @@ impl<'a> DcDocumentNavigator<'a> {
                 return Ok(false);
             };
             if !ctx.resolver.matches_script(".EL Types", type_dc.to_u128()) {
+                self.restore_checkpoint(term_checkpoint);
+                return Ok(false);
+            }
+            if let Some(role) = expected_type_role
+                && !type_dc.fills_role_with(role, ctx.resolver)
+                && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
+            {
                 self.restore_checkpoint(term_checkpoint);
                 return Ok(false);
             }
@@ -6511,6 +6612,13 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             return Ok(false);
         }
+        if let Some(role) = expected_type_role
+            && !type_dc.fills_role_with(role, ctx.resolver)
+            && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
+        {
+            self.cursor = start_offset;
+            return Ok(false);
+        }
 
         let mut decoded_payload = Vec::new();
         while let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
@@ -6592,32 +6700,82 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(false)
     }
 
-    fn eval_identifier_frame(&mut self, ctx: &mut SyntaxEvalContext<'_>) -> Result<bool> {
+    fn eval_identifier_frame(
+        &mut self,
+        subtype: Option<&str>,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
         let term_checkpoint = self.save_checkpoint();
         if let Some(&first_dc) = self.spliced_tokens.front() {
             if !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
                 return Ok(false);
             }
             self.spliced_tokens.pop_front();
-            let mut char_count = 0usize;
-            let mut found_closer = false;
-            while let Some(ch) = self.spliced_tokens.pop_front() {
-                if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
-                    let Some(_escaped) = self.spliced_tokens.pop_front() else {
+            let mut leading_type_tokens: Option<Vec<DcChar>> = None;
+            if let Some(&first_inner) = self.spliced_tokens.front()
+                && !first_inner.fills_role_with(DcRole::Escape, ctx.resolver)
+                && !first_inner.fills_role_with(DcRole::EndIdentifier, ctx.resolver)
+            {
+                if first_inner.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
+                    let Some(hdr_open) = self.spliced_tokens.pop_front() else {
                         self.restore_checkpoint(term_checkpoint);
                         return Ok(false);
                     };
+                    let Some(type_dc) = self.spliced_tokens.pop_front() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
+                    let Some(hdr_close) = self.spliced_tokens.pop_front() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
+                    if !is_single_type_token(type_dc, ctx.resolver)
+                        || !hdr_close.fills_role_with(DcRole::EndTypeDef, ctx.resolver)
+                    {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    }
+                    leading_type_tokens = Some(vec![hdr_open, type_dc, hdr_close]);
+                } else if is_single_type_token(first_inner, ctx.resolver) {
+                    if let Some(tok) = self.spliced_tokens.pop_front() {
+                        leading_type_tokens = Some(vec![tok]);
+                    }
+                }
+            }
+            let mut char_count = 0usize;
+            let mut found_closer = false;
+            let mut name_mstr = DcMstring::new();
+            while let Some(ch) = self.spliced_tokens.pop_front() {
+                if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
+                    let Some(escaped) = self.spliced_tokens.pop_front() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
+                    name_mstr.push_char(escaped);
                     char_count = char_count.saturating_add(1);
                 } else if ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver) {
                     found_closer = true;
                     break;
                 } else {
+                    name_mstr.push_char(ch);
                     char_count = char_count.saturating_add(1);
                 }
             }
             if !found_closer || char_count == 0 {
                 self.restore_checkpoint(term_checkpoint);
                 return Ok(false);
+            }
+            if let Some(sub) = subtype {
+                let type_ok = if let Some(ref type_tokens) = leading_type_tokens {
+                    check_type_compatibility(type_tokens, sub, None, ctx.resolver)
+                        || type_statically_satisfies_subtype(type_tokens, Some(sub), ctx.resolver)
+                } else {
+                    self.identifier_bound_to_type_in_scope(&name_mstr, self.cursor, sub, ctx)?
+                };
+                if !type_ok {
+                    self.restore_checkpoint(term_checkpoint);
+                    return Ok(false);
+                }
             }
             return Ok(true);
         }
@@ -6629,10 +6787,47 @@ impl<'a> DcDocumentNavigator<'a> {
         if !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
             return Ok(false);
         }
+        let mut leading_type_tokens: Option<Vec<DcChar>> = None;
+        if let Some((first_inner, next_off)) = self.read_token_or_binary_at(offset)?
+            && !first_inner.fills_role_with(DcRole::Escape, ctx.resolver)
+            && !first_inner.fills_role_with(DcRole::EndIdentifier, ctx.resolver)
+        {
+            if first_inner.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
+                || first_inner.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
+                || first_inner.fills_role_with(DcRole::TypeUnion, ctx.resolver)
+            {
+                let saved_cursor = self.cursor;
+                self.cursor = offset;
+                let mut type_ctx = ctx.clone();
+                let type_ok = self.eval_type_constructor(&mut type_ctx)?;
+                let type_end = self.cursor;
+                self.cursor = saved_cursor;
+                if !type_ok || type_ctx.has_errors || type_end <= offset {
+                    ctx.has_errors = true;
+                    ctx.diagnostics.push(SyntaxDiagnostic {
+                        message: format!(
+                            "Invalid leading [type] in identifier at offset {offset}"
+                        ),
+                        token_offset: offset,
+                        is_error: true,
+                    });
+                    self.cursor = start_offset;
+                    return Ok(false);
+                }
+                let raw_toks = self.read_tokens_in_span(DcByteSpan::new(offset, type_end))?;
+                leading_type_tokens =
+                    Some(raw_toks.into_iter().map(DcChar::from_u128).collect());
+                offset = type_end;
+            } else if is_single_type_token(first_inner, ctx.resolver) {
+                leading_type_tokens = Some(vec![first_inner]);
+                offset = next_off;
+            }
+        }
         let mut char_count = 0usize;
+        let mut name_mstr = DcMstring::new();
         while let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
             if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
-                let Some((_, after_esc)) = self.read_token_or_binary_at(next_off)? else {
+                let Some((escaped, after_esc)) = self.read_token_or_binary_at(next_off)? else {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Dangling escape Dc 255 in identifier at offset {offset}"),
@@ -6642,6 +6837,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.cursor = start_offset;
                     return Ok(false);
                 };
+                name_mstr.push_char(escaped);
                 char_count = char_count.saturating_add(1);
                 offset = after_esc;
             } else if ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver) {
@@ -6655,9 +6851,26 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.cursor = start_offset;
                     return Ok(false);
                 }
+                if let Some(sub) = subtype {
+                    let type_ok = if let Some(ref type_tokens) = leading_type_tokens {
+                        check_type_compatibility(type_tokens, sub, None, ctx.resolver)
+                            || type_statically_satisfies_subtype(
+                                type_tokens,
+                                Some(sub),
+                                ctx.resolver,
+                            )
+                    } else {
+                        self.identifier_bound_to_type_in_scope(&name_mstr, start_offset, sub, ctx)?
+                    };
+                    if !type_ok {
+                        self.cursor = start_offset;
+                        return Ok(false);
+                    }
+                }
                 self.cursor = next_off;
                 return Ok(true);
             } else {
+                name_mstr.push_char(ch);
                 char_count = char_count.saturating_add(1);
                 offset = next_off;
             }
@@ -6670,6 +6883,121 @@ impl<'a> DcDocumentNavigator<'a> {
         });
         self.cursor = start_offset;
         Ok(false)
+    }
+
+    fn identifier_bound_to_type_in_scope(
+        &mut self,
+        ident_name: &DcMstr,
+        before_offset: u64,
+        expected_type: &str,
+        ctx: &SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
+        let req = ValueRequirement::NamedConstruct {
+            name: expected_type,
+            subtype: None,
+        };
+        if let Some(evaluator) = &ctx.evaluator {
+            let mut expr_dcs = vec![
+                ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE,
+                ctb_formats_dcdata::dc::DC_BEGIN_IDENTIFIER,
+            ];
+            if let Ok(dc_str) = ident_name.to_dc_string() {
+                for ch in dc_str.chars() {
+                    if ch.fills_role_with(DcRole::Escape, ctx.resolver)
+                        || ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver)
+                    {
+                        expr_dcs.push(ctb_formats_dcdata::dc::DC_ESCAPE);
+                    }
+                    expr_dcs.push(ch);
+                }
+                expr_dcs.push(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                if let Ok(Some(DcEvaluatedValue::Document(doc))) =
+                    evaluator.eval_expression_for_requirement(&expr_dcs, &req, ctx.resolver)
+                {
+                    let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
+                    let mut sub_ctx = ctx.clone();
+                    let term = SyntaxTerm::NamedConstruct {
+                        name: expected_type.to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    };
+                    if let Ok(true) = sub_nav.eval_term_single(&term, &mut sub_ctx) {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        if ctx.depth > 8 {
+            return Ok(false);
+        }
+        let doc_start = match &self.backend {
+            NavBackend::MemoryMstr(_) => {
+                // Reason for fallback: DCMM_HEADER_LEN fits in u64.
+                u64::try_from(DCMM_HEADER_LEN).unwrap_or(0)
+            }
+            NavBackend::MemoryText(_) => 0,
+            NavBackend::SeekableFile { base_offset, .. } => {
+                base_offset.saturating_add(u64::try_from(DCMM_HEADER_LEN).unwrap_or(0))
+            }
+        };
+        if before_offset <= doc_start {
+            return Ok(false);
+        }
+        let saved_checkpoint = self.save_checkpoint();
+        let saved_diag_len = self.diagnostics.len();
+        let quiet = DcProjectionPolicy::forgiving_quiet();
+        self.active_span = DcByteSpan::new(doc_start, before_offset);
+        self.cursor = doc_start;
+        self.spliced_tokens.clear();
+        let mut bound_value_span: Option<DcByteSpan> = None;
+        while self.cursor < before_offset {
+            let prev_cursor = self.cursor;
+            let Ok(Some(stub)) = self.next_sibling_stub_with_resolver(&quiet, ctx.resolver) else {
+                break;
+            };
+            if self.cursor <= prev_cursor {
+                break;
+            }
+            if stub.head_dc.fills_role_with(DcRole::LangAssign, ctx.resolver)
+                || ctx
+                    .resolver
+                    .resolve_infix_rule(stub.head_dc.to_u128())
+                    .is_some()
+            {
+                let mut temp_arena = DcSyntaxArena::new();
+                if let Ok(root_id) =
+                    self.build_arena_node_from_stub_with_resolver(&stub, &mut temp_arena, &quiet, ctx.resolver)
+                    && let Some(DcSyntaxKind::Assignment { ident, value }) =
+                        temp_arena.get(root_id).map(|n| &n.kind)
+                    && ident.as_mstr() == ident_name
+                    && let Some(val_node) = temp_arena.get(*value)
+                {
+                    bound_value_span = Some(val_node.span);
+                }
+            }
+        }
+        self.diagnostics.truncate(saved_diag_len);
+        self.restore_checkpoint(saved_checkpoint.clone());
+        let Some(val_span) = bound_value_span else {
+            return Ok(false);
+        };
+        let saved_for_eval = self.save_checkpoint();
+        self.active_span = val_span;
+        self.cursor = val_span.start;
+        self.spliced_tokens.clear();
+        let mut sub_ctx = ctx.clone();
+        sub_ctx.depth = sub_ctx.depth.saturating_add(1);
+        let term = SyntaxTerm::NamedConstruct {
+            name: expected_type.to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        let ok = self.eval_term_single(&term, &mut sub_ctx).unwrap_or(false)
+            && !sub_ctx.has_errors
+            && self.cursor == val_span.end;
+        self.diagnostics.truncate(saved_diag_len);
+        self.restore_checkpoint(saved_for_eval);
+        Ok(ok)
     }
 
     fn eval_number_frame(
@@ -7369,6 +7697,27 @@ fn unconstrained_pattern(pattern: &SyntaxPattern) -> Option<SyntaxPattern> {
     }
 }
 
+pub(crate) fn is_single_type_token(tok: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
+    let first = tok.to_u128();
+    let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+        ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+        .contains(&first);
+    resolver.token_fills_role(first, DcRole::TypeToken)
+        || is_format_token
+        || resolver.matches_script(".EL Types", first)
+        || resolver.matches_script("Formats", first)
+}
+
+pub(crate) fn is_identifier_leading_type_starter(
+    tok: DcChar,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    tok.fills_role_with(DcRole::BeginTypeDef, resolver)
+        || tok.fills_role_with(DcRole::TypeIntersection, resolver)
+        || tok.fills_role_with(DcRole::TypeUnion, resolver)
+        || is_single_type_token(tok, resolver)
+}
+
 fn check_type_compatibility(
     type_tokens: &[DcChar],
     req_name: &str,
@@ -7403,7 +7752,7 @@ fn check_type_compatibility(
         }
 
         match req_name {
-            "string" => {
+            "string" | "String" => {
                 let is_string_fmt = tok.fills_role_with(DcRole::TypeString, resolver)
                     || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_STRING.to_u128())
                     || resolver.matches_script("Formats:string", tok_u128)
@@ -7427,7 +7776,7 @@ fn check_type_compatibility(
                     true
                 }
             }
-            "number" => {
+            "number" | "Number" => {
                 let is_number_fmt = tok.fills_role_with(DcRole::TypeNumber, resolver)
                     || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
                     || resolver.is_equivalent_to(tok_u128, DC_INTEGER.to_u128())
@@ -7525,6 +7874,32 @@ fn check_type_compatibility(
                     true
                 }
             }
+            "Routine" => {
+                tok.fills_role_with(DcRole::TypeRoutine, resolver)
+                    || resolver.is_equivalent_to(
+                        tok_u128,
+                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE.to_u128(),
+                    )
+            }
+            "Routine name" | "RoutineName" => {
+                tok.fills_role_with(DcRole::TypeRoutineName, resolver)
+                    || resolver.is_equivalent_to(
+                        tok_u128,
+                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE_NAME.to_u128(),
+                    )
+                    || tok.fills_role_with(DcRole::TypeRoutine, resolver)
+                    || resolver.is_equivalent_to(
+                        tok_u128,
+                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE.to_u128(),
+                    )
+            }
+            "identifier" => {
+                if let Some(sub) = req_subtype {
+                    check_type_compatibility(tokens, sub, None, resolver)
+                } else {
+                    true
+                }
+            }
             _ => resolver.matches_script(req_name, tok_u128),
         }
     } else {
@@ -7572,6 +7947,14 @@ fn type_statically_satisfies_subtype(
             return false;
         };
         let tok = tok_char.to_u128();
+        if tok_char.fills_role_with(DcRole::TypeAny, resolver)
+            || tok_char == ctb_formats_dcdata::dc::DC_TYPE_ANY
+        {
+            return true;
+        }
+        if check_type_compatibility(tokens, sub, None, resolver) {
+            return true;
+        }
         if let Some(fmt_id) = FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub)) {
             if let Some(exp) = fmt_id.dc_id() {
                 if resolver.is_equivalent_to(tok, exp) {
@@ -9163,6 +9546,190 @@ mod tests {
         spliced_dim_bad.extend_from_slice(&num_10);
         spliced_dim_bad.extend([sdc(311), sdc(512)]);
         check_all_backends(&spliced_dim_bad, false)?;
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_el_routines_types_identifiers_and_assign_equivalence() -> Result<()> {
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+        let fmt = |id: u32| DcChar::from_format(id).to_u128();
+        let strict = DcProjectionPolicy::strict();
+        let forgiving = DcProjectionPolicy::forgiving();
+
+        // 1. .EL Routines derived parameter syntax (256, 265, 268, 307):
+        //    - 256: void lang.say([string] text) -> accepts 258 [string] 259, rejects 258 [number] 259 or extra 258..259
+        let valid_say = vec![
+            sdc(256),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+            65,
+            sdc(261),
+            sdc(259),
+        ];
+        validate_dc_tokens_strict(&valid_say)?;
+
+        let wrong_type_say = vec![
+            sdc(256),
+            sdc(258),
+            sdc(6),
+            fmt(199),
+            sdc(127),
+            sdc(7),
+            sdc(259),
+        ];
+        assert!(validate_dc_tokens_strict(&wrong_type_say).is_err());
+        let wrong_type_say_doc = dc_string_from_tokens(&wrong_type_say);
+        let mut forgiving_nav = DcDocumentNavigator::from_dc_str(&wrong_type_say_doc);
+        let mut forgiving_arena = DcSyntaxArena::new();
+        forgiving_nav.parse_document_into_arena(&mut forgiving_arena, &forgiving)?;
+        assert!(!forgiving_arena.diagnostics().is_empty());
+
+        let extra_param_say = vec![
+            sdc(256),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+            65,
+            sdc(261),
+            sdc(259),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+            66,
+            sdc(261),
+            sdc(259),
+        ];
+        assert!(validate_dc_tokens_strict(&extra_param_say).is_err());
+
+        // 2. Identifiers (270..271) with optional leading [type]?:
+        //    - Typed with 262 280 263 (Routine): satisfies [identifier:Routine] and [Routine name]
+        let typed_routine_ident = vec![
+            sdc(270),
+            sdc(262),
+            sdc(280),
+            sdc(263),
+            102,
+            111,
+            111,
+            sdc(271),
+        ];
+        validate_dc_tokens_strict(&typed_routine_ident)?;
+        let rule_routine_ident = parse_dc_syntax(":[identifier:Routine]")?;
+        assert!(eval_tokens_complete(&typed_routine_ident, &rule_routine_ident.pattern, None)?.0);
+        let rule_routine_name = parse_dc_syntax(":[Routine name]")?;
+        assert!(eval_tokens_complete(&typed_routine_ident, &rule_routine_name.pattern, None)?.0);
+
+        //    - Typed with 264 (String): satisfies [identifier], rejected by [identifier:Routine]
+        let typed_str_ident = vec![sdc(270), sdc(264), 102, 111, 111, sdc(271)];
+        validate_dc_tokens_strict(&typed_str_ident)?;
+        assert!(!eval_tokens_complete(&typed_str_ident, &rule_routine_ident.pattern, None)?.0);
+
+        //    - Escaped leading type token (255 264) is part of the identifier name, not a type header
+        let mut raw_ident_with_leading_type = DcMstring::new();
+        raw_ident_with_leading_type.push_char(DcChar::from_short(264));
+        raw_ident_with_leading_type.push_char(DcChar::from_char('x'));
+        let mut encoded_ident_doc = DcMstring::new();
+        crate::encode_dc_identifier(&mut encoded_ident_doc, &raw_ident_with_leading_type)?;
+        let decoded_ident: DcMstring = encoded_ident_doc.decode(&strict)?;
+        assert_eq!(decoded_ident, raw_ident_with_leading_type);
+
+        // 3. Dc 307: void lang.invoke([Routine] routine | [Routine name] routineName)
+        //    - Accepts inline [Routine] literal (260 262 280 263 266 261)
+        let invoke_inline_routine = vec![
+            sdc(307),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(280),
+            sdc(263),
+            sdc(266),
+            sdc(261),
+            sdc(259),
+        ];
+        validate_dc_tokens_strict(&invoke_inline_routine)?;
+
+        //    - Accepts [Routine name] (typed identifier 270 262 280 263 ... 271)
+        let mut invoke_routine_name = vec![sdc(307), sdc(258)];
+        invoke_routine_name.extend_from_slice(&typed_routine_ident);
+        invoke_routine_name.push(sdc(259));
+        validate_dc_tokens_strict(&invoke_routine_name)?;
+
+        //    - Rejects untyped string literal (260 262 264 263 ... 261) for Dc 307
+        let invoke_bad_str = vec![
+            sdc(307),
+            sdc(258),
+            sdc(260),
+            sdc(262),
+            sdc(264),
+            sdc(263),
+            65,
+            sdc(261),
+            sdc(259),
+        ];
+        assert!(validate_dc_tokens_strict(&invoke_bad_str).is_err());
+
+        // 4. Dc 268 (lang.assign) and Dc 269 (Assign operator) equivalence:
+        //    - 268 258 270 "x" 271 259 258 [number: 99] 259 normalizes to DcSyntaxKind::Assignment
+        //      and resolves 540 bound value references identically to 269
+        let mut doc_268 = DcMstring::new();
+        doc_268.push_char(DcChar::from_short(268));
+        doc_268.push_char(DcChar::from_short(258));
+        doc_268.push_char(DC_BEGIN_IDENTIFIER);
+        doc_268.push_str("assigned_via_268");
+        doc_268.push_char(DC_END_IDENTIFIER);
+        doc_268.push_char(DcChar::from_short(259));
+        doc_268.push_char(DcChar::from_short(258));
+        99u64.encode_dc_mixed(&mut doc_268)?;
+        doc_268.push_char(DcChar::from_short(259));
+        doc_268.push_char(ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE);
+        doc_268.push_char(DC_BEGIN_IDENTIFIER);
+        doc_268.push_str("assigned_via_268");
+        doc_268.push_char(DC_END_IDENTIFIER);
+
+        validate_dc_mixed_strict(&doc_268)?;
+        let mut nav_268 = DcDocumentNavigator::from_mstr(&doc_268);
+        let mut arena_268 = DcSyntaxArena::new();
+        nav_268.parse_document_into_arena(&mut arena_268, &strict)?;
+        let assign_root = *arena_268.roots().first().context("Missing 268 assignment root")?;
+        assert!(matches!(
+            arena_268.node(assign_root).context("Missing node")?.kind,
+            DcSyntaxKind::Assignment { .. }
+        ));
+        let ref_root = *arena_268.roots().get(1).context("Missing 540 reference root")?;
+        let mut proj_ctx = crate::DcProjectionContext::new(&arena_268, &strict);
+        let resolved: u64 = crate::DcMixedDecode::decode_dc_node(&mut proj_ctx, ref_root)?;
+        assert_eq!(resolved, 99);
+
+        //    - Binding a Routine literal via 269 allows untyped identifier to satisfy [Routine name] in 307
+        let bound_routine_doc = vec![
+            sdc(270),
+            102,
+            110,
+            sdc(271),
+            sdc(269),
+            sdc(260),
+            sdc(262),
+            sdc(280),
+            sdc(263),
+            sdc(266),
+            sdc(261),
+            sdc(307),
+            sdc(258),
+            sdc(270),
+            102,
+            110,
+            sdc(271),
+            sdc(259),
+        ];
+        validate_dc_tokens_strict(&bound_routine_doc)?;
 
         Ok(())
     }

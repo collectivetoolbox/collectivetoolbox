@@ -1067,7 +1067,8 @@ fn process_column_item(
     }
 }
 
-/// Validates that tokens in an `@implies(...)` or `@based_on(...)` expression conform to Dc shorthand syntax.
+/// Validates that tokens in an `@implies(...)` or `@based_on(...)` expression conform to Dc shorthand syntax,
+/// or (for `@implies`) a bracketed Dc syntax construct (e.g. `@implies([identifier:Routine])`).
 fn validate_shorthand_expr(
     expr: &str,
     file_path: &str,
@@ -1076,6 +1077,20 @@ fn validate_shorthand_expr(
     col_name: &str,
     directive_name: &str,
 ) {
+    let trimmed = expr.trim();
+    if directive_name == "@implies" && trimmed.starts_with('[') && trimmed.ends_with(']') {
+        if let Err(e) = crate::syntax::parse_dc_syntax(&format!(":{trimmed}")) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some(col_name),
+                format!("Invalid syntax construct '{trimmed}' in '@implies({expr})': {e}"),
+                Some("Ensure bracketed expression inside '@implies([...])' is valid Dc syntax"),
+            );
+        }
+        return;
+    }
+
     // Split by operational delimiters &, |, (, ) to validate atomic identifiers
     for token in expr
         .split(|c: char| c == '&' || c == '|' || c == '(' || c == ')')

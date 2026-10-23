@@ -28,15 +28,11 @@ before fixes.
 
 ### Parser and Projection Ownership
 
-- [ ] Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (note that this is different from the current accepted style guide, which forbids @ident only for enums/structs).
-  - [ ] Alternatively: Instead of annotating structs/enums directly in code with Dcs, maybe use a new @struct()/@enum() note in the database and generate the structs from there?
+- [ ] **(Intentionally deferred — do not re-ask operator)** Evaluate adding `@ident` for Dcs used in struct/enum derive attributes as well, to make compiler/diagnostic errors more obvious (note that this is different from the current accepted style guide, which forbids @ident only for enums/structs).
+  - [ ] **(Intentionally deferred — do not re-ask operator)** Alternatively: Instead of annotating structs/enums directly in code with Dcs, maybe use a new @struct()/@enum() note in the database and generate the structs from there?
 - [ ] Audit remaining handwritten structured codecs and grammar-independent
   encoding paths. Writer-based derives exist; do not equate this with all
   serialization being generated from syntax specifications.
-
-- @roleDef("EvaluableExpressionStarter") should be implicit for `.EL Routines` and a validation error if redundantly added.
-- Assignment operator has @roleDef() but since it's in `.EL Operators` script it should be inferred automatically that it is an operator and not special-cased or given a @roleDef(). Per the syntax declaration it should behave as an alias of its routine equivalent: `:[identifier $ident] ~ [value $val] : lang.assign($ident, $val)`
-- The `.EL Routines` should derive their syntax from the parameter declaration in the name rather than having a decidated syntax expression.
 
 ### Resource and Streaming Limits
 
@@ -61,9 +57,12 @@ pub fn validate_and_write_dc_record(
 - [ ] Specify downstream expansion of multi-token `<equiv>` decompositions,
   such as `f350 f351`. Single-token canonical equivalence and rejection of
   conflicting single-token syntax on decompositions are already implemented.
-- [ ] Resolve the
-  [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38).
-  Restoring a comment or adding an identifier does not resolve its semantics.
+- [ ] **(Intentionally deferred)** Resolve the
+  [routine-invocation clarification](../src/formats/dcdata/data/categories/el.csv#L38)
+  for `Dc 279` (`Routine invocation`) and variable-arity/slurpy `.EL Routines`
+  parameter syntax (`Dc 265` and `Dc 307` fixed-arity `lang.invoke` parameter
+  syntax is implemented). Restoring a comment or adding an identifier does not
+  resolve `Dc 279` semantics.
 - [ ] Review Remote URI/ETag mappings, String (`f80`) versus Text (`f14`), and
   encoding formats' relationship to Text. Existing Remote fields use filepath
   and payload-checksum meanings; establish intended semantics before changing

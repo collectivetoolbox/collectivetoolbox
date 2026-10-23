@@ -179,15 +179,28 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.rules.insert(
+        CharTarget::Dc(256),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "string".to_string(), subtype: None, capture_var: Some("text".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ 258 [string $text] 259".to_string(),
+        },
+    );
+    resolver.rules.insert(
         CharTarget::Dc(258),
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(259)] }, quantifier: Quantifier::OneOrMore },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ [value] 259".to_string(),
+            raw: ":~ [^259]+ 259".to_string(),
         },
     );
     resolver.rules.insert(
@@ -195,11 +208,11 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(259)] }, quantifier: Quantifier::OneOrMore },
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":258 [value] ~".to_string(),
+            raw: ":258 [^259]+ ~".to_string(),
         },
     );
     resolver.rules.insert(
@@ -287,6 +300,29 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.rules.insert(
+        CharTarget::Dc(265),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "string".to_string(), subtype: None, capture_var: Some("routineName".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ 258 [string $routineName] 259".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(266),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~".to_string(),
+        },
+    );
+    resolver.rules.insert(
         CharTarget::Dc(267),
         DcSyntaxRule {
             pattern: SyntaxPattern::Alternation(vec![
@@ -318,11 +354,15 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "identifier".to_string(), subtype: None, capture_var: Some("ident".to_string()) }, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: Some("val".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "identifier".to_string(), subtype: None, capture_var: Some("identifier".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: Some("value".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ [identifier $ident] [value $val]".to_string(),
+            raw: ":~ 258 [identifier $identifier] 259 258 [value $value] 259".to_string(),
         },
     );
     resolver.rules.insert(
@@ -342,28 +382,12 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(271), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
-                    ]),
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
-                            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                                ]),
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
-                                ]),
-                            ])), quantifier: Quantifier::ExactOne },
-                        ])), quantifier: Quantifier::ExactOne },
-                    ]),
-                ])), quantifier: Quantifier::OneOrMore },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::Optional },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(271)] }, quantifier: Quantifier::OneOrMore },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(271)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ ([^271 255] | (255 (255 | [^255])))+ 271".to_string(),
+            raw: ":~ [type]? [^271]+ 271".to_string(),
         },
     );
     resolver.rules.insert(
@@ -371,28 +395,12 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(270)), quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(271), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
-                    ]),
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
-                            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                                ]),
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
-                                ]),
-                            ])), quantifier: Quantifier::ExactOne },
-                        ])), quantifier: Quantifier::ExactOne },
-                    ]),
-                ])), quantifier: Quantifier::OneOrMore },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::Optional },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(271)] }, quantifier: Quantifier::OneOrMore },
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":270 ([^271 255] | (255 (255 | [^255])))+ ~".to_string(),
+            raw: ":270 [type]? [^271]+ ~".to_string(),
         },
     );
     resolver.rules.insert(
@@ -523,6 +531,26 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
             ]),
             action: None,
             raw: ":~ [type] [type]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(307),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(258)), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
+                    SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "Routine".to_string(), subtype: None, capture_var: Some("routine".to_string()) }, quantifier: Quantifier::ExactOne },
+                    ]),
+                    SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "Routine name".to_string(), subtype: None, capture_var: Some("routineName".to_string()) }, quantifier: Quantifier::ExactOne },
+                    ]),
+                ])), quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(259)), quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ 258 ([Routine $routine] | [Routine name $routineName]) 259".to_string(),
         },
     );
     resolver.rules.insert(
@@ -2330,6 +2358,38 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
 )]
 fn populate_named_types(resolver: &mut DatasetRuleResolver) {
     resolver.named_types.insert(
+        "Number".to_string(),
+        SyntaxPattern::Sequence(vec![
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(6)), quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "format".to_string(), subtype: Some("number".to_string()), capture_var: None }, quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(7)] }, quantifier: Quantifier::OneOrMore },
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(7)), quantifier: Quantifier::ExactOne },
+        ]),
+    );
+    resolver.named_types.insert(
+        "Routine".to_string(),
+        SyntaxPattern::Sequence(vec![
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(260)), quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(262)), quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(280)), quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(263)), quantifier: Quantifier::ExactOne },
+            SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(261)] }, quantifier: Quantifier::OneOrMore },
+            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(261)), quantifier: Quantifier::ExactOne },
+        ]),
+    );
+    resolver.named_types.insert(
+        "Routine name".to_string(),
+        SyntaxPattern::Sequence(vec![
+            SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "identifier".to_string(), subtype: Some("Routine".to_string()), capture_var: None }, quantifier: Quantifier::ExactOne },
+        ]),
+    );
+    resolver.named_types.insert(
+        "String".to_string(),
+        SyntaxPattern::Sequence(vec![
+            SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(260) }, quantifier: Quantifier::ExactOne },
+        ]),
+    );
+    resolver.named_types.insert(
         "asciilatinletter".to_string(),
         SyntaxPattern::Sequence(vec![
             SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
@@ -3343,6 +3403,12 @@ fn populate_container_headers(resolver: &mut DatasetRuleResolver) {
         ],
     );
     resolver.container_headers.insert(
+        CharTarget::Dc(270),
+        vec![
+            SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::Optional },
+        ],
+    );
+    resolver.container_headers.insert(
         CharTarget::Dc(310),
         vec![
             SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_string(), subtype: None, capture_var: Some("length".to_string()) }, quantifier: Quantifier::Optional },
@@ -3431,6 +3497,46 @@ fn populate_infix_rules(resolver: &mut DatasetRuleResolver) {
     reason = "Generated static syntax table section"
 )]
 fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
+    resolver.named_type_starters.insert(
+        "Number".to_string(),
+        StarterSet {
+            exact_tokens: HashSet::from([
+                1_114_118_u128,
+            ]),
+            ranges: Vec::new(),
+            scripts: Vec::new(),
+        },
+    );
+    resolver.named_type_starters.insert(
+        "Routine".to_string(),
+        StarterSet {
+            exact_tokens: HashSet::from([
+                1_114_372_u128,
+            ]),
+            ranges: Vec::new(),
+            scripts: Vec::new(),
+        },
+    );
+    resolver.named_type_starters.insert(
+        "Routine name".to_string(),
+        StarterSet {
+            exact_tokens: HashSet::from([
+                1_114_382_u128,
+            ]),
+            ranges: Vec::new(),
+            scripts: Vec::new(),
+        },
+    );
+    resolver.named_type_starters.insert(
+        "String".to_string(),
+        StarterSet {
+            exact_tokens: HashSet::from([
+                1_114_372_u128,
+            ]),
+            ranges: Vec::new(),
+            scripts: Vec::new(),
+        },
+    );
     resolver.named_type_starters.insert(
         "asciilatinletter".to_string(),
         StarterSet {

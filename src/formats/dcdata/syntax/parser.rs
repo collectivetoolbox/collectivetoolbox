@@ -221,7 +221,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             None => bail!("Invalid subtype slice bounds in named construct '[{trimmed}]'"),
         };
 
-        let mut name = "";
+        let mut name_words = Vec::new();
         let mut capture_var = None;
         let mut elem_quantifier = Quantifier::ExactOne;
 
@@ -242,12 +242,15 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
                 };
                 elem_quantifier = q;
                 capture_var = Some(clean_var.trim().to_string());
-            } else if name.is_empty() {
-                name = tok;
             } else {
-                bail!("Unexpected extra token in named construct name '[{trimmed}]': '{tok}'");
+                ensure!(
+                    capture_var.is_none(),
+                    "Unexpected token after capture variable in named construct name '[{trimmed}]': '{tok}'"
+                );
+                name_words.push(tok);
             }
         }
+        let name = name_words.join(" ");
 
         let mut subtype_str = subtype_part_raw.trim();
         let mut last_top_whitespace = None;
@@ -342,7 +345,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         tokens.push(current_tok);
     }
 
-    let mut name = "";
+    let mut name_words: Vec<&str> = Vec::new();
     let mut capture_var = None;
     let mut elem_quantifier = Quantifier::ExactOne;
 
@@ -363,12 +366,15 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             };
             elem_quantifier = q;
             capture_var = Some(clean_var.trim().to_string());
-        } else if name.is_empty() {
-            name = tok.as_str();
         } else {
-            bail!("Unexpected extra token in named construct '[{trimmed}]': '{tok}'");
+            ensure!(
+                capture_var.is_none(),
+                "Unexpected token after capture variable in named construct '[{trimmed}]': '{tok}'"
+            );
+            name_words.push(tok.as_str());
         }
     }
+    let name = name_words.join(" ");
 
     ensure!(
         !name.is_empty(),
@@ -377,7 +383,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
 
     Ok(SyntaxElement::with_quantifier(
         SyntaxTerm::NamedConstruct {
-            name: name.to_string(),
+            name,
             subtype: None,
             capture_var,
         },
