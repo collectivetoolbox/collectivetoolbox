@@ -207,7 +207,7 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::Range { min: 1, max: Some(1) } },
+                SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::ExactOne },
                 SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
                     SyntaxPattern::Sequence(vec![
                         SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(261), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
@@ -229,7 +229,7 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(261)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261".to_string(),
+            raw: ":~ [262:] ([^261 255] | (255 (255 | [^255])))* 261".to_string(),
         },
     );
     resolver.rules.insert(
@@ -237,7 +237,7 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(260)), quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::Range { min: 1, max: Some(1) } },
+                SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::ExactOne },
                 SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
                     SyntaxPattern::Sequence(vec![
                         SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(261), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
@@ -259,7 +259,7 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":260 [262:]{1} ([^261 255] | (255 (255 | [^255])))* ~".to_string(),
+            raw: ":260 [262:] ([^261 255] | (255 (255 | [^255])))* ~".to_string(),
         },
     );
     resolver.rules.insert(
@@ -311,6 +311,18 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
             ]),
             action: None,
             raw: ":([statement] ~) | (~ ~) | (~ [statement])".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(268),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "identifier".to_string(), subtype: None, capture_var: Some("ident".to_string()) }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: Some("val".to_string()) }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [identifier $ident] [value $val]".to_string(),
         },
     );
     resolver.rules.insert(
@@ -2763,7 +2775,7 @@ fn populate_scripts(resolver: &mut DatasetRuleResolver) {
             2_228_390_u128, 2_228_391_u128, 2_228_392_u128, 2_228_393_u128, 2_228_394_u128, 2_228_395_u128, 2_228_396_u128, 2_228_397_u128,
             2_228_398_u128, 2_228_399_u128, 2_228_400_u128, 2_228_401_u128, 2_228_402_u128, 2_228_403_u128, 2_228_502_u128, 2_228_518_u128,
             2_228_539_u128, 2_228_540_u128, 2_228_541_u128, 2_228_542_u128, 2_228_543_u128, 2_228_557_u128, 2_228_564_u128, 2_228_568_u128,
-            2_228_685_u128, 2_228_708_u128,
+            2_228_685_u128, 2_228_708_u128, 2_228_859_u128,
         ]),
     );
     resolver.script_chars.insert(
@@ -3327,7 +3339,7 @@ fn populate_container_headers(resolver: &mut DatasetRuleResolver) {
     resolver.container_headers.insert(
         CharTarget::Dc(260),
         vec![
-            SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::Range { min: 1, max: Some(1) } },
+            SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(262) }, quantifier: Quantifier::ExactOne },
         ],
     );
     resolver.container_headers.insert(

@@ -539,11 +539,11 @@ has a bounded operand. No additional statement terminator is needed for these
 forms. A sequence of multiple statements still requires a separate enclosing
 grammar; `statement` does not mean "consume the rest of the document".
 
-In the existing syntax DSL, `260:` is a required rule expansion, but `[260:]`
-is optional. The named `string` and `identifier` rules therefore use the required
-form. The literal type header uses `[262:]{1}` to require exactly one header
-without triggering the parser's bare-colon/action ambiguity. An empty literal
-payload must not be confused with a missing literal frame.
+In the syntax DSL, `[260:]` and `260:` specify a required rule expansion
+(unquantified terms match exactly once). Redundant quantifiers like `[262:]{1}`
+are rejected by the syntax validator. The literal type header uses `[262:]` to
+require exactly one header. An empty literal payload must not be confused with a
+missing literal frame.
 
 ### Remaining Implementation Work
 

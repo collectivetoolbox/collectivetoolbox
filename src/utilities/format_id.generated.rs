@@ -81,8 +81,6 @@ pub enum FormatCategory {
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FormatId {
-    /// Dc shorthand ASCII list (Short 0, Category: document)
-    Dcsh,
     /// UTF-8 (Short 0, Category: encoding)
     Utf8,
     /// Internal: Short Dc Array (Short 1, Category: semantic)
@@ -1353,6 +1351,8 @@ pub enum FormatId {
     CscArchive,
     /// Collective Toolbox csc archive, version 1 (Short 634, Category: database)
     CscArchive1,
+    /// Dc shorthand ASCII list (Short 635, Category: document)
+    Dcsh,
 }
 
 impl FormatId {
@@ -1557,8 +1557,7 @@ impl FormatId {
             | Self::QuartzDisplay
             | Self::Win32Display
             | Self::HeadlessDisplay => FormatCategory::DisplaySystem,
-            Self::Dcsh
-            | Self::DcIntegerList
+            Self::DcIntegerList
             | Self::Html
             | Self::Sems
             | Self::HtmlFragment
@@ -1623,7 +1622,8 @@ impl FormatId {
             | Self::Dcal
             | Self::Csdl
             | Self::Dcts
-            | Self::DcMixed => FormatCategory::Document,
+            | Self::DcMixed
+            | Self::Dcsh => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2005,7 +2005,6 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
-            "dcsh" => Some(Self::Dcsh),
             "utf8" | "utf-8" | "txt" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
@@ -2641,6 +2640,7 @@ impl FormatId {
             "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
             "cscarchive" | "csc_archive" => Some(Self::CscArchive),
             "cscarchive1" | "csc_archive1" => Some(Self::CscArchive1),
+            "dcsh" => Some(Self::Dcsh),
             _ => None,
         }
     }
@@ -2649,7 +2649,6 @@ impl FormatId {
     #[must_use]
     pub const fn ident(&self) -> &'static str {
         match self {
-            Self::Dcsh => "Dcsh",
             Self::Utf8 => "Utf8",
             Self::DcArray => "DcArray",
             Self::DcIntegerList => "DcIntegerList",
@@ -3285,6 +3284,7 @@ impl FormatId {
             Self::CscJournal4 => "CscJournal4",
             Self::CscArchive => "CscArchive",
             Self::CscArchive1 => "CscArchive1",
+            Self::Dcsh => "Dcsh",
         }
     }
 
@@ -3479,7 +3479,6 @@ impl FormatId {
     #[must_use]
     pub const fn shorthand(&self) -> &'static str {
         match self {
-            Self::Dcsh => "f0",
             Self::Utf8 => "f0",
             Self::DcArray => "f1",
             Self::DcIntegerList => "f2",
@@ -4115,6 +4114,7 @@ impl FormatId {
             Self::CscJournal4 => "f632",
             Self::CscArchive => "f633",
             Self::CscArchive1 => "f634",
+            Self::Dcsh => "f635",
         }
     }
 
@@ -4123,7 +4123,6 @@ impl FormatId {
     pub fn from_shorthand(shorthand: &str) -> Option<Self> {
         let trimmed = shorthand.trim();
         match trimmed {
-            "f0" => Some(Self::Dcsh),
             "f0" => Some(Self::Utf8),
             "f1" => Some(Self::DcArray),
             "f2" => Some(Self::DcIntegerList),
@@ -4759,6 +4758,7 @@ impl FormatId {
             "f632" => Some(Self::CscJournal4),
             "f633" => Some(Self::CscArchive),
             "f634" => Some(Self::CscArchive1),
+            "f635" => Some(Self::Dcsh),
             _ => None,
         }
     }
@@ -4767,7 +4767,6 @@ impl FormatId {
     #[must_use]
     pub const fn dc_id(&self) -> Option<u128> {
         match self {
-            Self::Dcsh => Some(2228224_u128),
             Self::Utf8 => Some(2228224_u128),
             Self::DcArray => Some(2228225_u128),
             Self::DcIntegerList => Some(2228226_u128),
@@ -5403,6 +5402,7 @@ impl FormatId {
             Self::CscJournal4 => Some(2228856_u128),
             Self::CscArchive => Some(2228857_u128),
             Self::CscArchive1 => Some(2228858_u128),
+            Self::Dcsh => Some(2228859_u128),
         }
     }
 
@@ -5423,7 +5423,6 @@ impl FormatId {
     #[must_use]
     pub const fn from_dc_id(id: u128) -> Option<Self> {
         match id {
-            2228224_u128 => Some(Self::Dcsh),
             2228224_u128 => Some(Self::Utf8),
             2228225_u128 => Some(Self::DcArray),
             2228226_u128 => Some(Self::DcIntegerList),
@@ -6059,13 +6058,12 @@ impl FormatId {
             2228856_u128 => Some(Self::CscJournal4),
             2228857_u128 => Some(Self::CscArchive),
             2228858_u128 => Some(Self::CscArchive1),
+            2228859_u128 => Some(Self::Dcsh),
             _ => None,
         }
     }
 }
 
-/// DcChar constant for Format `Dcsh` (Short f0, Category: document): Dc shorthand ASCII list
-pub const DC_DCSH: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
 pub const DC_UTF8: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array
@@ -7336,3 +7334,5 @@ pub const DC_CSC_JOURNAL4: DcChar = DcChar::from_format(632);
 pub const DC_CSC_ARCHIVE: DcChar = DcChar::from_format(633);
 /// DcChar constant for Format `CscArchive1` (Short f634, Category: database): Collective Toolbox csc archive, version 1
 pub const DC_CSC_ARCHIVE1: DcChar = DcChar::from_format(634);
+/// DcChar constant for Format `Dcsh` (Short f635, Category: document): Dc shorthand ASCII list
+pub const DC_DCSH: DcChar = DcChar::from_format(635);

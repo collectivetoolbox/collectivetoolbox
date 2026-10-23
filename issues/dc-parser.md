@@ -36,6 +36,7 @@ before fixes.
 
 - @roleDef("EvaluableExpressionStarter") should be implicit for `.EL Routines` and a validation error if redundantly added.
 - Assignment operator has @roleDef() but since it's in `.EL Operators` script it should be inferred automatically that it is an operator and not special-cased or given a @roleDef(). Per the syntax declaration it should behave as an alias of its routine equivalent: `:[identifier $ident] ~ [value $val] : lang.assign($ident, $val)`
+- The `.EL Routines` should derive their syntax from the parameter declaration in the name rather than having a decidated syntax expression.
 
 ### Resource and Streaming Limits
 

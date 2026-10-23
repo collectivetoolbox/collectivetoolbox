@@ -346,9 +346,14 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
                         };
                         let name_raw = get(2);
                         let name = name_raw.trim_start_matches('!').trim().to_string();
+                        let script = get(7);
                         let aliases = get(8);
                         let desc = get(9).trim().to_string();
                         let ident_opt = extract_ident_annotation(&aliases);
+
+                        if script == ".EL Routines" {
+                            evaluable_starters.insert(short_id);
+                        }
 
                         if aliases.contains("@roleDef()") {
                             if let Some(ref ident) = ident_opt {

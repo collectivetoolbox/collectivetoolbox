@@ -1190,6 +1190,33 @@ pub fn validate_dc_category_file(
             );
         }
 
+        if script == ".EL Routines"
+            && parsed_col
+                .composite_roles
+                .iter()
+                .any(|r| r == "EvaluableExpressionStarter")
+        {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                "Redundant '@roleDef(\"EvaluableExpressionStarter\")' on '.EL Routines' Document Character (implicit for '.EL Routines')"
+                    .to_string(),
+                Some("Remove '@roleDef(\"EvaluableExpressionStarter\")'; it is inferred automatically for '.EL Routines'"),
+            );
+        }
+
+        if script == ".EL Operators" && parsed_col.role_def {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                "Redundant '@roleDef()' on '.EL Operators' Document Character (operators are inferred automatically from '.EL Operators')"
+                    .to_string(),
+                Some("Remove '@roleDef()'; operator behavior is inferred from '.EL Operators' and its syntax rule"),
+            );
+        }
+
         rows.push(DcDefn {
             dc_id,
             short_id,
@@ -3062,6 +3089,96 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_redundant_quantifier_syntax_validation() {
+        let known_dcs: HashSet<u32> = [246, 248, 255, 260, 262].into_iter().collect();
+        let known_fmts: HashSet<usize> = [80].into_iter().collect();
+        let mut known_named_types: HashSet<String> = HashSet::new();
+        known_named_types.insert("identifier".to_string());
+        let mut known_scripts: HashSet<String> = HashSet::new();
+        known_scripts.insert(".EL Types".to_string());
+        let mut known_syntax_targets: HashSet<CharTarget> = HashSet::new();
+        known_syntax_targets.insert(CharTarget::Dc(262));
+
+        // Redundant quantifiers like [262:]{1} must produce validation errors
+        let redundant_cases = [
+            ":[262:]{1}",
+            ":[262:]{1..1}",
+            ":[262:]{1,1}",
+            ":246{1}",
+            ":~{1}",
+            ":[identifier]{1}",
+            ":(246 | 248){1}",
+            ":[246 248]{1}",
+        ];
+
+        for pattern in redundant_cases {
+            let mut report = ValidationReport::new();
+            let rule = parse_dc_syntax(pattern)
+                .unwrap_or_else(|e| panic!("Failed to parse {pattern}: {e}"));
+            validate_dc_syntax(
+                &rule,
+                246,
+                &known_dcs,
+                &known_fmts,
+                &known_named_types,
+                Some(&known_scripts),
+                &known_syntax_targets,
+                None,
+                &mut report,
+                "test/syntax.csv",
+                1,
+            );
+            assert!(
+                report.has_errors(),
+                "Expected validation error for redundant quantifier in '{pattern}'"
+            );
+            assert!(
+                report.format_report().contains("Redundant quantifier '{1}'"),
+                "Error report for '{pattern}' should mention redundant quantifier"
+            );
+        }
+
+        // Non-redundant quantifiers and unquantified elements must pass validation
+        let valid_cases = [
+            ":[262:]",
+            ":246{2}",
+            ":246{1..2}",
+            ":[246]+",
+            ":[246]*",
+            ":[246]?",
+            ":(246)+",
+            ":~",
+            ":[identifier]",
+            ":(246 | 248)",
+            ":[246 248]",
+        ];
+
+        for pattern in valid_cases {
+            let mut report = ValidationReport::new();
+            let rule = parse_dc_syntax(pattern)
+                .unwrap_or_else(|e| panic!("Failed to parse {pattern}: {e}"));
+            validate_dc_syntax(
+                &rule,
+                246,
+                &known_dcs,
+                &known_fmts,
+                &known_named_types,
+                Some(&known_scripts),
+                &known_syntax_targets,
+                None,
+                &mut report,
+                "test/syntax.csv",
+                1,
+            );
+            assert!(
+                !report.has_errors(),
+                "Expected no validation errors for valid pattern '{pattern}', got: {}",
+                report.format_report()
+            );
+        }
+    }
+
+    #[crate::ctb_test]
     fn test_column_count_mismatch_validation() {
         let mut report = ValidationReport::default();
 
@@ -3647,6 +3764,48 @@ mod tests {
             report_fmt_diff
                 .format_report()
                 .contains("their syntax rules differ")
+        );
+
+        // 9. Redundant @roleDef("EvaluableExpressionStarter") on .EL Routines fails validation
+        let mut report_redundant_eval = ValidationReport::default();
+        let csv_redundant_eval = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say(String),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), @roleDef(), @roleDef(\"\"EvaluableExpressionStarter\"\")\",\n";
+        validate_dc_files_data(
+            [("el.csv", &csv_redundant_eval[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_redundant_eval,
+        );
+        assert!(report_redundant_eval.has_errors());
+        assert!(
+            report_redundant_eval
+                .format_report()
+                .contains("Redundant '@roleDef(\"EvaluableExpressionStarter\")' on '.EL Routines'")
+        );
+
+        // 10. Redundant @roleDef() on .EL Operators fails validation
+        let mut report_redundant_op = ValidationReport::default();
+        let csv_redundant_op = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114381,269,Assignment operator,0,BN,,!Cx,.EL Operators,\"@ident(\"\"Assign\"\"), @roleDef()\",\n";
+        validate_dc_files_data(
+            [("el.csv", &csv_redundant_op[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_redundant_op,
+        );
+        assert!(report_redundant_op.has_errors());
+        assert!(
+            report_redundant_op
+                .format_report()
+                .contains("Redundant '@roleDef()' on '.EL Operators'")
         );
     }
 }

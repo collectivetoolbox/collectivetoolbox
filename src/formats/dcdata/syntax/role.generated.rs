@@ -80,8 +80,8 @@ pub enum DcRole {
     EndTypeDef,
     /// A specific case of “String” as a format (short-style format ID 80) (`264`).
     TypeString,
-    /// Assignment operator (`269`).
-    Assign,
+    /// void lang.assign(identifier, value) (`268`).
+    LangAssign,
     /// Begins a nonempty name. Dc 255 protects exactly the following Dc from syntactic interpretation. Only an unescaped 271 terminates the name. The name is data; reference or invocation syntax determines how it is used. (`270`).
     BeginIdentifier,
     /// Terminates an identifier begun by 270 unless protected by Dc 255 within its payload. (`271`).
@@ -224,7 +224,7 @@ match self {
             Self::BeginTypeDef => Some(262),
             Self::EndTypeDef => Some(263),
             Self::TypeString => Some(264),
-            Self::Assign => Some(269),
+            Self::LangAssign => Some(268),
             Self::BeginIdentifier => Some(270),
             Self::EndIdentifier => Some(271),
             Self::TypeAny => Some(275),
@@ -312,7 +312,7 @@ match self {
             Self::BeginTypeDef => short == Some(262),
             Self::EndTypeDef => short == Some(263),
             Self::TypeString => short == Some(264),
-            Self::Assign => short == Some(269),
+            Self::LangAssign => short == Some(268),
             Self::BeginIdentifier => short == Some(270),
             Self::EndIdentifier => short == Some(271),
             Self::TypeAny => short == Some(275),

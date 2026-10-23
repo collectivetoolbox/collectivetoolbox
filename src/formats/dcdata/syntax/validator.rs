@@ -354,6 +354,16 @@ fn validate_syntax_element(
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
 ) {
+    if element.quantifier.is_redundant() {
+        report.add_error(
+            source_file,
+            Some(line_no),
+            Some(col_name),
+            "Redundant quantifier '{1}' in syntax rule; matching exactly once is already the default semantics".to_string(),
+            Some("Remove the redundant quantifier"),
+        );
+    }
+
     match &element.term {
         SyntaxTerm::SelfChar => {
             // Self-referential '~' is valid

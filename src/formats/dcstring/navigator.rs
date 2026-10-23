@@ -1503,7 +1503,7 @@ pub enum DcSyntaxKind<'a> {
         ident: DcMstring,
         value: NodeId,
     },
-    /// Framed literal (`260 [262:]{1} <payload> 261`) with `255` unescaped.
+    /// Framed literal (`260 [262:] <payload> 261`) with `255` unescaped.
     Literal {
         type_header: Vec<DcChar>,
         decoded: DcMstring,
@@ -3758,7 +3758,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     arena.alloc(stub.outer_span, DcSyntaxKind::Number { format, digits }),
                 ));
             }
-            if head.fills_role_with(DcRole::Assign, resolver) {
+            if resolver.resolve_infix_rule(head.to_u128()).is_some() {
                 if let Some(inner) = stub.inner_span {
                     if current_depth >= policy.max_depth {
                         let msg = format!(
@@ -3976,7 +3976,21 @@ impl<'a> DcDocumentNavigator<'a> {
                             args,
                         } => {
                             let normalized_args = Self::normalize_field_nodes_with_resolver(args, arena, resolver);
-                            arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args: normalized_args })
+                            if tag.fills_role_with(DcRole::LangAssign, resolver)
+                                && let [ident_id, val_id] = normalized_args.as_slice()
+                                && let Some(DcSyntaxKind::Identifier { name }) = arena.get(*ident_id).map(|n| &n.kind)
+                            {
+                                let ident = name.clone();
+                                arena.alloc(
+                                    outer_span,
+                                    DcSyntaxKind::Assignment {
+                                        ident,
+                                        value: *val_id,
+                                    },
+                                )
+                            } else {
+                                arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args: normalized_args })
+                            }
                         }
                         ArenaBuildFrame::Assignment { .. } => unreachable!(),
                     };

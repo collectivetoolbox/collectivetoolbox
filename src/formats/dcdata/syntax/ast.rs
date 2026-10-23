@@ -159,6 +159,14 @@ impl Quantifier {
             },
         }
     }
+
+    /// Returns true if this quantifier explicitly specifies repetition bounds
+    /// matching exactly once (`{1}`, `{1..1}`, or `{1,1}`), which is redundant
+    /// because matching once is already the default semantics of an unquantified term.
+    #[must_use]
+    pub const fn is_redundant(self) -> bool {
+        matches!(self, Self::Range { min: 1, max: Some(1) })
+    }
 }
 
 /// Syntactic term in a Dc syntax rule.

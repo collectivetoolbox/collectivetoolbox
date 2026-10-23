@@ -3516,7 +3516,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
                     _t if ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::BeginIdentifier)
-                        || ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::Assign) => {
+                        || ctx.token_fills_role(#crate_root::DcChar::from_u128(_t), #crate_root::syntax::DcRole::LangAssign)
+                        || ctx.resolver().resolve_infix_rule(_t).is_some() => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
                         match &field {
                             #(#shared_decode_arms)*
