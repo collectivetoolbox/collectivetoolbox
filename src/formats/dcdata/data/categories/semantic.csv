@@ -281,10 +281,13 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 ,,Operating system,0,BN,,!Cx,.Semantic,"@ident(""OperatingSystem"")",An operating system environment or platform family.
 ,,Is associated with,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsAssociatedWith"")",Asserts that the subject is associated or affiliated with the object.
 ,,Self reference,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SelfReference"")",Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched.
-,,Pattern repetition,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternRepetition"")","Quantifies a pattern element with a repetition count or Dc 4 range (such as 0..1 for optional, 0.. for zero or more, 1.. for one or more, or m..n for bounded repetition)."
+,,Wildcard pattern,0,BN,,!Cx,.Semantic:Syntax,"@ident(""WildcardPattern"")",Matches any single Dc token or balanced syntactic frame.
+,,Pattern conjunction,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternConjunction"")",Matches a Dc sequence only if all of the specified component patterns match.
+,,Pattern alternation,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternAlternation"")",Matches a Dc sequence if any of the specified alternative patterns match.
+,,Pattern repetition,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternRepetition"")","Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range."
 ,,Negated pattern,0,BN,,!Cx,.Semantic:Syntax,"@ident(""NegatedPattern"")",Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set.
 ,,Subpattern match,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SubpatternMatch"")","Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally."
 ,,Pattern capture,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternCapture"")","Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution."
 ,,Pattern replacement,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternReplacement"")",Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings.
-,,Dc general category,,,,,,,"General category as in Unicode, extended for Dc"
-,,Unicode script,,,,,,,
+,,Dc general category,0,BN,,!Cx,.Semantic,"@ident(""DcGeneralCategory"")","General category as in Unicode, extended for Dc"
+,,Unicode script,0,BN,,!Cx,.Semantic,"@ident(""UnicodeScript"")",The Unicode Script classification of a character.

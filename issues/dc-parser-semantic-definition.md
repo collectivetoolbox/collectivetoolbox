@@ -12,35 +12,36 @@ Strings, binary data, and primitive values are emitted as their own distinct gra
 
 ### B. Enum-Like Domain Values as Semantic Entity Nodes vs. Direct String Properties
 When compiling the CSV database into graph statements:
-- **Enum-like classifications become semantic entity nodes**: Values that would be enum variants in Rust—such as scripts (`README.scripts.csv`, e.g., `.Symbols`), Unicode General Categories (`!Cx`, `Po`, `Ll`, etc.), Unicode Bidirectional Classes (`BN`, `L`, `R`, etc.), named syntax construct categories (`README-named-types.csv`), and decomposition tags (`README-decompositions.csv`)—are generated as their own semantic entity nodes, distinct from the string nodes holding their names:
+- **Enum-like classifications become semantic entity nodes**: Values that would be enum variants in Rust—such as Dc scripts (`README.scripts.csv`, e.g., `.Symbols`), Unicode scripts, Unicode and Dc General Categories (`!Cx`, `Po`, `Ll`, etc.), Unicode Bidirectional Classes (`BN`, `L`, `R`, etc.), named syntax construct categories (`README-named-types.csv`), and decomposition tags (`README-decompositions.csv`)—are generated as their own semantic entity nodes, distinct from the string nodes holding their names:
   1. `<node:str_symbols>` = `".Symbols"` (string literal node)
-  2. `<node:script_symbols>` $\to$ `Is an instance of` $\to$ `Script`
+  2. `<node:script_symbols>` $\to$ `Is an instance of` $\to$ `Dc Script`
   3. `<node:script_symbols>` $\to$ `Has a` (`Canonical name`) $\to$ `Is equal to` $\to$ `<node:str_symbols>`
-  4. `21` (`Number sign`) $\to$ `Has a` (`Script`) $\to$ `Is equal to` $\to$ `<node:script_symbols>`
+  4. `21` (`Number sign`) $\to$ `Has a` (`Dc Script`) $\to$ `Is equal to` $\to$ `<node:script_symbols>`
 - **Simple text properties link directly to string nodes**: Properties such as `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, and `Annotation` do not introduce an intermediate semantic entity node; they link directly to the underlying string literal node (e.g., `21` $\to$ `Has a` (`Canonical name`) $\to$ `Is equal to` $\to$ `<node:"Number sign">`).
 
 ### C. Verb + Noun Decomposition of Relationships and Attributes
 Rather than proliferating monolithic predicate Dcs that bake a verb and a specific attribute noun together (such as `"Has preferred replacement"` or `"Has Apple Uniform Type Identifier"`), statements are composed from:
 1. **A small set of `.Semantic:Relationship` verbs** using clear directional phrasing (`Has a`, `Is equal to`, `Is an instance of`, `Is a subtype of`, `Is based on`, `Is deprecated`, `Is associated with`, `Is a closing delimiter of syntactic block for`, `Supersedes`, `Retracts`).
-2. **`.Semantic` and `.Formats:identifier` nouns** (`Replacement`, `Preferred`, `Decomposition`, `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, `Formal alias`, `Annotation`, `Magic signature`, `Unicode canonical combining class`, `Unicode bidirectional class`, `Case mapping partner`, `Unicode general category`, `Cross-reference`, `Syntax rule`, `Data format or type description`, `Script`, `Category`, `Operating system`, plus format nouns `f264` `File extension`, `MediaType`, `UniformTypeIdentifier`, `AppleOsType`).
+2. **`.Semantic` and `.Formats:identifier` nouns** (`Replacement`, `Preferred`, `Decomposition`, `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, `Formal alias`, `Annotation`, `Magic signature`, `Unicode canonical combining class`, `Unicode bidirectional class`, `Case mapping partner`, `Unicode general category`, `Dc general category`, `Unicode script`, `Dc Script`, `Cross-reference`, `Syntax rule`, `Data format or type description`, `Operating system`, plus format nouns `f264` `File extension`, `MediaType`, `UniformTypeIdentifier`, `AppleOsType`).
 3. **Composable compound relationships**: A compound concept can either be expressed directly in statements or defined via `Decomposition` (e.g., decomposing a preferred replacement relationship into `Has a` + `Preferred` + `Replacement`).
 
 ### D. Generalized Regex-Like Pattern Matcher for Dcs (`.Semantic:Syntax`)
 The pattern-matching Dcs in `.Semantic:Syntax` are defined generally so they serve as a reusable regex/structural-pattern-matching toolkit over Dc streams anywhere in the system—not exclusively for `:<syntax>` definitions of Dcs:
 - **Reused `.Semantic` and `.EL` primitives**:
-  - Inclusive range (`a..b`): `Dc 4` (`Range`)
-  - Wildcard / any value (`.`): `Dc 275` (`Built-in type identifier: * (Object or any subtype)`)
+  - Inclusive range (`[start] 4 [end]`): `Dc 4` (`Range`)
+    - *Historic DCE Wiki Compatibility ([representing_ranges_in_dce.txt](file:///workspaces/ctoolbox/old/wiki/ember-web-site-only-relevant/data/pages/representing_ranges_in_dce.txt), [dce_calendar_format.txt](file:///workspaces/ctoolbox/old/wiki/ember-web-site-only-relevant/data/pages/dce_calendar_format.txt))*: In DCE, `Dc 4` is strictly a binary infix operator `[start value] 4 [end value]` (`{base string #1}@4@{base string #2}`). Using `[start] 4 [end]` for character/token ranges (`a..b`) and repetition count bounds (`m..n`, `0..1`) aligns with the historic wiki syntax, provided open-ended upper bounds (`*`, `+`, `{m..}`) always supply an explicit `[end value]` token (such as `u221e` `∞` or `Dc 316` `Optional value absent`) rather than leaving `Dc 4` without a right-hand operand.
   - Grouping (`( ... )`): `Dc 298` / `Dc 299` (`Begin associativity group` / `End associativity group`)
-  - Conjunction / all-of (`A & B`): `Dc 300` (`Type union`)
-  - Alternation / any-of (`A | B`): `Dc 516` (`Type intersection`)
   - Ordered sequence (`A B C`): `Dc 310` / `Dc 311` (`Begin list` / `End list`)
-- **6 General Pattern-Matching Dcs in `.Semantic:Syntax`**:
+- **9 General Pattern-Matching Dcs in `.Semantic:Syntax`** (`Dc 275`, `Dc 300`, and `Dc 516` are kept strictly for `.EL` / `.Semantic` type expressions rather than overloaded for pattern matching):
   1. `Self reference` (`@ident("SelfReference")`): Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched (`~` in `:<syntax>`, or recursive self-reference in a pattern).
-  2. `Pattern repetition` (`@ident("PatternRepetition")`): Quantifies a pattern element with a repetition count or `Dc 4` range (`0..1` for `?`, `0..` for `*`, `1..` for `+`, `m..n` for `{m,n}`).
-  3. `Negated pattern` (`@ident("NegatedPattern")`): Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set (`[^...]`).
-  4. `Subpattern match` (`@ident("SubpatternMatch")`): Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type (`[X:]`), rather than matching the referenced identifier literally.
-  5. `Pattern capture` (`@ident("PatternCapture")`): Matches a pattern element and binds the matched Dc sub-sequence to an identifier (`Dc 270`..`Dc 271`) for backreference, extraction, or substitution (`[type $var]`).
-  6. `Pattern replacement` (`@ident("PatternReplacement")`): Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings (`s/pattern/replacement/` or `: lang.assign($ident, $val)`).
+  2. `Wildcard pattern` (`@ident("WildcardPattern")`): Matches any single Dc token or balanced syntactic frame (`.` / wildcard in patterns).
+  3. `Pattern conjunction` (`@ident("PatternConjunction")`): Matches a Dc sequence only if all of the specified component patterns match (`A & B`).
+  4. `Pattern alternation` (`@ident("PatternAlternation")`): Matches a Dc sequence if any of the specified alternative patterns match (`A | B`).
+  5. `Pattern repetition` (`@ident("PatternRepetition")`): Quantifies a pattern element with an exact repetition count or a `Dc 4` `[start] 4 [end]` count range.
+  6. `Negated pattern` (`@ident("NegatedPattern")`): Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set (`[^...]`).
+  7. `Subpattern match` (`@ident("SubpatternMatch")`): Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type (`[X:]`), rather than matching the referenced identifier literally.
+  8. `Pattern capture` (`@ident("PatternCapture")`): Matches a pattern element and binds the matched Dc sub-sequence to an identifier (`Dc 270`..`Dc 271`) for backreference, extraction, or substitution (`[type $var]`).
+  9. `Pattern replacement` (`@ident("PatternReplacement")`): Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings (`s/pattern/replacement/` or `: lang.assign($ident, $val)`).
 
 ---
 
@@ -66,11 +67,12 @@ The pattern-matching Dcs in `.Semantic:Syntax` are defined generally so they ser
 - `Unicode bidirectional class` (`@ident("BidirectionalClass")`)
 - `Case mapping partner` (`@ident("CaseMappingPartner")`)
 - `Unicode general category` (`@ident("CharacterGeneralCategory")`)
+- `Dc general category` (`@ident("DcGeneralCategory")`)
+- `Unicode script` (`@ident("UnicodeScript")`)
+- `Dc Script` (`@ident("CharacterScript")`)
 - `Cross-reference` (`@ident("CrossReference")`)
 - `Syntax rule` (`@ident("SyntaxRule")`)
 - `Data format or type description` (`@ident("DataFormatDescription")`)
-- `Script` (`@ident("CharacterScript")`)
-- `Category` (`@ident("Category")`)
 - `Operating system` (`@ident("OperatingSystem")`)
 
 ### B. `.Semantic:Relationship` Verbs (`src/formats/dcdata/data/categories/semantic.csv`)
@@ -87,6 +89,9 @@ The pattern-matching Dcs in `.Semantic:Syntax` are defined generally so they ser
 
 ### C. `.Semantic:Syntax` Pattern-Matching Primitives (`src/formats/dcdata/data/categories/semantic.csv`)
 - `Self reference` (`@ident("SelfReference")`)
+- `Wildcard pattern` (`@ident("WildcardPattern")`)
+- `Pattern conjunction` (`@ident("PatternConjunction")`)
+- `Pattern alternation` (`@ident("PatternAlternation")`)
 - `Pattern repetition` (`@ident("PatternRepetition")`)
 - `Negated pattern` (`@ident("NegatedPattern")`)
 - `Subpattern match` (`@ident("SubpatternMatch")`)
