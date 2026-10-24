@@ -52,7 +52,10 @@ pub use ast::{
     normalize_syntax_pattern,
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
-pub use parser::{parse_dc_syntax, parse_target_token};
+pub use parser::{
+    is_extension_regex, parse_dc_syntax, parse_extension_regex,
+    parse_target_token,
+};
 pub use resolver::{
     DatasetRuleResolver, StarterSet, SyntaxRuleResolver,
     extract_container_header_elements, extract_trailing_after_closer,

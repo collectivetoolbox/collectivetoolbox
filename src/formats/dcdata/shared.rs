@@ -373,6 +373,11 @@ pub fn validate_extension_entry(entry: &str) -> Result<()> {
         regex::Regex::new(pattern).with_context(|| {
             format!("Invalid regex pattern in extension rule: '{trimmed}'")
         })?;
+        crate::syntax::parse_extension_regex(trimmed).with_context(|| {
+            format!(
+                "Extension regex pattern '{trimmed}' cannot be compiled to a Dc pattern rule"
+            )
+        })?;
         return Ok(());
     }
 

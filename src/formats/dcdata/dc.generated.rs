@@ -332,7 +332,7 @@ pub const DC_SEMANTIC_DECOMPOSITION: DcChar = DcChar::from_short(614);
 pub const DC_ENCLOSING_DOCUMENT: DcChar = DcChar::from_short(615);
 /// Evaluates or substitutes the following [value] expression in place of itself in an [atom_dc] operand position. (Dc 616).
 pub const DC_EVALUATE_VALUE_AS_ATOM: DcChar = DcChar::from_short(616);
-/// Begins a definition of the global graph node identified by the [atom_dc] header token. Within the node body Dc 615 (Enclosing document) refers to this node ID. (Dc 617).
+/// Begins a definition of the global graph node identified by the [atom_dc] header token. This creates a document scope, similar to 235 "Begin document": within the node body, Dc 615 (Enclosing document) refers to this node ID. (Dc 617).
 pub const DC_BEGIN_GRAPH_NODE_DEFINITION: DcChar = DcChar::from_short(617);
 /// Terminates a graph node definition begun by Dc 617. (Dc 618).
 pub const DC_END_GRAPH_NODE_DEFINITION: DcChar = DcChar::from_short(618);

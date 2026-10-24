@@ -694,3 +694,384 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
         raw: raw.trim().to_string(),
     })
 }
+
+/// Returns `true` if `entry` (after optional `"case:"` prefix) is a `~...~`-delimited
+/// regex extension pattern.
+#[must_use]
+pub fn is_extension_regex(entry: &str) -> bool {
+    let trimmed = entry.trim();
+    let trimmed = trimmed
+        .strip_prefix("case:")
+        .map_or(trimmed, str::trim);
+    trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2
+}
+
+/// Parses a `~...~`-delimited regular expression from the format `Extensions` column
+/// into a [`DcSyntaxRule`] using the common `.Semantic:Pattern` primitives.
+///
+/// Unanchored start (no leading `^`) prepends `600*` (`Wildcard pattern` repeated zero
+/// or more times); unanchored end (no trailing unescaped `$`) appends `600*`.
+pub fn parse_extension_regex(entry: &str) -> Result<DcSyntaxRule> {
+    let raw_trimmed = entry.trim();
+    let body_trimmed = raw_trimmed
+        .strip_prefix("case:")
+        .map_or(raw_trimmed, str::trim);
+
+    let Some(inner) = body_trimmed
+        .strip_prefix('~')
+        .and_then(|s| s.strip_suffix('~'))
+    else {
+        bail!("Extension regex must be enclosed in '~...~': '{raw_trimmed}'");
+    };
+    ensure!(
+        !inner.is_empty(),
+        "Regex extension pattern '~...~' cannot be empty"
+    );
+
+    let chars: Vec<char> = inner.chars().collect();
+    let anchored_start = chars.first() == Some(&'^');
+    let start_idx = usize::from(anchored_start);
+
+    // Check whether the final character is an unescaped '$' anchor
+    let mut end_idx = chars.len();
+    let mut anchored_end = false;
+    if end_idx > start_idx && chars.get(end_idx.saturating_sub(1)) == Some(&'$')
+    {
+        let mut backslashes = 0usize;
+        let mut scan = end_idx.saturating_sub(1);
+        while scan > start_idx
+            && chars.get(scan.saturating_sub(1)) == Some(&'\\')
+        {
+            backslashes = backslashes.saturating_add(1);
+            scan = scan.saturating_sub(1);
+        }
+        if backslashes.is_multiple_of(2) {
+            anchored_end = true;
+            end_idx = end_idx.saturating_sub(1);
+        }
+    }
+
+    let core_slice = chars
+        .get(start_idx..end_idx)
+        .context("Invalid slice bounds for regex extension body")?;
+    let core_pattern = parse_regex_alternation(core_slice)?;
+
+    let wildcard_short = crate::dc::DC_WILDCARD_PATTERN
+        .to_short()
+        .context("DC_WILDCARD_PATTERN must be a valid short Dc")?;
+    let wildcard_star = SyntaxElement::with_quantifier(
+        SyntaxTerm::CharRef(CharTarget::Dc(wildcard_short)),
+        Quantifier::ZeroOrMore,
+    );
+
+    let pattern = match core_pattern {
+        SyntaxPattern::Sequence(mut elems) => {
+            if !anchored_start {
+                elems.insert(0, wildcard_star.clone());
+            }
+            if !anchored_end {
+                elems.push(wildcard_star);
+            }
+            SyntaxPattern::Sequence(elems)
+        }
+        SyntaxPattern::Alternation(branches) => {
+            if anchored_start && anchored_end {
+                SyntaxPattern::Alternation(branches)
+            } else {
+                let mut elems = Vec::new();
+                if !anchored_start {
+                    elems.push(wildcard_star.clone());
+                }
+                elems.push(SyntaxElement::exact(SyntaxTerm::Group(
+                    SyntaxPattern::Alternation(branches),
+                )));
+                if !anchored_end {
+                    elems.push(wildcard_star);
+                }
+                SyntaxPattern::Sequence(elems)
+            }
+        }
+    };
+
+    Ok(DcSyntaxRule {
+        pattern,
+        action: None,
+        raw: raw_trimmed.to_string(),
+    })
+}
+
+fn parse_regex_alternation(chars: &[char]) -> Result<SyntaxPattern> {
+    let mut branches: Vec<Vec<char>> = Vec::new();
+    let mut current = Vec::new();
+    let mut depth_paren = 0usize;
+    let mut in_bracket = false;
+    let mut idx = 0usize;
+
+    while idx < chars.len() {
+        let Some(&ch) = chars.get(idx) else {
+            break;
+        };
+        if ch == '\\' {
+            current.push(ch);
+            idx = idx.saturating_add(1);
+            let esc = *chars
+                .get(idx)
+                .context("Trailing backslash in regex extension pattern")?;
+            current.push(esc);
+            idx = idx.saturating_add(1);
+            continue;
+        }
+        if in_bracket {
+            if ch == ']' {
+                in_bracket = false;
+            }
+            current.push(ch);
+            idx = idx.saturating_add(1);
+            continue;
+        }
+        match ch {
+            '[' => {
+                in_bracket = true;
+                current.push(ch);
+            }
+            '(' => {
+                depth_paren = depth_paren.saturating_add(1);
+                current.push(ch);
+            }
+            ')' => {
+                ensure!(
+                    depth_paren > 0,
+                    "Unmatched ')' in regex extension pattern"
+                );
+                depth_paren = depth_paren.saturating_sub(1);
+                current.push(ch);
+            }
+            '|' if depth_paren == 0 => {
+                branches.push(std::mem::take(&mut current));
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+        idx = idx.saturating_add(1);
+    }
+
+    ensure!(
+        !in_bracket,
+        "Unclosed '[' character class in regex extension pattern"
+    );
+    ensure!(
+        depth_paren == 0,
+        "Unclosed '(' group in regex extension pattern"
+    );
+
+    if branches.is_empty() {
+        parse_regex_sequence(&current)
+    } else {
+        branches.push(current);
+        let mut parsed_branches = Vec::with_capacity(branches.len());
+        for branch in branches {
+            parsed_branches.push(parse_regex_sequence(&branch)?);
+        }
+        Ok(SyntaxPattern::Alternation(parsed_branches))
+    }
+}
+
+fn parse_regex_sequence(chars: &[char]) -> Result<SyntaxPattern> {
+    let mut elements = Vec::new();
+    let mut idx = 0usize;
+    let wildcard_short = crate::dc::DC_WILDCARD_PATTERN
+        .to_short()
+        .context("DC_WILDCARD_PATTERN must be a valid short Dc")?;
+
+    while idx < chars.len() {
+        let Some(&ch) = chars.get(idx) else {
+            break;
+        };
+        let (term, next_idx) = match ch {
+            '.' => (
+                SyntaxTerm::CharRef(CharTarget::Dc(wildcard_short)),
+                idx.saturating_add(1),
+            ),
+            '\\' => {
+                let esc_idx = idx.saturating_add(1);
+                let &esc = chars
+                    .get(esc_idx)
+                    .context("Trailing backslash in regex extension pattern")?;
+                let cp = match esc {
+                    't' => u32::from('\t'),
+                    'n' => u32::from('\n'),
+                    'r' => u32::from('\r'),
+                    other => u32::from(other),
+                };
+                (
+                    SyntaxTerm::CharRef(CharTarget::Unicode(cp)),
+                    esc_idx.saturating_add(1),
+                )
+            }
+            '(' => {
+                let mut start = idx.saturating_add(1);
+                let mut depth = 1usize;
+                let mut scan = start;
+                let mut in_bracket = false;
+                while scan < chars.len() && depth > 0 {
+                    let Some(&c) = chars.get(scan) else {
+                        break;
+                    };
+                    if c == '\\' {
+                        scan = scan.saturating_add(2);
+                        continue;
+                    }
+                    if in_bracket {
+                        if c == ']' {
+                            in_bracket = false;
+                        }
+                        scan = scan.saturating_add(1);
+                        continue;
+                    }
+                    if c == '[' {
+                        in_bracket = true;
+                    } else if c == '(' {
+                        depth = depth.saturating_add(1);
+                    } else if c == ')' {
+                        depth = depth.saturating_sub(1);
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    scan = scan.saturating_add(1);
+                }
+                ensure!(
+                    depth == 0,
+                    "Unclosed '(' group in regex extension pattern"
+                );
+                // Strip optional non-capturing prefix `(?:`
+                if chars.get(start) == Some(&'?')
+                    && chars.get(start.saturating_add(1)) == Some(&':')
+                {
+                    start = start.saturating_add(2);
+                }
+                let inner_slice = chars
+                    .get(start..scan)
+                    .context("Invalid group slice in regex extension pattern")?;
+                let inner_pattern = parse_regex_alternation(inner_slice)?;
+                (SyntaxTerm::Group(inner_pattern), scan.saturating_add(1))
+            }
+            '[' => {
+                let start = idx.saturating_add(1);
+                let mut scan = start;
+                while scan < chars.len() {
+                    let Some(&c) = chars.get(scan) else {
+                        break;
+                    };
+                    if c == '\\' {
+                        scan = scan.saturating_add(2);
+                        continue;
+                    }
+                    if c == ']' && scan > start {
+                        break;
+                    }
+                    scan = scan.saturating_add(1);
+                }
+                ensure!(
+                    scan < chars.len(),
+                    "Unclosed '[' character class in regex extension pattern"
+                );
+                let class_slice = chars.get(start..scan).context(
+                    "Invalid character class slice in regex extension pattern",
+                )?;
+                let class_term = parse_regex_char_class(class_slice)?;
+                (class_term, scan.saturating_add(1))
+            }
+            '^' | '$' => {
+                bail!(
+                    "Unescaped anchor '{ch}' is only supported at pattern boundaries"
+                );
+            }
+            '*' | '+' | '?' | '{' | '}' => {
+                bail!("Unexpected quantifier token '{ch}' without preceding term");
+            }
+            other => (
+                SyntaxTerm::CharRef(CharTarget::Unicode(u32::from(other))),
+                idx.saturating_add(1),
+            ),
+        };
+
+        let (quantifier, after_q) = parse_trailing_quantifier(chars, next_idx)?;
+        idx = after_q;
+        elements.push(SyntaxElement::with_quantifier(term, quantifier));
+    }
+
+    Ok(SyntaxPattern::Sequence(elements))
+}
+
+fn parse_regex_char_class(chars: &[char]) -> Result<SyntaxTerm> {
+    let negated = chars.first() == Some(&'^');
+    let mut idx = usize::from(negated);
+    let mut items: Vec<(u32, Option<u32>)> = Vec::new();
+
+    let read_class_char =
+        |slice: &[char], pos: usize| -> Result<(u32, usize)> {
+            let &c = slice
+                .get(pos)
+                .context("Unexpected end of regex character class")?;
+            if c == '\\' {
+                let esc_pos = pos.saturating_add(1);
+                let &esc = slice
+                    .get(esc_pos)
+                    .context("Trailing backslash in regex character class")?;
+                let cp = match esc {
+                    't' => u32::from('\t'),
+                    'n' => u32::from('\n'),
+                    'r' => u32::from('\r'),
+                    other => u32::from(other),
+                };
+                Ok((cp, esc_pos.saturating_add(1)))
+            } else {
+                Ok((u32::from(c), pos.saturating_add(1)))
+            }
+        };
+
+    while idx < chars.len() {
+        let (start_cp, next_idx) = read_class_char(chars, idx)?;
+        if chars.get(next_idx) == Some(&'-')
+            && next_idx.saturating_add(1) < chars.len()
+        {
+            let (end_cp, after_end) =
+                read_class_char(chars, next_idx.saturating_add(1))?;
+            ensure!(
+                start_cp <= end_cp,
+                "Reversed character range in regex character class"
+            );
+            items.push((start_cp, Some(end_cp)));
+            idx = after_end;
+        } else {
+            items.push((start_cp, None));
+            idx = next_idx;
+        }
+    }
+
+    ensure!(!items.is_empty(), "Empty regex character class '[]'");
+
+    if !negated && items.len() == 1 {
+        if let Some(&(start_cp, Some(end_cp))) = items.first() {
+            return Ok(SyntaxTerm::CharRange {
+                start: CharTarget::Unicode(start_cp),
+                end: CharTarget::Unicode(end_cp),
+            });
+        }
+    }
+
+    let mut members = Vec::new();
+    for (start_cp, end_opt) in items {
+        if let Some(end_cp) = end_opt {
+            for cp in start_cp..=end_cp {
+                members.push(CharTarget::Unicode(cp));
+            }
+        } else {
+            members.push(CharTarget::Unicode(start_cp));
+        }
+    }
+
+    Ok(SyntaxTerm::CharSet { negated, members })
+}

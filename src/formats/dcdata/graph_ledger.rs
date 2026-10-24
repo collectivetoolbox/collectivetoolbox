@@ -769,6 +769,8 @@ struct LedgerBuilder {
     retracted_count: usize,
     /// Canonical human-readable names for Dc, Format, and allocated Long node tokens.
     token_labels: HashMap<DcShorthand, String>,
+    /// Decoded UTF-8 strings for string value nodes, keyed by `u128` node ID.
+    string_by_node_id: HashMap<u128, String>,
     /// Maps a value node's canonical token sequence to its allocated `u128` node ID.
     value_node_by_tokens: HashMap<Vec<DcShorthand>, u128>,
     /// Maps a `SeedEntityKey` to its allocated `u128` node ID.
@@ -995,6 +997,7 @@ impl LedgerBuilder {
             superseded_count: 0,
             retracted_count: 0,
             token_labels,
+            string_by_node_id,
             value_node_by_tokens,
             seed_entity_ids,
             active_single_props,
@@ -1513,13 +1516,26 @@ impl LedgerBuilder {
         // 3. Resolve and diff multi-valued properties.
         let mut resolved_multi: BTreeMap<
             (DcShorthand, DcShorthand, DcShorthand),
-            String,
+            (Option<String>, String),
         > = BTreeMap::new();
         for ((subj, prop, val_spec), comment) in &desired.multi_properties {
             let val_tok = self.resolve_value_spec(val_spec)?;
-            resolved_multi.insert((*subj, *prop, val_tok), comment.clone());
+            let raw_source = match val_spec {
+                ValueSpec::PatternNode { rule, .. } => {
+                    Some(rule.raw.clone())
+                }
+                _ => None,
+            };
+            resolved_multi.insert(
+                (*subj, *prop, val_tok),
+                (raw_source, comment.clone()),
+            );
         }
 
+        let mut removed_by_subj_prop: BTreeMap<
+            (DcShorthand, DcShorthand),
+            Vec<(DcShorthand, u128, u128)>,
+        > = BTreeMap::new();
         let existing_multi_keys: Vec<(DcShorthand, DcShorthand, DcShorthand)> =
             self.active_multi_props.keys().copied().collect();
         for key in existing_multi_keys {
@@ -1527,23 +1543,123 @@ impl LedgerBuilder {
                 if let Some((has_a_id, has_val_id)) =
                     self.active_multi_props.remove(&key)
                 {
-                    self.retract_node(has_val_id)?;
-                    self.retract_node(has_a_id)?;
+                    removed_by_subj_prop
+                        .entry((key.0, key.1))
+                        .or_default()
+                        .push((key.2, has_a_id, has_val_id));
                 }
             }
         }
 
-        for ((subj, prop, val_tok), _comment) in resolved_multi {
+        let mut added_by_subj_prop: BTreeMap<
+            (DcShorthand, DcShorthand),
+            Vec<(DcShorthand, Option<String>)>,
+        > = BTreeMap::new();
+        for ((subj, prop, val_tok), (raw_source, _comment)) in resolved_multi {
             if !self.active_multi_props.contains_key(&(subj, prop, val_tok)) {
+                added_by_subj_prop
+                    .entry((subj, prop))
+                    .or_default()
+                    .push((val_tok, raw_source));
+            }
+        }
+
+        let mut all_multi_subj_props: BTreeSet<(DcShorthand, DcShorthand)> =
+            removed_by_subj_prop.keys().copied().collect();
+        all_multi_subj_props.extend(added_by_subj_prop.keys().copied());
+
+        for (subj, prop) in all_multi_subj_props {
+            let mut removed = removed_by_subj_prop
+                .remove(&(subj, prop))
+                .unwrap_or_default();
+            // Sort by `has_a_id` so superseding preserves original statement order
+            removed.sort_by_key(|&(_, has_a_id, _)| has_a_id);
+            let mut added = added_by_subj_prop
+                .remove(&(subj, prop))
+                .unwrap_or_default();
+
+            let mut superseded_pairs: Vec<((u128, u128), DcShorthand)> =
+                Vec::new();
+
+            // First pass: pair removed string value nodes whose text matches a new pattern's raw source
+            let mut rem_idx = 0usize;
+            while rem_idx < removed.len() {
+                let Some(&(old_val_tok, has_a_id, old_has_val_id)) =
+                    removed.get(rem_idx)
+                else {
+                    break;
+                };
+                let matched_add_idx = if let DcShorthand::Long(old_node_id) =
+                    old_val_tok
+                {
+                    if let Some(old_str) =
+                        self.string_by_node_id.get(&old_node_id)
+                    {
+                        added.iter().position(|(_, raw_opt)| {
+                            raw_opt.as_deref() == Some(old_str.as_str())
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(add_idx) = matched_add_idx {
+                    let (new_val_tok, _) = added.remove(add_idx);
+                    removed.remove(rem_idx);
+                    superseded_pairs
+                        .push(((has_a_id, old_has_val_id), new_val_tok));
+                } else {
+                    rem_idx = rem_idx.saturating_add(1);
+                }
+            }
+
+            // Second pass: pair any remaining removed and added values on the same `(subj, prop)`
+            while !removed.is_empty() && !added.is_empty() {
+                let (_, has_a_id, old_has_val_id) = removed.remove(0);
+                let (new_val_tok, _) = added.remove(0);
+                superseded_pairs
+                    .push(((has_a_id, old_has_val_id), new_val_tok));
+            }
+
+            superseded_pairs.sort_by_key(|&((has_a_id, _), _)| has_a_id);
+            for ((has_a_id, old_has_val_id), new_val_tok) in superseded_pairs {
+                let new_has_val_id = self.append_statement_node(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(has_a_id),
+                    new_val_tok,
+                )?;
+                self.append_statement_node(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(new_has_val_id),
+                    DcShorthand::Long(old_has_val_id),
+                )?;
+                self.superseded_count =
+                    self.superseded_count.saturating_add(1);
+                self.active_multi_props.insert(
+                    (subj, prop, new_val_tok),
+                    (has_a_id, new_has_val_id),
+                );
+            }
+
+            // Retract any leftover unpaired removed values
+            for (_, has_a_id, old_has_val_id) in removed {
+                self.retract_node(old_has_val_id)?;
+                self.retract_node(has_a_id)?;
+            }
+
+            // Append any leftover unpaired added values
+            for (new_val_tok, _) in added {
                 let has_a_id =
                     self.append_statement_node(sh(DC_HAS_A), subj, prop)?;
                 let has_val_id = self.append_statement_node(
                     sh(DC_HAS_VALUE),
                     DcShorthand::Long(has_a_id),
-                    val_tok,
+                    new_val_tok,
                 )?;
                 self.active_multi_props
-                    .insert((subj, prop, val_tok), (has_a_id, has_val_id));
+                    .insert((subj, prop, new_val_tok), (has_a_id, has_val_id));
             }
         }
 
@@ -2161,12 +2277,17 @@ fn compile_defn_statements(
         if let Some(exts) = &fmt.extensions {
             for ext in exts.split(',').map(str::trim).filter(|s| !s.is_empty())
             {
+                let ext_spec = if crate::syntax::is_extension_regex(ext) {
+                    let rule = crate::syntax::parse_extension_regex(ext)?;
+                    ValueSpec::PatternNode {
+                        rule: Box::new(rule),
+                        comment: ext.to_string(),
+                    }
+                } else {
+                    make_string_value_spec(ext)
+                };
                 state.multi_properties.insert(
-                    (
-                        subj,
-                        sh(DC_FILE_EXTENSION),
-                        make_string_value_spec(ext),
-                    ),
+                    (subj, sh(DC_FILE_EXTENSION), ext_spec),
                     format!("{subj} ext {ext:?}"),
                 );
             }
@@ -2672,6 +2793,58 @@ mod tests {
             assert_eq!(orig.id, dec.id);
             assert_eq!(orig.tokens, dec.tokens);
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_extension_regex_pattern_compilation_and_superseding() -> Result<()> {
+        use crate::dc::DC_WILDCARD_PATTERN;
+        use crate::dc_def::FormatDetails;
+
+        let mut fmt_defn =
+            sample_dc_defn(192, "Internet Archive metadata XML", "IA XML");
+        fmt_defn.dc_id = 2_228_416; // f192
+        fmt_defn.script = ".Formats:database".to_string();
+        fmt_defn.format = Some(FormatDetails {
+            extensions: Some(".xml, ~_meta\\.xml$~".to_string()),
+            ..FormatDetails::default()
+        });
+        let scripts = BTreeSet::from([".Formats:database".to_string()]);
+
+        let (nodes1, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[],
+            &[fmt_defn.clone()],
+            &scripts,
+            None,
+        )?;
+
+        // Verify that `~_meta\.xml$~` compiled to a pattern node starting with `600` (`Wildcard pattern`)
+        let has_wildcard_pattern = nodes1
+            .iter()
+            .any(|n| n.tokens.first() == Some(&sh(DC_WILDCARD_PATTERN)));
+        assert!(
+            has_wildcard_pattern,
+            "Expected ~_meta\\.xml$~ to compile into a pattern node starting with Dc 600 (Wildcard pattern)"
+        );
+
+        // Now modify the regex extension on `f192` and verify that it supersedes via `591` (`Supersedes`)
+        // without retracting the `584 f192 f264` (`Has a`) statement node.
+        fmt_defn.format.as_mut().unwrap().extensions =
+            Some(".xml, ~^_meta\\.xml$~".to_string());
+        let (nodes2, stats2) = update_ledger_in_memory(
+            nodes1,
+            &[],
+            &[fmt_defn],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(stats2.nodes_superseded, 1);
+        assert_eq!(stats2.nodes_retracted, 0);
+        assert_eq!(
+            nodes2.last().unwrap().tokens.first(),
+            Some(&sh(DC_SUPERSEDES))
+        );
         Ok(())
     }
 

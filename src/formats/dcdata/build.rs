@@ -173,7 +173,10 @@ pub(crate) mod syntax {
         normalize_syntax_pattern,
     };
     pub use data_constraint::parse_data_constraint;
-    pub use parser::{parse_dc_syntax, parse_target_token};
+    pub use parser::{
+        is_extension_regex, parse_dc_syntax, parse_extension_regex,
+        parse_target_token,
+    };
     pub use resolver::{DatasetRuleResolver, StarterSet, SyntaxRuleResolver};
     pub use role::DcRole;
     pub use validator::{
