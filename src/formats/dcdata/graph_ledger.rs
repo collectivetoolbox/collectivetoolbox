@@ -45,9 +45,12 @@ use ctb_utilities::format_id::{
 
 pub use crate::ctbnbdl::{
     CTBNBDL_MAGIC, CtbnbdlFramingDcs, DCMM_HEADER, LedgerNode,
-    MAX_NODES_PER_CHUNK, compile_ctbnodes_dir_to_ctbnbdl,
+    MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK,
+    compile_ctbnodes_dir_to_ctbnbdl,
+    compile_ctbnodes_dir_to_ctbnbdl_with_limits,
     compile_ctbnodes_file_to_ctbnbdl_bytes, consume_atom_dc_with,
     decode_nodes_from_ctbnbdl_bytes_with, encode_node_definition_tokens_with,
+    encode_nodes_to_ctbnbdl_bundles_with_limits,
     encode_nodes_to_ctbnbdl_bytes_with, format_chunk_bundle_filename,
     format_chunk_filename, list_chunk_files, load_ledger_nodes_from_dir,
     load_ledger_nodes_from_file, parse_chunk_bundle_filename_start_id,
@@ -2560,6 +2563,61 @@ mod tests {
             default_ctbnbdl_framing_dcs(),
         )?;
         assert_eq!(compiled_again, 0);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_ctbnbdl_bundle_grouping_and_size_split_alignment() -> Result<()> {
+        let framing = default_ctbnbdl_framing_dcs();
+        // Create 250 nodes (spanning 3 100-node `.ctbnodes` files).
+        let nodes: Vec<LedgerNode> = (0..250u128)
+            .map(|offset| LedgerNode {
+                id: SYSTEM_REGION_START + offset,
+                tokens: encode_string_value_tokens("node_payload_text"),
+                comment: String::new(),
+            })
+            .collect();
+
+        // 1. With default limits (1,000,000 nodes / 50 MB), all 250 nodes group into a single bundle.
+        let default_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+            &nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+        )?;
+        assert_eq!(default_bundles.len(), 1);
+        assert_eq!(default_bundles[0].0, SYSTEM_REGION_START);
+        assert_eq!(
+            decode_nodes_from_ctbnbdl_bytes(&default_bundles[0].1)?.len(),
+            250
+        );
+
+        // 2. With `max_nodes_per_bundle = 100`, if the first bucket (0..100) has to split on size
+        // after 60 nodes, the second bundle must contain only the remaining 40 nodes (60..100)
+        // so that the third bundle lines back up at node 100 (`SYSTEM_REGION_START + 100`).
+        let single_node_bundle = encode_nodes_to_ctbnbdl_bytes(&nodes[..1])?;
+        let header_len = CTBNBDL_MAGIC.len() + DCMM_HEADER.len();
+        let bytes_per_node = single_node_bundle.len() - header_len;
+        let max_bytes_for_60_nodes = header_len + bytes_per_node * 60;
+
+        let split_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+            &nodes,
+            framing,
+            100,
+            max_bytes_for_60_nodes,
+        )?;
+        let start_ids: Vec<u128> =
+            split_bundles.iter().map(|(id, _)| *id).collect();
+        assert_eq!(
+            start_ids,
+            vec![
+                SYSTEM_REGION_START,       // bucket 0, part 1 (60 nodes: 0..60)
+                SYSTEM_REGION_START + 60,  // bucket 0, part 2 (shortened to 40 nodes: 60..100)
+                SYSTEM_REGION_START + 100, // bucket 1, part 1 (realigned at 100: 100..160)
+                SYSTEM_REGION_START + 160, // bucket 1, part 2 (shortened to 40 nodes: 160..200)
+                SYSTEM_REGION_START + 200, // bucket 2 (realigned at 200: 200..250)
+            ]
+        );
         Ok(())
     }
 

@@ -36,6 +36,12 @@ use crate::utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
 /// Maximum number of node declarations stored in a single `.ctbnodes` chunk file.
 pub const MAX_NODES_PER_CHUNK: usize = 100;
 
+/// Maximum number of node definitions grouped into a single `.ctbnbdl` binary bundle file.
+pub const MAX_NODES_PER_BUNDLE: usize = 1_000_000;
+
+/// Maximum size in bytes of a single `.ctbnbdl` binary bundle file (50 MB).
+pub const MAX_BYTES_PER_BUNDLE: usize = 50_000_000;
+
 /// Leading 8-byte magic header for `.ctbnbdl` (`CtbNodeBundle`) files.
 pub const CTBNBDL_MAGIC: [u8; 8] = *b"CTBNBDL\x01";
 
@@ -482,28 +488,122 @@ pub fn compile_ctbnodes_file_to_ctbnbdl_bytes(
     encode_nodes_to_ctbnbdl_bytes_with(&nodes, framing)
 }
 
-fn is_target_older_or_missing(src: &Path, dst: &Path) -> bool {
-    let Ok(dst_meta) = std::fs::metadata(dst) else {
-        return true;
-    };
-    let Ok(src_meta) = std::fs::metadata(src) else {
-        return true;
-    };
-    match (src_meta.modified(), dst_meta.modified()) {
-        (Ok(s_mtime), Ok(d_mtime)) => s_mtime > d_mtime,
-        _ => true,
+/// Splits a slice of `LedgerNode` entries into one or more `.ctbnbdl` bundle buffers,
+/// each paired with its starting node ID (`(first_node_id, bundle_bytes)`).
+///
+/// Bundles group up to `max_nodes_per_bundle` nodes or `max_bytes_per_bundle` bytes
+/// (whichever is reached first). If a bundle must split early due to the byte limit,
+/// the subsequent bundle is shortened so that bundle boundaries still align at
+/// multiples of `max_nodes_per_bundle` relative to `SYSTEM_REGION_START`.
+pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
+    nodes: &[LedgerNode],
+    framing: CtbnbdlFramingDcs,
+    max_nodes_per_bundle: usize,
+    max_bytes_per_bundle: usize,
+) -> Result<Vec<(u128, Vec<u8>)>> {
+    ensure!(
+        max_nodes_per_bundle > 0,
+        "max_nodes_per_bundle must be greater than 0"
+    );
+    let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
+    ensure!(
+        max_bytes_per_bundle > header_len,
+        "max_bytes_per_bundle ({max_bytes_per_bundle}) must exceed the {header_len}-byte .ctbnbdl header"
+    );
+    if nodes.is_empty() {
+        return Ok(Vec::new());
     }
+
+    let max_nodes_u128 = u128::try_from(max_nodes_per_bundle)
+        .unwrap_or(1_000_000);
+    let mut bundles: Vec<(u128, Vec<u8>)> = Vec::new();
+    let mut current_first_id: Option<u128> = None;
+    let mut current_bucket: u128 = 0;
+    let mut current_bytes: Vec<u8> = Vec::new();
+    let mut char_buf = [0u8; 24];
+
+    for node in nodes {
+        let mut node_bytes = Vec::with_capacity(
+            node.tokens.len().saturating_add(4).saturating_mul(4),
+        );
+        for tok in encode_node_definition_tokens_with(node, framing) {
+            let gid = tok.to_global_id()?;
+            let n = encode_utf_8e_128_buf(&mut char_buf, gid);
+            if let Some(slice) = char_buf.get(..n) {
+                node_bytes.extend_from_slice(slice);
+            }
+        }
+        ensure!(
+            header_len.saturating_add(node_bytes.len()) <= max_bytes_per_bundle,
+            "Single encoded node l{} ({} bytes + {header_len}-byte header) exceeds max_bytes_per_bundle ({max_bytes_per_bundle})",
+            node.id,
+            node_bytes.len()
+        );
+
+        let bucket = node
+            .id
+            .saturating_sub(SYSTEM_REGION_START)
+            .checked_div(max_nodes_u128)
+            .unwrap_or(0);
+
+        if let Some(first_id) = current_first_id {
+            let crosses_bucket = bucket != current_bucket;
+            let exceeds_bytes = current_bytes
+                .len()
+                .saturating_add(node_bytes.len())
+                > max_bytes_per_bundle;
+            if crosses_bucket || exceeds_bytes {
+                bundles.push((first_id, std::mem::take(&mut current_bytes)));
+                current_first_id = None;
+            }
+        }
+
+        if current_first_id.is_none() {
+            current_first_id = Some(node.id);
+            current_bucket = bucket;
+            current_bytes.extend_from_slice(&CTBNBDL_MAGIC);
+            current_bytes.extend_from_slice(&DCMM_HEADER);
+        }
+        current_bytes.extend_from_slice(&node_bytes);
+    }
+
+    if let Some(first_id) = current_first_id {
+        bundles.push((first_id, current_bytes));
+    }
+
+    Ok(bundles)
 }
 
-/// Compiles all `.ctbnodes` files in `src_dir` into `.ctbnbdl` files in `dst_dir`
-/// whenever the target `.ctbnbdl` file is missing or older than the source `.ctbnodes` file,
-/// and removes any stale `.ctbnodes` files in `dst_dir`.
+fn write_bytes_if_changed(path: &Path, bytes: &[u8]) -> Result<bool> {
+    if path.is_file() {
+        if let Ok(existing) = std::fs::read(path) {
+            if existing == bytes {
+                return Ok(false);
+            }
+        }
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create directory {}", parent.display())
+        })?;
+    }
+    std::fs::write(path, bytes).with_context(|| {
+        format!("Failed to write .ctbnbdl file {}", path.display())
+    })?;
+    Ok(true)
+}
+
+/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped `.ctbnbdl` bundle files
+/// in `dst_dir` using custom node-count and byte-size limits, removing any stale `.ctbnodes`
+/// or obsolete `.ctbnbdl` files in `dst_dir`.
 ///
-/// Returns the number of `.ctbnbdl` files compiled and written.
-pub fn compile_ctbnodes_dir_to_ctbnbdl(
+/// Returns the number of `.ctbnbdl` files written or updated.
+pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
     src_dir: &Path,
     dst_dir: &Path,
     framing: CtbnbdlFramingDcs,
+    max_nodes_per_bundle: usize,
+    max_bytes_per_bundle: usize,
 ) -> Result<usize> {
     if !src_dir.is_dir() {
         return Ok(0);
@@ -515,52 +615,68 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl(
         )
     })?;
 
-    let mut src_files = Vec::new();
-    for entry in std::fs::read_dir(src_dir).with_context(|| {
-        format!("Failed to read source directory {}", src_dir.display())
-    })? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file()
-            && path.extension().and_then(|e| e.to_str()) == Some("ctbnodes")
-        {
-            src_files.push(path);
-        }
-    }
-    src_files.sort();
+    let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+        &nodes,
+        framing,
+        max_nodes_per_bundle,
+        max_bytes_per_bundle,
+    )?;
 
+    let mut expected_bundle_names = std::collections::HashSet::with_capacity(bundles.len());
     let mut compiled_count = 0usize;
-    for src_path in src_files {
-        let Some(file_name) = src_path.file_name() else {
-            continue;
-        };
-        let stale_dst_ctbnodes = dst_dir.join(file_name);
-        if stale_dst_ctbnodes.is_file() {
-            std::fs::remove_file(&stale_dst_ctbnodes).with_context(|| {
-                format!(
-                    "Failed to remove stale staged .ctbnodes file {}",
-                    stale_dst_ctbnodes.display()
-                )
-            })?;
-        }
-        let dst_ctbnbdl = stale_dst_ctbnodes.with_extension("ctbnbdl");
-        if is_target_older_or_missing(&src_path, &dst_ctbnbdl) {
-            let bytes =
-                compile_ctbnodes_file_to_ctbnbdl_bytes(&src_path, framing)
-                    .with_context(|| {
-                        format!(
-                            "Failed to compile {} to .ctbnbdl",
-                            src_path.display()
-                        )
-                    })?;
-            std::fs::write(&dst_ctbnbdl, &bytes).with_context(|| {
-                format!(
-                    "Failed to write compiled .ctbnbdl file {}",
-                    dst_ctbnbdl.display()
-                )
-            })?;
+    for (first_id, bytes) in bundles {
+        let filename = format_chunk_bundle_filename(first_id);
+        let dst_path = dst_dir.join(&filename);
+        expected_bundle_names.insert(filename);
+        if write_bytes_if_changed(&dst_path, &bytes)? {
             compiled_count = compiled_count.saturating_add(1);
         }
     }
+
+    // Remove any stale `.ctbnodes` files or obsolete `.ctbnbdl` files in `dst_dir`.
+    for entry in std::fs::read_dir(dst_dir).with_context(|| {
+        format!(
+            "Failed to read destination directory {}",
+            dst_dir.display()
+        )
+    })? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let ext = path.extension().and_then(|e| e.to_str());
+        if ext == Some("ctbnodes")
+            || (ext == Some("ctbnbdl") && !expected_bundle_names.contains(name))
+        {
+            std::fs::remove_file(&path).with_context(|| {
+                format!("Failed to remove stale file {}", path.display())
+            })?;
+        }
+    }
+
     Ok(compiled_count)
+}
+
+/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped `.ctbnbdl` bundle files
+/// in `dst_dir` (up to `MAX_NODES_PER_BUNDLE` = 1,000,000 nodes or `MAX_BYTES_PER_BUNDLE` = 50 MB
+/// per bundle), removing any stale `.ctbnodes` or obsolete `.ctbnbdl` files in `dst_dir`.
+///
+/// Returns the number of `.ctbnbdl` files written or updated.
+pub fn compile_ctbnodes_dir_to_ctbnbdl(
+    src_dir: &Path,
+    dst_dir: &Path,
+    framing: CtbnbdlFramingDcs,
+) -> Result<usize> {
+    compile_ctbnodes_dir_to_ctbnbdl_with_limits(
+        src_dir,
+        dst_dir,
+        framing,
+        MAX_NODES_PER_BUNDLE,
+        MAX_BYTES_PER_BUNDLE,
+    )
 }
