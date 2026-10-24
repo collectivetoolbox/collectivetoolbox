@@ -277,7 +277,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 ,,Cross-reference,0,BN,,!Cx,.Semantic,"@ident(""CrossReference"")",A reference directing attention to another related entity or entry.
 ,,Syntax rule,0,BN,,!Cx,.Semantic,"@ident(""SyntaxRule"")",A pattern or grammar rule defining the valid syntactic structure of something.
 ,,Data format or type description,0,BN,,!Cx,.Semantic,"@ident(""DataFormatDescription"")","A specification or expression describing the format, type, or composition pipeline of data."
-,,Dc Script,0,BN,,!Cx,.Semantic,"@ident(""CharacterScript"")",A Dc script classification
+,,Dc Script,0,BN,,!Cx,.Semantic,"@ident(""CharacterScript"")","A Dc script classification, as in Unicode, extended for Dc"
 ,,Operating system,0,BN,,!Cx,.Semantic,"@ident(""OperatingSystem"")",An operating system environment or platform family.
 ,,Is associated with,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsAssociatedWith"")",Asserts that the subject is associated or affiliated with the object.
 ,,Self reference,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SelfReference"")",Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched.
@@ -286,3 +286,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 ,,Subpattern match,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SubpatternMatch"")","Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally."
 ,,Pattern capture,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternCapture"")","Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution."
 ,,Pattern replacement,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternReplacement"")",Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings.
+,,Dc general category,,,,,,,"General category as in Unicode, extended for Dc"
+,,Unicode script,,,,,,,
