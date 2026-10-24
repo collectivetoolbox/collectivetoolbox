@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Translates the Document Character and Format CSV database into immutable
 //! 3-token statement triples, seed classification entities, and deduplicated
 //! value nodes in the System block (`8589934592..=12884901887`), persisted as
-//! 100-node chunk files in `docs/85899_34592.ctbnodes`, etc.
+//! 100-node chunk files in `assets/data/graph/85899_34592.ctbnodes`, etc.
 
 #[allow(
     unused_imports,
@@ -2096,7 +2096,7 @@ pub fn update_ledger_in_memory(
     Ok((builder.nodes, stats))
 }
 
-/// Loads the CSV dataset from `repo_root` and updates `docs/*.ctbnodes`
+/// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/*.ctbnodes`
 /// using the append-only revision ledger algorithm.
 pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
     let data_dir = repo_root.join("src/formats/dcdata/data");
@@ -2104,7 +2104,7 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
     let formats_dir = categories_dir.join("formats");
     let scripts_path = data_dir.join("README.scripts.csv");
     let named_types_path = data_dir.join("README-named-types.csv");
-    let graph_dir = repo_root.join("docs");
+    let graph_dir = repo_root.join("assets/data/graph");
 
     let mut report = ValidationReport::new();
     let scripts_bytes = std::fs::read(&scripts_path).with_context(|| {

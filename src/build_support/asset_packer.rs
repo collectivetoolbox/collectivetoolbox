@@ -801,11 +801,11 @@ fn prepare_runtime_assets(
         crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&categories_dir)
             .context("Failed to resolve .ctbnbdl framing Dcs from category tables")?;
     crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
-        &project_root.join("docs"),
-        &runtime_assets.join("docs"),
+        &project_root.join("assets/data/graph"),
+        &runtime_assets.join("data/graph"),
         framing_dcs,
     )
-    .context("Failed to compile docs/*.ctbnodes into runtime .ctbnbdl bundles")?;
+    .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
 
     if options.include_rust_docs {
         let rust_doc_src =
