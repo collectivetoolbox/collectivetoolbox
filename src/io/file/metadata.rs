@@ -886,7 +886,7 @@ pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::Fi
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
     #[serde(default)]
-    #[dc(nested = [559, 313], alias = 313)]
+    #[dc(nested = [559, 313])]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
     #[serde(default)]

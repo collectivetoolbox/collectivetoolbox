@@ -636,6 +636,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("dcsh"),
     },
     ExtensionEntry {
+        format_id: FormatId::CtbNodes,
+        rule: ExtensionRule::insensitive("ctbnodes"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Utf8,
         rule: ExtensionRule::insensitive("txt"),
     },

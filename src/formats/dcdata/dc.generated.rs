@@ -318,6 +318,14 @@ pub const DC_DC_GENERAL_CATEGORY: DcChar = DcChar::from_short(608);
 pub const DC_UNICODE_SCRIPT: DcChar = DcChar::from_short(609);
 /// Asserts that the subject property, attribute statement, or parameter has the specified value. (Dc 610).
 pub const DC_HAS_VALUE: DcChar = DcChar::from_short(610);
+/// A canonically equivalent decomposition of a character or sequence into a sequence with the same canonical meaning. (Dc 611).
+pub const DC_CANONICAL_DECOMPOSITION: DcChar = DcChar::from_short(611);
+/// A compatibility decomposition of a character into a sequence with equivalent compatibility content. (Dc 612).
+pub const DC_COMPATIBILITY_DECOMPOSITION: DcChar = DcChar::from_short(612);
+/// An approximate, non-executable decomposition of a character or type into a roughly corresponding sequence. (Dc 613).
+pub const DC_APPROXIMATE_DECOMPOSITION: DcChar = DcChar::from_short(613);
+/// A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning. (Dc 614).
+pub const DC_SEMANTIC_DECOMPOSITION: DcChar = DcChar::from_short(614);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

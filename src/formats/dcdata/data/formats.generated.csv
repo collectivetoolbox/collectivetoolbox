@@ -645,3 +645,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228860,f636,Media type identifier,0,BN,,!Cx,.Formats:identifier,"@ident(""MediaType""), @implies(f14)",IANA MIME media type identifier string (RFC 6838).,,,,,,,,,
 2228861,f637,Uniform Type Identifier,0,BN,,!Cx,.Formats:identifier,"@ident(""UniformTypeIdentifier""), @implies(f14), @os(f405)",Apple Uniform Type Identifier (UTI) string.,,,,,,,,,
 2228862,f638,Apple OSType code,0,BN,,!Cx,.Formats:identifier,"@ident(""AppleOsType""), @os(f405)",Classic Mac OS four-character OSType code.,,,,,,,,,
+2228863,f639,Collective Toolbox graph nodes (shorthand text),0,BN,,!Cx,.Formats:document,"@ident(""CtbNodes""), @nick(""ctbnodes""), @implies(f14), @based_on(f635)",Line-oriented UTF-8 text file defining Global Graph nodes in Dc shorthand notation (<node_id>: <shorthand tokens...> # <comment>).,.ctbnodes,,,,,,,,

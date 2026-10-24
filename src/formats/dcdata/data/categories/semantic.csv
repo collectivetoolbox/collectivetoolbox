@@ -292,3 +292,11 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114720,608,Dc general category,0,BN,,!Cx,.Semantic,"@ident(""DcGeneralCategory"")","General category as in Unicode, extended for Dc"
 1114721,609,Unicode script,0,BN,,!Cx,.Semantic,"@ident(""UnicodeScript"")",The Unicode Script classification of a character.
 1114722,610,Has value,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasValue"")","Asserts that the subject property, attribute statement, or parameter has the specified value."
+1114723,611,Canonical decomposition,0,BN,,!Cx,.Semantic,"@ident(""CanonicalDecomposition""), @implies(571)",A canonically equivalent decomposition of a character or sequence into a sequence with the same canonical meaning.
+1114724,612,Compatibility decomposition,0,BN,,!Cx,.Semantic,"@ident(""CompatibilityDecomposition""), @implies(571)",A compatibility decomposition of a character into a sequence with equivalent compatibility content.
+1114725,613,Approximate decomposition,0,BN,,!Cx,.Semantic,"@ident(""ApproximateDecomposition""), @implies(571)","An approximate, non-executable decomposition of a character or type into a roughly corresponding sequence."
+1114726,614,Semantic decomposition,0,BN,,!Cx,.Semantic,"@ident(""SemanticDecomposition""), @implies(571)",A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning.
+,,Canonical decomposition,0,BN,,!Cx,.Semantic,"@ident(""CanonicalDecomposition""), @implies(571)",A canonically equivalent decomposition of a character or sequence into a sequence with the same canonical meaning.
+,,Compatibility decomposition,0,BN,,!Cx,.Semantic,"@ident(""CompatibilityDecomposition""), @implies(571)",A compatibility decomposition of a character into a sequence with equivalent compatibility content.
+,,Approximate decomposition,0,BN,,!Cx,.Semantic,"@ident(""ApproximateDecomposition""), @implies(571)","An approximate, non-executable decomposition of a character or type into a roughly corresponding sequence."
+,,Semantic decomposition,0,BN,,!Cx,.Semantic,"@ident(""SemanticDecomposition""), @implies(571)",A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning.

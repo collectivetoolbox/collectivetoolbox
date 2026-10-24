@@ -1,7 +1,7 @@
 ### Phase 1: System-Block Node Format & 100-Node Chunk Ledger (`assets/data/graph/`)
 
 #### 1.1 File Layout & Chunking
-* Store System-block seed graph files in `assets/data/graph/` (e.g., `assets/data/graph/system-00000.sems`, `assets/data/graph/system-00001.sems`, ...), with **at most 100 node declarations per file**.
+* Store System-block seed graph files in `assets/data/graph/` (`assets/data/graph/system-00000.ctbnodes`, `assets/data/graph/system-00001.ctbnodes`, ...; format Dc `f639` `CtbNodes`), with **at most 100 node declarations per file**.
 * Keeping these files in `assets/data/graph/` without `.generated` in their filenames ensures two things:
   1. `build.rs` includes them in the embedded asset bundle (`built/assets/`).
   2. [`scripts/clean-generated`](file:///workspaces/ctoolbox/scripts/clean-generated) will **not** wipe the historical node ledger, preserving permanent Global Graph IDs across edits so `./scripts/validate-data-tables` can append Dc `591` / Dc `592` (`1114703 : <Dc> Supersedes {@ident("Supersedes")}` / `1114704 : <Dc> Retracts {@ident("Retracts")}`) revisions rather than renumbering existing nodes.
@@ -57,11 +57,15 @@ Every node in `assets/data/graph/` is one of three forms:
      * `MIME` $\rightarrow$ `f636` (`2228860 : Media type identifier [identifier]`)
      * `UTI` $\rightarrow$ `f637` (`2228861 : Uniform Type Identifier [identifier]`)
      * `Apple Type code` $\rightarrow$ `f638` (`2228862 : Apple OSType code [identifier]`)
+     * `<equiv>` canonical decomposition $\rightarrow$ Dc `611` (`1114723 : <Dc> Canonical decomposition {@ident("CanonicalDecomposition"); @implies(571)}`)
+     * `<compat>` compatibility decomposition $\rightarrow$ Dc `612` (`1114724 : <Dc> Compatibility decomposition {@ident("CompatibilityDecomposition"); @implies(571)}`)
+     * `<approx>` approximate decomposition $\rightarrow$ Dc `613` (`1114725 : <Dc> Approximate decomposition {@ident("ApproximateDecomposition"); @implies(571)}`)
+     * `<semantic>` semantic decomposition $\rightarrow$ Dc `614` (`1114726 : <Dc> Semantic decomposition {@ident("SemanticDecomposition"); @implies(571)}`)
      * `<prefer>` replacement $\rightarrow$ `584 <subject> 569` (`Has a Replacement`), `610 <stmt> <target>`, and `584 <stmt> 570` (`Has a Preferred`) using Dc `569` and Dc `570` (`1114681 : <Dc> Replacement {@ident("Replacement")}` and `1114682 : <Dc> Preferred {@ident("Preferred")}`).
 
 #### 1.3 Append-Only Revision Algorithm in `./scripts/validate-data-tables`
 * Add a `graph_ledger` module in `ctb-formats-dcdata` invoked by [`updater.rs`](file:///workspaces/ctoolbox/src/formats/dcdata/updater.rs):
-  1. **Load existing chunks** from `assets/data/graph/system-*.sems`, tracking every node ID, its canonical token list, and which nodes are currently active (not target of `591` `Supersedes` or `592` `Retracts`).
+  1. **Load existing chunks** from `assets/data/graph/system-*.ctbnodes`, tracking every node ID, its canonical token list, and which nodes are currently active (not target of `591` `Supersedes` or `592` `Retracts`).
   2. **Compile desired logical statements** from the CSV database in deterministic order.
   3. **Diff desired vs. active**:
      * **Unchanged**: Keep existing node IDs untouched.
@@ -94,11 +98,11 @@ Every [`DcSyntaxRule`](file:///workspaces/ctoolbox/src/formats/dcdata/syntax/ast
 
 ### Phase 3: Build-Time Translation to Static Graph Tables (`system_graph.generated.rs`)
 
-Instead of parsing CSV strings and regex-like syntax DSL strings into `syntax_table.generated.rs`, [`src/build_support/dc_codegen.rs`](file:///workspaces/ctoolbox/src/build_support/dc_codegen.rs) will read `assets/data/graph/system-*.sems` at build time and emit `src/formats/dcdata/system_graph.generated.rs`:
+Instead of parsing CSV strings and regex-like syntax DSL strings into `syntax_table.generated.rs`, [`src/build_support/dc_codegen.rs`](file:///workspaces/ctoolbox/src/build_support/dc_codegen.rs) will read `assets/data/graph/system-*.ctbnodes` at build time and emit `src/formats/dcdata/system_graph.generated.rs`:
 
 1. **Resolve Revisions at Build Time**: Replay `591` (`Supersedes`) and `592` (`Retracts`) once during codegen so the generated static tables contain only **active** graph statements (while also exposing a lightweight revision lookup table for provenance inspection if needed).
 2. **Precompute Equivalence & Subtype Closures**:
-   * Equivalence classes from `<equiv>` / Dc `397` (`1114509 : <Dc> Equivalent representations {syntax: `:~ [list]`; @ident("EquivalentRepresentations"); @roleDef(); @roleDef("EvaluableExpressionStarter")}`) $\rightarrow$ sorted static `(u128, u128)` canonical map.
+   * Equivalence classes from `<equiv>` / Dc `611` (`1114723 : <Dc> Canonical decomposition {@ident("CanonicalDecomposition"); @implies(571)}`) $\rightarrow$ sorted static `(u128, u128)` canonical map.
    * Transitive `586` (`Is an instance of`) and `587` (`Is a subtype of`) reachability $\rightarrow$ static sorted edge slice `SUBTYPE_AND_INSTANCE_EDGES: &[(u128, u128)]`. Checking whether token/type $A$ satisfies type/script/category $B$ becomes a 10-line binary-search reachability check over `SUBTYPE_AND_INSTANCE_EDGES`.
 3. **Pre-Decoded Static Pattern Arena**:
    * Every active `.Semantic:Pattern` node (`Dc 599`–`Dc 607`) is emitted into a flat static slice `SYSTEM_PATTERN_NODES: &[CompiledPatternNode]` indexed directly by System-block node offset, with precomputed starter sets and opener/closer pairs from `590` (`IsClosingDelimiterFor`).
