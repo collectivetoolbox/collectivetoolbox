@@ -29,7 +29,7 @@
 - **Inspecting recent changes**: Record the starting commit with `git rev-parse HEAD`. Review committed changes with `git diff <start>..HEAD`, staged/unstaged changes with `git diff HEAD`, and new files with `git status --short`. The operator commits and pushes during work, so neither a working-tree diff nor `origin..HEAD` alone is sufficient.
 - **Live operator edits**: If edits from the operator appear while you are working on files, do not revert them—re-read the files and align with the direction of those changes.
 - **Scope confirmation**: If a seemingly small request would require large-scale changes or significant refactoring, ask to confirm before editing, or use `/plan` mode.
-- **Clear communication**: When communicating to the operator, if you mention a Dc or series of Dcs, please include alongside it the output of `./scripts/run-dev-ctb character_description --from dcil "7 5"` (for instance, for Dc 7 followed by Dc 5), so it's legible. You can also use this output to make sure what you're asking/proposing actually makes sense.
+- **Clear communication**: When communicating to the operator, if you mention a Dc or series of Dcs, please include alongside it the output of `./scripts/run-dev-ctb character_description --from dcil "7 5"` (for instance, for Dc 7 followed by Dc 5), so it's legible. Emphasis on the word "alongside": never include a table of referenced Dcs at the end of your message, or similar. You can also use this output to make sure what you're asking/proposing actually makes sense.
 - **Moving a module into a subcrate**: Keep this mechanical: move the files using a tool/script (do not regenerate them), copy and trim `Cargo.toml`, update the package name, replace `mod` with `use`, and register the crate in the root `Cargo.toml`. Ask before doing anything beyond this.
 - **Repository memory**: Write important long-term architectural or debugging notes to the `memories/` folder in the repository; these are reviewed and versioned as part of the codebase.
 - **Sub-agent models**: Never use models provided by Anthropic (e.g., when spawning sub-agents). `GPT-6.1 Sol` with short context is a good option, or `GPT-6 Luna` for lightweight work.
@@ -41,7 +41,7 @@
 
 ## Reporting, Status Tracking, and Scope Honesty
 - **Lead responses with what is left, broken, or deferred**:
-  - Do NOT write cheerful "all done!" recaps. Prefer reporting failures over successes (twenty passing tests matter far less than the one failing test that still needs work). Start every summary with:
+  - Do NOT write cheerful "all done!" recaps. Prefer reporting failures over successes (twenty passing tests matter far less than the one failing test that still needs work). Start every summary (that is not *only* a response to a specific direct question) with:
     1. **Failing / Skipped Tests or Lints** (if any). Pausing on a difficult test and reporting it is normal; leaving tests skipped, ignored, or failing without highlighting them in the headline summary is unacceptable.
     2. **Known Gaps & What's Left** (unimplemented parts, missing formats/flags, or edge cases remaining for full parity).
     3. **Deferred Items** (what was deliberately omitted and why).
