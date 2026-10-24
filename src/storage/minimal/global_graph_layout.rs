@@ -28,47 +28,17 @@ use crate::utilities::*;
 
 use anyhow::Result;
 
-pub const UNICODE_REGION_START: u128 = 0;
-pub const UNICODE_REGION_END: u128 = 1_114_111;
-pub const SHORT_DC_REGION_START: u128 = 1_114_112;
-pub const SHORT_DC_REGION_END: u128 = 2_228_223;
-pub const FORMAT_REGION_START: u128 = 2_228_224;
-pub const FORMAT_REGION_END: u128 = 3_342_335;
-pub const SYSTEM_REGION_START: u128 = 8_589_934_592;
-pub const SYSTEM_REGION_END: u128 = 12_884_901_887;
+mod regions;
+pub use regions::{
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
+    SHORT_DC_REGION_START, SYSTEM_REGION_END, SYSTEM_REGION_START,
+    UNICODE_REGION_END, UNICODE_REGION_START, dc_to_gid, format_to_gid,
+    gid_to_short,
+};
 
 /// Static embedded CSV bytes for the global graph layout table.
 pub static GLOBAL_GRAPH_LAYOUT_CSV: &[u8] =
     include_bytes!("data/global-graph-layout.csv");
-
-/// Converts a short Document Character (Dc) ID to its Global Graph ID.
-#[must_use]
-pub fn dc_to_gid(dc_id: u64) -> u128 {
-    SHORT_DC_REGION_START.saturating_add(u128::from(dc_id))
-}
-
-/// Converts a short Format ID to its Global Graph ID.
-#[must_use]
-pub fn format_to_gid(fmt_id: u64) -> u128 {
-    FORMAT_REGION_START.saturating_add(u128::from(fmt_id))
-}
-
-/// Formats a Global Graph ID into its short prefix representation (`dc:N`, `fmt:N`, `uni:N`, `gid:N`).
-#[must_use]
-pub fn gid_to_short(gid: u128) -> String {
-    if gid <= UNICODE_REGION_END {
-        format!("uni:{gid}")
-    } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
-        format!("dc:{offset}", offset = gid.saturating_sub(SHORT_DC_REGION_START))
-    } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-        format!(
-            "fmt:{offset}",
-            offset = gid.saturating_sub(FORMAT_REGION_START)
-        )
-    } else {
-        format!("gid:{gid}")
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphBlock {

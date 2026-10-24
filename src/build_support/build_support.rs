@@ -19,7 +19,21 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Build support library for ctoolbox build process.
 
+pub(crate) mod utilities {
+    pub use anyhow::{Context, Result, bail, ensure};
+}
+
+#[path = "../storage/minimal/global_graph_layout/regions.rs"]
+pub mod global_graph_layout;
+
+#[path = "../storage/minimal/shorthand/core.rs"]
+pub mod shorthand;
+
+#[path = "../formats/utf_8e_128/codec.rs"]
+pub mod utf_8e_128;
+
 pub mod asset_packer;
+pub mod ctbnbdl;
 pub mod dc_codegen;
 pub mod encoding_codegen;
 pub mod extension_codegen;

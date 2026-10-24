@@ -43,6 +43,8 @@ pub mod dc_number_minimal;
 pub mod format_spec;
 pub mod syntax;
 pub mod dcts;
+#[path = "../../build_support/ctbnbdl.rs"]
+pub mod ctbnbdl;
 pub mod graph_ledger;
 pub mod updater;
 pub mod validation;
@@ -51,6 +53,8 @@ pub use column_spec::{
     ParsedAliasesOrBaseColumn, parse_aliases_or_base_column,
 };
 
+pub use ctb_formats_utf_8e_128 as utf_8e_128;
+pub use ctb_storage_minimal::global_graph_layout;
 pub use ctb_storage_minimal::shorthand;
 pub use ctb_storage_minimal::shorthand::{
     DcShorthand, is_valid_shorthand, parse_format_shorthand,

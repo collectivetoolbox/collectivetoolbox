@@ -151,6 +151,14 @@ fn copy_dir_recursive(
             } else {
                 // For files (including symlink files), validate target before copying
                 symlink_in_dir(&src_path, workspace_root_canon)?;
+                if src_path.extension().and_then(|e| e.to_str())
+                    == Some("ctbnodes")
+                {
+                    if dst_path.is_file() {
+                        fs::remove_file(&dst_path)?;
+                    }
+                    continue;
+                }
                 if should_copy(&src_path, &dst_path) {
                     fs::copy(&src_path, &dst_path)?;
                 }
@@ -787,6 +795,17 @@ fn prepare_runtime_assets(
     // remove refrence implementations
     fs::remove_dir_all(runtime_assets.join("docs/reference-implementations"))?;
     copy_license_files(project_root, &runtime_assets.join("docs"))?;
+    let categories_dir =
+        project_root.join("src/formats/dcdata/data/categories");
+    let framing_dcs =
+        crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&categories_dir)
+            .context("Failed to resolve .ctbnbdl framing Dcs from category tables")?;
+    crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
+        &project_root.join("docs"),
+        &runtime_assets.join("docs"),
+        framing_dcs,
+    )
+    .context("Failed to compile docs/*.ctbnodes into runtime .ctbnbdl bundles")?;
 
     if options.include_rust_docs {
         let rust_doc_src =

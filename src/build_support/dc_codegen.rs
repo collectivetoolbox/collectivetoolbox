@@ -598,3 +598,47 @@ pub fn generate_role_file(base_dir: &Path) -> Result<bool> {
     let code = generate_role_code(&categories_dir)?;
     write_if_changed(&target_file, &code)
 }
+
+/// Resolves the framing Document Characters for `.ctbnbdl` (`CtbNodeBundle`) encoding/decoding
+/// from the `@ident(...)` annotations in `categories_dir`.
+///
+/// # Errors
+/// Returns an error if `categories_dir` cannot be read or any of the required `@ident(...)`
+/// definitions (`BeginGraphNodeDefinition`, `EndGraphNodeDefinition`, `Escape`,
+/// `EvaluateValueAsAtom`) is missing.
+pub fn resolve_ctbnbdl_framing_dcs(
+    categories_dir: &Path,
+) -> Result<crate::ctbnbdl::CtbnbdlFramingDcs> {
+    let mut begin_node = None;
+    let mut end_node = None;
+    let mut escape = None;
+    let mut evaluate_as_atom = None;
+
+    for row in read_dc_category_rows(categories_dir)? {
+        let Some(ident) = extract_ident_annotation(&row.aliases) else {
+            continue;
+        };
+        let sh = crate::shorthand::DcShorthand::Short(row.short_id);
+        match ident.as_str() {
+            "BeginGraphNodeDefinition" => begin_node = Some(sh),
+            "EndGraphNodeDefinition" => end_node = Some(sh),
+            "Escape" => escape = Some(sh),
+            "EvaluateValueAsAtom" => evaluate_as_atom = Some(sh),
+            _ => {}
+        }
+    }
+
+    Ok(crate::ctbnbdl::CtbnbdlFramingDcs {
+        begin_node: begin_node.context(
+            "Missing @ident(\"BeginGraphNodeDefinition\") in Dc category tables",
+        )?,
+        end_node: end_node.context(
+            "Missing @ident(\"EndGraphNodeDefinition\") in Dc category tables",
+        )?,
+        escape: escape
+            .context("Missing @ident(\"Escape\") in Dc category tables")?,
+        evaluate_as_atom: evaluate_as_atom.context(
+            "Missing @ident(\"EvaluateValueAsAtom\") in Dc category tables",
+        )?,
+    })
+}

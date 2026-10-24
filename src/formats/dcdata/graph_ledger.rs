@@ -32,9 +32,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
 use ctb_storage_minimal::global_graph_layout::{
     SYSTEM_REGION_END, SYSTEM_REGION_START,
 };
@@ -44,14 +43,16 @@ use ctb_utilities::format_id::{
     DC_UNIFORM_TYPE_IDENTIFIER,
 };
 
-/// Leading 8-byte magic header for `.ctbnbdl` (`CtbNodeBundle`) files.
-pub const CTBNBDL_MAGIC: [u8; 8] = *b"CTBNBDL\x01";
-
-/// Standard 21-byte `DcMixed` (`f484`) header (`DcMM\0` + UUID `d5ab819e-9b8e-4d61-adbc-933e8851e79a`).
-pub const DCMM_HEADER: [u8; 21] = [
-    b'D', b'c', b'M', b'M', 0, 0xd5, 0xab, 0x81, 0x9e, 0x9b, 0x8e, 0x4d, 0x61,
-    0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
-];
+pub use crate::ctbnbdl::{
+    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DCMM_HEADER, LedgerNode,
+    MAX_NODES_PER_CHUNK, compile_ctbnodes_dir_to_ctbnbdl,
+    compile_ctbnodes_file_to_ctbnbdl_bytes, consume_atom_dc_with,
+    decode_nodes_from_ctbnbdl_bytes_with, encode_node_definition_tokens_with,
+    encode_nodes_to_ctbnbdl_bytes_with, format_chunk_bundle_filename,
+    format_chunk_filename, list_chunk_files, load_ledger_nodes_from_dir,
+    load_ledger_nodes_from_file, parse_chunk_bundle_filename_start_id,
+    parse_chunk_filename_start_id, push_atom_dc_with, sanitize_comment,
+};
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
@@ -84,84 +85,20 @@ use crate::syntax::ast::{
 };
 use crate::syntax::parse_dc_syntax;
 
-/// Maximum number of node declarations stored in a single `.ctbnodes` chunk file.
-pub const MAX_NODES_PER_CHUNK: usize = 100;
-
 /// Converts a canonical `DcChar` constant into its `DcShorthand` representation.
 #[must_use]
 fn sh(dc: DcChar) -> DcShorthand {
     DcShorthand::from_global_id(dc.to_u128())
 }
 
-/// Single node entry in the System-block `.ctbnodes` ledger.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LedgerNode {
-    /// Global node ID in `SYSTEM_REGION_START..=SYSTEM_REGION_END`.
-    pub id: u128,
-    /// Ordered token sequence defining this node.
-    pub tokens: Vec<DcShorthand>,
-    /// Human-readable comment rendered after `# `.
-    pub comment: String,
-}
-
-impl LedgerNode {
-    /// Formats this node as a single `.ctbnodes` line (`l<id>: <tokens> # <comment>`).
-    #[must_use]
-    pub fn format_line(&self) -> String {
-        let token_strs: Vec<String> =
-            self.tokens.iter().map(ToString::to_string).collect();
-        let body = token_strs.join(" ");
-        let clean_comment = sanitize_comment(&self.comment);
-        match (body.is_empty(), clean_comment.is_empty()) {
-            (true, true) => format!("l{}: #", self.id),
-            (true, false) => format!("l{}: # {clean_comment}", self.id),
-            (false, true) => format!("l{}: {body}", self.id),
-            (false, false) => format!("l{}: {body} # {clean_comment}", self.id),
-        }
-    }
-
-    /// Parses a single non-empty `.ctbnodes` line.
-    pub fn parse_line(line: &str, file_label: &str, line_no: usize) -> Result<Self> {
-        let trimmed = line.trim();
-        ensure!(
-            !trimmed.is_empty(),
-            "{file_label}:{line_no}: unexpected blank line in .ctbnodes file"
-        );
-        let (code_part, comment) = match trimmed.split_once('#') {
-            Some((before, after)) => (before.trim(), after.trim().to_string()),
-            None => (trimmed, String::new()),
-        };
-        let Some((lhs, rhs)) = code_part.split_once(':') else {
-            bail!(
-                "{file_label}:{line_no}: missing ':' separator in node declaration '{trimmed}'"
-            );
-        };
-        let lhs_shorthand = DcShorthand::parse(lhs.trim()).with_context(|| {
-            format!("{file_label}:{line_no}: invalid node ID shorthand '{lhs}'")
-        })?;
-        let DcShorthand::Long(id) = lhs_shorthand else {
-            bail!(
-                "{file_label}:{line_no}: System-block node ID must use 'l<digits>' syntax, found '{lhs}'"
-            );
-        };
-        ensure!(
-            (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&id),
-            "{file_label}:{line_no}: node ID l{id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
-        );
-        let mut tokens = Vec::new();
-        for raw_tok in rhs.split_whitespace() {
-            let tok = DcShorthand::parse(raw_tok).with_context(|| {
-                format!(
-                    "{file_label}:{line_no}: invalid token shorthand '{raw_tok}'"
-                )
-            })?;
-            tokens.push(tok);
-        }
-        Ok(Self {
-            id,
-            tokens,
-            comment,
-        })
+/// Returns the canonical `.ctbnbdl` framing Document Characters from `ctb_formats_dcdata::dc`.
+#[must_use]
+pub fn default_ctbnbdl_framing_dcs() -> CtbnbdlFramingDcs {
+    CtbnbdlFramingDcs {
+        begin_node: sh(DC_BEGIN_GRAPH_NODE_DEFINITION),
+        end_node: sh(DC_END_GRAPH_NODE_DEFINITION),
+        escape: sh(DC_ESCAPE),
+        evaluate_as_atom: sh(DC_EVALUATE_VALUE_AS_ATOM),
     }
 }
 
@@ -324,11 +261,7 @@ impl std::hash::Hash for ValueSpec {
     }
 }
 
-fn sanitize_comment(raw: &str) -> String {
-    raw.replace('\r', "\\r").replace('\n', "\\n")
-}
-
-/// Encodes a UTF-8 string into the canonical string value node token sequence
+/// Encodes aUTF-8 string into the canonical string value node token sequence
 /// (`<u<hex> tokens...>`).
 #[must_use]
 pub fn encode_string_value_tokens(text: &str) -> Vec<DcShorthand> {
@@ -481,126 +414,6 @@ fn build_initial_token_labels(
     map
 }
 
-/// Formats a global node ID into a `.ctbnodes` chunk filename with `_` grouping
-/// every 5 digits from the right (e.g., `8589934592` -> `"85899_34592.ctbnodes"`).
-#[must_use]
-pub fn format_chunk_filename(first_id: u128) -> String {
-    let digits = first_id.to_string();
-    let len = digits.len();
-    let mut grouped =
-        String::with_capacity(len.saturating_add(len.checked_div(5).unwrap_or(0)));
-    for (idx, ch) in digits.chars().enumerate() {
-        let remaining = len.saturating_sub(idx);
-        if idx > 0 && remaining.is_multiple_of(5) {
-            grouped.push('_');
-        }
-        grouped.push(ch);
-    }
-    format!("{grouped}.ctbnodes")
-}
-
-/// Parses a `.ctbnodes` chunk filename (e.g., `"85899_34592.ctbnodes"`) into its starting node ID.
-#[must_use]
-pub fn parse_chunk_filename_start_id(filename: &str) -> Option<u128> {
-    let stem = filename.strip_suffix(".ctbnodes")?;
-    if stem.is_empty() || stem.starts_with('_') || stem.ends_with('_') {
-        return None;
-    }
-    let mut clean = String::with_capacity(stem.len());
-    for ch in stem.chars() {
-        if ch.is_ascii_digit() {
-            clean.push(ch);
-        } else if ch == '_' {
-            // separator
-        } else {
-            return None;
-        }
-    }
-    if clean.is_empty() {
-        return None;
-    }
-    clean.parse::<u128>().ok()
-}
-
-/// Returns the sorted list of `.ctbnodes` chunk files in `graph_dir`.
-pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
-    if !graph_dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut keyed_files: Vec<(u128, PathBuf)> = Vec::new();
-    for entry in std::fs::read_dir(graph_dir).with_context(|| {
-        format!("Failed to read graph directory {}", graph_dir.display())
-    })? {
-        let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
-        let path = entry.path();
-        let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if let Some(start_id) = parse_chunk_filename_start_id(name) {
-            if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&start_id) {
-                keyed_files.push((start_id, path));
-            }
-        }
-    }
-    keyed_files.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
-    Ok(keyed_files.into_iter().map(|(_, p)| p).collect())
-}
-
-/// Loads all existing `LedgerNode` entries from `.ctbnodes` chunk files in `graph_dir`.
-pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
-    let files = list_chunk_files(graph_dir)?;
-    let mut nodes = Vec::new();
-    for (chunk_idx, path) in files.iter().enumerate() {
-        let chunk_start_id = SYSTEM_REGION_START.saturating_add(
-            u128::try_from(chunk_idx.saturating_mul(MAX_NODES_PER_CHUNK))
-                .unwrap_or(0),
-        );
-        let expected_name = format_chunk_filename(chunk_start_id);
-        let actual_name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default();
-        ensure!(
-            actual_name == expected_name,
-            "Expected sequential chunk file '{expected_name}', found '{actual_name}'"
-        );
-        let content = std::fs::read_to_string(path).with_context(|| {
-            format!("Failed to read chunk file {}", path.display())
-        })?;
-        let mut chunk_count = 0usize;
-        for (idx, line) in content.lines().enumerate() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            let line_no = idx.saturating_add(1);
-            let node = LedgerNode::parse_line(line, actual_name, line_no)?;
-            let expected_id = SYSTEM_REGION_START
-                .saturating_add(u128::try_from(nodes.len()).unwrap_or(0));
-            ensure!(
-                node.id == expected_id,
-                "{actual_name}:{line_no}: expected sequential node ID l{expected_id}, found l{}",
-                node.id
-            );
-            nodes.push(node);
-            chunk_count = chunk_count.saturating_add(1);
-        }
-        ensure!(
-            chunk_count <= MAX_NODES_PER_CHUNK,
-            "{actual_name}: chunk contains {chunk_count} nodes, exceeding maximum {MAX_NODES_PER_CHUNK}"
-        );
-        if chunk_idx.saturating_add(1) < files.len() {
-            ensure!(
-                chunk_count == MAX_NODES_PER_CHUNK,
-                "{actual_name}: non-final chunk has {chunk_count} nodes, expected {MAX_NODES_PER_CHUNK}"
-            );
-        }
-    }
-    Ok(nodes)
-}
-
 /// Writes `nodes` into 100-node chunk files (`85899_34592.ctbnodes`, ...) in `graph_dir`,
 /// updating only files whose contents changed. Returns the number of files written.
 pub fn write_ledger_nodes_to_dir(
@@ -632,133 +445,19 @@ pub fn write_ledger_nodes_to_dir(
 /// `617 [atom_dc: l<id>] <escaped body tokens...> 618`.
 #[must_use]
 pub fn encode_node_definition_tokens(node: &LedgerNode) -> Vec<DcShorthand> {
-    let mut out = Vec::with_capacity(node.tokens.len().saturating_add(4));
-    out.push(sh(DC_BEGIN_GRAPH_NODE_DEFINITION));
-    push_atom_dc(&mut out, DcShorthand::from_global_id(node.id));
-    for &tok in &node.tokens {
-        if tok == sh(DC_ESCAPE)
-            || tok == sh(DC_END_GRAPH_NODE_DEFINITION)
-        {
-            out.push(sh(DC_ESCAPE));
-        }
-        out.push(tok);
-    }
-    out.push(sh(DC_END_GRAPH_NODE_DEFINITION));
-    out
+    encode_node_definition_tokens_with(node, default_ctbnbdl_framing_dcs())
 }
 
 /// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle`) binary buffer:
 /// 8-byte `CTBNBDL\x01` magic + 21-byte `DcMM` header + `UTF-8e-128` encoded `617 .. 618` frames.
 pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Result<Vec<u8>> {
-    let mut bytes = Vec::with_capacity(
-        CTBNBDL_MAGIC
-            .len()
-            .saturating_add(DCMM_HEADER.len())
-            .saturating_add(nodes.len().saturating_mul(32)),
-    );
-    bytes.extend_from_slice(&CTBNBDL_MAGIC);
-    bytes.extend_from_slice(&DCMM_HEADER);
-    let mut char_buf = [0u8; 24];
-    for node in nodes {
-        for tok in encode_node_definition_tokens(node) {
-            let gid = tok.to_global_id()?;
-            let n = encode_utf_8e_128_buf(&mut char_buf, gid);
-            if let Some(slice) = char_buf.get(..n) {
-                bytes.extend_from_slice(slice);
-            }
-        }
-    }
-    Ok(bytes)
+    encode_nodes_to_ctbnbdl_bytes_with(nodes, default_ctbnbdl_framing_dcs())
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
 /// (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
 pub fn decode_nodes_from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Vec<LedgerNode>> {
-    let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
-    ensure!(
-        bytes.len() >= header_len,
-        ".ctbnbdl buffer is shorter than the {header_len}-byte header ({} bytes)",
-        bytes.len()
-    );
-    let magic_part = bytes.get(..CTBNBDL_MAGIC.len()).unwrap_or_default();
-    ensure!(
-        magic_part == CTBNBDL_MAGIC,
-        "Invalid .ctbnbdl magic bytes: expected {:?}, found {:?}",
-        CTBNBDL_MAGIC,
-        magic_part
-    );
-    let dcmm_part = bytes
-        .get(CTBNBDL_MAGIC.len()..header_len)
-        .unwrap_or_default();
-    ensure!(
-        dcmm_part == DCMM_HEADER,
-        "Invalid DcMM header in .ctbnbdl buffer"
-    );
-
-    let mut payload = bytes.get(header_len..).unwrap_or_default();
-    let mut all_tokens = Vec::new();
-    while !payload.is_empty() {
-        let Some((codepoint, consumed)) = decode_utf_8e_128_buf(payload) else {
-            bail!("Invalid UTF-8e-128 sequence in .ctbnbdl stream");
-        };
-        all_tokens.push(DcShorthand::from_global_id(codepoint));
-        payload = payload.get(consumed..).unwrap_or_default();
-    }
-
-    let mut nodes = Vec::new();
-    let mut idx = 0usize;
-    let sh_begin = sh(DC_BEGIN_GRAPH_NODE_DEFINITION);
-    let sh_end = sh(DC_END_GRAPH_NODE_DEFINITION);
-    let sh_escape = sh(DC_ESCAPE);
-
-    while idx < all_tokens.len() {
-        let open_tok = *all_tokens
-            .get(idx)
-            .context("Unexpected end of .ctbnbdl token stream")?;
-        ensure!(
-            open_tok == sh_begin,
-            "Expected Dc 617 (Begin graph node definition) at token index {idx}, found {open_tok}"
-        );
-        idx = idx.saturating_add(1);
-        let id_sh = consume_atom_dc(&all_tokens, &mut idx)
-            .context("Invalid or missing [atom_dc] node ID after Dc 617")?;
-        let id = id_sh.to_global_id()?;
-        let mut body_tokens = Vec::new();
-        let mut closed = false;
-        while idx < all_tokens.len() {
-            let tok = *all_tokens
-                .get(idx)
-                .context("Unexpected end of node definition in .ctbnbdl")?;
-            idx = idx.saturating_add(1);
-            if tok == sh_end {
-                closed = true;
-                break;
-            }
-            if tok == sh_escape {
-                let escaped = *all_tokens.get(idx).context(
-                    "Trailing Dc 255 escape at end of .ctbnbdl token stream",
-                )?;
-                ensure!(
-                    escaped == sh_escape || escaped == sh_end,
-                    "Unexpected escaped token {escaped} after Dc 255 in .ctbnbdl node body"
-                );
-                idx = idx.saturating_add(1);
-                body_tokens.push(escaped);
-            } else {
-                body_tokens.push(tok);
-            }
-        }
-        ensure!(
-            closed,
-            "Unterminated Dc 617 node definition for l{id} (missing Dc 618)"
-        );
-        nodes.push(LedgerNode {
-            id,
-            tokens: body_tokens,
-            comment: String::new(),
-        });
-    }
-    Ok(nodes)
+    decode_nodes_from_ctbnbdl_bytes_with(bytes, default_ctbnbdl_framing_dcs())
 }
 
 /// Active index of a loaded ledger, tracking value nodes, seed entities, and active statements.
@@ -1782,10 +1481,7 @@ fn is_relationship_verb(tok: DcShorthand) -> bool {
 }
 
 fn push_atom_dc(out: &mut Vec<DcShorthand>, tok: DcShorthand) {
-    if tok == sh(DC_ESCAPE) || tok == sh(DC_EVALUATE_VALUE_AS_ATOM) {
-        out.push(sh(DC_ESCAPE));
-    }
-    out.push(tok);
+    push_atom_dc_with(out, tok, default_ctbnbdl_framing_dcs());
 }
 
 /// Encodes a relationship statement `<verb> [atom_dc] [atom_dc]`, escaping
@@ -1807,23 +1503,7 @@ fn consume_atom_dc(
     tokens: &[DcShorthand],
     idx: &mut usize,
 ) -> Option<DcShorthand> {
-    let tok = *tokens.get(*idx)?;
-    *idx = idx.saturating_add(1);
-    if tok == sh(DC_ESCAPE) {
-        let escaped = *tokens.get(*idx)?;
-        if escaped == sh(DC_ESCAPE)
-            || escaped == sh(DC_EVALUATE_VALUE_AS_ATOM)
-        {
-            *idx = idx.saturating_add(1);
-            Some(escaped)
-        } else {
-            None
-        }
-    } else if tok == sh(DC_EVALUATE_VALUE_AS_ATOM) {
-        None
-    } else {
-        Some(tok)
-    }
+    consume_atom_dc_with(tokens, idx, default_ctbnbdl_framing_dcs())
 }
 
 /// Parses a relationship statement `<verb> [atom_dc] [atom_dc]` back into `(verb, subj, obj)`.
@@ -2793,6 +2473,93 @@ mod tests {
             assert_eq!(orig.id, dec.id);
             assert_eq!(orig.tokens, dec.tokens);
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_compile_ctbnodes_dir_to_ctbnbdl_and_framing_resolution() -> Result<()> {
+        let repo_root = crate::updater::find_repository_root()?;
+        let categories_dir =
+            repo_root.join("src/formats/dcdata/data/categories");
+        let resolved_framing =
+            ctb_build_support::dc_codegen::resolve_ctbnbdl_framing_dcs(
+                &categories_dir,
+            )?;
+        assert_eq!(
+            resolved_framing.begin_node.to_global_id()?,
+            default_ctbnbdl_framing_dcs().begin_node.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.end_node.to_global_id()?,
+            default_ctbnbdl_framing_dcs().end_node.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.escape.to_global_id()?,
+            default_ctbnbdl_framing_dcs().escape.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.evaluate_as_atom.to_global_id()?,
+            default_ctbnbdl_framing_dcs().evaluate_as_atom.to_global_id()?
+        );
+
+        let tmp = tempfile::tempdir()?;
+        let src_dir = tmp.path().join("docs");
+        let dst_dir = tmp.path().join("built_docs");
+        std::fs::create_dir_all(&src_dir)?;
+        std::fs::create_dir_all(&dst_dir)?;
+
+        let nodes = vec![
+            LedgerNode {
+                id: SYSTEM_REGION_START,
+                tokens: vec![
+                    sh(DC_IS_INSTANCE_OF),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    sh(DC_BIDIRECTIONAL_CLASS),
+                ],
+                comment: "Seed entity".to_string(),
+            },
+            LedgerNode {
+                id: SYSTEM_REGION_START + 1,
+                tokens: encode_string_value_tokens("L"),
+                comment: "\"L\"".to_string(),
+            },
+        ];
+        write_ledger_nodes_to_dir(&src_dir, &nodes)?;
+
+        // Seed a stale `.ctbnodes` file in `dst_dir` to ensure it is removed during compilation.
+        let stale_ctbnodes =
+            dst_dir.join(format_chunk_filename(SYSTEM_REGION_START));
+        std::fs::write(&stale_ctbnodes, "stale")?;
+
+        let compiled_count = compile_ctbnodes_dir_to_ctbnbdl(
+            &src_dir,
+            &dst_dir,
+            default_ctbnbdl_framing_dcs(),
+        )?;
+        assert_eq!(compiled_count, 1);
+        assert!(
+            !stale_ctbnodes.exists(),
+            "Expected stale .ctbnodes in destination to be removed"
+        );
+
+        let bundle_path =
+            dst_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        assert!(bundle_path.is_file());
+        let bundle_bytes = std::fs::read(&bundle_path)?;
+        let decoded = decode_nodes_from_ctbnbdl_bytes(&bundle_bytes)?;
+        assert_eq!(decoded.len(), nodes.len());
+        for (orig, dec) in nodes.iter().zip(decoded.iter()) {
+            assert_eq!(orig.id, dec.id);
+            assert_eq!(orig.tokens, dec.tokens);
+        }
+
+        // Calling a second time when up-to-date should compile 0 files.
+        let compiled_again = compile_ctbnodes_dir_to_ctbnbdl(
+            &src_dir,
+            &dst_dir,
+            default_ctbnbdl_framing_dcs(),
+        )?;
+        assert_eq!(compiled_again, 0);
         Ok(())
     }
 
