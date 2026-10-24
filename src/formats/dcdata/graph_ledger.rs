@@ -649,8 +649,7 @@ pub fn encode_node_definition_tokens(node: &LedgerNode) -> Vec<DcShorthand> {
 
 /// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle`) binary buffer:
 /// 8-byte `CTBNBDL\x01` magic + 21-byte `DcMM` header + `UTF-8e-128` encoded `617 .. 618` frames.
-#[must_use]
-pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Vec<u8> {
+pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Result<Vec<u8>> {
     let mut bytes = Vec::with_capacity(
         CTBNBDL_MAGIC
             .len()
@@ -662,13 +661,14 @@ pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Vec<u8> {
     let mut char_buf = [0u8; 24];
     for node in nodes {
         for tok in encode_node_definition_tokens(node) {
-            let n = encode_utf_8e_128_buf(&mut char_buf, tok.to_global_id());
+            let gid = tok.to_global_id()?;
+            let n = encode_utf_8e_128_buf(&mut char_buf, gid);
             if let Some(slice) = char_buf.get(..n) {
                 bytes.extend_from_slice(slice);
             }
         }
     }
-    bytes
+    Ok(bytes)
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
@@ -722,7 +722,7 @@ pub fn decode_nodes_from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Vec<LedgerNode>> 
         idx = idx.saturating_add(1);
         let id_sh = consume_atom_dc(&all_tokens, &mut idx)
             .context("Invalid or missing [atom_dc] node ID after Dc 617")?;
-        let id = id_sh.to_global_id();
+        let id = id_sh.to_global_id()?;
         let mut body_tokens = Vec::new();
         let mut closed = false;
         while idx < all_tokens.len() {
@@ -2659,7 +2659,7 @@ mod tests {
             },
         ];
 
-        let bundle_bytes = encode_nodes_to_ctbnbdl_bytes(&nodes);
+        let bundle_bytes = encode_nodes_to_ctbnbdl_bytes(&nodes)?;
         assert!(bundle_bytes.starts_with(&CTBNBDL_MAGIC));
         assert_eq!(
             &bundle_bytes[CTBNBDL_MAGIC.len()..CTBNBDL_MAGIC.len() + DCMM_HEADER.len()],

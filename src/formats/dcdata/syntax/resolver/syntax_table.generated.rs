@@ -2078,6 +2078,36 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.rules.insert(
+        CharTarget::Dc(617),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
+                    SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(618), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
+                    ]),
+                    SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
+                            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
+                            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
+                                SyntaxPattern::Sequence(vec![
+                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
+                                ]),
+                                SyntaxPattern::Sequence(vec![
+                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(618)), quantifier: Quantifier::ExactOne },
+                                ]),
+                            ])), quantifier: Quantifier::ExactOne },
+                        ])), quantifier: Quantifier::ExactOne },
+                    ]),
+                ])), quantifier: Quantifier::ZeroOrMore },
+                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(618)), quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] ([^618 255] | (255 (255 | 618)))* 618".to_string(),
+        },
+    );
+    resolver.rules.insert(
         CharTarget::Format(FormatId::IpAddr),
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
@@ -3380,6 +3410,7 @@ fn populate_closing_delimiters(resolver: &mut DatasetRuleResolver) {
     resolver.closing_delimiters.insert(1_114_665_u128, CharTarget::Dc(552));
     resolver.closing_delimiters.insert(1_114_667_u128, CharTarget::Dc(554));
     resolver.closing_delimiters.insert(1_114_672_u128, CharTarget::Dc(559));
+    resolver.closing_delimiters.insert(1_114_730_u128, CharTarget::Dc(617));
 }
 
 fn populate_opener_to_closer(resolver: &mut DatasetRuleResolver) {
@@ -3420,6 +3451,7 @@ fn populate_opener_to_closer(resolver: &mut DatasetRuleResolver) {
     resolver.opener_to_closer.insert(CharTarget::Dc(552), 1_114_665_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(554), 1_114_667_u128);
     resolver.opener_to_closer.insert(CharTarget::Dc(559), 1_114_672_u128);
+    resolver.opener_to_closer.insert(CharTarget::Dc(617), 1_114_730_u128);
 }
 
 #[expect(
@@ -3641,6 +3673,12 @@ fn populate_container_headers(resolver: &mut DatasetRuleResolver) {
             SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_string(), subtype: None, capture_var: Some("length".to_string()) }, quantifier: Quantifier::Optional },
             SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_string(), subtype: None, capture_var: Some("keyType".to_string()) }, quantifier: Quantifier::ExactOne },
             SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_string(), subtype: None, capture_var: Some("valType".to_string()) }, quantifier: Quantifier::ExactOne },
+        ],
+    );
+    resolver.container_headers.insert(
+        CharTarget::Dc(617),
+        vec![
+            SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
         ],
     );
 }
@@ -4641,6 +4679,6 @@ fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {
 fn populate_opaque_containers(resolver: &mut DatasetRuleResolver) {
     resolver.opaque_containers.extend([
         1_114_118_u128, 1_114_312_u128, 1_114_315_u128, 1_114_358_u128, 1_114_361_u128, 1_114_372_u128, 1_114_374_u128, 1_114_382_u128,
-        1_114_410_u128,
+        1_114_410_u128, 1_114_729_u128,
     ]);
 }
