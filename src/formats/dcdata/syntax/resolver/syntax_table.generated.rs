@@ -1935,6 +1935,149 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         },
     );
     resolver.rules.insert(
+        CharTarget::Dc(584),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(585),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(586),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(587),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(588),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(589),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(590),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(591),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(592),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(598),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(610),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [atom_dc] [atom_dc]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(616),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![
+                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "value".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+            ]),
+            action: None,
+            raw: ":~ [value]".to_string(),
+        },
+    );
+    resolver.rules.insert(
         CharTarget::Format(FormatId::IpAddr),
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
@@ -2422,6 +2565,32 @@ fn populate_named_types(resolver: &mut DatasetRuleResolver) {
         "asciiprintable".to_string(),
         SyntaxPattern::Sequence(vec![
             SyntaxElement { term: SyntaxTerm::CharRange { start: CharTarget::Unicode(32), end: CharTarget::Unicode(126) }, quantifier: Quantifier::ExactOne },
+        ]),
+    );
+    resolver.named_types.insert(
+        "atom_dc".to_string(),
+        SyntaxPattern::Sequence(vec![
+            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
+                SyntaxPattern::Sequence(vec![
+                    SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(255), CharTarget::Dc(616)] }, quantifier: Quantifier::ExactOne },
+                ]),
+                SyntaxPattern::Sequence(vec![
+                    SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
+                        SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
+                            SyntaxPattern::Sequence(vec![
+                                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
+                            ]),
+                            SyntaxPattern::Sequence(vec![
+                                SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(616)), quantifier: Quantifier::ExactOne },
+                            ]),
+                        ])), quantifier: Quantifier::ExactOne },
+                    ])), quantifier: Quantifier::ExactOne },
+                ]),
+                SyntaxPattern::Sequence(vec![
+                    SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(616) }, quantifier: Quantifier::ExactOne },
+                ]),
+            ])), quantifier: Quantifier::ExactOne },
         ]),
     );
     resolver.named_types.insert(
@@ -3099,7 +3268,7 @@ fn populate_scripts(resolver: &mut DatasetRuleResolver) {
             1_114_678_u128, 1_114_679_u128, 1_114_680_u128, 1_114_681_u128, 1_114_682_u128, 1_114_683_u128, 1_114_684_u128, 1_114_685_u128,
             1_114_686_u128, 1_114_687_u128, 1_114_688_u128, 1_114_689_u128, 1_114_690_u128, 1_114_691_u128, 1_114_692_u128, 1_114_693_u128,
             1_114_694_u128, 1_114_695_u128, 1_114_705_u128, 1_114_706_u128, 1_114_707_u128, 1_114_708_u128, 1_114_709_u128, 1_114_720_u128,
-            1_114_721_u128, 1_114_723_u128, 1_114_724_u128, 1_114_725_u128, 1_114_726_u128,
+            1_114_721_u128, 1_114_723_u128, 1_114_724_u128, 1_114_725_u128, 1_114_726_u128, 1_114_727_u128, 1_114_728_u128,
         ]),
     );
     resolver.script_chars.insert(
@@ -3641,6 +3810,16 @@ fn populate_named_type_starters(resolver: &mut DatasetRuleResolver) {
             ranges: vec![
                 (32u128, 126u128),
             ],
+            scripts: Vec::new(),
+        },
+    );
+    resolver.named_type_starters.insert(
+        "atom_dc".to_string(),
+        StarterSet {
+            exact_tokens: HashSet::from([
+                1_114_367_u128, 1_114_728_u128,
+            ]),
+            ranges: Vec::new(),
             scripts: Vec::new(),
         },
     );

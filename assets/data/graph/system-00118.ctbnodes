@@ -1,0 +1,100 @@
+l8589946392: 300 f355 f199 # Type union, Any number, but not in a specific representation, Integer number
+l8589946393: 300 f390 f395 f587 f492 # Type union, Linux kernel family, GNU libc, GNU utilities, Unix OS family
+l8589946394: 300 f390 f585 f588 f492 # Type union, Linux kernel family, Bionic libc (Bionic also provides some other libraries), Bionic userspace, Unix OS family
+l8589946395: 300 f402 516 f400 f401 # Type union, Windows OS family, Type intersection, Microsoft DOS kernel, Windows NT kernel
+l8589946396: 300 f402 f400 # Type union, Windows OS family, Microsoft DOS kernel
+l8589946397: 300 f402 f401 f586 # Type union, Windows OS family, Windows NT kernel, Windows user-mode API subsystem for Win32 applications
+l8589946398: 300 f405 f394 f396 f492 # Type union, Mac OS family, XNU (X is Not Unix), Darwin libc, Unix OS family
+l8589946399: 300 f391 f397 f492 # Type union, BSD kernel family, BSD libc family, Unix OS family
+l8589946400: 300 f392 f492 # Type union, Mach kernel family, Unix OS family
+l8589946401: 300 f398 f561 # Type union, GNU/Linux Linux kernel with GNU libc and utilities, Guix package manager
+l8589946402: 300 f398 f580 # Type union, GNU/Linux Linux kernel with GNU libc and utilities, Nix package manager
+l8589946403: 300 f600 f14 # Type union, UUID (Universally Unique Identifier), Text
+l8589946404: 300 f600 f14 f227 # Type union, UUID (Universally Unique Identifier), Text, URI (Uniform Resource Identifier)
+l8589946405: 300 f490 f14 # Type union, IPV4 address, Text
+l8589946406: 300 f491 f14 # Type union, IPV6 address, Text
+l8589946407: 300 f391 f397 # Type union, BSD kernel family, BSD libc family
+l8589946408: 300 f407 f391 f397 # Type union, FreeBSD, BSD kernel family, BSD libc family
+l8589946409: 300 f432 f436 # Type union, FAT16, FATX
+l8589946410: 300 f434 f436 # Type union, FAT32, FATX
+l8589946411: 300 f432 f439 # Type union, FAT16, FAT+
+l8589946412: 300 f434 f439 # Type union, FAT32, FAT+
+l8589946413: 586 0 l8589934604 # Is an instance of (Null (short Dc), General category Cc)
+l8589946414: 586 0 l8589934623 # Is an instance of (Null (short Dc), Script .Controls)
+l8589946415: 586 1 l8589934613 # Is an instance of (At, General category Po)
+l8589946416: 586 1 l8589934686 # Is an instance of (At, Script .Symbols)
+l8589946417: 586 2 l8589934603 # Is an instance of (Begin separator, General category !Cx)
+l8589946418: 586 2 l8589934681 # Is an instance of (Begin separator, Script .Semantic)
+l8589946419: 586 3 l8589934603 # Is an instance of (End separator, General category !Cx)
+l8589946420: 586 3 l8589934681 # Is an instance of (End separator, Script .Semantic)
+l8589946421: 586 4 l8589934603 # Is an instance of (Range, General category !Cx)
+l8589946422: 586 4 l8589934681 # Is an instance of (Range, Script .Semantic)
+l8589946423: 586 5 l8589934603 # Is an instance of (Record summation, General category !Cx)
+l8589946424: 586 5 l8589934681 # Is an instance of (Record summation, Script .Semantic)
+l8589946425: 586 6 l8589934603 # Is an instance of (Begin number, General category !Cx)
+l8589946426: 586 6 l8589934681 # Is an instance of (Begin number, Script .Semantic)
+l8589946427: 586 7 l8589934603 # Is an instance of (End number, General category !Cx)
+l8589946428: 586 7 l8589934681 # Is an instance of (End number, Script .Semantic)
+l8589946429: 586 8 l8589934603 # Is an instance of (Unknown value, General category !Cx)
+l8589946430: 586 8 l8589934681 # Is an instance of (Unknown value, Script .Semantic)
+l8589946431: 586 9 l8589934639 # Is an instance of (Gregorian calendar identifier, Script .Formats:calendar)
+l8589946432: 586 10 l8589934603 # Is an instance of (Positive, General category !Cx)
+l8589946433: 586 10 l8589934681 # Is an instance of (Positive, Script .Semantic)
+l8589946434: 586 11 l8589934603 # Is an instance of (Negative, General category !Cx)
+l8589946435: 586 11 l8589934681 # Is an instance of (Negative, Script .Semantic)
+l8589946436: 586 12 l8589934617 # Is an instance of (Decimal point, General category Sm)
+l8589946437: 586 12 l8589934677 # Is an instance of (Decimal point, Script .Mathematics)
+l8589946438: 586 13 l8589934603 # Is an instance of (Full drop back, General category !Cx)
+l8589946439: 586 13 l8589934624 # Is an instance of (Full drop back, Script .DCE)
+l8589946440: 586 14 l8589934603 # Is an instance of (Drop back, General category !Cx)
+l8589946441: 586 14 l8589934624 # Is an instance of (Drop back, Script .DCE)
+l8589946442: 586 15 l8589934603 # Is an instance of (Begin DCE content, General category !Cx)
+l8589946443: 586 15 l8589934624 # Is an instance of (Begin DCE content, Script .DCE)
+l8589946444: 586 16 l8589934603 # Is an instance of (DCE Version Selectors, General category !Cx)
+l8589946445: 586 16 l8589934625 # Is an instance of (DCE Version Selectors, Script .DCE sheets)
+l8589946446: 586 17 l8589934605 # Is an instance of (No mapping, General category Cn)
+l8589946447: 586 17 l8589934679 # Is an instance of (No mapping, Script .Noncharacters)
+l8589946448: 586 18 l8589934621 # Is an instance of (Space (short Dc), General category Zs)
+l8589946449: 586 18 l8589934680 # Is an instance of (Space (short Dc), Script .Punctuation)
+l8589946450: 586 19 l8589934613 # Is an instance of (Exclamation, General category Po)
+l8589946451: 586 19 l8589934680 # Is an instance of (Exclamation, Script .Punctuation)
+l8589946452: 586 20 l8589934613 # Is an instance of (Double quotation mark, General category Po)
+l8589946453: 586 20 l8589934680 # Is an instance of (Double quotation mark, Script .Punctuation)
+l8589946454: 586 21 l8589934613 # Is an instance of (Number sign (short Dc), General category Po)
+l8589946455: 586 21 l8589934686 # Is an instance of (Number sign (short Dc), Script .Symbols)
+l8589946456: 586 22 l8589934615 # Is an instance of (Dollar, General category Sc)
+l8589946457: 586 22 l8589934634 # Is an instance of (Dollar, Script .Financial)
+l8589946458: 586 23 l8589934613 # Is an instance of (Percent, General category Po)
+l8589946459: 586 23 l8589934686 # Is an instance of (Percent, Script .Symbols)
+l8589946460: 586 24 l8589934613 # Is an instance of (Ampersand (short Dc), General category Po)
+l8589946461: 586 24 l8589934680 # Is an instance of (Ampersand (short Dc), Script .Punctuation)
+l8589946462: 586 25 l8589934613 # Is an instance of (Apostrophe (short Dc), General category Po)
+l8589946463: 586 25 l8589934680 # Is an instance of (Apostrophe (short Dc), Script .Punctuation)
+l8589946464: 586 26 l8589934614 # Is an instance of (Left parenthesis (short Dc), General category Ps)
+l8589946465: 586 26 l8589934680 # Is an instance of (Left parenthesis (short Dc), Script .Punctuation)
+l8589946466: 586 27 l8589934612 # Is an instance of (Right parenthesis (short Dc), General category Pe)
+l8589946467: 586 27 l8589934680 # Is an instance of (Right parenthesis (short Dc), Script .Punctuation)
+l8589946468: 586 28 l8589934613 # Is an instance of (Asterisk (short Dc), General category Po)
+l8589946469: 586 28 l8589934686 # Is an instance of (Asterisk (short Dc), Script .Symbols)
+l8589946470: 586 29 l8589934617 # Is an instance of (Plus, General category Sm)
+l8589946471: 586 29 l8589934677 # Is an instance of (Plus, Script .Mathematics)
+l8589946472: 586 30 l8589934613 # Is an instance of (Comma (short Dc), General category Po)
+l8589946473: 586 30 l8589934680 # Is an instance of (Comma (short Dc), Script .Punctuation)
+l8589946474: 586 31 l8589934611 # Is an instance of (Hyphen (short Dc), General category Pd)
+l8589946475: 586 31 l8589934680 # Is an instance of (Hyphen (short Dc), Script .Punctuation)
+l8589946476: 586 32 l8589934613 # Is an instance of (Full stop (unambiguous), General category Po)
+l8589946477: 586 32 l8589934680 # Is an instance of (Full stop (unambiguous), Script .Punctuation)
+l8589946478: 586 33 l8589934613 # Is an instance of (Solidus (short Dc), General category Po)
+l8589946479: 586 33 l8589934686 # Is an instance of (Solidus (short Dc), Script .Symbols)
+l8589946480: 586 34 l8589934609 # Is an instance of (Zero, General category Nd)
+l8589946481: 586 34 l8589934677 # Is an instance of (Zero, Script .Mathematics)
+l8589946482: 586 35 l8589934609 # Is an instance of (One, General category Nd)
+l8589946483: 586 35 l8589934677 # Is an instance of (One, Script .Mathematics)
+l8589946484: 586 36 l8589934609 # Is an instance of (Two, General category Nd)
+l8589946485: 586 36 l8589934677 # Is an instance of (Two, Script .Mathematics)
+l8589946486: 586 37 l8589934609 # Is an instance of (Three, General category Nd)
+l8589946487: 586 37 l8589934677 # Is an instance of (Three, Script .Mathematics)
+l8589946488: 586 38 l8589934609 # Is an instance of (Four, General category Nd)
+l8589946489: 586 38 l8589934677 # Is an instance of (Four, Script .Mathematics)
+l8589946490: 586 39 l8589934609 # Is an instance of (Five, General category Nd)
+l8589946491: 586 39 l8589934677 # Is an instance of (Five, Script .Mathematics)

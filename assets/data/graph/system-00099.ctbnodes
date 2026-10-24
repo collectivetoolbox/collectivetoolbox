@@ -1,0 +1,100 @@
+l8589944492: 610 l8589944491 l8589937433 # Has value (l8589944491, [datemagnitude] :[393:])
+l8589944493: 584 l8589934703 572 # Has a (Named syntax construct duration, Canonical name)
+l8589944494: 610 l8589944493 l8589935407 # Has value (l8589944493, "duration")
+l8589944495: 584 l8589934703 594 # Has a (Named syntax construct duration, Syntax rule)
+l8589944496: 610 l8589944495 l8589937434 # Has value (l8589944495, [duration] :[395:])
+l8589944497: 584 l8589934704 572 # Has a (Named syntax construct filename, Canonical name)
+l8589944498: 610 l8589944497 l8589937435 # Has value (l8589944497, "filename")
+l8589944499: 584 l8589934704 594 # Has a (Named syntax construct filename, Syntax rule)
+l8589944500: 610 l8589944499 l8589937436 # Has value (l8589944499, [filename] :511 [f228:] 512)
+l8589944501: 584 l8589934705 572 # Has a (Named syntax construct filepath, Canonical name)
+l8589944502: 610 l8589944501 l8589937437 # Has value (l8589944501, "filepath")
+l8589944503: 584 l8589934705 594 # Has a (Named syntax construct filepath, Syntax rule)
+l8589944504: 610 l8589944503 l8589937438 # Has value (l8589944503, [filepath] :511 [f229:] 512)
+l8589944505: 584 l8589934706 572 # Has a (Named syntax construct format, Canonical name)
+l8589944506: 610 l8589944505 l8589937439 # Has value (l8589944505, "format")
+l8589944507: 584 l8589934706 594 # Has a (Named syntax construct format, Syntax rule)
+l8589944508: 610 l8589944507 l8589937440 # Has value (l8589944507, [format] :[f0..f1114111])
+l8589944509: 584 l8589934707 572 # Has a (Named syntax construct formats, Canonical name)
+l8589944510: 610 l8589944509 l8589937441 # Has value (l8589944509, "formats")
+l8589944511: 584 l8589934708 572 # Has a (Named syntax construct identifier, Canonical name)
+l8589944512: 610 l8589944511 l8589935097 # Has value (l8589944511, $identifier)
+l8589944513: 584 l8589934708 594 # Has a (Named syntax construct identifier, Syntax rule)
+l8589944514: 610 l8589944513 l8589937442 # Has value (l8589944513, [identifier] :270:)
+l8589944515: 584 l8589934709 572 # Has a (Named syntax construct ipaddr, Canonical name)
+l8589944516: 610 l8589944515 l8589937443 # Has value (l8589944515, "ipaddr")
+l8589944517: 584 l8589934709 594 # Has a (Named syntax construct ipaddr, Syntax rule)
+l8589944518: 610 l8589944517 l8589937444 # Has value (l8589944517, [ipaddr] :511 [f226:] 512)
+l8589944519: 584 l8589934710 572 # Has a (Named syntax construct key_value, Canonical name)
+l8589944520: 610 l8589944519 l8589937445 # Has value (l8589944519, "key_value")
+l8589944521: 584 l8589934710 594 # Has a (Named syntax construct key_value, Syntax rule)
+l8589944522: 610 l8589944521 l8589937446 # Has value (l8589944521, [key_value] :(559: | 313:))
+l8589944523: 584 l8589934711 572 # Has a (Named syntax construct list, Canonical name)
+l8589944524: 610 l8589944523 l8589937447 # Has value (l8589944523, "list")
+l8589944525: 584 l8589934711 594 # Has a (Named syntax construct list, Syntax rule)
+l8589944526: 610 l8589944525 l8589937448 # Has value (l8589944525, [list] :[310:])
+l8589944527: 584 l8589934712 572 # Has a (Named syntax construct list($dimensions), Canonical name)
+l8589944528: 610 l8589944527 l8589937449 # Has value (l8589944527, "list($dimensions)")
+l8589944529: 584 l8589934713 572 # Has a (Named syntax construct number, Canonical name)
+l8589944530: 610 l8589944529 l8589936990 # Has value (l8589944529, "number")
+l8589944531: 584 l8589934713 594 # Has a (Named syntax construct number, Syntax rule)
+l8589944532: 610 l8589944531 l8589937450 # Has value (l8589944531, [number] :6 [format:number] [^7]+ 7)
+l8589944533: 584 l8589934714 572 # Has a (Named syntax construct script, Canonical name)
+l8589944534: 610 l8589944533 l8589937451 # Has value (l8589944533, "script")
+l8589944535: 584 l8589934715 572 # Has a (Named syntax construct statement, Canonical name)
+l8589944536: 610 l8589944535 l8589937452 # Has value (l8589944535, "statement")
+l8589944537: 584 l8589934715 594 # Has a (Named syntax construct statement, Syntax rule)
+l8589944538: 610 l8589944537 l8589937453 # Has value (l8589944537, [statement] :([value] | 269:))
+l8589944539: 584 l8589934716 572 # Has a (Named syntax construct string, Canonical name)
+l8589944540: 610 l8589944539 l8589937454 # Has value (l8589944539, "string")
+l8589944541: 584 l8589934716 594 # Has a (Named syntax construct string, Syntax rule)
+l8589944542: 610 l8589944541 l8589937455 # Has value (l8589944541, [string] :260:)
+l8589944543: 584 l8589934717 572 # Has a (Named syntax construct type, Canonical name)
+l8589944544: 610 l8589944543 l8589935164 # Has value (l8589944543, "type")
+l8589944545: 584 l8589934717 594 # Has a (Named syntax construct type, Syntax rule)
+l8589944546: 610 l8589944545 l8589937456 # Has value (l8589944545, [type] :([262:] | [format]))
+l8589944547: 584 l8589934718 572 # Has a (Named syntax construct typed_data, Canonical name)
+l8589944548: 610 l8589944547 l8589937457 # Has value (l8589944547, "typed_data")
+l8589944549: 584 l8589934718 594 # Has a (Named syntax construct typed_data, Syntax rule)
+l8589944550: 610 l8589944549 l8589937459 # Has value (l8589944549, [typed_data] :203 [type:$type] [number $length]? [checksum]? ([127..190] | 195)* 204)
+l8589944551: 584 l8589934719 572 # Has a (Named syntax construct unicode_any, Canonical name)
+l8589944552: 610 l8589944551 l8589937460 # Has value (l8589944551, "unicode_any")
+l8589944553: 584 l8589934719 594 # Has a (Named syntax construct unicode_any, Syntax rule)
+l8589944554: 610 l8589944553 l8589937461 # Has value (l8589944553, [unicode_any] :[u0..u10ffff])
+l8589944555: 584 l8589934720 572 # Has a (Named syntax construct value, Canonical name)
+l8589944556: 610 l8589944555 l8589935098 # Has value (l8589944555, $value)
+l8589944557: 584 l8589934720 594 # Has a (Named syntax construct value, Syntax rule)
+l8589944558: 610 l8589944557 l8589937462 # Has value (l8589944557, [value] :([string] | [number] | [boolean] | [data] | [date] | [duration] | [datemagnitude] | [list] | [key_value] | 511: | 276: | 540: | 279:))
+l8589944559: u64 u6f u74 # "dot"
+l8589944560: u70 u6f u69 u6e u74 # "point"
+l8589944561: u77 u6f u72 u64 u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 # "word separator"
+l8589944562: u63 u72 u6f u73 u73 u68 u61 u74 u63 u68 # "crosshatch"
+l8589944563: u6f u63 u74 u6f u74 u68 u6f u72 u70 u65 # "octothorpe"
+l8589944564: u6c u65 u66 u74 u20 u62 u72 u61 u63 u6b u65 u74 # "left bracket"
+l8589944565: u72 u69 u67 u68 u74 u20 u62 u72 u61 u63 u6b u65 u74 # "right bracket"
+l8589944566: u73 u74 u61 u72 # "star"
+l8589944567: u70 u65 u72 u69 u6f u64 # "period"
+l8589944568: u73 u6c u61 u73 u68 # "slash"
+l8589944569: u73 u74 u72 u6f u6b u65 # "stroke"
+l8589944570: u76 u69 u72 u67 u75 u6c u65 # "virgule"
+l8589944571: u6c u65 u66 u74 u20 u73 u71 u75 u61 u72 u65 u20 u62 u72 u61 u63 u6b u65 u74 # "left square bracket"
+l8589944572: u62 u61 u63 u6b u73 u6c u61 u73 u68 # "backslash"
+l8589944573: u72 u69 u67 u68 u74 u20 u73 u71 u75 u61 u72 u65 u20 u62 u72 u61 u63 u6b u65 u74 # "right square bracket"
+l8589944574: u6c u6f u77 u20 u6c u69 u6e u65 # "low line"
+l8589944575: u6c u65 u66 u74 u20 u63 u75 u72 u6c u79 u20 u62 u72 u61 u63 u6b u65 u74 # "left curly bracket"
+l8589944576: u70 u69 u70 u65 # "pipe"
+l8589944577: u76 u65 u72 u74 u69 u63 u61 u6c u20 u62 u61 u72 # "vertical bar"
+l8589944578: u72 u69 u67 u68 u74 u20 u63 u75 u72 u6c u79 u20 u62 u72 u61 u63 u6b u65 u74 # "right curly bracket"
+l8589944579: u63 u68 u61 u72 u61 u63 u74 u65 u72 u20 u74 u61 u62 u75 u6c u61 u74 u69 u6f u6e # "character tabulation"
+l8589944580: u74 u61 u62 # "tab"
+l8589944581: u65 u6e u64 u20 u6f u66 u20 u6c u69 u6e u65 # "end of line"
+l8589944582: u6c u69 u6e u65 u20 u66 u65 u65 u64 # "line feed"
+l8589944583: u6c u6f u63 u6b u69 u6e u67 u2d u73 u68 u69 u66 u74 u20 u6f u6e u65 # "locking-shift one"
+l8589944584: u6c u6f u63 u6b u69 u6e u67 u2d u73 u68 u69 u66 u74 u20 u7a u65 u72 u6f # "locking-shift zero"
+l8589944585: u72 u65 u73 u75 u6d u65 u20 u74 u72 u61 u6e u73 u6d u69 u73 u73 u69 u6f u6e # "resume transmission"
+l8589944586: u78 u6f u6e # "xon"
+l8589944587: u70 u61 u75 u73 u65 u20 u74 u72 u61 u6e u73 u6d u69 u73 u73 u69 u6f u6e # "pause transmission"
+l8589944588: u78 u6f u66 u66 # "xoff"
+l8589944589: u6c u69 u6e u65 u20 u74 u61 u62 u75 u6c u61 u74 u69 u6f u6e # "line tabulation"
+l8589944590: u28 u66 u38 u30 u29 # "(f80)"
+l8589944591: u66 u6f u6f u74 u20 u62 u61 u6c u6c # "foot ball"

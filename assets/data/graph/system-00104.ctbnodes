@@ -1,0 +1,100 @@
+l8589944992: u66 u72 u65 u65 u7a u65 u32 # "freeze2"
+l8589944993: u6d u65 u6c u74 # "melt"
+l8589944994: u46 u72 u65 u65 u7a u65 u20 u32 u2e u58 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 u20 u64 u61 u74 u61 # "Freeze 2.X compressed data"
+l8589944995: u66 u72 u6f u7a u65 u6e u20 u66 u69 u6c u65 u20 u32 u2e u31 # "frozen file 2.1"
+l8589944996: u63 u61 u73 u65 u3a u2e u46 # "case:.F"
+l8589944997: u66 u72 u65 u65 u7a u65 u2d u31 # "freeze-1"
+l8589944998: u66 u72 u65 u65 u7a u65 u31 # "freeze1"
+l8589944999: u6d u65 u6c u74 u31 # "melt1"
+l8589945000: u46 u72 u65 u65 u7a u65 u20 u31 u2e u30 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 u20 u64 u61 u74 u61 # "Freeze 1.0 compressed data"
+l8589945001: u66 u72 u6f u7a u65 u6e u20 u66 u69 u6c u65 u20 u31 u2e u30 # "frozen file 1.0"
+l8589945002: u73 u7a u69 u70 # "szip"
+l8589945003: u53 u5a u69 u70 u20 u61 u72 u63 u68 u69 u76 u65 u20 u64 u61 u74 u61 # "SZip archive data"
+l8589945004: u2e u73 u7a # ".sz"
+l8589945005: u73 u7a u69 u70 u2d u31 u2e u31 u31 # "szip-1.11"
+l8589945006: u73 u7a u69 u70 u31 u31 u31 # "szip111"
+l8589945007: u2e u63 u73 u63 u61 u72 u63 u68 u69 u76 u65 # ".cscarchive"
+l8589945008: u64 u63 u73 u68 # "dcsh"
+l8589945009: u2e u64 u63 u73 u68 # ".dcsh"
+l8589945010: u63 u74 u62 u6e u6f u64 u65 u73 # "ctbnodes"
+l8589945011: u2e u63 u74 u62 u6e u6f u64 u65 u73 # ".ctbnodes"
+l8589945012: 584 0 611 # Has a (Null (short Dc), Canonical decomposition)
+l8589945013: 610 l8589945012 u0 # Has value (l8589945012, U+0000)
+l8589945014: 584 1 611 # Has a (At, Canonical decomposition)
+l8589945015: 610 l8589945014 u40 # Has value (l8589945014, U+0040)
+l8589945016: 584 12 576 # Has a (Decimal point, Informal alias)
+l8589945017: 610 l8589945016 l8589944559 # Has value (l8589945016, "dot")
+l8589945018: 584 12 576 # Has a (Decimal point, Informal alias)
+l8589945019: 610 l8589945018 l8589944560 # Has value (l8589945018, "point")
+l8589945020: 584 12 593 # Has a (Decimal point, Cross-reference)
+l8589945021: 610 l8589945020 32 # Has value (l8589945020, Full stop (unambiguous))
+l8589945022: 584 12 613 # Has a (Decimal point, Approximate decomposition)
+l8589945023: 610 l8589945022 u2e # Has value (l8589945022, FULL STOP)
+l8589945024: 584 18 576 # Has a (Space (short Dc), Informal alias)
+l8589945025: 610 l8589945024 l8589944561 # Has value (l8589945024, "word separator")
+l8589945026: 584 18 611 # Has a (Space (short Dc), Canonical decomposition)
+l8589945027: 610 l8589945026 u20 # Has value (l8589945026, U+0020)
+l8589945028: 584 19 611 # Has a (Exclamation, Canonical decomposition)
+l8589945029: 610 l8589945028 u21 # Has value (l8589945028, U+0021)
+l8589945030: 584 20 611 # Has a (Double quotation mark, Canonical decomposition)
+l8589945031: 610 l8589945030 u22 # Has value (l8589945030, U+0022)
+l8589945032: 584 21 576 # Has a (Number sign (short Dc), Informal alias)
+l8589945033: 610 l8589945032 l8589937427 # Has value (l8589945032, "hash")
+l8589945034: 584 21 576 # Has a (Number sign (short Dc), Informal alias)
+l8589945035: 610 l8589945034 l8589944562 # Has value (l8589945034, "crosshatch")
+l8589945036: 584 21 576 # Has a (Number sign (short Dc), Informal alias)
+l8589945037: 610 l8589945036 l8589944563 # Has value (l8589945036, "octothorpe")
+l8589945038: 584 21 611 # Has a (Number sign (short Dc), Canonical decomposition)
+l8589945039: 610 l8589945038 u23 # Has value (l8589945038, U+0023)
+l8589945040: 584 22 611 # Has a (Dollar, Canonical decomposition)
+l8589945041: 610 l8589945040 u24 # Has value (l8589945040, U+0024)
+l8589945042: 584 23 611 # Has a (Percent, Canonical decomposition)
+l8589945043: 610 l8589945042 u25 # Has value (l8589945042, U+0025)
+l8589945044: 584 24 611 # Has a (Ampersand (short Dc), Canonical decomposition)
+l8589945045: 610 l8589945044 u26 # Has value (l8589945044, U+0026)
+l8589945046: 584 25 611 # Has a (Apostrophe (short Dc), Canonical decomposition)
+l8589945047: 610 l8589945046 u27 # Has value (l8589945046, U+0027)
+l8589945048: 584 26 576 # Has a (Left parenthesis (short Dc), Informal alias)
+l8589945049: 610 l8589945048 l8589944564 # Has value (l8589945048, "left bracket")
+l8589945050: 584 26 611 # Has a (Left parenthesis (short Dc), Canonical decomposition)
+l8589945051: 610 l8589945050 u28 # Has value (l8589945050, U+0028)
+l8589945052: 584 27 576 # Has a (Right parenthesis (short Dc), Informal alias)
+l8589945053: 610 l8589945052 l8589944565 # Has value (l8589945052, "right bracket")
+l8589945054: 584 27 611 # Has a (Right parenthesis (short Dc), Canonical decomposition)
+l8589945055: 610 l8589945054 u29 # Has value (l8589945054, U+0029)
+l8589945056: 584 28 576 # Has a (Asterisk (short Dc), Informal alias)
+l8589945057: 610 l8589945056 l8589944566 # Has value (l8589945056, "star")
+l8589945058: 584 28 611 # Has a (Asterisk (short Dc), Canonical decomposition)
+l8589945059: 610 l8589945058 u2a # Has value (l8589945058, U+002A)
+l8589945060: 584 29 611 # Has a (Plus, Canonical decomposition)
+l8589945061: 610 l8589945060 u2b # Has value (l8589945060, U+002B)
+l8589945062: 584 30 611 # Has a (Comma (short Dc), Canonical decomposition)
+l8589945063: 610 l8589945062 u2c # Has value (l8589945062, U+002C)
+l8589945064: 584 31 611 # Has a (Hyphen (short Dc), Canonical decomposition)
+l8589945065: 610 l8589945064 u2010 # Has value (l8589945064, U+2010)
+l8589945066: 584 31 613 # Has a (Hyphen (short Dc), Approximate decomposition)
+l8589945067: 610 l8589945066 u2d # Has value (l8589945066, HYPHEN-MINUS)
+l8589945068: 584 32 576 # Has a (Full stop (unambiguous), Informal alias)
+l8589945069: 610 l8589945068 l8589944567 # Has value (l8589945068, "period")
+l8589945070: 584 32 613 # Has a (Full stop (unambiguous), Approximate decomposition)
+l8589945071: 610 l8589945070 u2e # Has value (l8589945070, FULL STOP)
+l8589945072: 584 33 576 # Has a (Solidus (short Dc), Informal alias)
+l8589945073: 610 l8589945072 l8589944568 # Has value (l8589945072, "slash")
+l8589945074: 584 33 576 # Has a (Solidus (short Dc), Informal alias)
+l8589945075: 610 l8589945074 l8589944569 # Has value (l8589945074, "stroke")
+l8589945076: 584 33 576 # Has a (Solidus (short Dc), Informal alias)
+l8589945077: 610 l8589945076 l8589944570 # Has value (l8589945076, "virgule")
+l8589945078: 584 33 611 # Has a (Solidus (short Dc), Canonical decomposition)
+l8589945079: 610 l8589945078 u2f # Has value (l8589945078, U+002F)
+l8589945080: 584 34 611 # Has a (Zero, Canonical decomposition)
+l8589945081: 610 l8589945080 u30 # Has value (l8589945080, U+0030)
+l8589945082: 584 35 611 # Has a (One, Canonical decomposition)
+l8589945083: 610 l8589945082 u31 # Has value (l8589945082, U+0031)
+l8589945084: 584 36 611 # Has a (Two, Canonical decomposition)
+l8589945085: 610 l8589945084 u32 # Has value (l8589945084, U+0032)
+l8589945086: 584 37 611 # Has a (Three, Canonical decomposition)
+l8589945087: 610 l8589945086 u33 # Has value (l8589945086, U+0033)
+l8589945088: 584 38 611 # Has a (Four, Canonical decomposition)
+l8589945089: 610 l8589945088 u34 # Has value (l8589945088, U+0034)
+l8589945090: 584 39 611 # Has a (Five, Canonical decomposition)
+l8589945091: 610 l8589945090 u35 # Has value (l8589945090, U+0035)

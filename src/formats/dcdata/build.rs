@@ -202,6 +202,7 @@ fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=syntax/role.generated.rs");
 
     let repo_root = ctb_build_support::find_repository_root()?;
+    ctb_build_support::dc_codegen::generate_dc_file(&repo_root)?;
     ctb_build_support::dc_codegen::generate_role_file(&repo_root)?;
     syntax::codegen::generate_syntax_table_file(&repo_root)?;
     Ok(())

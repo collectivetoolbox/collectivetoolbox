@@ -1,0 +1,100 @@
+l8589937392: u2e u46 u6f u72 u6d u61 u74 u73 u3a u76 u3a u70 u61 u64 u64 u69 u6e u67 # ".Formats:v:padding"
+l8589937393: u2e u46 u6f u72 u6d u61 u74 u73 u3a u76 u3a u75 u6e u69 u63 u6f u64 u65 u50 u75 u61 # ".Formats:v:unicodePua"
+l8589937394: u2e u46 u6f u72 u6d u61 u74 u73 u3a u76 u69 u64 u65 u6f u74 u65 u72 u6d u69 u6e u61 u6c # ".Formats:videoterminal"
+l8589937395: u2e u46 u6f u72 u6d u61 u74 u73 u3a u76 u69 u72 u74 u75 u61 u6c u66 u69 u6c u65 u73 u79 u73 u74 u65 u6d # ".Formats:virtualfilesystem"
+l8589937396: u2e u4d u61 u74 u68 u65 u6d u61 u74 u69 u63 u73 # ".Mathematics"
+l8589937397: u2e u4d u69 u73 u63 u65 u6c u6c u61 u6e u65 u6f u75 u73 # ".Miscellaneous"
+l8589937398: u2e u4e u6f u6e u63 u68 u61 u72 u61 u63 u74 u65 u72 u73 # ".Noncharacters"
+l8589937399: u2e u50 u75 u6e u63 u74 u75 u61 u74 u69 u6f u6e # ".Punctuation"
+l8589937400: u2e u53 u65 u6d u61 u6e u74 u69 u63 # ".Semantic"
+l8589937401: u2e u53 u65 u6d u61 u6e u74 u69 u63 u3a u50 u61 u74 u74 u65 u72 u6e # ".Semantic:Pattern"
+l8589937402: u2e u53 u65 u6d u61 u6e u74 u69 u63 u3a u52 u65 u6c u61 u74 u69 u6f u6e u73 u68 u69 u70 # ".Semantic:Relationship"
+l8589937403: u2e u53 u65 u6d u61 u6e u74 u69 u63 u3a u66 u69 u6c u65 u66 u6c u61 u67 # ".Semantic:fileflag"
+l8589937404: u2e u53 u74 u79 u6c u69 u6e u67 # ".Styling"
+l8589937405: u2e u53 u79 u6d u62 u6f u6c u73 # ".Symbols"
+l8589937406: u2e u56 u61 u72 u69 u61 u6e u74 u20 u73 u65 u6c u65 u63 u74 u6f u72 u73 # ".Variant selectors"
+l8589937407: u43 u6f u6d u6d u6f u6e # "Common"
+l8589937408: u4c u61 u74 u69 u6e # "Latin"
+l8589937409: u4e u75 u6d u62 u65 u72 # "Number"
+l8589937410: 278 # Built-in type identifier: Number
+l8589937411: u52 u6f u75 u74 u69 u6e u65 # "Routine"
+l8589937412: 280 # Built-in type identifier: Routine
+l8589937413: u52 u6f u75 u74 u69 u6e u65 u20 u6e u61 u6d u65 # "Routine name"
+l8589937414: 306 # Built-in type identifier: Routine name
+l8589937415: 264 # Built-in type identifier: String
+l8589937416: u61 u73 u63 u69 u69 u6c u61 u74 u69 u6e u6c u65 u74 u74 u65 u72 # "asciilatinletter"
+l8589937417: 298 298 602 298 4 u41 u5a 299 298 4 u61 u7a 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Range, U+0041, U+005A, End associativity group, Begin associativity group, Range, U+0061, U+007A, End associativity group, End associativity group, End associativity group
+l8589937418: u61 u73 u63 u69 u69 u6c u61 u74 u69 u6e u6c u65 u74 u74 u65 u72 u64 u69 u67 u69 u74 # "asciilatinletterdigit"
+l8589937419: 298 298 602 298 4 u30 u39 299 298 4 u41 u5a 299 298 4 u61 u7a 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Range, U+0030, U+0039, End associativity group, Begin associativity group, Range, U+0041, U+005A, End associativity group, Begin associativity group, Range, U+0061, U+007A, End associativity group, End associativity group, End associativity group
+l8589937420: u61 u73 u63 u69 u69 u70 u72 u69 u6e u74 u61 u62 u6c u65 # "asciiprintable"
+l8589937421: 4 u20 u7e # Range, U+0020, U+007E
+l8589937422: u61 u74 u6f u6d u5f u64 u63 # "atom_dc"
+l8589937423: 298 298 602 298 298 604 255 616 299 299 298 298 255 298 298 602 298 255 299 298 616 299 299 299 299 299 298 298 605 616 299 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Negated pattern, Ignore following Dc, Evaluate value as atom, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Ignore following Dc, Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Ignore following Dc, End associativity group, Begin associativity group, Evaluate value as atom, End associativity group, End associativity group, End associativity group, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Evaluate value as atom, End associativity group, End associativity group, End associativity group, End associativity group
+l8589937424: u62 u6f u6f u6c u65 u61 u6e # "boolean"
+l8589937425: 298 298 602 298 517 299 298 518 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Boolean true, End associativity group, Begin associativity group, Boolean false, End associativity group, End associativity group, End associativity group
+l8589937426: u63 u68 u65 u63 u6b u73 u75 u6d # "checksum"
+l8589937427: u68 u61 u73 u68 # "hash"
+l8589937428: 298 605 l8589934718 584 l8589937427 299 # Begin associativity group, Subpattern match, Named syntax construct typed_data, Has a, "hash", End associativity group
+l8589937429: u64 u61 u74 u61 # "data"
+l8589937430: 298 605 203 299 # Begin associativity group, Subpattern match, Begin encapsulated binary data, End associativity group
+l8589937431: 298 605 390 299 # Begin associativity group, Subpattern match, Begin time moment description, End associativity group
+l8589937432: u64 u61 u74 u65 u6d u61 u67 u6e u69 u74 u75 u64 u65 # "datemagnitude"
+l8589937433: 298 605 393 299 # Begin associativity group, Subpattern match, Begin date magnitude description, End associativity group
+l8589937434: 298 605 395 299 # Begin associativity group, Subpattern match, Begin date duration description, End associativity group
+l8589937435: u66 u69 u6c u65 u6e u61 u6d u65 # "filename"
+l8589937436: 511 298 605 f228 299 512 # Begin Dc representation of format, Begin associativity group, Subpattern match, File name, End associativity group, End Dc representation of format
+l8589937437: u66 u69 u6c u65 u70 u61 u74 u68 # "filepath"
+l8589937438: 511 298 605 f229 299 512 # Begin Dc representation of format, Begin associativity group, Subpattern match, File path, End associativity group, End Dc representation of format
+l8589937439: u66 u6f u72 u6d u61 u74 # "format"
+l8589937440: 4 f0 f1114111 # Range, UTF-8, f1114111
+l8589937441: u66 u6f u72 u6d u61 u74 u73 # "formats"
+l8589937442: 298 605 270 299 # Begin associativity group, Subpattern match, Begin identifier, End associativity group
+l8589937443: u69 u70 u61 u64 u64 u72 # "ipaddr"
+l8589937444: 511 298 605 f226 299 512 # Begin Dc representation of format, Begin associativity group, Subpattern match, IP address, End associativity group, End Dc representation of format
+l8589937445: u6b u65 u79 u5f u76 u61 u6c u75 u65 # "key_value"
+l8589937446: 298 298 602 298 298 605 559 299 299 298 298 605 313 299 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Begin key-value array (ordered), End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Begin key-value array (ordered) (deprecated), End associativity group, End associativity group, End associativity group, End associativity group
+l8589937447: u6c u69 u73 u74 # "list"
+l8589937448: 298 605 310 299 # Begin associativity group, Subpattern match, Begin list (ordered, contiguous, typed), End associativity group
+l8589937449: u6c u69 u73 u74 u28 u24 u64 u69 u6d u65 u6e u73 u69 u6f u6e u73 u29 # "list($dimensions)"
+l8589937450: 6 298 605 l8589934706 584 l8589936990 299 298 604 7 299 298 603 4 l8589934963 299 7 # Begin number, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "number", End associativity group, Begin associativity group, Negated pattern, End number, End associativity group, Begin associativity group, Pattern repetition, Range, 1, End associativity group, End number
+l8589937451: u73 u63 u72 u69 u70 u74 # "script"
+l8589937452: u73 u74 u61 u74 u65 u6d u65 u6e u74 # "statement"
+l8589937453: 298 298 602 298 298 605 l8589934720 299 299 298 298 605 269 299 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct value, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Assignment operator, End associativity group, End associativity group, End associativity group, End associativity group
+l8589937454: u73 u74 u72 u69 u6e u67 # "string"
+l8589937455: 298 605 260 299 # Begin associativity group, Subpattern match, Begin literal value, End associativity group
+l8589937456: 298 298 602 298 298 605 262 299 299 298 298 605 l8589934706 299 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Begin type definition, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct format, End associativity group, End associativity group, End associativity group, End associativity group
+l8589937457: u74 u79 u70 u65 u64 u5f u64 u61 u74 u61 # "typed_data"
+l8589937458: u24 u74 u79 u70 u65 # "$type"
+l8589937459: 203 298 605 l8589934717 584 l8589937458 299 298 605 l8589934713 606 l8589934964 299 298 603 4 l8589934942 l8589934963 299 298 605 l8589934699 299 298 603 4 l8589934942 l8589934963 299 298 298 602 298 4 127 190 299 298 195 299 299 299 298 603 4 l8589934942 299 204 # Begin encapsulated binary data, Begin associativity group, Subpattern match, Named syntax construct type, Has a, "$type", End associativity group, Begin associativity group, Subpattern match, Named syntax construct number, Pattern capture, $length, End associativity group, Begin associativity group, Pattern repetition, Range, 0, 1, End associativity group, Begin associativity group, Subpattern match, Named syntax construct checksum, End associativity group, Begin associativity group, Pattern repetition, Range, 0, 1, End associativity group, Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Range, Base 64 encapsulation digit 0, Base 64 encapsulation digit 63, End associativity group, Begin associativity group, Base 64 encapsulation padding character, End associativity group, End associativity group, End associativity group, Begin associativity group, Pattern repetition, Range, 0, End associativity group, End encapsulated binary data
+l8589937460: u75 u6e u69 u63 u6f u64 u65 u5f u61 u6e u79 # "unicode_any"
+l8589937461: 4 u0 u10ffff # Range, U+0000, U+10FFFF
+l8589937462: 298 298 602 298 298 605 l8589934716 299 299 298 298 605 l8589934713 299 299 298 298 605 l8589934698 299 299 298 298 605 l8589934700 299 299 298 298 605 l8589934701 299 299 298 298 605 l8589934703 299 299 298 298 605 l8589934702 299 299 298 298 605 l8589934711 299 299 298 298 605 l8589934710 299 299 298 298 605 511 299 299 298 298 605 276 299 299 298 298 605 540 299 299 298 298 605 279 299 299 299 299 # Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct string, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct number, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct boolean, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct data, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct date, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct duration, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct datemagnitude, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct list, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct key_value, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Begin Dc representation of format, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Reference named object, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Reference bound value, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Routine invocation, End associativity group, End associativity group, End associativity group, End associativity group
+l8589937463: 584 0 572 # Has a (Null (short Dc), Canonical name)
+l8589937464: 610 l8589937463 l8589934721 # Has value (l8589937463, "Null (short Dc)")
+l8589937465: 584 0 581 # Has a (Null (short Dc), Unicode bidirectional class)
+l8589937466: 610 l8589937465 l8589934593 # Has value (l8589937465, Bidi class BN)
+l8589937467: 584 1 572 # Has a (At, Canonical name)
+l8589937468: 610 l8589937467 l8589934722 # Has value (l8589937467, "At")
+l8589937469: 584 1 581 # Has a (At, Unicode bidirectional class)
+l8589937470: 610 l8589937469 l8589934600 # Has value (l8589937469, Bidi class ON)
+l8589937471: 584 2 572 # Has a (Begin separator, Canonical name)
+l8589937472: 610 l8589937471 l8589934723 # Has value (l8589937471, "Begin separator")
+l8589937473: 584 2 573 # Has a (Begin separator, Description)
+l8589937474: 610 l8589937473 l8589934724 # Has value (l8589937473, "Begin a DCE separator string.")
+l8589937475: 584 2 581 # Has a (Begin separator, Unicode bidirectional class)
+l8589937476: 610 l8589937475 l8589934593 # Has value (l8589937475, Bidi class BN)
+l8589937477: 584 3 572 # Has a (End separator, Canonical name)
+l8589937478: 610 l8589937477 l8589934725 # Has value (l8589937477, "End separator")
+l8589937479: 584 3 573 # Has a (End separator, Description)
+l8589937480: 610 l8589937479 l8589934726 # Has value (l8589937479, "End a DCE separator string.")
+l8589937481: 584 3 581 # Has a (End separator, Unicode bidirectional class)
+l8589937482: 610 l8589937481 l8589934593 # Has value (l8589937481, Bidi class BN)
+l8589937483: 584 4 572 # Has a (Range, Canonical name)
+l8589937484: 610 l8589937483 l8589934727 # Has value (l8589937483, "Range")
+l8589937485: 584 4 573 # Has a (Range, Description)
+l8589937486: 610 l8589937485 l8589934728 # Has value (l8589937485, "The DCE range character. Used to represent ranges in DCE. See the wiki for more information.")
+l8589937487: 584 4 574 # Has a (Range, Programmatic identifier)
+l8589937488: 610 l8589937487 l8589934727 # Has value (l8589937487, "Range")
+l8589937489: 584 4 581 # Has a (Range, Unicode bidirectional class)
+l8589937490: 610 l8589937489 l8589934593 # Has value (l8589937489, Bidi class BN)
+l8589937491: 584 5 572 # Has a (Record summation, Canonical name)

@@ -34,6 +34,8 @@ pub use ctb_storage_minimal::global_graph_layout::{
 
 pub use crate::dc_char::DcChar;
 
+/// The DCE range character. Used to represent ranges in DCE. See the wiki for more information. (Dc 4).
+pub const DC_RANGE: DcChar = DcChar::from_short(4);
 /// Begin a DCE number. (Dc 6).
 pub const DC_BEGIN_NUMBER: DcChar = DcChar::from_short(6);
 /// End a DCE number. (Dc 7).
@@ -294,7 +296,7 @@ pub const DC_CHARACTER_SCRIPT: DcChar = DcChar::from_short(596);
 pub const DC_OPERATING_SYSTEM: DcChar = DcChar::from_short(597);
 /// Asserts that the subject is associated or affiliated with the object. (Dc 598).
 pub const DC_IS_ASSOCIATED_WITH: DcChar = DcChar::from_short(598);
-/// Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched. (Dc 599).
+/// Placeholder referring to the character or pattern rule currently being defined or matched. (Dc 599).
 pub const DC_SELF_REFERENCE: DcChar = DcChar::from_short(599);
 /// Matches any single Dc token or balanced syntactic frame. (Dc 600).
 pub const DC_WILDCARD_PATTERN: DcChar = DcChar::from_short(600);
@@ -326,6 +328,10 @@ pub const DC_COMPATIBILITY_DECOMPOSITION: DcChar = DcChar::from_short(612);
 pub const DC_APPROXIMATE_DECOMPOSITION: DcChar = DcChar::from_short(613);
 /// A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning. (Dc 614).
 pub const DC_SEMANTIC_DECOMPOSITION: DcChar = DcChar::from_short(614);
+/// Refers to the enclosing document or graph node currently being defined. (Dc 615).
+pub const DC_ENCLOSING_DOCUMENT: DcChar = DcChar::from_short(615);
+/// Evaluates or substitutes the following [value] expression in place of itself in an [atom_dc] operand position. (Dc 616).
+pub const DC_EVALUATE_VALUE_AS_ATOM: DcChar = DcChar::from_short(616);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

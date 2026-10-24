@@ -1,4 +1,11 @@
-### Phase 1: System-Block Node Format & 100-Node Chunk Ledger (`assets/data/graph/`)
+**Overall Status**: `In Progress` (Phase 1 implemented; Phases 2–4 pending)
+
+#### Remaining Gaps / Pending Work
+* **Phase 2 (Pending)**: Build-time `.ctbnodes` chunk reader and `SeedGraph` index (`src/formats/dcdata/syntax/seed_graph.rs`), replacing `DatasetRuleResolver::load_from_dataset`.
+* **Phase 3 (Pending)**: Simplify `src/formats/dcstring/navigator.rs` to evaluate grammar rules directly from the `SeedGraph` pattern nodes instead of special-cased procedural helpers.
+* **Phase 4 (Pending)**: Migrate remaining CSV-coupled consumers (`lookup.rs`, `format_spec/validator.rs`) to read from `SeedGraph`.
+
+### Phase 1: System-Block Node Format & 100-Node Chunk Ledger (`assets/data/graph/`) — Implemented in `src/formats/dcdata/graph_ledger.rs`
 
 #### 1.1 File Layout & Chunking
 * Store System-block seed graph files in `assets/data/graph/` (`assets/data/graph/system-00000.ctbnodes`, `assets/data/graph/system-00001.ctbnodes`, ...; format Dc `f639` `CtbNodes`), with **at most 100 node declarations per file**.

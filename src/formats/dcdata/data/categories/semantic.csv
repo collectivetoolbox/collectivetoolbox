@@ -1,7 +1,7 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
 1114114,2,Begin separator,0,BN,,!Cx,.Semantic,,Begin a DCE separator string.
 1114115,3,End separator,0,BN,,!Cx,.Semantic,,End a DCE separator string.
-1114116,4,Range,0,BN,,!Cx,.Semantic,,The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
+1114116,4,Range,0,BN,,!Cx,.Semantic,"@ident(""Range"")",The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
 1114117,5,Record summation,0,BN,,!Cx,.Semantic,,"Used to denote the union of two records. See the wiki for more information. Example: @9@@2@1@3@@10@2012@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@@4@@9@@2@1@3@@10@2012@2@2@3@11@2@2@3@19@2@2@3@16@2@2@3@7@2@2@3@6@2@2@3@27@5@@9@@2@1@3@@10@2013@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@ This represents the range from 2012 A. D., 7 October, 15th hour, unknown hour subdivision, to 2012 A. D., 19 November, 16th hour, 7th minute, 6.27 seconds, as well as the date 2013 A. D., 7 October, 15th hour, unknown hour subdivision."
 1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber""), @roleDef()",Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber""), @roleDef(), @closes(6)",End a DCE number.
@@ -265,22 +265,22 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114693,581,Unicode bidirectional class,0,BN,,!Cx,.Semantic,"@ident(""BidirectionalClass"")",The Unicode Bidirectional Class code of a character.
 1114694,582,Case mapping partner,0,BN,,!Cx,.Semantic,"@ident(""CaseMappingPartner"")",The casing partner character of a character.
 1114695,583,Unicode general category,0,BN,,!Cx,.Semantic,"@ident(""CharacterGeneralCategory"")",The General Category classification of a character.
-1114696,584,Has a,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasA"")",Asserts that the subject possesses the specified attribute component or property noun.
-1114697,585,Is equal to,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsEqualTo"")",Asserts that a property attribute or expression has the specified value.
-1114698,586,Is an instance of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsInstanceOf"")",Asserts that the subject is an instance of the object type.
-1114699,587,Is a subtype of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsSubtypeOf"")",Asserts that the subject type or format is a subtype of or logically entails the object type or format.
-1114700,588,Is based on,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsBasedOn"")",Asserts that the subject is derived from or historically based on the object.
-1114701,589,Is deprecated,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsDeprecated"")",Asserts whether the subject is deprecated.
-1114702,590,Is a closing delimiter of syntactic block for,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsClosingDelimiterFor"")",Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character.
-1114703,591,Supersedes,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Supersedes"")",Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node.
-1114704,592,Retracts,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Retracts"")",Asserts that the subject statement node withdraws and retracts the object statement node.
+1114696,584,Has a,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasA""), :~ [atom_dc] [atom_dc]",Asserts that the subject possesses the specified attribute component or property noun.
+1114697,585,Is equal to,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsEqualTo""), :~ [atom_dc] [atom_dc]",Asserts that a property attribute or expression has the specified value.
+1114698,586,Is an instance of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsInstanceOf""), :~ [atom_dc] [atom_dc]",Asserts that the subject is an instance of the object type.
+1114699,587,Is a subtype of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsSubtypeOf""), :~ [atom_dc] [atom_dc]",Asserts that the subject type or format is a subtype of or logically entails the object type or format.
+1114700,588,Is based on,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsBasedOn""), :~ [atom_dc] [atom_dc]",Asserts that the subject is derived from or historically based on the object.
+1114701,589,Is deprecated,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsDeprecated""), :~ [atom_dc] [atom_dc]",Asserts whether the subject is deprecated.
+1114702,590,Is a closing delimiter of syntactic block for,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsClosingDelimiterFor""), :~ [atom_dc] [atom_dc]",Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character.
+1114703,591,Supersedes,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Supersedes""), :~ [atom_dc] [atom_dc]",Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node.
+1114704,592,Retracts,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Retracts""), :~ [atom_dc] [atom_dc]",Asserts that the subject statement node withdraws and retracts the object statement node.
 1114705,593,Cross-reference,0,BN,,!Cx,.Semantic,"@ident(""CrossReference"")",A reference directing attention to another related entity or entry.
 1114706,594,Syntax rule,0,BN,,!Cx,.Semantic,"@ident(""SyntaxRule"")",A pattern or grammar rule defining the valid syntactic structure of something.
 1114707,595,Data format or type description,0,BN,,!Cx,.Semantic,"@ident(""DataFormatDescription"")","A specification or expression describing the format, type, or composition pipeline of data."
 1114708,596,Dc Script,0,BN,,!Cx,.Semantic,"@ident(""CharacterScript"")","A Dc script classification, as in Unicode, extended for Dc"
 1114709,597,Operating system,0,BN,,!Cx,.Semantic,"@ident(""OperatingSystem"")",An operating system environment or platform family.
-1114710,598,Is associated with,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsAssociatedWith"")",Asserts that the subject is associated or affiliated with the object.
-1114711,599,Self reference,0,BN,,!Cx,.Semantic:Pattern,"@ident(""SelfReference"")",Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched.
+1114710,598,Is associated with,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsAssociatedWith""), :~ [atom_dc] [atom_dc]",Asserts that the subject is associated or affiliated with the object.
+1114711,599,Self reference,0,BN,,!Cx,.Semantic:Pattern,"@ident(""SelfReference"")",Placeholder referring to the character or pattern rule currently being defined or matched.
 1114712,600,Wildcard pattern,0,BN,,!Cx,.Semantic:Pattern,"@ident(""WildcardPattern"")",Matches any single Dc token or balanced syntactic frame.
 1114713,601,Pattern conjunction,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternConjunction"")",Matches a Dc sequence only if all of the specified component patterns match.
 1114714,602,Pattern alternation,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternAlternation"")",Matches a Dc sequence if any of the specified alternative patterns match.
@@ -291,8 +291,10 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114719,607,Pattern replacement,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternReplacement"")",Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings.
 1114720,608,Dc general category,0,BN,,!Cx,.Semantic,"@ident(""DcGeneralCategory"")","General category as in Unicode, extended for Dc"
 1114721,609,Unicode script,0,BN,,!Cx,.Semantic,"@ident(""UnicodeScript"")",The Unicode Script classification of a character.
-1114722,610,Has value,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasValue"")","Asserts that the subject property, attribute statement, or parameter has the specified value."
+1114722,610,Has value,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasValue""), :~ [atom_dc] [atom_dc]","Asserts that the subject property, attribute statement, or parameter has the specified value."
 1114723,611,Canonical decomposition,0,BN,,!Cx,.Semantic,"@ident(""CanonicalDecomposition""), @implies(571)",A canonically equivalent decomposition of a character or sequence into a sequence with the same canonical meaning.
 1114724,612,Compatibility decomposition,0,BN,,!Cx,.Semantic,"@ident(""CompatibilityDecomposition""), @implies(571)",A compatibility decomposition of a character into a sequence with equivalent compatibility content.
 1114725,613,Approximate decomposition,0,BN,,!Cx,.Semantic,"@ident(""ApproximateDecomposition""), @implies(571)","An approximate, non-executable decomposition of a character or type into a roughly corresponding sequence."
 1114726,614,Semantic decomposition,0,BN,,!Cx,.Semantic,"@ident(""SemanticDecomposition""), @implies(571)",A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning.
+1114727,615,Enclosing document,0,BN,,!Cx,.Semantic,"@ident(""EnclosingDocument"")",Refers to the enclosing document or graph node currently being defined.
+1114728,616,Evaluate value as atom,0,BN,,!Cx,.Semantic,"@ident(""EvaluateValueAsAtom""), :~ [value]",Evaluates or substitutes the following [value] expression in place of itself in an [atom_dc] operand position.

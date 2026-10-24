@@ -34,6 +34,8 @@ pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const SHORT_DC_REGION_END: u128 = 2_228_223;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
+pub const SYSTEM_REGION_START: u128 = 8_589_934_592;
+pub const SYSTEM_REGION_END: u128 = 12_884_901_887;
 
 /// Static embedded CSV bytes for the global graph layout table.
 pub static GLOBAL_GRAPH_LAYOUT_CSV: &[u8] =

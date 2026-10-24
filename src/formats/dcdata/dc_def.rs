@@ -169,6 +169,12 @@ pub struct DcDefn {
     pub annotations: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub implies: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub based_on: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub os_associations: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub magic_names: Vec<String>,
 
     // Syntax Rule
     #[serde(skip_serializing_if = "Option::is_none")]

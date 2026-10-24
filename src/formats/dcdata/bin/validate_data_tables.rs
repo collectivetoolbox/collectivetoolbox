@@ -196,5 +196,24 @@ fn main() -> ExitCode {
         }
     }
 
+    match ctb_formats_dcdata::graph_ledger::update_system_graph_ledger(&repo_root) {
+        Ok(stats) => {
+            if stats.nodes_appended > 0 || stats.files_written > 0 {
+                println!(
+                    "System Graph Ledger: {} total nodes ({} appended, {} superseded, {} retracted, {} chunk files updated).",
+                    stats.total_nodes,
+                    stats.nodes_appended,
+                    stats.nodes_superseded,
+                    stats.nodes_retracted,
+                    stats.files_written
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!("Error updating System graph ledger (assets/data/graph/system-*.ctbnodes): {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
     ExitCode::SUCCESS
 }

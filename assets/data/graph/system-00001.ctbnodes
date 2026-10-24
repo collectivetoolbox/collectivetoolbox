@@ -1,0 +1,100 @@
+l8589934692: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934693: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934694: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934695: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934696: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934697: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934698: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934699: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934700: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934701: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934702: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934703: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934704: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934705: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934706: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934707: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934708: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934709: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934710: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934711: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934712: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934713: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934714: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934715: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934716: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934717: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934718: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934719: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934720: 586 615 565 # Is an instance of (Enclosing document, Type)
+l8589934721: u4e u75 u6c u6c u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Null (short Dc)"
+l8589934722: u41 u74 # "At"
+l8589934723: u42 u65 u67 u69 u6e u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 # "Begin separator"
+l8589934724: u42 u65 u67 u69 u6e u20 u61 u20 u44 u43 u45 u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 u20 u73 u74 u72 u69 u6e u67 u2e # "Begin a DCE separator string."
+l8589934725: u45 u6e u64 u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 # "End separator"
+l8589934726: u45 u6e u64 u20 u61 u20 u44 u43 u45 u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 u20 u73 u74 u72 u69 u6e u67 u2e # "End a DCE separator string."
+l8589934727: u52 u61 u6e u67 u65 # "Range"
+l8589934728: u54 u68 u65 u20 u44 u43 u45 u20 u72 u61 u6e u67 u65 u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u2e u20 u55 u73 u65 u64 u20 u74 u6f u20 u72 u65 u70 u72 u65 u73 u65 u6e u74 u20 u72 u61 u6e u67 u65 u73 u20 u69 u6e u20 u44 u43 u45 u2e u20 u53 u65 u65 u20 u74 u68 u65 u20 u77 u69 u6b u69 u20 u66 u6f u72 u20 u6d u6f u72 u65 u20 u69 u6e u66 u6f u72 u6d u61 u74 u69 u6f u6e u2e # "The DCE range character. Used to represent ranges in DCE. See the wiki for more information."
+l8589934729: u52 u65 u63 u6f u72 u64 u20 u73 u75 u6d u6d u61 u74 u69 u6f u6e # "Record summation"
+l8589934730: u55 u73 u65 u64 u20 u74 u6f u20 u64 u65 u6e u6f u74 u65 u20 u74 u68 u65 u20 u75 u6e u69 u6f u6e u20 u6f u66 u20 u74 u77 u6f u20 u72 u65 u63 u6f u72 u64 u73 u2e u20 u53 u65 u65 u20 u74 u68 u65 u20 u77 u69 u6b u69 u20 u66 u6f u72 u20 u6d u6f u72 u65 u20 u69 u6e u66 u6f u72 u6d u61 u74 u69 u6f u6e u2e u20 u45 u78 u61 u6d u70 u6c u65 u3a u20 u40 u39 u40 u40 u32 u40 u31 u40 u33 u40 u40 u31 u30 u40 u32 u30 u31 u32 u40 u32 u40 u32 u40 u33 u40 u31 u30 u40 u32 u40 u32 u40 u33 u40 u37 u40 u32 u40 u32 u40 u33 u40 u31 u35 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u40 u34 u40 u40 u39 u40 u40 u32 u40 u31 u40 u33 u40 u40 u31 u30 u40 u32 u30 u31 u32 u40 u32 u40 u32 u40 u33 u40 u31 u31 u40 u32 u40 u32 u40 u33 u40 u31 u39 u40 u32 u40 u32 u40 u33 u40 u31 u36 u40 u32 u40 u32 u40 u33 u40 u37 u40 u32 u40 u32 u40 u33 u40 u36 u40 u32 u40 u32 u40 u33 u40 u32 u37 u40 u35 u40 u40 u39 u40 u40 u32 u40 u31 u40 u33 u40 u40 u31 u30 u40 u32 u30 u31 u33 u40 u32 u40 u32 u40 u33 u40 u31 u30 u40 u32 u40 u32 u40 u33 u40 u37 u40 u32 u40 u32 u40 u33 u40 u31 u35 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u40 u32 u40 u32 u40 u33 u40 u40 u38 u40 u20 u54 u68 u69 u73 u20 u72 u65 u70 u72 u65 u73 u65 u6e u74 u73 u20 u74 u68 u65 u20 u72 u61 u6e u67 u65 u20 u66 u72 u6f u6d u20 u32 u30 u31 u32 u20 u41 u2e u20 u44 u2e u2c u20 u37 u20 u4f u63 u74 u6f u62 u65 u72 u2c u20 u31 u35 u74 u68 u20 u68 u6f u75 u72 u2c u20 u75 u6e u6b u6e u6f u77 u6e u20 u68 u6f u75 u72 u20 u73 u75 u62 u64 u69 u76 u69 u73 u69 u6f u6e u2c u20 u74 u6f u20 u32 u30 u31 u32 u20 u41 u2e u20 u44 u2e u2c u20 u31 u39 u20 u4e u6f u76 u65 u6d u62 u65 u72 u2c u20 u31 u36 u74 u68 u20 u68 u6f u75 u72 u2c u20 u37 u74 u68 u20 u6d u69 u6e u75 u74 u65 u2c u20 u36 u2e u32 u37 u20 u73 u65 u63 u6f u6e u64 u73 u2c u20 u61 u73 u20 u77 u65 u6c u6c u20 u61 u73 u20 u74 u68 u65 u20 u64 u61 u74 u65 u20 u32 u30 u31 u33 u20 u41 u2e u20 u44 u2e u2c u20 u37 u20 u4f u63 u74 u6f u62 u65 u72 u2c u20 u31 u35 u74 u68 u20 u68 u6f u75 u72 u2c u20 u75 u6e u6b u6e u6f u77 u6e u20 u68 u6f u75 u72 u20 u73 u75 u62 u64 u69 u76 u69 u73 u69 u6f u6e u2e # "Used to denote the union of two records. See the wiki for more information. Example: @9@@2@1@3@@10@2012@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@@4@@9@@2@1@3@@10@2012@2@2@3@11@2@2@3@19@2@2@3@16@2@2@3@7@2@2@3@6@2@2@3@27@5@@9@@2@1@3@@10@2013@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@ This represents the range from 2012 A. D., 7 October, 15th hour, unknown hour subdivision, to 2012 A. D., 19 November, 16th hour, 7th minute, 6.27 seconds, as well as the date 2013 A. D., 7 October, 15th hour, unknown hour subdivision."
+l8589934731: u42 u65 u67 u69 u6e u20 u6e u75 u6d u62 u65 u72 # "Begin number"
+l8589934732: u42 u65 u67 u69 u6e u20 u61 u20 u44 u43 u45 u20 u6e u75 u6d u62 u65 u72 u2e # "Begin a DCE number."
+l8589934733: u42 u65 u67 u69 u6e u4e u75 u6d u62 u65 u72 # "BeginNumber"
+l8589934734: u45 u6e u64 u20 u6e u75 u6d u62 u65 u72 # "End number"
+l8589934735: u45 u6e u64 u20 u61 u20 u44 u43 u45 u20 u6e u75 u6d u62 u65 u72 u2e # "End a DCE number."
+l8589934736: u45 u6e u64 u4e u75 u6d u62 u65 u72 # "EndNumber"
+l8589934737: u55 u6e u6b u6e u6f u77 u6e u20 u76 u61 u6c u75 u65 # "Unknown value"
+l8589934738: u53 u75 u62 u73 u74 u69 u74 u75 u74 u69 u6f u6e u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u20 u66 u6f u72 u20 u61 u6e u20 u75 u6e u6b u6e u6f u77 u6e u20 u76 u61 u6c u75 u65 u2e # "Substitution character for an unknown value."
+l8589934739: u47 u72 u65 u67 u6f u72 u69 u61 u6e u20 u63 u61 u6c u65 u6e u64 u61 u72 u20 u69 u64 u65 u6e u74 u69 u66 u69 u65 u72 # "Gregorian calendar identifier"
+l8589934740: u49 u6e u74 u65 u72 u6e u61 u6c u20 u44 u43 u45 u20 u63 u61 u6c u65 u6e u64 u61 u72 u20 u69 u64 u65 u6e u74 u69 u66 u69 u65 u72 u20 u66 u6f u72 u20 u74 u68 u65 u20 u47 u72 u65 u67 u6f u72 u69 u61 u6e u20 u63 u61 u6c u65 u6e u64 u61 u72 u2e # "Internal DCE calendar identifier for the Gregorian calendar."
+l8589934741: u50 u6f u73 u69 u74 u69 u76 u65 # "Positive"
+l8589934742: u50 u6f u73 u69 u74 u69 u76 u65 u20 u76 u61 u6c u75 u65 u20 u28 u73 u79 u6e u74 u61 u63 u74 u69 u63 u61 u6c u20 u72 u65 u70 u72 u65 u73 u65 u6e u74 u61 u74 u69 u6f u6e u20 u2014 u20 u54 u68 u69 u73 u20 u69 u73 u20 u6e u6f u74 u20 u74 u68 u65 u20 u2b u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u29 # "Positive value (syntactical representation — This is not the + character)"
+l8589934743: u4e u65 u67 u61 u74 u69 u76 u65 # "Negative"
+l8589934744: u4e u65 u67 u61 u74 u69 u76 u65 u20 u28 u73 u79 u6e u74 u61 u63 u74 u69 u63 u61 u6c u20 u72 u65 u70 u72 u65 u73 u65 u6e u74 u61 u74 u69 u6f u6e u20 u2014 u20 u54 u68 u69 u73 u20 u69 u73 u20 u6e u6f u74 u20 u74 u68 u65 u20 u2212 u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u29 # "Negative (syntactical representation — This is not the − character)"
+l8589934745: u44 u65 u63 u69 u6d u61 u6c u20 u70 u6f u69 u6e u74 # "Decimal point"
+l8589934746: u46 u75 u6c u6c u20 u64 u72 u6f u70 u20 u62 u61 u63 u6b # "Full drop back"
+l8589934747: u44 u72 u6f u70 u20 u62 u61 u63 u6b u20 u74 u6f u20 u74 u68 u65 u20 u63 u6f u72 u65 u20 u73 u68 u65 u65 u74 u20 u28 u6e u6f u20 u6d u65 u61 u6e u69 u6e u67 u20 u69 u6e u20 u45 u44 u46 u29 # "Drop back to the core sheet (no meaning in EDF)"
+l8589934748: u44 u72 u6f u70 u20 u62 u61 u63 u6b # "Drop back"
+l8589934749: u44 u72 u6f u70 u20 u62 u61 u63 u6b u20 u74 u6f u20 u74 u68 u65 u20 u65 u6e u63 u6c u6f u73 u69 u6e u67 u20 u73 u68 u65 u65 u74 u20 u28 u6e u6f u20 u6d u65 u61 u6e u69 u6e u67 u20 u69 u6e u20 u45 u44 u46 u29 # "Drop back to the enclosing sheet (no meaning in EDF)"
+l8589934750: u42 u65 u67 u69 u6e u20 u44 u43 u45 u20 u63 u6f u6e u74 u65 u6e u74 # "Begin DCE content"
+l8589934751: u42 u65 u67 u69 u6e u73 u20 u61 u20 u44 u43 u45 u20 u72 u65 u67 u69 u6f u6e u20 u28 u6e u6f u20 u6d u65 u61 u6e u69 u6e u67 u20 u69 u6e u20 u45 u44 u46 u29 # "Begins a DCE region (no meaning in EDF)"
+l8589934752: u44 u43 u45 u20 u56 u65 u72 u73 u69 u6f u6e u20 u53 u65 u6c u65 u63 u74 u6f u72 u73 # "DCE Version Selectors"
+l8589934753: u4e u6f u20 u6d u61 u70 u70 u69 u6e u67 # "No mapping"
+l8589934754: u50 u72 u6f u63 u65 u73 u73 u69 u6e u67 u20 u75 u73 u65 u20 u6f u6e u6c u79 u20 u28 u6e u6f u74 u20 u66 u6f u72 u20 u69 u6e u74 u65 u72 u63 u68 u61 u6e u67 u65 u29 # "Processing use only (not for interchange)"
+l8589934755: u53 u70 u61 u63 u65 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Space (short Dc)"
+l8589934756: u53 u6f u6d u65 u74 u69 u6d u65 u73 u20 u75 u73 u65 u64 u20 u61 u73 u20 u61 u20 u76 u69 u73 u69 u62 u6c u65 u20 u77 u6f u72 u64 u20 u73 u65 u70 u61 u72 u61 u74 u6f u72 u2c u20 u65 u2e u67 u2e u20 u69 u6e u20 u41 u6e u6f u65 u6a # "Sometimes used as a visible word separator, e.g. in Anoej"
+l8589934757: u45 u78 u63 u6c u61 u6d u61 u74 u69 u6f u6e # "Exclamation"
+l8589934758: u44 u6f u75 u62 u6c u65 u20 u71 u75 u6f u74 u61 u74 u69 u6f u6e u20 u6d u61 u72 u6b # "Double quotation mark"
+l8589934759: u4e u75 u6d u62 u65 u72 u20 u73 u69 u67 u6e u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Number sign (short Dc)"
+l8589934760: u44 u6f u6c u6c u61 u72 # "Dollar"
+l8589934761: u50 u65 u72 u63 u65 u6e u74 # "Percent"
+l8589934762: u41 u6d u70 u65 u72 u73 u61 u6e u64 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Ampersand (short Dc)"
+l8589934763: u41 u70 u6f u73 u74 u72 u6f u70 u68 u65 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Apostrophe (short Dc)"
+l8589934764: u4c u65 u66 u74 u20 u70 u61 u72 u65 u6e u74 u68 u65 u73 u69 u73 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Left parenthesis (short Dc)"
+l8589934765: u52 u69 u67 u68 u74 u20 u70 u61 u72 u65 u6e u74 u68 u65 u73 u69 u73 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Right parenthesis (short Dc)"
+l8589934766: u41 u73 u74 u65 u72 u69 u73 u6b u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Asterisk (short Dc)"
+l8589934767: u50 u6c u75 u73 # "Plus"
+l8589934768: u43 u6f u6d u6d u61 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Comma (short Dc)"
+l8589934769: u48 u79 u70 u68 u65 u6e u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Hyphen (short Dc)"
+l8589934770: u46 u75 u6c u6c u20 u73 u74 u6f u70 u20 u28 u75 u6e u61 u6d u62 u69 u67 u75 u6f u75 u73 u29 # "Full stop (unambiguous)"
+l8589934771: u4e u6f u74 u20 u61 u20 u64 u65 u63 u69 u6d u61 u6c u20 u70 u6f u69 u6e u74 # "Not a decimal point"
+l8589934772: u53 u6f u6c u69 u64 u75 u73 u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Solidus (short Dc)"
+l8589934773: u5a u65 u72 u6f # "Zero"
+l8589934774: u4f u6e u65 # "One"
+l8589934775: u54 u77 u6f # "Two"
+l8589934776: u54 u68 u72 u65 u65 # "Three"
+l8589934777: u46 u6f u75 u72 # "Four"
+l8589934778: u46 u69 u76 u65 # "Five"
+l8589934779: u53 u69 u78 # "Six"
+l8589934780: u53 u65 u76 u65 u6e # "Seven"
+l8589934781: u45 u69 u67 u68 u74 # "Eight"
+l8589934782: u4e u69 u6e u65 # "Nine"
+l8589934783: u43 u6f u6c u6f u6e u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Colon (short Dc)"
+l8589934784: u53 u65 u6d u69 u63 u6f u6c u6f u6e u20 u28 u73 u68 u6f u72 u74 u20 u44 u63 u29 # "Semicolon (short Dc)"
+l8589934785: u4c u65 u73 u73 u20 u74 u68 u61 u6e # "Less than"
+l8589934786: u45 u71 u75 u61 u6c u73 # "Equals"
+l8589934787: u47 u72 u65 u61 u74 u65 u72 u20 u74 u68 u61 u6e # "Greater than"
+l8589934788: u51 u75 u65 u73 u74 u69 u6f u6e # "Question"
+l8589934789: u4c u61 u74 u69 u6e u20 u4c u65 u74 u74 u65 u72 u20 u55 u70 u70 u65 u72 u63 u61 u73 u65 u20 u41 # "Latin Letter Uppercase A"
+l8589934790: u4c u61 u74 u69 u6e u20 u4c u65 u74 u74 u65 u72 u20 u55 u70 u70 u65 u72 u63 u61 u73 u65 u20 u42 # "Latin Letter Uppercase B"
+l8589934791: u4c u61 u74 u69 u6e u20 u4c u65 u74 u74 u65 u72 u20 u55 u70 u70 u65 u72 u63 u61 u73 u65 u20 u43 # "Latin Letter Uppercase C"

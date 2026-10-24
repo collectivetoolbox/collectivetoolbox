@@ -39,7 +39,8 @@ use crate::utilities::*;
 use anyhow::{Result, bail, ensure};
 
 use crate::global_graph_layout::{
-    UNICODE_REGION_END, dc_to_gid, format_to_gid,
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
+    SHORT_DC_REGION_START, UNICODE_REGION_END, dc_to_gid, format_to_gid,
 };
 
 /// Maximum valid short Dc ID.
@@ -170,6 +171,25 @@ impl DcShorthand {
                 "Local graph ID shorthand 'L{val}' cannot be converted to a single global Dc ID (equivalent to short Dc 296 followed by a Dc number)"
             ),
         }
+    }
+
+    /// Converts a 128-bit Global Graph ID into its canonical `DcShorthand`.
+    #[must_use]
+    pub fn from_global_id(gid: u128) -> Self {
+        if gid <= UNICODE_REGION_END {
+            if let Ok(cp) = u32::try_from(gid) {
+                return Self::Unicode(cp);
+            }
+        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
+            if let Ok(short) = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START)) {
+                return Self::Short(short);
+            }
+        } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
+            if let Ok(fmt) = usize::try_from(gid.saturating_sub(FORMAT_REGION_START)) {
+                return Self::Format(fmt);
+            }
+        }
+        Self::Long(gid)
     }
 
     /// Formats the shorthand as its canonical string representation.

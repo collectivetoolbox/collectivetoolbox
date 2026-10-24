@@ -43,6 +43,7 @@ pub mod dc_number_minimal;
 pub mod format_spec;
 pub mod syntax;
 pub mod dcts;
+pub mod graph_ledger;
 pub mod updater;
 pub mod validation;
 

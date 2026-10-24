@@ -22,3 +22,4 @@ statement,:([value] | 269:),One expression in statement position: a value expres
 value,:([string] | [number] | [boolean] | [data] | [date] | [duration] | [datemagnitude] | [list] | [key_value] | 511: | 276: | 540: | 279:),One value expression: a literal (string number boolean data date duration datemagnitude format representation) a compound sequence (list key_value) or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
 boolean,:(517 | 518),
 typed_data,:203 [type:$type] [number $length]? [checksum]? ([127..190] | 195)* 204,
+atom_dc,:([^255 616] | (255 (255 | 616)) | 616:),Defaults to a literal reference to a single Dc token without evaluating its syntax rule; 255 255 is literal Dc 255 and 255 616 is literal Dc 616; unescaped Dc 616 evaluates a [value] expression in place of itself.
