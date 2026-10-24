@@ -8,8 +8,8 @@ assuming the current code still has the reported fault.
 ## Topical Backlogs
 
 - - Improve unicode display (character names!) in ctbnodes
-
-
+- Please make it output the .ctbnbdl into assets/data/graph/bundled as a single file.
+Next, please consider a way to improve the unicode display to use either inline text (for printable-ASCII strings) or character names (for other Unicode characters) rather than hexadecimal in .ctbnode files: # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+005F, U+0061, U+0072, U+0063, U+0068, U+0069, U+0076, U+0065, FULL STOP, U+0074, U+006F, U+0072, U+0072, U+0065, U+006E, U+0074
 - [CSC and archives](csc.md): preservation, streams, recovery, file API policy,
   native-platform qualification, and metadata privacy.
 - [Dc parser](dc-parser.md): syntax validation, semantic roles, projection,
