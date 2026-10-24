@@ -2083,28 +2083,11 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
                 SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "atom_dc".to_string(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(618), CharTarget::Dc(255)] }, quantifier: Quantifier::ExactOne },
-                    ]),
-                    SyntaxPattern::Sequence(vec![
-                        SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
-                            SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                            SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Alternation(vec![
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(255)), quantifier: Quantifier::ExactOne },
-                                ]),
-                                SyntaxPattern::Sequence(vec![
-                                    SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(618)), quantifier: Quantifier::ExactOne },
-                                ]),
-                            ])), quantifier: Quantifier::ExactOne },
-                        ])), quantifier: Quantifier::ExactOne },
-                    ]),
-                ])), quantifier: Quantifier::ZeroOrMore },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(618)] }, quantifier: Quantifier::ZeroOrMore },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(618)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ [atom_dc] ([^618 255] | (255 (255 | 618)))* 618".to_string(),
+            raw: ":~ [atom_dc] [^618]* 618".to_string(),
         },
     );
     resolver.rules.insert(
@@ -4679,6 +4662,6 @@ fn populate_semantic_equivalents(resolver: &mut DatasetRuleResolver) {
 fn populate_opaque_containers(resolver: &mut DatasetRuleResolver) {
     resolver.opaque_containers.extend([
         1_114_118_u128, 1_114_312_u128, 1_114_315_u128, 1_114_358_u128, 1_114_361_u128, 1_114_372_u128, 1_114_374_u128, 1_114_382_u128,
-        1_114_410_u128, 1_114_729_u128,
+        1_114_410_u128,
     ]);
 }

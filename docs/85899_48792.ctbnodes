@@ -69,3 +69,6 @@ l8589948859: 599 298 605 l8589934697 299 298 298 602 298 298 604 618 255 299 299
 l8589948860: 584 617 594 # Has a (Begin graph node definition, Syntax rule)
 l8589948861: 610 l8589948860 l8589948859 # Has value (l8589948860, 617 :~ [atom_dc] ([^618 255] | (255 (255 | 618)))* 618)
 l8589948862: 590 618 617 # Is a closing delimiter of syntactic block for (End graph node definition, Begin graph node definition)
+l8589948863: 599 298 605 l8589934697 299 298 604 618 299 298 603 4 l8589934942 299 618 # Self reference, Begin associativity group, Subpattern match, Named syntax construct atom_dc, End associativity group, Begin associativity group, Negated pattern, End graph node definition, End associativity group, Begin associativity group, Pattern repetition, Range, 0, End associativity group, End graph node definition
+l8589948864: 610 l8589948860 l8589948863 # Has value (l8589948860, 617 :~ [atom_dc] [^618]* 618)
+l8589948865: 591 l8589948864 l8589948861 # Supersedes (l8589948864, l8589948861)
