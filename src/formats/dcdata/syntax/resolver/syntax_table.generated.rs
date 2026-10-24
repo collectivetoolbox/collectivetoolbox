@@ -3113,7 +3113,7 @@ fn populate_scripts(resolver: &mut DatasetRuleResolver) {
         ".Semantic:Relationship".to_string(),
         HashSet::from([
             1_114_696_u128, 1_114_697_u128, 1_114_698_u128, 1_114_699_u128, 1_114_700_u128, 1_114_701_u128, 1_114_702_u128, 1_114_703_u128,
-            1_114_704_u128, 1_114_710_u128,
+            1_114_704_u128, 1_114_710_u128, 1_114_722_u128,
         ]),
     );
     resolver.script_chars.insert(

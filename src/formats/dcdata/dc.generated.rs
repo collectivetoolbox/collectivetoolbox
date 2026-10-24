@@ -316,6 +316,8 @@ pub const DC_PATTERN_REPLACEMENT: DcChar = DcChar::from_short(607);
 pub const DC_DC_GENERAL_CATEGORY: DcChar = DcChar::from_short(608);
 /// The Unicode Script classification of a character. (Dc 609).
 pub const DC_UNICODE_SCRIPT: DcChar = DcChar::from_short(609);
+/// Asserts that the subject property, attribute statement, or parameter has the specified value. (Dc 610).
+pub const DC_HAS_VALUE: DcChar = DcChar::from_short(610);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

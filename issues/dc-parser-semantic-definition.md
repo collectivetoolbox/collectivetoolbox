@@ -4,11 +4,11 @@
 
 ### A. Strings, Binary Data, and Values as Distinct Graph Nodes
 Strings, binary data, and primitive values are emitted as their own distinct graph nodes in the System block (`8589934592..=12884901887`), which other statements then reference by node ID (as illustrated in [file-info.md](file:///workspaces/ctoolbox/docs/file-info.md#L232-L251)):
-- A statement assigning a property value to an entity uses two 3-token triples (`Dc 584` `Has a` followed by `Dc 585` `` referencing the `Has a` statement node and the value node):
+- A statement assigning a property value to an entity uses two 3-token triples (`Dc 584` `Has a` followed by `Has value` referencing the `Has a` statement node and the value node):
   ```text
   l8589934592: 260 262 264 263 u41 u73 ... 261 # "Assignment operator"
   l8589934593: 584 269 572                     # Has a (Assignment operator, Canonical name)
-  l8589934594: 585 l8589934593 l8589934592     #  (l8589934593, "Assignment operator")
+  l8589934594: <HasValue> l8589934593 l8589934592 # Has value (l8589934593, "Assignment operator")
   ```
 - Because `l8589934592` is a first-class graph node distinct from the semantic entity `269`, statements about the string itself (such as lexical breakdown or word meanings: `l8589934592` $\to$ `"assignment (sense 1, noun)"`, `"operator (sense 1, noun)"`) can be attached directly to the string node without conflating the English phrase with the semantic concept `269`.
 - Furthermore, because `l8589934593` reifies the specific property possession (`269`'s `Canonical name`), qualifiers (such as `570` `Preferred` on a `569` `Replacement`) or future revisions (`591` `Supersedes`) can attach directly to `l8589934593` or `l8589934594` while keeping every statement a uniform 3-token triple (`<verb> <subject> <object>`).
@@ -18,13 +18,13 @@ When compiling the CSV database into graph statements:
 - **Enum-like classifications become semantic entity nodes**: Values that would be enum variants in Rust—such as Dc scripts (`README.scripts.csv`, e.g., `.Symbols`), Unicode scripts, Unicode and Dc General Categories (`!Cx`, `Po`, `Ll`, etc.), Unicode Bidirectional Classes (`BN`, `L`, `R`, etc.), named syntax construct categories (`README-named-types.csv`), and decomposition tags (`README-decompositions.csv`)—are generated as their own semantic entity nodes, distinct from the string nodes holding their names:
   1. `<node:str_symbols>` = `".Symbols"` (string literal node)
   2. `<node:script_symbols>` $\to$ `Is an instance of` (`586`) $\to$ `Dc Script` (`596`)
-  3. `<node:has_name>` = `Has a` (`584`) `<node:script_symbols>` `Canonical name` (`572`), and `` (`585`) `<node:has_name>` `<node:str_symbols>`
-  4. `<node:has_script>` = `Has a` (`584`) `21` (`Number sign`) `Dc Script` (`596`), and `` (`585`) `<node:has_script>` `<node:script_symbols>`
-- **Simple text properties link directly to string nodes**: Properties such as `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, and `Annotation` do not introduce an intermediate semantic entity node; their `` (`585`) statement links directly to the underlying string literal node.
+  3. `<node:has_name>` = `Has a` (`584`) `<node:script_symbols>` `Canonical name` (`572`), and `Has value` `<node:has_name>` `<node:str_symbols>`
+  4. `<node:has_script>` = `Has a` (`584`) `21` (`Number sign`) `Dc Script` (`596`), and `Has value` `<node:has_script>` `<node:script_symbols>`
+- **Simple text properties link directly to string nodes**: Properties such as `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, and `Annotation` do not introduce an intermediate semantic entity node; their `Has value` statement links directly to the underlying string literal node.
 
 ### C. Verb + Noun Decomposition of Relationships and Attributes
 Rather than proliferating monolithic predicate Dcs that bake a verb and a specific attribute noun together (such as `"Has preferred replacement"` or `"Has Apple Uniform Type Identifier"`), statements are composed from:
-1. **A small set of `.Semantic:Relationship` verbs** using clear directional phrasing (`Has a`, ``, `Is an instance of`, `Is a subtype of`, `Is based on`, `Is deprecated`, `Is associated with`, `Is a closing delimiter of syntactic block for`, `Supersedes`, `Retracts`).
+1. **A small set of `.Semantic:Relationship` verbs** using clear directional phrasing (`Has a`, `Has value`, `Is equal to`, `Is an instance of`, `Is a subtype of`, `Is based on`, `Is deprecated`, `Is associated with`, `Is a closing delimiter of syntactic block for`, `Supersedes`, `Retracts`).
 2. **`.Semantic` and `.Formats:identifier` nouns** (`Replacement`, `Preferred`, `Decomposition`, `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, `Formal alias`, `Annotation`, `Magic signature`, `Unicode canonical combining class`, `Unicode bidirectional class`, `Case mapping partner`, `Unicode general category`, `Dc general category`, `Unicode script`, `Dc Script`, `Cross-reference`, `Syntax rule`, `Data format or type description`, `Operating system`, plus format nouns `f264` `File extension`, `MediaType`, `UniformTypeIdentifier`, `AppleOsType`).
 3. **Composable compound relationships**: A compound concept can either be expressed directly in statements or defined via `Decomposition` (e.g., decomposing a preferred replacement relationship into `Has a` + `Preferred` + `Replacement`).
 
@@ -80,7 +80,7 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 
 ### B. `.Semantic:Relationship` Verbs (`src/formats/dcdata/data/categories/semantic.csv`)
 - `Dc 584` (`1114696`): `Has a` (`@ident("HasA")`)
-- `Dc 585` (`1114697`): `` (`@ident("")`)
+- `Dc 585` (`1114697`): `Is equal to` (`@ident("IsEqualTo")`)
 - `Dc 586` (`1114698`): `Is an instance of` (`@ident("IsInstanceOf")`)
 - `Dc 587` (`1114699`): `Is a subtype of` (`@ident("IsSubtypeOf")`)
 - `Dc 588` (`1114700`): `Is based on` (`@ident("IsBasedOn")`)
@@ -89,6 +89,7 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 - `Dc 591` (`1114703`): `Supersedes` (`@ident("Supersedes")`)
 - `Dc 592` (`1114704`): `Retracts` (`@ident("Retracts")`)
 - `Dc 598` (`1114710`): `Is associated with` (`@ident("IsAssociatedWith")`)
+- `Has value` (`@ident("HasValue")` — pending ID assignment)
 
 ### C. `.Semantic:Pattern` Pattern-Matching Primitives (`src/formats/dcdata/data/categories/semantic.csv`)
 - `Dc 599` (`1114711`): `Self reference` (`@ident("SelfReference")`)

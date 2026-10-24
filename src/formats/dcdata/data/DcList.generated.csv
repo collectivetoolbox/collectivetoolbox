@@ -616,3 +616,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114719,607,Pattern replacement,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternReplacement"")",Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings.,,,,,,,,,
 1114720,608,Dc general category,0,BN,,!Cx,.Semantic,"@ident(""DcGeneralCategory"")","General category as in Unicode, extended for Dc",,,,,,,,,
 1114721,609,Unicode script,0,BN,,!Cx,.Semantic,"@ident(""UnicodeScript"")",The Unicode Script classification of a character.,,,,,,,,,
+1114722,610,Has value,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasValue"")","Asserts that the subject property, attribute statement, or parameter has the specified value.",,,,,,,,,
