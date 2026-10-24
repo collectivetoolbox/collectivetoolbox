@@ -17,6 +17,8 @@ Script
 .Noncharacters
 .Punctuation
 .Semantic
+.Semantic:Relationship
+.Semantic:Syntax
 .Semantic:fileflag
 .Styling
 .Symbols

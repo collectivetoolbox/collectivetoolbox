@@ -43,3 +43,6 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228830,606,UuidOid,UUID (OID 2.25 arc format),identifier,@implies(f600 & f14),,,,,,,,,,,
 2228831,607,IpV4String,IPv4 address string,identifier,@implies(f490 & f14),,,,,,,,,,,
 2228832,608,IpV6String,IPv6 address string,identifier,@implies(f491 & f14),,,,,,,,,,,
+,,MediaType,Media type identifier,identifier,@implies(f14),,,,,,,,,,IANA MIME media type identifier string (RFC 6838).,
+,,UniformTypeIdentifier,Uniform Type Identifier,identifier,"@implies(f14), @os(f405)",,,,,,,,,,Apple Uniform Type Identifier (UTI) string.,
+,,AppleOsType,Apple OSType code,identifier,@os(f405),,,,,,,,,,Classic Mac OS four-character OSType code.,

@@ -246,3 +246,38 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114674,562,Mac OS extended Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]* 389),Extended Mac OS Finder flags (FXInfo fdXFlags / DXInfo frXFlags).
 1114675,563,File data format,0,BN,,!Cx,.Semantic,:~ [format],Data format of the file identified by the enclosing descriptor.
 1114676,564,Archive member position,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Zero-based position of a member within the archive identified by the enclosing origin descriptor.
+,,Type,0,BN,,!Cx,.Semantic,"@ident(""EntityType""), @roleDef(""TypeToken"")",Ontological root concept representing a type class or category of entities.
+,,Relationship type,0,BN,,!Cx,.Semantic,"@ident(""RelationshipType""), @roleDef(""TypeToken"")",Ontological concept representing a directed relationship or predicate type.
+,,Relationship,0,BN,,!Cx,.Semantic,"@ident(""Relationship""), @roleDef(""TypeToken"")",Ontological concept representing a reified relationship or statement instance.
+,,Entity,0,BN,,!Cx,.Semantic,"@ident(""Entity""), @roleDef(""TypeToken"")",Ontological concept representing an individual thing or entity.
+,,Replacement,0,BN,,!Cx,.Semantic,"@ident(""Replacement"")",A thing that replaces or supersedes another thing.
+,,Preferred,0,BN,,!Cx,.Semantic,"@ident(""Preferred"")",Qualifier indicating that an option or representation is preferred over alternatives.
+,,Decomposition,0,BN,,!Cx,.Semantic,"@ident(""Decomposition"")",A sequence of simpler or constituent elements into which something decomposes.
+,,Canonical name,0,BN,,!Cx,.Semantic,"@ident(""CanonicalName"")",The authoritative human-readable name of something.
+,,Description,0,BN,,!Cx,.Semantic,"@ident(""Description"")",A human-readable explanation of the meaning or purpose of something.
+,,Programmatic identifier,0,BN,,!Cx,.Semantic,"@ident(""ProgrammaticIdentifier"")",An identifier string used to reference something in source code.
+,,Nickname,0,BN,,!Cx,.Semantic,"@ident(""Nickname"")",A short informal name or command-line alias for something.
+,,Informal alias,0,BN,,!Cx,.Semantic,"@ident(""InformalAlias"")",An alternative informal name or synonym for something.
+,,Formal alias,0,BN,,!Cx,.Semantic,"@ident(""FormalAlias"")",A normative formal name alias for a character.
+,,Annotation,0,BN,,!Cx,.Semantic,"@ident(""Annotation"")",An explanatory note or usage commentary attached to something.
+,,Magic signature,0,BN,,!Cx,.Semantic,"@ident(""MagicSignature"")",A signature description or pattern used to identify a data format.
+,,Unicode canonical combining class,0,BN,,!Cx,.Semantic,"@ident(""CanonicalCombiningClass"")",The Unicode Canonical Combining Class value of a character.
+,,Unicode bidirectional class,0,BN,,!Cx,.Semantic,"@ident(""BidirectionalClass"")",The Unicode Bidirectional Class code of a character.
+,,Case mapping partner,0,BN,,!Cx,.Semantic,"@ident(""CaseMappingPartner"")",The casing partner character of a character.
+,,Unicode general category,0,BN,,!Cx,.Semantic,"@ident(""CharacterGeneralCategory"")",The General Category classification of a character.
+,,Has a,0,BN,,!Cx,.Semantic:Relationship,"@ident(""HasA"")",Asserts that the subject possesses the specified attribute component or property noun.
+,,Is equal to,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsEqualTo"")",Asserts that a property attribute or expression has the specified value.
+,,Is an instance of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsInstanceOf"")",Asserts that the subject is an instance of the object type.
+,,Is a subtype of,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsSubtypeOf"")",Asserts that the subject type or format is a subtype of or logically entails the object type or format.
+,,Is based on,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsBasedOn"")",Asserts that the subject is derived from or historically based on the object.
+,,Is deprecated,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsDeprecated"")",Asserts whether the subject is deprecated.
+,,Is a closing delimiter of syntactic block for,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsClosingDelimiterFor"")",Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character.
+,,Supersedes,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Supersedes"")",Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node.
+,,Retracts,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Retracts"")",Asserts that the subject statement node withdraws and retracts the object statement node.
+,,Cross-reference,,,,,,,
+,,Syntax rule,,,,,,,
+,,Data format or type description,,,,,,,
+,,Script,,,,,,,
+,,Category,,,,,,,
+,,Operating system,,,,,,,
+,,Is associated with,,,,,,,
