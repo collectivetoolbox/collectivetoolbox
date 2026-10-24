@@ -893,15 +893,30 @@ mod tests {
             data.join("README-named-types.csv"),
         )?;
 
-        // Blank out the Dc and Short columns on the last row of semantic.csv and identifier.csv
-        for relative in ["categories/semantic.csv", "categories/formats/identifier.csv"] {
-            let path = data.join(relative);
-            let (header, mut rows) = crate::updater::read_csv_file(&path)?;
-            let last = rows.last_mut().context("Expected non-empty CSV")?;
-            last[0].clear();
-            last[1].clear();
-            crate::updater::write_csv_file(&path, &header, &rows)?;
-        }
+        // Append a new unassigned row (blank Dc and Short columns) to both a Dc
+        // category CSV and a format category CSV.
+        let dc_path = data.join("categories/semantic.csv");
+        let (dc_header, mut dc_rows) = crate::updater::read_csv_file(&dc_path)?;
+        let mut new_dc_row = vec![String::new(); dc_header.len()];
+        new_dc_row[2] = "Unassigned test semantic item".to_string();
+        new_dc_row[3] = "0".to_string();
+        new_dc_row[4] = "BN".to_string();
+        new_dc_row[6] = "!Cx".to_string();
+        new_dc_row[7] = ".Semantic".to_string();
+        new_dc_row[8] = "@ident(\"UnassignedTestSemanticItem\")".to_string();
+        new_dc_row[9] = "Temporary unassigned Dc row for codegen test.".to_string();
+        dc_rows.push(new_dc_row);
+        crate::updater::write_csv_file(&dc_path, &dc_header, &dc_rows)?;
+
+        let fmt_path = data.join("categories/formats/identifier.csv");
+        let (fmt_header, mut fmt_rows) = crate::updater::read_csv_file(&fmt_path)?;
+        let mut new_fmt_row = vec![String::new(); fmt_header.len()];
+        new_fmt_row[2] = "UnassignedTestFormat".to_string();
+        new_fmt_row[3] = "Unassigned test format".to_string();
+        new_fmt_row[4] = "identifier".to_string();
+        new_fmt_row[15] = "Temporary unassigned format row for codegen test.".to_string();
+        fmt_rows.push(new_fmt_row);
+        crate::updater::write_csv_file(&fmt_path, &fmt_header, &fmt_rows)?;
 
         let output = temp.path().join(
             "src/formats/dcdata/syntax/resolver/syntax_table.generated.rs",
