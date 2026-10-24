@@ -83,12 +83,6 @@ pub enum FormatCategory {
 pub enum FormatId {
     /// UTF-8 (Short 0, Category: encoding)
     Utf8,
-    /// Media type identifier (Short 0, Category: identifier)
-    MediaType,
-    /// Uniform Type Identifier (Short 0, Category: identifier)
-    UniformTypeIdentifier,
-    /// Apple OSType code (Short 0, Category: identifier)
-    AppleOsType,
     /// Internal: Short Dc Array (Short 1, Category: semantic)
     DcArray,
     /// Dc Integer List (short Dcs) (Short 2, Category: document)
@@ -1359,6 +1353,12 @@ pub enum FormatId {
     CscArchive1,
     /// Dc shorthand ASCII list (Short 635, Category: document)
     Dcsh,
+    /// Media type identifier (Short 636, Category: identifier)
+    MediaType,
+    /// Uniform Type Identifier (Short 637, Category: identifier)
+    UniformTypeIdentifier,
+    /// Apple OSType code (Short 638, Category: identifier)
+    AppleOsType,
 }
 
 impl FormatId {
@@ -1744,10 +1744,7 @@ impl FormatId {
             | Self::Fnv1a_256
             | Self::Fnv1a_512
             | Self::Fnv1a_1024 => FormatCategory::Hash,
-            Self::MediaType
-            | Self::UniformTypeIdentifier
-            | Self::AppleOsType
-            | Self::IpAddr
+            Self::IpAddr
             | Self::Uri
             | Self::FileName
             | Self::FilePath
@@ -1774,7 +1771,10 @@ impl FormatId {
             | Self::UuidApollo
             | Self::UuidOid
             | Self::IpV4String
-            | Self::IpV6String => FormatCategory::Identifier,
+            | Self::IpV6String
+            | Self::MediaType
+            | Self::UniformTypeIdentifier
+            | Self::AppleOsType => FormatCategory::Identifier,
             Self::Linux
             | Self::BsdKernel
             | Self::Mach
@@ -2015,9 +2015,6 @@ impl FormatId {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
             "utf8" | "utf-8" | "txt" => Some(Self::Utf8),
-            "mediatype" | "media_type" => Some(Self::MediaType),
-            "uniformtypeidentifier" | "uniform_type_identifier" => Some(Self::UniformTypeIdentifier),
-            "appleostype" | "apple_os_type" => Some(Self::AppleOsType),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
             "asciisafesubset" | "ascii_safe_subset" => Some(Self::AsciiSafeSubset),
@@ -2653,6 +2650,9 @@ impl FormatId {
             "cscarchive" | "csc_archive" => Some(Self::CscArchive),
             "cscarchive1" | "csc_archive1" => Some(Self::CscArchive1),
             "dcsh" => Some(Self::Dcsh),
+            "mediatype" | "media_type" => Some(Self::MediaType),
+            "uniformtypeidentifier" | "uniform_type_identifier" => Some(Self::UniformTypeIdentifier),
+            "appleostype" | "apple_os_type" => Some(Self::AppleOsType),
             _ => None,
         }
     }
@@ -2662,9 +2662,6 @@ impl FormatId {
     pub const fn ident(&self) -> &'static str {
         match self {
             Self::Utf8 => "Utf8",
-            Self::MediaType => "MediaType",
-            Self::UniformTypeIdentifier => "UniformTypeIdentifier",
-            Self::AppleOsType => "AppleOsType",
             Self::DcArray => "DcArray",
             Self::DcIntegerList => "DcIntegerList",
             Self::AsciiSafeSubset => "AsciiSafeSubset",
@@ -3300,6 +3297,9 @@ impl FormatId {
             Self::CscArchive => "CscArchive",
             Self::CscArchive1 => "CscArchive1",
             Self::Dcsh => "Dcsh",
+            Self::MediaType => "MediaType",
+            Self::UniformTypeIdentifier => "UniformTypeIdentifier",
+            Self::AppleOsType => "AppleOsType",
         }
     }
 
@@ -3335,11 +3335,7 @@ impl FormatId {
     #[must_use]
     pub const fn implies(&self) -> &'static [Self] {
         match self {
-            Self::Utf8 => &[Self::Text],
-            Self::MediaType => &[Self::Text],
-            Self::UniformTypeIdentifier => &[Self::Text],
-            Self::AppleOsType => &[Self::Text],
-            Self::Ascii => &[Self::AppleOsType],
+            Self::Ascii => &[Self::Utf8],
             Self::Vt100 => &[Self::Videoterminal],
             Self::Lang_En_Us => &[Self::Lang_En],
             Self::Lang_En_Gb => &[Self::Lang_En],
@@ -3392,7 +3388,7 @@ impl FormatId {
             Self::FreeBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::OpenBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::NetBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
-            Self::CscDesc => &[Self::AppleOsType],
+            Self::CscDesc => &[Self::Utf8],
             Self::DragonFlyBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::Fnv0 => &[Self::FowlerNollVo],
             Self::Fnv1 => &[Self::FowlerNollVo],
@@ -3490,6 +3486,8 @@ impl FormatId {
             Self::CscJournal1Meta3 => &[Self::CscJournal],
             Self::CscJournal4 => &[Self::CscJournal],
             Self::CscArchive1 => &[Self::CscArchive],
+            Self::MediaType => &[Self::Text],
+            Self::UniformTypeIdentifier => &[Self::Text],
             _ => &[],
         }
     }
@@ -3499,9 +3497,6 @@ impl FormatId {
     pub const fn shorthand(&self) -> &'static str {
         match self {
             Self::Utf8 => "f0",
-            Self::MediaType => "f0",
-            Self::UniformTypeIdentifier => "f0",
-            Self::AppleOsType => "f0",
             Self::DcArray => "f1",
             Self::DcIntegerList => "f2",
             Self::AsciiSafeSubset => "f3",
@@ -4137,6 +4132,9 @@ impl FormatId {
             Self::CscArchive => "f633",
             Self::CscArchive1 => "f634",
             Self::Dcsh => "f635",
+            Self::MediaType => "f636",
+            Self::UniformTypeIdentifier => "f637",
+            Self::AppleOsType => "f638",
         }
     }
 
@@ -4146,9 +4144,6 @@ impl FormatId {
         let trimmed = shorthand.trim();
         match trimmed {
             "f0" => Some(Self::Utf8),
-            "f0" => Some(Self::MediaType),
-            "f0" => Some(Self::UniformTypeIdentifier),
-            "f0" => Some(Self::AppleOsType),
             "f1" => Some(Self::DcArray),
             "f2" => Some(Self::DcIntegerList),
             "f3" => Some(Self::AsciiSafeSubset),
@@ -4784,6 +4779,9 @@ impl FormatId {
             "f633" => Some(Self::CscArchive),
             "f634" => Some(Self::CscArchive1),
             "f635" => Some(Self::Dcsh),
+            "f636" => Some(Self::MediaType),
+            "f637" => Some(Self::UniformTypeIdentifier),
+            "f638" => Some(Self::AppleOsType),
             _ => None,
         }
     }
@@ -4793,9 +4791,6 @@ impl FormatId {
     pub const fn dc_id(&self) -> Option<u128> {
         match self {
             Self::Utf8 => Some(2228224_u128),
-            Self::MediaType => Some(2228224_u128),
-            Self::UniformTypeIdentifier => Some(2228224_u128),
-            Self::AppleOsType => Some(2228224_u128),
             Self::DcArray => Some(2228225_u128),
             Self::DcIntegerList => Some(2228226_u128),
             Self::AsciiSafeSubset => Some(2228227_u128),
@@ -5431,6 +5426,9 @@ impl FormatId {
             Self::CscArchive => Some(2228857_u128),
             Self::CscArchive1 => Some(2228858_u128),
             Self::Dcsh => Some(2228859_u128),
+            Self::MediaType => Some(2228860_u128),
+            Self::UniformTypeIdentifier => Some(2228861_u128),
+            Self::AppleOsType => Some(2228862_u128),
         }
     }
 
@@ -5452,9 +5450,6 @@ impl FormatId {
     pub const fn from_dc_id(id: u128) -> Option<Self> {
         match id {
             2228224_u128 => Some(Self::Utf8),
-            2228224_u128 => Some(Self::MediaType),
-            2228224_u128 => Some(Self::UniformTypeIdentifier),
-            2228224_u128 => Some(Self::AppleOsType),
             2228225_u128 => Some(Self::DcArray),
             2228226_u128 => Some(Self::DcIntegerList),
             2228227_u128 => Some(Self::AsciiSafeSubset),
@@ -6090,6 +6085,9 @@ impl FormatId {
             2228857_u128 => Some(Self::CscArchive),
             2228858_u128 => Some(Self::CscArchive1),
             2228859_u128 => Some(Self::Dcsh),
+            2228860_u128 => Some(Self::MediaType),
+            2228861_u128 => Some(Self::UniformTypeIdentifier),
+            2228862_u128 => Some(Self::AppleOsType),
             _ => None,
         }
     }
@@ -6097,12 +6095,6 @@ impl FormatId {
 
 /// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
 pub const DC_UTF8: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `MediaType` (Short f0, Category: identifier): Media type identifier
-pub const DC_MEDIA_TYPE: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `UniformTypeIdentifier` (Short f0, Category: identifier): Uniform Type Identifier
-pub const DC_UNIFORM_TYPE_IDENTIFIER: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `AppleOsType` (Short f0, Category: identifier): Apple OSType code
-pub const DC_APPLE_OS_TYPE: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array
 pub const DC_DC_ARRAY: DcChar = DcChar::from_format(1);
 /// DcChar constant for Format `DcIntegerList` (Short f2, Category: document): Dc Integer List (short Dcs)
@@ -7373,3 +7365,9 @@ pub const DC_CSC_ARCHIVE: DcChar = DcChar::from_format(633);
 pub const DC_CSC_ARCHIVE1: DcChar = DcChar::from_format(634);
 /// DcChar constant for Format `Dcsh` (Short f635, Category: document): Dc shorthand ASCII list
 pub const DC_DCSH: DcChar = DcChar::from_format(635);
+/// DcChar constant for Format `MediaType` (Short f636, Category: identifier): Media type identifier
+pub const DC_MEDIA_TYPE: DcChar = DcChar::from_format(636);
+/// DcChar constant for Format `UniformTypeIdentifier` (Short f637, Category: identifier): Uniform Type Identifier
+pub const DC_UNIFORM_TYPE_IDENTIFIER: DcChar = DcChar::from_format(637);
+/// DcChar constant for Format `AppleOsType` (Short f638, Category: identifier): Apple OSType code
+pub const DC_APPLE_OS_TYPE: DcChar = DcChar::from_format(638);

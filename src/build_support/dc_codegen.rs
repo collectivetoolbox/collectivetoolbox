@@ -25,8 +25,8 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::Path;
 
-use crate::find_repository_root_from;
 use crate::license_consts::DEFAULT_AGPL_HEADER;
+use crate::{find_repository_root_from, is_unassigned_id};
 
 fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     if path.is_file() {
@@ -98,6 +98,100 @@ fn extract_composite_role_defs(s: &str) -> Vec<String> {
     roles
 }
 
+struct ParsedDcCategoryRow {
+    short_id: u32,
+    name: String,
+    script: String,
+    aliases: String,
+    description: String,
+}
+
+/// Reads all non-Unicode Dc category CSV rows across `categories_dir`, assigning
+/// `max_short_id + 1` in-memory to any row whose Short ID column is unassigned.
+fn read_dc_category_rows(categories_dir: &Path) -> Result<Vec<ParsedDcCategoryRow>> {
+    let mut parsed_rows = Vec::new();
+    if !categories_dir.is_dir() {
+        return Ok(parsed_rows);
+    }
+
+    let mut csv_paths = Vec::new();
+    for entry in fs::read_dir(categories_dir)? {
+        let path = entry?.path();
+        if path.is_file() {
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if file_name.ends_with(".csv")
+                && file_name != "schema.csv"
+                && !file_name.ends_with(".generated.csv")
+                && file_name != "unicode-clarifications.csv"
+            {
+                csv_paths.push(path);
+            }
+        }
+    }
+    csv_paths.sort();
+
+    // Pass 1: Find maximum assigned short ID across all Dc category files
+    let mut max_short_id = 0u32;
+    let mut files_records = Vec::new();
+    for path in csv_paths {
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .flexible(true)
+            .from_path(&path)
+            .with_context(|| format!("Failed to open CSV file {}", path.display()))?;
+        let mut records = Vec::new();
+        for result in rdr.records() {
+            let record = result.with_context(|| {
+                format!("Failed to read record in {}", path.display())
+            })?;
+            if record.iter().all(|c| c.trim().is_empty()) {
+                continue;
+            }
+            let dc_str = record.get(0).unwrap_or("").trim();
+            if dc_str.starts_with('u') || dc_str.starts_with('U') {
+                continue;
+            }
+            if let Ok(s_id) = record.get(1).unwrap_or("").trim().parse::<u32>() {
+                if s_id > max_short_id {
+                    max_short_id = s_id;
+                }
+            }
+            records.push(record);
+        }
+        files_records.push(records);
+    }
+
+    // Pass 2: Extract rows, assigning max_short_id + 1 in-memory to unassigned rows
+    for records in files_records {
+        for record in records {
+            let get = |idx: usize| -> String {
+                record.get(idx).unwrap_or("").trim().to_string()
+            };
+            let short_raw = get(1);
+            let short_id = if let Ok(s_id) = short_raw.parse::<u32>() {
+                s_id
+            } else if is_unassigned_id(&short_raw) {
+                let next_id = max_short_id.saturating_add(1);
+                max_short_id = next_id;
+                next_id
+            } else {
+                continue;
+            };
+            parsed_rows.push(ParsedDcCategoryRow {
+                short_id,
+                name: get(2).trim_start_matches('!').trim().to_string(),
+                script: get(7),
+                aliases: get(8),
+                description: get(9),
+            });
+        }
+    }
+
+    Ok(parsed_rows)
+}
+
 /// Generates the contents of `dc.generated.rs` from category CSV files.
 ///
 /// # Errors
@@ -113,62 +207,19 @@ pub fn generate_dc_code(categories_dir: &Path) -> Result<String> {
     let mut records: Vec<DcRowData> = Vec::new();
     let mut seen_idents = HashSet::new();
 
-    if categories_dir.is_dir() {
-        let mut entries = Vec::new();
-        for entry in fs::read_dir(categories_dir)? {
-            entries.push(entry?);
+    for row in read_dc_category_rows(categories_dir)? {
+        let Some(ident) = extract_ident_annotation(&row.aliases) else {
+            continue;
+        };
+        if !seen_idents.insert(ident.clone()) {
+            continue;
         }
-        entries.sort_by_key(|e| e.file_name());
-
-        for entry in entries {
-            let path = entry.path();
-            if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                    continue;
-                };
-                if file_name.ends_with(".csv")
-                    && file_name != "schema.csv"
-                    && !file_name.ends_with(".generated.csv")
-                {
-                    let mut rdr = csv::ReaderBuilder::new()
-                        .has_headers(true)
-                        .flexible(true)
-                        .from_path(&path)
-                        .with_context(|| {
-                            format!("Failed to open CSV file {}", path.display())
-                        })?;
-
-                    for result in rdr.records() {
-                        let record = result.with_context(|| {
-                            format!("Failed to read record in {}", path.display())
-                        })?;
-                        let get = |idx: usize| -> String {
-                            record.get(idx).unwrap_or("").trim().to_string()
-                        };
-                        let Ok(short_id) = get(1).parse::<u32>() else {
-                            continue;
-                        };
-                        let aliases = get(8);
-                        let Some(ident) = extract_ident_annotation(&aliases) else {
-                            continue;
-                        };
-                        if seen_idents.contains(&ident) {
-                            continue;
-                        }
-                        seen_idents.insert(ident.clone());
-                        let name = get(2).trim_start_matches('!').trim().to_string();
-                        let desc = get(9).trim().to_string();
-
-                        records.push(DcRowData {
-                            short_id,
-                            ident,
-                            name,
-                            description: desc,
-                        });
-                    }
-                }
-            }
-        }
+        records.push(DcRowData {
+            short_id: row.short_id,
+            ident,
+            name: row.name,
+            description: row.description,
+        });
     }
 
     records.sort_by_key(|r| r.short_id);
@@ -309,97 +360,55 @@ pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
     let mut evaluable_starters: BTreeSet<u32> = BTreeSet::new();
     let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
 
-    if categories_dir.is_dir() {
-        let mut entries = Vec::new();
-        for entry in fs::read_dir(categories_dir)? {
-            entries.push(entry?);
+    for row in read_dc_category_rows(categories_dir)? {
+        let short_id = row.short_id;
+        let ident_opt = extract_ident_annotation(&row.aliases);
+
+        if row.script == ".EL Routines" {
+            evaluable_starters.insert(short_id);
         }
-        entries.sort_by_key(|e| e.file_name());
 
-        for entry in entries {
-            let path = entry.path();
-            if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                    continue;
-                };
-                if file_name.ends_with(".csv")
-                    && file_name != "schema.csv"
-                    && !file_name.ends_with(".generated.csv")
-                {
-                    let mut rdr = csv::ReaderBuilder::new()
-                        .has_headers(true)
-                        .flexible(true)
-                        .from_path(&path)
-                        .with_context(|| {
-                            format!("Failed to open CSV file {}", path.display())
-                        })?;
-
-                    for result in rdr.records() {
-                        let record = result.with_context(|| {
-                            format!("Failed to read record in {}", path.display())
-                        })?;
-                        let get = |idx: usize| -> String {
-                            record.get(idx).unwrap_or("").trim().to_string()
-                        };
-                        let Ok(short_id) = get(1).parse::<u32>() else {
-                            continue;
-                        };
-                        let name_raw = get(2);
-                        let name = name_raw.trim_start_matches('!').trim().to_string();
-                        let script = get(7);
-                        let aliases = get(8);
-                        let desc = get(9).trim().to_string();
-                        let ident_opt = extract_ident_annotation(&aliases);
-
-                        if script == ".EL Routines" {
-                            evaluable_starters.insert(short_id);
-                        }
-
-                        if aliases.contains("@roleDef()") {
-                            if let Some(ref ident) = ident_opt {
-                                if seen_idents.insert(ident.clone()) {
-                                    records.push(RoleRowData {
-                                        short_id,
-                                        ident: ident.clone(),
-                                        name: name.clone(),
-                                        description: desc,
-                                    });
-                                }
-                            }
-                        }
-
-                        match ident_opt.as_deref() {
-                            Some("Base64Start") => base64_start_opt = Some(short_id),
-                            Some("Base64End") => base64_end_opt = Some(short_id),
-                            Some("Base64Padding") => base64_padding_opt = Some(short_id),
-                            _ => {}
-                        }
-
-                        for role_name in extract_composite_role_defs(&aliases) {
-                            match role_name.as_str() {
-                                "Base64Digit" => {
-                                    base64_digits.insert(short_id);
-                                }
-                                "TypeToken" => {
-                                    type_tokens.insert(short_id);
-                                }
-                                "PrimitiveValueAtom" => {
-                                    primitive_atoms.insert(short_id);
-                                }
-                                "DomainValueAtom" => {
-                                    domain_atoms.insert(short_id);
-                                }
-                                "EvaluableExpressionStarter" => {
-                                    evaluable_starters.insert(short_id);
-                                }
-                                "StructuralSeparator" => {
-                                    structural_seps.insert(short_id);
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
+        if row.aliases.contains("@roleDef()") {
+            if let Some(ref ident) = ident_opt {
+                if seen_idents.insert(ident.clone()) {
+                    records.push(RoleRowData {
+                        short_id,
+                        ident: ident.clone(),
+                        name: row.name,
+                        description: row.description,
+                    });
                 }
+            }
+        }
+
+        match ident_opt.as_deref() {
+            Some("Base64Start") => base64_start_opt = Some(short_id),
+            Some("Base64End") => base64_end_opt = Some(short_id),
+            Some("Base64Padding") => base64_padding_opt = Some(short_id),
+            _ => {}
+        }
+
+        for role_name in extract_composite_role_defs(&row.aliases) {
+            match role_name.as_str() {
+                "Base64Digit" => {
+                    base64_digits.insert(short_id);
+                }
+                "TypeToken" => {
+                    type_tokens.insert(short_id);
+                }
+                "PrimitiveValueAtom" => {
+                    primitive_atoms.insert(short_id);
+                }
+                "DomainValueAtom" => {
+                    domain_atoms.insert(short_id);
+                }
+                "EvaluableExpressionStarter" => {
+                    evaluable_starters.insert(short_id);
+                }
+                "StructuralSeparator" => {
+                    structural_seps.insert(short_id);
+                }
+                _ => {}
             }
         }
     }

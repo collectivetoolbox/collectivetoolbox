@@ -30,7 +30,7 @@ use crate::utilities::*;
 use anyhow::{Context, Result, bail};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_START, SHORT_DC_REGION_START,
@@ -101,32 +101,14 @@ pub struct MergedGenerationStats {
     pub total_records_merged: usize,
 }
 
-/// Checks whether a raw cell string represents an unassigned ID placeholder.
-pub fn is_unassigned_id(val: &str) -> bool {
-    let trimmed = val.trim();
-    if trimmed.is_empty() {
-        return true;
-    }
-    if trimmed.eq_ignore_ascii_case("auto")
-        || trimmed.eq_ignore_ascii_case("tbd")
-        || trimmed == "?"
-        || trimmed == "-"
-        || trimmed.eq_ignore_ascii_case("todo")
-        || trimmed.eq_ignore_ascii_case("unassigned")
-        || trimmed.eq_ignore_ascii_case("none")
-        || trimmed.eq_ignore_ascii_case("new")
-    {
-        return true;
-    }
-    trimmed.parse::<u64>().is_err()
-}
+pub use ctb_build_support::{
+    find_repository_root, find_repository_root_from, is_unassigned_id,
+};
 
 /// Checks whether an entire row consists solely of empty cells.
 pub fn is_empty_row(row: &[String]) -> bool {
     row.iter().all(|cell| cell.trim().is_empty())
 }
-
-pub use ctb_build_support::{find_repository_root, find_repository_root_from};
 
 /// Reads a CSV file returning the header row and data rows.
 pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
@@ -176,12 +158,12 @@ pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
     Ok((header, rows))
 }
 
-/// Writes a header row and data rows to a CSV file using standard RFC4180 formatting.
-pub fn write_csv_file(
+/// Serializes a header row and data rows into standard RFC4180 CSV bytes.
+fn serialize_csv_bytes(
     path: &Path,
     header: &[String],
     rows: &[Vec<String>],
-) -> Result<()> {
+) -> Result<Vec<u8>> {
     let mut wtr = csv::WriterBuilder::new()
         .flexible(false)
         .from_writer(Vec::new());
@@ -205,14 +187,217 @@ pub fn write_csv_file(
         })?;
     }
 
-    let bytes = wtr.into_inner().with_context(|| {
-        format!("Failed to flush CSV for {}", path.display())
-    })?;
+    wtr.into_inner()
+        .with_context(|| format!("Failed to flush CSV for {}", path.display()))
+}
 
+/// Writes a header row and data rows to a CSV file using standard RFC4180 formatting.
+pub fn write_csv_file(
+    path: &Path,
+    header: &[String],
+    rows: &[Vec<String>],
+) -> Result<()> {
+    let bytes = serialize_csv_bytes(path, header, rows)?;
     fs::write(path, bytes)
         .with_context(|| format!("Failed to save CSV to {}", path.display()))?;
-
     Ok(())
+}
+
+struct ProcessedCategoryCsv {
+    path: PathBuf,
+    file_name: String,
+    header: Vec<String>,
+    rows: Vec<Vec<String>>,
+    modified: bool,
+}
+
+fn process_dc_category_files(
+    categories_dir: &Path,
+) -> Result<(Vec<ProcessedCategoryCsv>, TableUpdateStats)> {
+    if !categories_dir.is_dir() {
+        bail!(
+            "Dc categories directory not found at {}",
+            categories_dir.display()
+        );
+    }
+
+    let mut csv_paths = Vec::new();
+    for entry in fs::read_dir(categories_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+            else {
+                continue;
+            };
+            if file_name.ends_with(".csv")
+                && file_name != "schema.csv"
+                && !file_name.ends_with(".generated.csv")
+            {
+                csv_paths.push(path);
+            }
+        }
+    }
+    csv_paths.sort();
+
+    // Pass 1: Discover current maximum assigned Short ID across all category files
+    let mut max_short_id = 0u32;
+    let mut files_data = Vec::new();
+    let mut scanned_non_unicode_files = 0usize;
+
+    for path in &csv_paths {
+        let Some(file_name) = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(str::to_string)
+        else {
+            continue;
+        };
+        let is_unicode_clarifications =
+            file_name == "unicode-clarifications.csv";
+        if !is_unicode_clarifications {
+            scanned_non_unicode_files =
+                scanned_non_unicode_files.saturating_add(1);
+        }
+        let (header, rows) = read_csv_file(path)?;
+        if !is_unicode_clarifications {
+            for row in &rows {
+                if is_empty_row(row) {
+                    continue;
+                }
+                if let Some(dc_str) = row.first() {
+                    if dc_str.trim().starts_with('u')
+                        || dc_str.trim().starts_with('U')
+                    {
+                        continue;
+                    }
+                }
+                if let Some(short_str) = row.get(1) {
+                    if let Ok(id) = short_str.trim().parse::<u32>() {
+                        if id > max_short_id {
+                            max_short_id = id;
+                        }
+                    }
+                }
+            }
+        }
+        files_data.push((path.clone(), file_name, header, rows));
+    }
+
+    let mut stats = TableUpdateStats {
+        files_scanned: scanned_non_unicode_files,
+        // Reason for fallback: u32 always fits in usize on supported 32/64-bit targets
+        max_short_id: usize::try_from(max_short_id).unwrap_or(0),
+        ..Default::default()
+    };
+
+    // Pass 2: Assign missing IDs and verify/fix calculated Global Dc IDs
+    let mut processed = Vec::with_capacity(files_data.len());
+    for (path, file_name, header, mut rows) in files_data {
+        let mut modified = false;
+        if file_name != "unicode-clarifications.csv" {
+            for row in &mut rows {
+                if is_empty_row(row) {
+                    continue;
+                }
+                if let Some(dc_str) = row.first() {
+                    if dc_str.trim().starts_with('u')
+                        || dc_str.trim().starts_with('U')
+                    {
+                        continue;
+                    }
+                }
+
+                // Ensure row has at least 2 columns for Dc and Short ID
+                while row.len() < 2 {
+                    row.push(String::new());
+                }
+
+                let short_unassigned = match row.get(1) {
+                    Some(s) => is_unassigned_id(s),
+                    None => true,
+                };
+
+                if short_unassigned {
+                    let name = match row.get(2) {
+                        Some(s) => s.as_str(),
+                        None => "",
+                    };
+                    if name.is_empty() && is_empty_row(row) {
+                        continue;
+                    }
+
+                    let new_short = max_short_id.saturating_add(1);
+                    max_short_id = new_short;
+                    let new_dc = SHORT_DC_REGION_START
+                        .saturating_add(u128::from(new_short));
+
+                    if let Some(cell) = row.get_mut(0) {
+                        *cell = new_dc.to_string();
+                    }
+                    if let Some(cell) = row.get_mut(1) {
+                        *cell = new_short.to_string();
+                    }
+
+                    stats.new_ids_assigned =
+                        stats.new_ids_assigned.saturating_add(1);
+                    modified = true;
+                } else if let Some(short_str) = row.get(1) {
+                    if let Ok(s_id) = short_str.trim().parse::<u32>() {
+                        let expected_dc = SHORT_DC_REGION_START
+                            .saturating_add(u128::from(s_id));
+                        let current_dc = match row.first() {
+                            Some(s) => s.trim(),
+                            None => "",
+                        };
+                        if current_dc != expected_dc.to_string() {
+                            if let Some(cell) = row.get_mut(0) {
+                                *cell = expected_dc.to_string();
+                            }
+                            stats.dc_ids_recalculated =
+                                stats.dc_ids_recalculated.saturating_add(1);
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+        if modified {
+            stats.files_modified = stats.files_modified.saturating_add(1);
+        }
+        processed.push(ProcessedCategoryCsv {
+            path,
+            file_name,
+            header,
+            rows,
+            modified,
+        });
+    }
+
+    // Reason for fallback: u32 always fits in usize on supported 32/64-bit targets
+    stats.max_short_id = usize::try_from(max_short_id).unwrap_or(0);
+    Ok((processed, stats))
+}
+
+/// Loads all Dc category CSV files from `categories_dir` in memory, populating
+/// any unassigned `Dc` and `Short` IDs with their deterministic `max_short_id + 1`
+/// values without modifying files on disk.
+pub(crate) fn load_dc_category_csvs_with_assigned_ids(
+    categories_dir: &Path,
+) -> Result<Vec<(String, Vec<u8>)>> {
+    let (processed, _) = process_dc_category_files(categories_dir)?;
+    let mut out = Vec::with_capacity(processed.len());
+    for file in processed {
+        let bytes = if file.modified {
+            serialize_csv_bytes(&file.path, &file.header, &file.rows)?
+        } else {
+            fs::read(&file.path).with_context(|| {
+                format!("Failed to read CSV at {}", file.path.display())
+            })?
+        };
+        out.push((file.file_name, bytes));
+    }
+    Ok(out)
 }
 
 /// Scans and automatically assigns Short and Global Dc IDs in Document Character
@@ -224,164 +409,24 @@ pub fn assign_and_update_dc_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
     let categories_dir = repo_root.join("src/formats/dcdata/data/categories");
-    if !categories_dir.is_dir() {
-        bail!(
-            "Dc categories directory not found at {}",
-            categories_dir.display()
-        );
-    }
-
-    let mut csv_paths = Vec::new();
-    for entry in fs::read_dir(&categories_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str())
-            else {
-                continue;
-            };
-            if file_name.ends_with(".csv")
-                && file_name != "schema.csv"
-                && !file_name.ends_with(".generated.csv")
-                && file_name != "unicode-clarifications.csv"
-            {
-                csv_paths.push(path);
-            }
+    let (processed, stats) = process_dc_category_files(&categories_dir)?;
+    for file in processed {
+        if file.modified {
+            write_csv_file(&file.path, &file.header, &file.rows)?;
         }
     }
-    csv_paths.sort();
-
-    // Pass 1: Discover current maximum assigned Short ID across all category files
-    let mut max_short_id = 0u32;
-    let mut files_data = Vec::new();
-
-    for path in &csv_paths {
-        let (header, rows) = read_csv_file(path)?;
-        for row in &rows {
-            if is_empty_row(row) {
-                continue;
-            }
-            if let Some(dc_str) = row.first() {
-                if dc_str.trim().starts_with('u') || dc_str.trim().starts_with('U') {
-                    continue;
-                }
-            }
-            if let Some(short_str) = row.get(1) {
-                if let Ok(id) = short_str.trim().parse::<u32>() {
-                    if id > max_short_id {
-                        max_short_id = id;
-                    }
-                }
-            }
-        }
-        files_data.push((path.clone(), header, rows));
-    }
-
-    let mut stats = TableUpdateStats {
-        files_scanned: files_data.len(),
-        max_short_id: match usize::try_from(max_short_id) {
-            Ok(v) => v,
-            Err(_) => 0,
-        },
-        ..Default::default()
-    };
-
-    // Pass 2: Assign missing IDs and verify/fix calculated Global Dc IDs
-    for (path, header, mut rows) in files_data {
-        let mut modified = false;
-
-        for row in &mut rows {
-            if is_empty_row(row) {
-                continue;
-            }
-            if let Some(dc_str) = row.first() {
-                if dc_str.trim().starts_with('u') || dc_str.trim().starts_with('U') {
-                    continue;
-                }
-            }
-
-            // Ensure row has at least 2 columns for Dc and Short ID
-            while row.len() < 2 {
-                row.push(String::new());
-            }
-
-            let short_unassigned = match row.get(1) {
-                Some(s) => is_unassigned_id(s),
-                None => true,
-            };
-
-            if short_unassigned {
-                let name = match row.get(2) {
-                    Some(s) => s.as_str(),
-                    None => "",
-                };
-                if name.is_empty() && is_empty_row(row) {
-                    continue;
-                }
-
-                let new_short = max_short_id.saturating_add(1);
-                max_short_id = new_short;
-                let new_dc =
-                    SHORT_DC_REGION_START.saturating_add(u128::from(new_short));
-
-                if let Some(cell) = row.get_mut(0) {
-                    *cell = new_dc.to_string();
-                }
-                if let Some(cell) = row.get_mut(1) {
-                    *cell = new_short.to_string();
-                }
-
-                stats.new_ids_assigned =
-                    stats.new_ids_assigned.saturating_add(1);
-                modified = true;
-            } else if let Some(short_str) = row.get(1) {
-                if let Ok(s_id) = short_str.trim().parse::<u32>() {
-                    let expected_dc =
-                        SHORT_DC_REGION_START.saturating_add(u128::from(s_id));
-                    let current_dc = match row.first() {
-                        Some(s) => s.trim(),
-                        None => "",
-                    };
-                    if current_dc != expected_dc.to_string() {
-                        if let Some(cell) = row.get_mut(0) {
-                            *cell = expected_dc.to_string();
-                        }
-                        stats.dc_ids_recalculated =
-                            stats.dc_ids_recalculated.saturating_add(1);
-                        modified = true;
-                    }
-                }
-            }
-        }
-
-        if modified {
-            write_csv_file(&path, &header, &rows)?;
-            stats.files_modified = stats.files_modified.saturating_add(1);
-        }
-    }
-
-    stats.max_short_id = match usize::try_from(max_short_id) {
-        Ok(v) => v,
-        Err(_) => 0,
-    };
     Ok(stats)
 }
 
-/// Scans and automatically assigns Short and Global Dc IDs in Formats
-/// category CSV files (`src/formats/dcdata/data/categories/formats/*.csv`).
-///
-/// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
-/// monotonically without backfilling any preexisting gaps.
-pub fn assign_and_update_format_categories(
-    repo_root: &Path,
-) -> Result<TableUpdateStats> {
-    let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
+fn process_format_category_files(
+    formats_dir: &Path,
+) -> Result<(Vec<ProcessedCategoryCsv>, TableUpdateStats)> {
     if !formats_dir.is_dir() {
         bail!("Formats directory not found at {}", formats_dir.display());
     }
 
     let mut csv_paths = Vec::new();
-    for entry in fs::read_dir(&formats_dir)? {
+    for entry in fs::read_dir(formats_dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
@@ -404,20 +449,29 @@ pub fn assign_and_update_format_categories(
     let mut files_data = Vec::new();
 
     for path in &csv_paths {
+        let Some(file_name) = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(str::to_string)
+        else {
+            continue;
+        };
         let (header, rows) = read_csv_file(path)?;
         for row in &rows {
             if is_empty_row(row) {
                 continue;
             }
             if let Some(short_str) = row.get(1) {
-                if let Ok(id) = short_str.trim().parse::<usize>() {
+                let trimmed = short_str.trim();
+                let cleaned = trimmed.strip_prefix('f').unwrap_or(trimmed);
+                if let Ok(id) = cleaned.parse::<usize>() {
                     if id > max_short_id {
                         max_short_id = id;
                     }
                 }
             }
         }
-        files_data.push((path.clone(), header, rows));
+        files_data.push((path.clone(), file_name, header, rows));
     }
 
     let mut stats = TableUpdateStats {
@@ -427,7 +481,8 @@ pub fn assign_and_update_format_categories(
     };
 
     // Pass 2: Assign missing IDs and verify/fix calculated Global Dc IDs
-    for (path, header, mut rows) in files_data {
+    let mut processed = Vec::with_capacity(files_data.len());
+    for (path, file_name, header, mut rows) in files_data {
         let mut modified = false;
 
         for row in &mut rows {
@@ -498,12 +553,58 @@ pub fn assign_and_update_format_categories(
         }
 
         if modified {
-            write_csv_file(&path, &header, &rows)?;
             stats.files_modified = stats.files_modified.saturating_add(1);
         }
+        processed.push(ProcessedCategoryCsv {
+            path,
+            file_name,
+            header,
+            rows,
+            modified,
+        });
     }
 
     stats.max_short_id = max_short_id;
+    Ok((processed, stats))
+}
+
+/// Loads all Format category CSV files from `formats_dir` in memory, populating
+/// any unassigned `Dc` and `Short` IDs with their deterministic `max_short_id + 1`
+/// values without modifying files on disk.
+pub(crate) fn load_format_category_csvs_with_assigned_ids(
+    formats_dir: &Path,
+) -> Result<Vec<(String, Vec<u8>)>> {
+    let (processed, _) = process_format_category_files(formats_dir)?;
+    let mut out = Vec::with_capacity(processed.len());
+    for file in processed {
+        let bytes = if file.modified {
+            serialize_csv_bytes(&file.path, &file.header, &file.rows)?
+        } else {
+            fs::read(&file.path).with_context(|| {
+                format!("Failed to read CSV at {}", file.path.display())
+            })?
+        };
+        out.push((file.file_name, bytes));
+    }
+    Ok(out)
+}
+
+/// Scans and automatically assigns Short and Global Dc IDs in Formats
+/// category CSV files (`src/formats/dcdata/data/categories/formats/*.csv`).
+///
+/// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
+/// monotonically without backfilling any preexisting gaps.
+pub fn assign_and_update_format_categories(
+    repo_root: &Path,
+) -> Result<TableUpdateStats> {
+    let formats_dir =
+        repo_root.join("src/formats/dcdata/data/categories/formats");
+    let (processed, stats) = process_format_category_files(&formats_dir)?;
+    for file in processed {
+        if file.modified {
+            write_csv_file(&file.path, &file.header, &file.rows)?;
+        }
+    }
     Ok(stats)
 }
 
@@ -1055,6 +1156,10 @@ mod tests {
         let test_file = cat_dir.join("test.csv");
         write_csv_file(&test_file, &header, &rows).unwrap();
 
+        // Verify that before on-disk assignment, in-memory codegen already assigns 21
+        let dc_code_before = generate_dc_code(&cat_dir).unwrap();
+        assert!(!dc_code_before.contains("DC_NEW_ITEM"));
+
         let stats = assign_and_update_dc_categories(temp_dir.path()).unwrap();
         assert_eq!(stats.new_ids_assigned, 1);
         assert_eq!(stats.max_short_id, 21);
@@ -1064,6 +1169,144 @@ mod tests {
         // Must be assigned 21 (max_id + 1), NEVER backfilling 1..19!
         assert_eq!(auto_row[1], "21");
         assert_eq!(auto_row[0], (SHORT_DC_REGION_START + 21).to_string());
+    }
+
+    #[crate::ctb_test]
+    fn test_codegen_assigns_unassigned_dc_and_format_ids_in_memory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let cat_dir =
+            temp_dir.path().join("src/formats/dcdata/data/categories");
+        let fmt_dir = cat_dir.join("formats");
+        fs::create_dir_all(&fmt_dir).unwrap();
+
+        let dc_header = vec![
+            "Dc".to_string(),
+            "Short".to_string(),
+            "Name (!=deprecated)".to_string(),
+            "◌".to_string(),
+            "⇆".to_string(),
+            "Aa".to_string(),
+            "Type".to_string(),
+            "Script".to_string(),
+            "Aliases".to_string(),
+            "Description".to_string(),
+        ];
+        let dc_rows = vec![
+            vec![
+                "1114112".to_string(),
+                "0".to_string(),
+                "Null".to_string(),
+                "0".to_string(),
+                "BN".to_string(),
+                String::new(),
+                "Cc".to_string(),
+                ".Semantic".to_string(),
+                "@ident(\"NullItem\")".to_string(),
+                "Null item.".to_string(),
+            ],
+            vec![
+                String::new(),
+                String::new(),
+                "Unassigned item".to_string(),
+                "0".to_string(),
+                "BN".to_string(),
+                String::new(),
+                "!Cx".to_string(),
+                ".Semantic".to_string(),
+                "@ident(\"UnassignedItem\"), @roleDef()".to_string(),
+                "Unassigned item.".to_string(),
+            ],
+        ];
+        write_csv_file(&cat_dir.join("semantic.csv"), &dc_header, &dc_rows)
+            .unwrap();
+
+        let dc_code = generate_dc_code(&cat_dir).unwrap();
+        assert!(
+            dc_code.contains(
+                "pub const DC_UNASSIGNED_ITEM: DcChar = DcChar::from_short(1);"
+            ),
+            "dc_code did not assign short ID 1 in memory:\n{dc_code}"
+        );
+        let role_code =
+            ctb_build_support::dc_codegen::generate_role_code(&cat_dir).unwrap();
+        assert!(
+            role_code.contains("UnassignedItem"),
+            "role_code did not include unassigned row role:\n{role_code}"
+        );
+
+        let fmt_header = vec![
+            "Dc".to_string(),
+            "Short".to_string(),
+            "FormatId (!=deprecated)".to_string(),
+            "Label (!=deprecated)".to_string(),
+            "Category".to_string(),
+            "Base / Related Format".to_string(),
+            "Extensions".to_string(),
+            "MIME".to_string(),
+            "Apple UTI".to_string(),
+            "Apple Type code".to_string(),
+            "Nicknames".to_string(),
+            "Import support".to_string(),
+            "Export support".to_string(),
+            "Tests".to_string(),
+            "Variant Types".to_string(),
+            "Comments".to_string(),
+            "References".to_string(),
+        ];
+        let fmt_rows = vec![
+            vec![
+                "2228224".to_string(),
+                "0".to_string(),
+                "ExistingFmt".to_string(),
+                "Existing format".to_string(),
+                "identifier".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
+            vec![
+                String::new(),
+                String::new(),
+                "NewUnassignedFmt".to_string(),
+                "New unassigned format".to_string(),
+                "identifier".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ],
+        ];
+        write_csv_file(&fmt_dir.join("identifier.csv"), &fmt_header, &fmt_rows)
+            .unwrap();
+
+        let fmt_code = generate_format_id_code(&fmt_dir).unwrap();
+        assert!(
+            fmt_code.contains(
+                "/// New unassigned format (Short 1, Category: identifier)\n    NewUnassignedFmt,"
+            ),
+            "fmt_code did not assign Short 1 in memory:\n{fmt_code}"
+        );
+        assert!(
+            fmt_code.contains("Self::NewUnassignedFmt => \"f1\","),
+            "fmt_code did not map NewUnassignedFmt to f1:\n{fmt_code}"
+        );
     }
 
     #[crate::ctb_test]

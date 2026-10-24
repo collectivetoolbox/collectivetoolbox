@@ -709,8 +709,17 @@ fn load_resolver_from_disk(
     )?;
     let named_types = named_resolver.named_types.keys().cloned().collect();
     let mut report = ValidationReport::new();
-    let format_defns = crate::format::validate_all_format_files_from_disk(
-        formats_dir,
+    let format_files_data =
+        crate::updater::load_format_category_csvs_with_assigned_ids(
+            formats_dir,
+        )?;
+    let format_files_iter: Vec<(&str, &[u8])> = format_files_data
+        .iter()
+        .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+        .collect();
+    let format_defns = crate::format::validate_format_files_data(
+        format_files_iter,
+        &formats_dir.display().to_string(),
         None,
         &mut report,
     );
@@ -719,8 +728,17 @@ fn load_resolver_from_disk(
         .filter(|defn| defn.syntax.is_some())
         .filter_map(|defn| defn.short_id).collect();
     let format_registry = crate::syntax::build_format_validation_registry(&format_defns);
-    let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
-        categories_dir,
+    let dc_files_data =
+        crate::updater::load_dc_category_csvs_with_assigned_ids(
+            categories_dir,
+        )?;
+    let dc_files_iter: Vec<(&str, &[u8])> = dc_files_data
+        .iter()
+        .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+        .collect();
+    let mut dc_defns = crate::validation::validate_dc_files_data(
+        dc_files_iter,
+        &categories_dir.display().to_string(),
         &format_ids,
         None,
         Some(&named_types),
@@ -852,6 +870,45 @@ mod tests {
             assert!(message.contains("syntax"), "{message}");
             assert_eq!(std::fs::read(&output)?, original_output);
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_generation_accepts_unassigned_rows() -> Result<()> {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("data");
+        let temp = tempfile::tempdir()?;
+        let data = temp.path().join("src/formats/dcdata/data");
+        for relative in ["categories", "categories/formats"] {
+            let target_dir = data.join(relative);
+            std::fs::create_dir_all(&target_dir)?;
+            for entry in std::fs::read_dir(source.join(relative))? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() {
+                    std::fs::copy(entry.path(), target_dir.join(entry.file_name()))?;
+                }
+            }
+        }
+        std::fs::copy(
+            source.join("README-named-types.csv"),
+            data.join("README-named-types.csv"),
+        )?;
+
+        // Blank out the Dc and Short columns on the last row of semantic.csv and identifier.csv
+        for relative in ["categories/semantic.csv", "categories/formats/identifier.csv"] {
+            let path = data.join(relative);
+            let (header, mut rows) = crate::updater::read_csv_file(&path)?;
+            let last = rows.last_mut().context("Expected non-empty CSV")?;
+            last[0].clear();
+            last[1].clear();
+            crate::updater::write_csv_file(&path, &header, &rows)?;
+        }
+
+        let output = temp.path().join(
+            "src/formats/dcdata/syntax/resolver/syntax_table.generated.rs",
+        );
+        std::fs::create_dir_all(output.parent().context("Missing output parent")?)?;
+        assert!(generate_syntax_table_file(temp.path())?);
+        assert!(output.is_file());
         Ok(())
     }
 

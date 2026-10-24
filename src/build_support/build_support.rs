@@ -108,3 +108,24 @@ pub fn find_repository_root_from(start: &Path) -> Result<PathBuf> {
     }
     find_repository_root()
 }
+
+/// Checks whether a raw cell string represents an unassigned ID placeholder.
+#[must_use]
+pub fn is_unassigned_id(val: &str) -> bool {
+    let trimmed = val.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+    if trimmed.eq_ignore_ascii_case("auto")
+        || trimmed.eq_ignore_ascii_case("tbd")
+        || trimmed == "?"
+        || trimmed == "-"
+        || trimmed.eq_ignore_ascii_case("todo")
+        || trimmed.eq_ignore_ascii_case("unassigned")
+        || trimmed.eq_ignore_ascii_case("none")
+        || trimmed.eq_ignore_ascii_case("new")
+    {
+        return true;
+    }
+    trimmed.parse::<u64>().is_err()
+}

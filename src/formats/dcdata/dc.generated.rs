@@ -226,6 +226,96 @@ pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(559);
 pub const DC_END_KV_MAP: DcChar = DcChar::from_short(560);
 /// Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others. (Dc 561).
 pub const DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(561);
+/// Ontological root concept representing a type class or category of entities. (Dc 565).
+pub const DC_ENTITY_TYPE: DcChar = DcChar::from_short(565);
+/// Ontological concept representing a directed relationship or predicate type. (Dc 566).
+pub const DC_RELATIONSHIP_TYPE: DcChar = DcChar::from_short(566);
+/// Ontological concept representing a reified relationship or statement instance. (Dc 567).
+pub const DC_RELATIONSHIP: DcChar = DcChar::from_short(567);
+/// Ontological concept representing an individual thing or entity. (Dc 568).
+pub const DC_ENTITY: DcChar = DcChar::from_short(568);
+/// A thing that replaces or supersedes another thing. (Dc 569).
+pub const DC_REPLACEMENT: DcChar = DcChar::from_short(569);
+/// Qualifier indicating that an option or representation is preferred over alternatives. (Dc 570).
+pub const DC_PREFERRED: DcChar = DcChar::from_short(570);
+/// A sequence of simpler or constituent elements into which something decomposes. (Dc 571).
+pub const DC_DECOMPOSITION: DcChar = DcChar::from_short(571);
+/// The authoritative human-readable name of something. (Dc 572).
+pub const DC_CANONICAL_NAME: DcChar = DcChar::from_short(572);
+/// A human-readable explanation of the meaning or purpose of something. (Dc 573).
+pub const DC_DESCRIPTION: DcChar = DcChar::from_short(573);
+/// An identifier string used to reference something in source code. (Dc 574).
+pub const DC_PROGRAMMATIC_IDENTIFIER: DcChar = DcChar::from_short(574);
+/// A short informal name or command-line alias for something. (Dc 575).
+pub const DC_NICKNAME: DcChar = DcChar::from_short(575);
+/// An alternative informal name or synonym for something. (Dc 576).
+pub const DC_INFORMAL_ALIAS: DcChar = DcChar::from_short(576);
+/// A normative formal name alias for a character. (Dc 577).
+pub const DC_FORMAL_ALIAS: DcChar = DcChar::from_short(577);
+/// An explanatory note or usage commentary attached to something. (Dc 578).
+pub const DC_ANNOTATION: DcChar = DcChar::from_short(578);
+/// A signature description or pattern used to identify a data format. (Dc 579).
+pub const DC_MAGIC_SIGNATURE: DcChar = DcChar::from_short(579);
+/// The Unicode Canonical Combining Class value of a character. (Dc 580).
+pub const DC_CANONICAL_COMBINING_CLASS: DcChar = DcChar::from_short(580);
+/// The Unicode Bidirectional Class code of a character. (Dc 581).
+pub const DC_BIDIRECTIONAL_CLASS: DcChar = DcChar::from_short(581);
+/// The casing partner character of a character. (Dc 582).
+pub const DC_CASE_MAPPING_PARTNER: DcChar = DcChar::from_short(582);
+/// The General Category classification of a character. (Dc 583).
+pub const DC_CHARACTER_GENERAL_CATEGORY: DcChar = DcChar::from_short(583);
+/// Asserts that the subject possesses the specified attribute component or property noun. (Dc 584).
+pub const DC_HAS_A: DcChar = DcChar::from_short(584);
+/// Asserts that a property attribute or expression has the specified value. (Dc 585).
+pub const DC_IS_EQUAL_TO: DcChar = DcChar::from_short(585);
+/// Asserts that the subject is an instance of the object type. (Dc 586).
+pub const DC_IS_INSTANCE_OF: DcChar = DcChar::from_short(586);
+/// Asserts that the subject type or format is a subtype of or logically entails the object type or format. (Dc 587).
+pub const DC_IS_SUBTYPE_OF: DcChar = DcChar::from_short(587);
+/// Asserts that the subject is derived from or historically based on the object. (Dc 588).
+pub const DC_IS_BASED_ON: DcChar = DcChar::from_short(588);
+/// Asserts whether the subject is deprecated. (Dc 589).
+pub const DC_IS_DEPRECATED: DcChar = DcChar::from_short(589);
+/// Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character. (Dc 590).
+pub const DC_IS_CLOSING_DELIMITER_FOR: DcChar = DcChar::from_short(590);
+/// Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node. (Dc 591).
+pub const DC_SUPERSEDES: DcChar = DcChar::from_short(591);
+/// Asserts that the subject statement node withdraws and retracts the object statement node. (Dc 592).
+pub const DC_RETRACTS: DcChar = DcChar::from_short(592);
+/// A reference directing attention to another related entity or entry. (Dc 593).
+pub const DC_CROSS_REFERENCE: DcChar = DcChar::from_short(593);
+/// A pattern or grammar rule defining the valid syntactic structure of something. (Dc 594).
+pub const DC_SYNTAX_RULE: DcChar = DcChar::from_short(594);
+/// A specification or expression describing the format, type, or composition pipeline of data. (Dc 595).
+pub const DC_DATA_FORMAT_DESCRIPTION: DcChar = DcChar::from_short(595);
+/// A Dc script classification, as in Unicode, extended for Dc (Dc 596).
+pub const DC_CHARACTER_SCRIPT: DcChar = DcChar::from_short(596);
+/// An operating system environment or platform family. (Dc 597).
+pub const DC_OPERATING_SYSTEM: DcChar = DcChar::from_short(597);
+/// Asserts that the subject is associated or affiliated with the object. (Dc 598).
+pub const DC_IS_ASSOCIATED_WITH: DcChar = DcChar::from_short(598);
+/// Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched. (Dc 599).
+pub const DC_SELF_REFERENCE: DcChar = DcChar::from_short(599);
+/// Matches any single Dc token or balanced syntactic frame. (Dc 600).
+pub const DC_WILDCARD_PATTERN: DcChar = DcChar::from_short(600);
+/// Matches a Dc sequence only if all of the specified component patterns match. (Dc 601).
+pub const DC_PATTERN_CONJUNCTION: DcChar = DcChar::from_short(601);
+/// Matches a Dc sequence if any of the specified alternative patterns match. (Dc 602).
+pub const DC_PATTERN_ALTERNATION: DcChar = DcChar::from_short(602);
+/// Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range. (Dc 603).
+pub const DC_PATTERN_REPETITION: DcChar = DcChar::from_short(603);
+/// Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set. (Dc 604).
+pub const DC_NEGATED_PATTERN: DcChar = DcChar::from_short(604);
+/// Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally. (Dc 605).
+pub const DC_SUBPATTERN_MATCH: DcChar = DcChar::from_short(605);
+/// Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution. (Dc 606).
+pub const DC_PATTERN_CAPTURE: DcChar = DcChar::from_short(606);
+/// Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings. (Dc 607).
+pub const DC_PATTERN_REPLACEMENT: DcChar = DcChar::from_short(607);
+/// General category as in Unicode, extended for Dc (Dc 608).
+pub const DC_DC_GENERAL_CATEGORY: DcChar = DcChar::from_short(608);
+/// The Unicode Script classification of a character. (Dc 609).
+pub const DC_UNICODE_SCRIPT: DcChar = DcChar::from_short(609);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

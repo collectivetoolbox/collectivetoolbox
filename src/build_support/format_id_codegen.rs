@@ -25,8 +25,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use crate::find_repository_root_from;
 use crate::license_consts::DEFAULT_AGPL_HEADER;
+use crate::{find_repository_root_from, is_unassigned_id};
 
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const MAX_FORMAT_ID: usize = 1_114_111;
@@ -316,14 +316,9 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     let mut seen_idents = HashSet::new();
 
     if formats_dir.is_dir() {
-        let mut entries = Vec::new();
+        let mut csv_paths = Vec::new();
         for entry in fs::read_dir(formats_dir)? {
-            entries.push(entry?);
-        }
-        entries.sort_by_key(|e| e.file_name());
-
-        for entry in entries {
-            let path = entry.path();
+            let path = entry?.path();
             if path.is_file() {
                 let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
                     continue;
@@ -332,70 +327,99 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                     && file_name != "schema.csv"
                     && !file_name.ends_with(".generated.csv")
                 {
-                    let rows = read_csv_rows(&path)?;
-                    for row in rows {
-                        if is_empty_row(&row) {
-                            continue;
+                    csv_paths.push(path);
+                }
+            }
+        }
+        csv_paths.sort();
+
+        // Pass 1: Find maximum assigned short ID across all format category files
+        let mut max_short_id = 0usize;
+        let mut files_rows = Vec::new();
+        for path in csv_paths {
+            let rows = read_csv_rows(&path)?;
+            for row in &rows {
+                if is_empty_row(row) {
+                    continue;
+                }
+                if let Some(short_str) = row.get(1) {
+                    if let Ok(s_id) = parse_format_shorthand(short_str) {
+                        if s_id > max_short_id {
+                            max_short_id = s_id;
                         }
-                        // Reason for fallback: cells beyond the row length default to empty string
-                        let get = |idx: usize| -> String {
-                            row.get(idx).cloned().unwrap_or_default()
-                        };
-                        let raw_ident = get(2);
-                        let clean_ident = raw_ident.trim_start_matches('!').trim().to_string();
-                        if clean_ident.is_empty() {
-                            continue;
-                        }
-                        if seen_idents.contains(&clean_ident) {
-                            continue;
-                        }
-                        seen_idents.insert(clean_ident.clone());
-
-                        let short_id = if let Ok(s_id) = parse_format_shorthand(&get(1)) {
-                            s_id
-                        } else if let Ok(dc_id) = get(0).parse::<u128>() {
-                            // Reason for fallback: out-of-range short format id conversion defaults to 0 placeholder
-                            usize::try_from(dc_id.saturating_sub(FORMAT_REGION_START)).unwrap_or(0)
-                        } else {
-                            0
-                        };
-
-                        let dc_id = if let Ok(dc) = get(0).parse::<u128>() {
-                            dc
-                        } else {
-                            // Reason for fallback: short format id conversion to u128 defaults to 0 on conversion failure
-                            FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0))
-                        };
-
-                        let raw_label = get(3);
-                        let label = raw_label.trim_start_matches('!').trim().to_string();
-                        let category = get(4).trim().to_string();
-
-                        let raw_nicknames = get(10);
-                        let nicknames: Vec<String> = if raw_nicknames.is_empty() {
-                            Vec::new()
-                        } else {
-                            split_comma_separated_items(&raw_nicknames)
-                                .into_iter()
-                                .filter(|s| !s.is_empty())
-                                .collect()
-                        };
-
-                        let raw_base = get(5);
-                        let (title, implies_shorts) = extract_title_and_implies(&raw_base);
-
-                        records.push(FormatRowData {
-                            dc_id,
-                            short_id,
-                            ident: clean_ident,
-                            label,
-                            category,
-                            nicknames,
-                            title,
-                            implies_shorts,
-                        });
                     }
                 }
+            }
+            files_rows.push(rows);
+        }
+
+        // Pass 2: Build FormatRowData, assigning max_short_id + 1 in-memory for unassigned rows
+        for rows in files_rows {
+            for row in rows {
+                if is_empty_row(&row) {
+                    continue;
+                }
+                // Reason for fallback: cells beyond the row length default to empty string
+                let get = |idx: usize| -> String {
+                    row.get(idx).cloned().unwrap_or_default()
+                };
+                let short_id = if let Ok(s_id) = parse_format_shorthand(&get(1)) {
+                    s_id
+                } else if is_unassigned_id(&get(1)) {
+                    let next_id = max_short_id.saturating_add(1);
+                    max_short_id = next_id;
+                    next_id
+                } else if let Ok(dc_id) = get(0).trim().parse::<u128>() {
+                    // Reason for fallback: out-of-range short format id conversion defaults to 0 placeholder
+                    usize::try_from(dc_id.saturating_sub(FORMAT_REGION_START)).unwrap_or(0)
+                } else {
+                    0
+                };
+
+                let raw_ident = get(2);
+                let clean_ident = raw_ident.trim_start_matches('!').trim().to_string();
+                if clean_ident.is_empty() {
+                    continue;
+                }
+                if seen_idents.contains(&clean_ident) {
+                    continue;
+                }
+                seen_idents.insert(clean_ident.clone());
+
+                let dc_id = if let Ok(dc) = get(0).trim().parse::<u128>() {
+                    dc
+                } else {
+                    // Reason for fallback: short format id conversion to u128 defaults to 0 on conversion failure
+                    FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0))
+                };
+
+                let raw_label = get(3);
+                let label = raw_label.trim_start_matches('!').trim().to_string();
+                let category = get(4).trim().to_string();
+
+                let raw_nicknames = get(10);
+                let nicknames: Vec<String> = if raw_nicknames.is_empty() {
+                    Vec::new()
+                } else {
+                    split_comma_separated_items(&raw_nicknames)
+                        .into_iter()
+                        .filter(|s| !s.is_empty())
+                        .collect()
+                };
+
+                let raw_base = get(5);
+                let (title, implies_shorts) = extract_title_and_implies(&raw_base);
+
+                records.push(FormatRowData {
+                    dc_id,
+                    short_id,
+                    ident: clean_ident,
+                    label,
+                    category,
+                    nicknames,
+                    title,
+                    implies_shorts,
+                });
             }
         }
     }

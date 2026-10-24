@@ -370,7 +370,7 @@ match self {
 Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568))
 }
 Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
 Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),

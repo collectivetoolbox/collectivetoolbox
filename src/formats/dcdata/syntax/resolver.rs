@@ -819,14 +819,19 @@ impl DatasetRuleResolver {
         // Index formats from formats category files under their script
         for defn in format_defns {
             if let Some(short_id) = defn.short_id {
-                let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{short_id}")) else {
+                if !defn.script.is_empty() {
+                    resolver.add_script_char(defn.script.clone(), defn.dc_id);
+                }
+                let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{short_id}"))
+                    .or_else(|| {
+                        defn.ident
+                            .as_deref()
+                            .and_then(ctb_utilities::format_id::FormatId::from_ident)
+                    })
+                else {
                     continue;
                 };
                 let target = CharTarget::Format(fid);
-                let fid_u128 = target.to_u128();
-                if !defn.script.is_empty() {
-                    resolver.add_script_char(defn.script.clone(), fid_u128);
-                }
                 let preferred = parse_prefer_target(&defn.decompositions);
                 if defn.is_deprecated || preferred.is_some() {
                     resolver.register_deprecated(target.clone(), preferred);
