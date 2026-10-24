@@ -1,79 +1,119 @@
+# Graph-Defined Dc Ontology & Pattern Matcher Design
 
-### 1. Proposed Root Ontology Dcs to Allocate (Starting at Short Dc 565)
+## 1. Core Design Principles
 
-Currently, the highest allocated short Dc is `564` (`1114676`). Below is the minimal set of seed Dcs needed to express the toy graph roots, the CSV columns/directives, and the `:<syntax>` AST in terms of graph statements.
+### A. Strings, Binary Data, and Values as Distinct Graph Nodes
+Strings, binary data, and primitive values are emitted as their own distinct graph nodes in the System block (`8589934592..=12884901887`), which other statements then reference by node ID (as illustrated in [file-info.md](file:///workspaces/ctoolbox/docs/file-info.md#L232-L251)):
+- A statement assigning a name to a Dc references the string node rather than embedding an anonymous inline string:
+  - `<node:str_assign_op>` = `"Assignment operator"` (string literal node)
+  - `269` (`Assignment operator`) $\to$ `Has a` (`Canonical name`) $\to$ `Is equal to` $\to$ `<node:str_assign_op>`
+- Because `<node:str_assign_op>` is a first-class graph node distinct from the semantic entity `269`, statements about the string itself (such as lexical breakdown or word meanings: `<node:str_assign_op>` $\to$ `"assignment (sense 1, noun)"`, `"operator (sense 1, noun)"`) can be attached directly to the string node without conflating the English phrase with the semantic concept `269`.
+- Furthermore, identical string literals or primitive values across the graph can share the same canonical value node ID.
 
-#### A. Core Meta-Model & Revision Roots (from [file-info.md](file:///workspaces/ctoolbox/docs/file-info.md#L234-L251))
-In [file-info.md](file:///workspaces/ctoolbox/docs/file-info.md#L234-L237), nodes `1`–`4` are `type`, `relationship type`, `relationship`, and `entity`.
-- **Instance-of / typing**: `<TypeOrPredicateDc> <SubjectDc> [<ObjectValueOrDc>]`
-  - E.g. in a System node `S`, `HasType(Dc, TypeDc)` or directly using a binary predicate `<PredicateDc> <SubjectDc> <ObjectDc>`.
-- **Root Concepts** (~6 Dcs):
-  1. **Type / Class** (`1. type: type` in `file-info.md` — or reuse/Clarify relationship with `Dc 275` `* (Object or any subtype)`)
-  2. **Relationship type / Predicate** (`2. type: relationship type` — defines a Dc as a binary predicate taking `[subject] [object]`)
-  3. **Unary property type** (defines a Dc as a unary property/attribute taking `[subject] [value]`, or unify with `Relationship type` since both link a subject to a target/literal)
-  4. **Instance of / Has type** (`subject` is an instance of `type`)
-  5. **Subtype of / Implies** (`@implies(...)` — `subject` is a subtype of / entails `object`)
-  6. **Supersedes / Replaces statement** (`new_statement_node` replaces `old_statement_node` when a CSV value changes)
-  7. **Retracts / Withdraws statement** (`retraction_node` withdraws `old_statement_node` when a CSV property is removed)
+### B. Enum-Like Domain Values as Semantic Entity Nodes vs. Direct String Properties
+When compiling the CSV database into graph statements:
+- **Enum-like classifications become semantic entity nodes**: Values that would be enum variants in Rust—such as scripts (`README.scripts.csv`, e.g., `.Symbols`), Unicode General Categories (`!Cx`, `Po`, `Ll`, etc.), Unicode Bidirectional Classes (`BN`, `L`, `R`, etc.), named syntax construct categories (`README-named-types.csv`), and decomposition tags (`README-decompositions.csv`)—are generated as their own semantic entity nodes, distinct from the string nodes holding their names:
+  1. `<node:str_symbols>` = `".Symbols"` (string literal node)
+  2. `<node:script_symbols>` $\to$ `Is an instance of` $\to$ `Script`
+  3. `<node:script_symbols>` $\to$ `Has a` (`Canonical name`) $\to$ `Is equal to` $\to$ `<node:str_symbols>`
+  4. `21` (`Number sign`) $\to$ `Has a` (`Script`) $\to$ `Is equal to` $\to$ `<node:script_symbols>`
+- **Simple text properties link directly to string nodes**: Properties such as `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, and `Annotation` do not introduce an intermediate semantic entity node; they link directly to the underlying string literal node (e.g., `21` $\to$ `Has a` (`Canonical name`) $\to$ `Is equal to` $\to$ `<node:"Number sign">`).
 
-#### B. CSV Metadata & Relationship Predicates (~15 Dcs)
-Each CSV column/directive compiles into 1-statement System nodes `<PredicateDc> <TargetDc> <Value>`:
-- **Naming & Documentation**:
-  - `Canonical name` (Column 3 string)
-  - `Deprecated flag` (`!` prefix on Column 3, or unary marker)
-  - `Description` (Column 10 string)
-  - `Rust identifier` (`@ident("...")`)
-  - `CLI nickname` (`@nick("...")`)
-  - `Informal alias` (bare alias string)
-  - `Formal alias` (with qualifier or subtypes for `Correction`, `Control`, `Alternate`, `Figment`, `Abbreviation`)
-  - `Annotation` (`@annotation("...")`)
-- **Semantic & Lineage Relations** (Note: `<equiv>` and `<approx>` already have `Dc 397` `Equivalent representations` and `Dc 561` `Partially equivalent representations`, and `<ambiguous>` has `Dc 348` `Ambiguous values`!):
-  - `Preferred replacement` (`<prefer>...`)
-  - `Cross-reference` (`@xref(...)`)
-  - `Based on` (`@based_on(...)`)
-  - `Format chain` (`@chain(...)` — encoded directly using existing `Dc 300` union, `Dc 301` transformation, `Dc 302` conversion, `Dc 303` transmutation, `Dc 516` intersection, `Dc 535` format parameter application!)
-  - `Member of script / category` (Column 8 `Script`)
-- **Character & Format Properties**:
-  - `Combining class` (Column 4), `Bidi class` (Column 5), `Case partner` (Column 6), `General category` (Column 7)
-  - `File extension` (Column 11), `MIME type` (Column 12), `Apple UTI` (Column 13), `Apple OSType` (Column 14), `Magic name` (`@magic_name(...)`), `OS association` (`@os(...)`)
+### C. Verb + Noun Decomposition of Relationships and Attributes
+Rather than proliferating monolithic predicate Dcs that bake a verb and a specific attribute noun together (such as `"Has preferred replacement"` or `"Has Apple Uniform Type Identifier"`), statements are composed from:
+1. **A small set of `.Semantic:Relationship` verbs** using clear directional phrasing (`Has a`, `Is equal to`, `Is an instance of`, `Is a subtype of`, `Is based on`, `Is deprecated`, `Is associated with`, `Is a closing delimiter of syntactic block for`, `Supersedes`, `Retracts`).
+2. **`.Semantic` and `.Formats:identifier` nouns** (`Replacement`, `Preferred`, `Decomposition`, `Canonical name`, `Description`, `Programmatic identifier`, `Nickname`, `Informal alias`, `Formal alias`, `Annotation`, `Magic signature`, `Unicode canonical combining class`, `Unicode bidirectional class`, `Case mapping partner`, `Unicode general category`, `Cross-reference`, `Syntax rule`, `Data format or type description`, `Script`, `Category`, `Operating system`, plus format nouns `f264` `File extension`, `MediaType`, `UniformTypeIdentifier`, `AppleOsType`).
+3. **Composable compound relationships**: A compound concept can either be expressed directly in statements or defined via `Decomposition` (e.g., decomposing a preferred replacement relationship into `Has a` + `Preferred` + `Replacement`).
 
-#### C. Syntax (`:<syntax>`) Graph Combinators (~10 Dcs)
-Right now `:<syntax>` in CSV uses a small grammar: sequences, alternations (`|`), quantifiers (`?`, `*`, `+`, `{m,n}`), character classes (`[...]`, `[^...]`, ranges `a..b`), self-reference (`~`), rule references (`[310:]`), named constructs (`[number:Natural0]`), and rewrite actions (`: lang.assign($ident, $val)`).
-Wait—several of these **already exist** as Dcs:
-- Range `a..b` -> `Dc 4` (`Range`)
-- Alternation `A | B` -> `Dc 516` (`Type intersection` — "any of multiple types satisfy the description")
-- Conjunction `A & B` -> `Dc 300` (`Type union` — "all of multiple types satisfy the description")
-- Sequence `A B C` -> `Dc 310`..`Dc 311` (`Begin list`..`End list`)
-- Grouping `( ... )` -> `Dc 298`..`Dc 299` (`Begin/End associativity group`)
-
-So to translate `:<syntax>` into graph statements, we only need a handful of syntax-specific Dcs:
-1. **Has syntax rule**: Links a Dc (or named construct node) to its syntax expression node.
-2. **Closes container** (`@closes(...)`): Links closer Dc (e.g. `Dc 259`) to opener Dc (e.g. `Dc 258`).
-3. **Self position (`~`)**: Marker Dc representing the defined Dc's own position in its syntax pattern.
-4. **Quantified pattern**: Links a pattern term to `[min, max]` bounds (covering `?` = `0..1`, `*` = `0..∞`, `+` = `1..∞`, `{m,n}` = `m..n`).
-5. **Negated match (`[^...]`)**: Matches any single token/frame *except* the target set (with `Dc 255` escape awareness built into the tiny kernel).
-6. **Rule reference (`[X:]`)**: Matches a complete instance of target Dc `X`'s syntax rule.
-7. **Parameter binding / capture (`$var`) & Rewrite (`: action`)**: Binds a matched sub-span to an identifier (`Dc 270`..`Dc 271`) and rewrites to a canonical Dc expression (e.g., rewriting `Dc 269` into `Dc 268`).
+### D. Generalized Regex-Like Pattern Matcher for Dcs (`.Semantic:Syntax`)
+The pattern-matching Dcs in `.Semantic:Syntax` are defined generally so they serve as a reusable regex/structural-pattern-matching toolkit over Dc streams anywhere in the system—not exclusively for `:<syntax>` definitions of Dcs:
+- **Reused `.Semantic` and `.EL` primitives**:
+  - Inclusive range (`a..b`): `Dc 4` (`Range`)
+  - Wildcard / any value (`.`): `Dc 275` (`Built-in type identifier: * (Object or any subtype)`)
+  - Grouping (`( ... )`): `Dc 298` / `Dc 299` (`Begin associativity group` / `End associativity group`)
+  - Conjunction / all-of (`A & B`): `Dc 300` (`Type union`)
+  - Alternation / any-of (`A | B`): `Dc 516` (`Type intersection`)
+  - Ordered sequence (`A B C`): `Dc 310` / `Dc 311` (`Begin list` / `End list`)
+- **6 General Pattern-Matching Dcs in `.Semantic:Syntax`**:
+  1. `Self reference` (`@ident("SelfReference")`): Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched (`~` in `:<syntax>`, or recursive self-reference in a pattern).
+  2. `Pattern repetition` (`@ident("PatternRepetition")`): Quantifies a pattern element with a repetition count or `Dc 4` range (`0..1` for `?`, `0..` for `*`, `1..` for `+`, `m..n` for `{m,n}`).
+  3. `Negated pattern` (`@ident("NegatedPattern")`): Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set (`[^...]`).
+  4. `Subpattern match` (`@ident("SubpatternMatch")`): Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type (`[X:]`), rather than matching the referenced identifier literally.
+  5. `Pattern capture` (`@ident("PatternCapture")`): Matches a pattern element and binds the matched Dc sub-sequence to an identifier (`Dc 270`..`Dc 271`) for backreference, extraction, or substitution (`[type $var]`).
+  6. `Pattern replacement` (`@ident("PatternReplacement")`): Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings (`s/pattern/replacement/` or `: lang.assign($ident, $val)`).
 
 ---
 
-### 2. How the Git-Tracked System Block File Works
+## 2. Seed Ontology Dcs Added to the CSVs (Unassigned IDs for Validator Assignment)
 
-To keep the generated System block (`8589934592+`) human-readable, diffable in Git, and strictly immutable:
-- We store a canonical ledger file in Git (e.g., `src/formats/dcdata/data/system-graph.dcal` or `.csv`/`.dcil` with one System node per line: `<system_node_id> : <dcil_tokens> # human-readable comment`).
-- When `./scripts/validate-data-tables` (or the codegen step) runs:
-  1. It reads the existing `system-graph` file to load all previously published System nodes (`8589934592..=max_id`) and computes the current effective statement set.
-  2. It compiles the current CSVs into the desired set of statements.
-  3. **Unchanged statements** keep their existing System node IDs (`8589934592 + k`) byte-for-byte.
-  4. **Added statements** are allocated the next sequential System node IDs (`max_id + 1`, ...).
-  5. **Modified statements** (e.g., you edited a Dc's `:syntax` or description in CSV) allocate a new System node for the new statement *plus* a `Supersedes` node pointing to the old System node ID.
-  6. **Removed statements** allocate a `Retracts` node pointing to the old System node ID.
+### A. `.Semantic` Nouns & Qualifiers (`src/formats/dcdata/data/categories/semantic.csv`)
+- `Type` (`@ident("EntityType")`, `@roleDef("TypeToken")`)
+- `Relationship type` (`@ident("RelationshipType")`, `@roleDef("TypeToken")`)
+- `Relationship` (`@ident("Relationship")`, `@roleDef("TypeToken")`)
+- `Entity` (`@ident("Entity")`, `@roleDef("TypeToken")`)
+- `Replacement` (`@ident("Replacement")`)
+- `Preferred` (`@ident("Preferred")`)
+- `Decomposition` (`@ident("Decomposition")`)
+- `Canonical name` (`@ident("CanonicalName")`)
+- `Description` (`@ident("Description")`)
+- `Programmatic identifier` (`@ident("ProgrammaticIdentifier")`)
+- `Nickname` (`@ident("Nickname")`)
+- `Informal alias` (`@ident("InformalAlias")`)
+- `Formal alias` (`@ident("FormalAlias")`)
+- `Annotation` (`@ident("Annotation")`)
+- `Magic signature` (`@ident("MagicSignature")`)
+- `Unicode canonical combining class` (`@ident("CanonicalCombiningClass")`)
+- `Unicode bidirectional class` (`@ident("BidirectionalClass")`)
+- `Case mapping partner` (`@ident("CaseMappingPartner")`)
+- `Unicode general category` (`@ident("CharacterGeneralCategory")`)
+- `Cross-reference` (`@ident("CrossReference")`)
+- `Syntax rule` (`@ident("SyntaxRule")`)
+- `Data format or type description` (`@ident("DataFormatDescription")`)
+- `Script` (`@ident("CharacterScript")`)
+- `Category` (`@ident("Category")`)
+- `Operating system` (`@ident("OperatingSystem")`)
+
+### B. `.Semantic:Relationship` Verbs (`src/formats/dcdata/data/categories/semantic.csv`)
+- `Has a` (`@ident("HasA")`)
+- `Is equal to` (`@ident("IsEqualTo")`)
+- `Is an instance of` (`@ident("IsInstanceOf")`)
+- `Is a subtype of` (`@ident("IsSubtypeOf")`)
+- `Is based on` (`@ident("IsBasedOn")`)
+- `Is deprecated` (`@ident("IsDeprecated")`)
+- `Is a closing delimiter of syntactic block for` (`@ident("IsClosingDelimiterFor")`)
+- `Supersedes` (`@ident("Supersedes")`)
+- `Retracts` (`@ident("Retracts")`)
+- `Is associated with` (`@ident("IsAssociatedWith")`)
+
+### C. `.Semantic:Syntax` Pattern-Matching Primitives (`src/formats/dcdata/data/categories/semantic.csv`)
+- `Self reference` (`@ident("SelfReference")`)
+- `Pattern repetition` (`@ident("PatternRepetition")`)
+- `Negated pattern` (`@ident("NegatedPattern")`)
+- `Subpattern match` (`@ident("SubpatternMatch")`)
+- `Pattern capture` (`@ident("PatternCapture")`)
+- `Pattern replacement` (`@ident("PatternReplacement")`)
+
+### D. `.Formats:identifier` Format Nouns (`src/formats/dcdata/data/categories/formats/identifier.csv`)
+- Existing `f264` (`2228488`): `FileExtension` (`File extension`)
+- `MediaType` (`Media type identifier`)
+- `UniformTypeIdentifier` (`Uniform Type Identifier`)
+- `AppleOsType` (`Apple OSType code`)
 
 ---
 
-### 3. Recommended Migration Order
+## 3. Git-Tracked System Block Ledger & Migration Order
 
-1. **Step 1 — Allocate the seed ontology Dcs in CSV**: Agree on the exact ~25–30 short Dcs (`565`+) for the meta-model, CSV predicates, and syntax combinators.
-2. **Step 2 — Build the CSV $\to$ System-block compiler & Git ledger**: Have codegen emit the 1-statement-per-node System block (`8589934592+`) from the CSVs, including `:<syntax>` ASTs, with append-only revision tracking.
-3. **Step 3 — Build the tiny seed graph loader & index**: A small module (<500 lines) that reads the System block statements, resolves active statements (applying `Supersedes`/`Retracts`), and builds an in-memory index of types, equivalences, container openers/closers, and syntax rules.
-4. **Step 4 — Swap `SyntaxRuleResolver` and collapse [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs)**: Replace `syntax_table.generated.rs` and the thousands of lines of hardcoded string-constraint/role logic in [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs) with queries against the indexed graph statements.
+### A. Immutable System Block Ledger (`8589934592..=12884901887`)
+- Stored in Git in a human-readable, line-oriented format (one 1-statement System node per line).
+- When the CSV-to-graph generator runs:
+  1. **Literal & Enum Entity Nodes**: String literals, numbers, scripts (`.Symbols`, `.Semantic`, etc.), Unicode General Categories, Bidi classes, named syntax types, and decomposition tags are interned as System nodes.
+  2. **Unchanged statements** retain their existing System node IDs (`8589934592 + k`).
+  3. **Added statements** receive the next sequential System node IDs (`max_id + 1`, ...).
+  4. **Modified statements** allocate a new System node for the updated statement plus a `Supersedes` statement node referencing the prior System node ID.
+  5. **Removed statements** allocate a `Retracts` statement node referencing the prior System node ID.
+
+### B. Next Implementation Steps
+1. **Assign IDs via `./scripts/validate-data-tables`**: Run the validator/updater to assign permanent `Dc` and `Short` IDs to the new rows in `semantic.csv` and `identifier.csv`.
+2. **Build the CSV $\to$ System-block compiler & Git ledger**: Emit the interned string/value nodes, enum entity nodes (scripts, categories, bidi classes, etc.), and 1-statement-per-node System block (`8589934592+`) from the CSVs, including `:<syntax>` pattern ASTs and append-only `Supersedes`/`Retracts` revision tracking.
+3. **Build the lightweight seed graph loader & index**: Resolve active statements and index types, equivalences, container openers/closers, and pattern rules.
+4. **Replace `SyntaxRuleResolver` and simplify [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs)**: Replace `syntax_table.generated.rs` and the procedural role/constraint tables in [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs) with queries against the indexed graph statements.

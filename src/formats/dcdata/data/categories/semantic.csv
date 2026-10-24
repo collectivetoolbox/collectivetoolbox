@@ -274,10 +274,15 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 ,,Is a closing delimiter of syntactic block for,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsClosingDelimiterFor"")",Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character.
 ,,Supersedes,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Supersedes"")",Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node.
 ,,Retracts,0,BN,,!Cx,.Semantic:Relationship,"@ident(""Retracts"")",Asserts that the subject statement node withdraws and retracts the object statement node.
-,,Cross-reference,,,,,,,
-,,Syntax rule,,,,,,,
-,,Data format or type description,,,,,,,
-,,Script,,,,,,,
-,,Category,,,,,,,
-,,Operating system,,,,,,,
-,,Is associated with,,,,,,,
+,,Cross-reference,0,BN,,!Cx,.Semantic,"@ident(""CrossReference"")",A reference directing attention to another related entity or entry.
+,,Syntax rule,0,BN,,!Cx,.Semantic,"@ident(""SyntaxRule"")",A pattern or grammar rule defining the valid syntactic structure of something.
+,,Data format or type description,0,BN,,!Cx,.Semantic,"@ident(""DataFormatDescription"")","A specification or expression describing the format, type, or composition pipeline of data."
+,,Dc Script,0,BN,,!Cx,.Semantic,"@ident(""CharacterScript"")",A Dc script classification
+,,Operating system,0,BN,,!Cx,.Semantic,"@ident(""OperatingSystem"")",An operating system environment or platform family.
+,,Is associated with,0,BN,,!Cx,.Semantic:Relationship,"@ident(""IsAssociatedWith"")",Asserts that the subject is associated or affiliated with the object.
+,,Self reference,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SelfReference"")",Placeholder referring to the enclosing subject entity or the pattern rule currently being defined or matched.
+,,Pattern repetition,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternRepetition"")","Quantifies a pattern element with a repetition count or Dc 4 range (such as 0..1 for optional, 0.. for zero or more, 1.. for one or more, or m..n for bounded repetition)."
+,,Negated pattern,0,BN,,!Cx,.Semantic:Syntax,"@ident(""NegatedPattern"")",Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set.
+,,Subpattern match,0,BN,,!Cx,.Semantic:Syntax,"@ident(""SubpatternMatch"")","Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally."
+,,Pattern capture,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternCapture"")","Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution."
+,,Pattern replacement,0,BN,,!Cx,.Semantic:Syntax,"@ident(""PatternReplacement"")",Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings.
