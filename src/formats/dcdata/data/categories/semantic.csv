@@ -2,7 +2,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114114,2,Begin separator,0,BN,,!Cx,.Semantic,,Begin a DCE separator string.
 1114115,3,End separator,0,BN,,!Cx,.Semantic,,End a DCE separator string.
 1114116,4,Range,0,BN,,!Cx,.Semantic,,The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
-1114117,5,Record summation,0,BN,,!Cx,.Semantic,,Used to denote the union of two records. See the wiki for more information.
+1114117,5,Record summation,0,BN,,!Cx,.Semantic,,"Used to denote the union of two records. See the wiki for more information. Example: @9@@2@1@3@@10@2012@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@@4@@9@@2@1@3@@10@2012@2@2@3@11@2@2@3@19@2@2@3@16@2@2@3@7@2@2@3@6@2@2@3@27@5@@9@@2@1@3@@10@2013@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@ This represents the range from 2012 A. D., 7 October, 15th hour, unknown hour subdivision, to 2012 A. D., 19 November, 16th hour, 7th minute, 6.27 seconds, as well as the date 2013 A. D., 7 October, 15th hour, unknown hour subdivision."
 1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber""), @roleDef()",Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber""), @roleDef(), @closes(6)",End a DCE number.
 1114120,8,Unknown value,0,BN,,!Cx,.Semantic,,Substitution character for an unknown value.
@@ -284,7 +284,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 ,,Wildcard pattern,0,BN,,!Cx,.Semantic:Pattern,"@ident(""WildcardPattern"")",Matches any single Dc token or balanced syntactic frame.
 ,,Pattern conjunction,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternConjunction"")",Matches a Dc sequence only if all of the specified component patterns match.
 ,,Pattern alternation,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternAlternation"")",Matches a Dc sequence if any of the specified alternative patterns match.
-,,Pattern repetition,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternRepetition"")","Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range."
+,,Pattern repetition,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternRepetition"")",Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range.
 ,,Negated pattern,0,BN,,!Cx,.Semantic:Pattern,"@ident(""NegatedPattern"")",Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set.
 ,,Subpattern match,0,BN,,!Cx,.Semantic:Pattern,"@ident(""SubpatternMatch"")","Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally."
 ,,Pattern capture,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternCapture"")","Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution."
