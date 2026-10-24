@@ -7,6 +7,9 @@ assuming the current code still has the reported fault.
 
 ## Topical Backlogs
 
+- - Improve unicode display (character names!) in ctbnodes
+
+
 - [CSC and archives](csc.md): preservation, streams, recovery, file API policy,
   native-platform qualification, and metadata privacy.
 - [Dc parser](dc-parser.md): syntax validation, semantic roles, projection,
