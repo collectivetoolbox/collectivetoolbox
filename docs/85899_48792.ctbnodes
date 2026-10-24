@@ -22,3 +22,46 @@ l8589948812: 598 f315 f405 # Is associated with (AppleSingle, Mac OS family)
 l8589948813: 598 f316 f405 # Is associated with (AppleDouble (RFC 1740), Mac OS family)
 l8589948814: 598 f637 f405 # Is associated with (Uniform Type Identifier, Mac OS family)
 l8589948815: 598 f638 f405 # Is associated with (Apple OSType code, Mac OS family)
+l8589948816: u42 u65 u67 u69 u6e u20 u67 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e # "Begin graph node definition"
+l8589948817: u42 u65 u67 u69 u6e u73 u20 u61 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u20 u6f u66 u20 u74 u68 u65 u20 u67 u6c u6f u62 u61 u6c u20 u67 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u69 u64 u65 u6e u74 u69 u66 u69 u65 u64 u20 u62 u79 u20 u74 u68 u65 u20 u5b u61 u74 u6f u6d u5f u64 u63 u5d u20 u68 u65 u61 u64 u65 u72 u20 u74 u6f u6b u65 u6e u2e u20 u57 u69 u74 u68 u69 u6e u20 u74 u68 u65 u20 u6e u6f u64 u65 u20 u62 u6f u64 u79 u20 u44 u63 u20 u36 u31 u35 u20 u28 u45 u6e u63 u6c u6f u73 u69 u6e u67 u20 u64 u6f u63 u75 u6d u65 u6e u74 u29 u20 u72 u65 u66 u65 u72 u73 u20 u74 u6f u20 u74 u68 u69 u73 u20 u6e u6f u64 u65 u20 u49 u44 u2e # "Begins a definition of the global graph node identified by the [atom_dc] header token. Within the node body Dc 615 (Enclosing document) refers to this node ID."
+l8589948818: u42 u65 u67 u69 u6e u47 u72 u61 u70 u68 u4e u6f u64 u65 u44 u65 u66 u69 u6e u69 u74 u69 u6f u6e # "BeginGraphNodeDefinition"
+l8589948819: u45 u6e u64 u20 u67 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e # "End graph node definition"
+l8589948820: u54 u65 u72 u6d u69 u6e u61 u74 u65 u73 u20 u61 u20 u67 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u20 u62 u65 u67 u75 u6e u20 u62 u79 u20 u44 u63 u20 u36 u31 u37 u2e # "Terminates a graph node definition begun by Dc 617."
+l8589948821: u45 u6e u64 u47 u72 u61 u70 u68 u4e u6f u64 u65 u44 u65 u66 u69 u6e u69 u74 u69 u6f u6e # "EndGraphNodeDefinition"
+l8589948822: u43 u6f u6c u6c u65 u63 u74 u69 u76 u65 u20 u54 u6f u6f u6c u62 u6f u78 u20 u4e u6f u64 u65 u20 u42 u75 u6e u64 u6c u65 # "Collective Toolbox Node Bundle"
+l8589948823: u44 u63 u20 u6d u69 u78 u65 u64 u20 u6d u6f u64 u65 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u28 u66 u34 u38 u34 u29 u20 u70 u72 u65 u66 u69 u78 u65 u64 u20 u77 u69 u74 u68 u20 u43 u54 u42 u4e u42 u44 u4c u5c u30 u31 u20 u63 u6f u6e u74 u61 u69 u6e u69 u6e u67 u20 u6d u75 u6c u74 u69 u70 u6c u65 u20 u47 u6c u6f u62 u61 u6c u20 u47 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u73 u20 u28 u44 u63 u20 u36 u31 u37 u20 u2e u2e u20 u44 u63 u20 u36 u31 u38 u29 u2e # "Dc mixed mode document (f484) prefixed with CTBNBDL\\01 containing multiple Global Graph node definitions (Dc 617 .. Dc 618)."
+l8589948824: u43 u74 u62 u4e u6f u64 u65 u42 u75 u6e u64 u6c u65 # "CtbNodeBundle"
+l8589948825: 584 617 572 # Has a (Begin graph node definition, Canonical name)
+l8589948826: 610 l8589948825 l8589948816 # Has value (l8589948825, "Begin graph node definition")
+l8589948827: 584 617 573 # Has a (Begin graph node definition, Description)
+l8589948828: 610 l8589948827 l8589948817 # Has value (l8589948827, "Begins a definition of the global graph node identified by the [atom_dc] header token. Within the node body Dc 615 (Enclosing document) refers to this node ID.")
+l8589948829: 584 617 574 # Has a (Begin graph node definition, Programmatic identifier)
+l8589948830: 610 l8589948829 l8589948818 # Has value (l8589948829, "BeginGraphNodeDefinition")
+l8589948831: 584 617 581 # Has a (Begin graph node definition, Unicode bidirectional class)
+l8589948832: 610 l8589948831 l8589934593 # Has value (l8589948831, Bidi class BN)
+l8589948833: 584 618 572 # Has a (End graph node definition, Canonical name)
+l8589948834: 610 l8589948833 l8589948819 # Has value (l8589948833, "End graph node definition")
+l8589948835: 584 618 573 # Has a (End graph node definition, Description)
+l8589948836: 610 l8589948835 l8589948820 # Has value (l8589948835, "Terminates a graph node definition begun by Dc 617.")
+l8589948837: 584 618 574 # Has a (End graph node definition, Programmatic identifier)
+l8589948838: 610 l8589948837 l8589948821 # Has value (l8589948837, "EndGraphNodeDefinition")
+l8589948839: 584 618 581 # Has a (End graph node definition, Unicode bidirectional class)
+l8589948840: 610 l8589948839 l8589934593 # Has value (l8589948839, Bidi class BN)
+l8589948841: 584 f640 572 # Has a (Collective Toolbox Node Bundle, Canonical name)
+l8589948842: 610 l8589948841 l8589948822 # Has value (l8589948841, "Collective Toolbox Node Bundle")
+l8589948843: 584 f640 573 # Has a (Collective Toolbox Node Bundle, Description)
+l8589948844: 610 l8589948843 l8589948823 # Has value (l8589948843, "Dc mixed mode document (f484) prefixed with CTBNBDL\\01 containing multiple Global Graph node definitions (Dc 617 .. Dc 618).")
+l8589948845: 584 f640 574 # Has a (Collective Toolbox Node Bundle, Programmatic identifier)
+l8589948846: 610 l8589948845 l8589948824 # Has value (l8589948845, "CtbNodeBundle")
+l8589948847: u63 u74 u62 u6e u62 u64 u6c # "ctbnbdl"
+l8589948848: u2e u63 u74 u62 u6e u62 u64 u6c # ".ctbnbdl"
+l8589948849: 584 f640 576 # Has a (Collective Toolbox Node Bundle, Informal alias)
+l8589948850: 610 l8589948849 l8589948847 # Has value (l8589948849, "ctbnbdl")
+l8589948851: 584 f640 f264 # Has a (Collective Toolbox Node Bundle, File extension)
+l8589948852: 610 l8589948851 l8589948848 # Has value (l8589948851, ".ctbnbdl")
+l8589948853: 586 617 l8589934603 # Is an instance of (Begin graph node definition, General category !Cx)
+l8589948854: 586 617 l8589934681 # Is an instance of (Begin graph node definition, Script .Semantic)
+l8589948855: 586 618 l8589934603 # Is an instance of (End graph node definition, General category !Cx)
+l8589948856: 586 618 l8589934681 # Is an instance of (End graph node definition, Script .Semantic)
+l8589948857: 586 f640 l8589934647 # Is an instance of (Collective Toolbox Node Bundle, Script .Formats:document)
+l8589948858: 588 f640 f484 # Is based on (Collective Toolbox Node Bundle, DcUtf mixed mode)

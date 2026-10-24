@@ -1361,6 +1361,8 @@ pub enum FormatId {
     AppleOsType,
     /// Collective Toolbox graph nodes (shorthand text) (Short 639, Category: document)
     CtbNodes,
+    /// Collective Toolbox Node Bundle (Short 640, Category: document)
+    CtbNodeBundle,
 }
 
 impl FormatId {
@@ -1632,7 +1634,8 @@ impl FormatId {
             | Self::Dcts
             | Self::DcMixed
             | Self::Dcsh
-            | Self::CtbNodes => FormatCategory::Document,
+            | Self::CtbNodes
+            | Self::CtbNodeBundle => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2657,6 +2660,7 @@ impl FormatId {
             "uniformtypeidentifier" | "uniform_type_identifier" => Some(Self::UniformTypeIdentifier),
             "appleostype" | "apple_os_type" => Some(Self::AppleOsType),
             "ctbnodes" | "ctb_nodes" => Some(Self::CtbNodes),
+            "ctbnodebundle" | "ctb_node_bundle" | "ctbnbdl" => Some(Self::CtbNodeBundle),
             _ => None,
         }
     }
@@ -3305,6 +3309,7 @@ impl FormatId {
             Self::UniformTypeIdentifier => "UniformTypeIdentifier",
             Self::AppleOsType => "AppleOsType",
             Self::CtbNodes => "CtbNodes",
+            Self::CtbNodeBundle => "CtbNodeBundle",
         }
     }
 
@@ -4142,6 +4147,7 @@ impl FormatId {
             Self::UniformTypeIdentifier => "f637",
             Self::AppleOsType => "f638",
             Self::CtbNodes => "f639",
+            Self::CtbNodeBundle => "f640",
         }
     }
 
@@ -4790,6 +4796,7 @@ impl FormatId {
             "f637" => Some(Self::UniformTypeIdentifier),
             "f638" => Some(Self::AppleOsType),
             "f639" => Some(Self::CtbNodes),
+            "f640" => Some(Self::CtbNodeBundle),
             _ => None,
         }
     }
@@ -5438,6 +5445,7 @@ impl FormatId {
             Self::UniformTypeIdentifier => Some(2228861_u128),
             Self::AppleOsType => Some(2228862_u128),
             Self::CtbNodes => Some(2228863_u128),
+            Self::CtbNodeBundle => Some(2228864_u128),
         }
     }
 
@@ -6098,6 +6106,7 @@ impl FormatId {
             2228861_u128 => Some(Self::UniformTypeIdentifier),
             2228862_u128 => Some(Self::AppleOsType),
             2228863_u128 => Some(Self::CtbNodes),
+            2228864_u128 => Some(Self::CtbNodeBundle),
             _ => None,
         }
     }
@@ -7383,3 +7392,5 @@ pub const DC_UNIFORM_TYPE_IDENTIFIER: DcChar = DcChar::from_format(637);
 pub const DC_APPLE_OS_TYPE: DcChar = DcChar::from_format(638);
 /// DcChar constant for Format `CtbNodes` (Short f639, Category: document): Collective Toolbox graph nodes (shorthand text)
 pub const DC_CTB_NODES: DcChar = DcChar::from_format(639);
+/// DcChar constant for Format `CtbNodeBundle` (Short f640, Category: document): Collective Toolbox Node Bundle
+pub const DC_CTB_NODE_BUNDLE: DcChar = DcChar::from_format(640);

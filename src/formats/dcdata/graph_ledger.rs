@@ -34,6 +34,7 @@ use crate::utilities::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
 use ctb_storage_minimal::global_graph_layout::{
     SYSTEM_REGION_END, SYSTEM_REGION_START,
 };
@@ -43,24 +44,34 @@ use ctb_utilities::format_id::{
     DC_UNIFORM_TYPE_IDENTIFIER,
 };
 
+/// Leading 8-byte magic header for `.ctbnbdl` (`CtbNodeBundle`) files.
+pub const CTBNBDL_MAGIC: [u8; 8] = *b"CTBNBDL\x01";
+
+/// Standard 21-byte `DcMixed` (`f484`) header (`DcMM\0` + UUID `d5ab819e-9b8e-4d61-adbc-933e8851e79a`).
+pub const DCMM_HEADER: [u8; 21] = [
+    b'D', b'c', b'M', b'M', 0, 0xd5, 0xab, 0x81, 0x9e, 0x9b, 0x8e, 0x4d, 0x61,
+    0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
+];
+
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
-    DC_BEGIN_NUMBER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
-    DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
+    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_NUMBER, DC_BIDIRECTIONAL_CLASS,
+    DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
     DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_GENERAL_CATEGORY, DC_DESCRIPTION,
-    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP, DC_END_NUMBER,
-    DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS,
-    DC_HAS_A, DC_HAS_VALUE, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
-    DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
-    DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
-    DC_NEGATED_PATTERN, DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE,
-    DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION, DC_PREFERRED,
-    DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE, DC_REFERENCE_NAMED_OBJECT,
-    DC_REPLACEMENT, DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
-    DC_SEMANTIC_DECOMPOSITION, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
-    DC_SYNTAX_RULE, DC_UNICODE_SCRIPT, DcChar,
+    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
+    DC_END_GRAPH_NODE_DEFINITION, DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS, DC_HAS_A, DC_HAS_VALUE,
+    DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON,
+    DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
+    DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE, DC_NEGATED_PATTERN,
+    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT,
+    DC_PATTERN_REPETITION, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
+    DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
+    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_UNICODE_SCRIPT,
+    DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
@@ -453,6 +464,11 @@ fn build_initial_token_labels(
         (DC_SEMANTIC_DECOMPOSITION, "Semantic decomposition"),
         (DC_ENCLOSING_DOCUMENT, "Enclosing document"),
         (DC_EVALUATE_VALUE_AS_ATOM, "Evaluate value as atom"),
+        (
+            DC_BEGIN_GRAPH_NODE_DEFINITION,
+            "Begin graph node definition",
+        ),
+        (DC_END_GRAPH_NODE_DEFINITION, "End graph node definition"),
         (DC_ESCAPE, "Ignore following Dc"),
         (DC_FILE_EXTENSION, "File extension"),
         (DC_MEDIA_TYPE, "IANA Media Type"),
@@ -610,6 +626,139 @@ pub fn write_ledger_nodes_to_dir(
         }
     }
     Ok(files_written)
+}
+
+/// Encodes a single `LedgerNode` (`id` + `tokens`) into its `Dc 617 .. Dc 618` token sequence:
+/// `617 [atom_dc: l<id>] <escaped body tokens...> 618`.
+#[must_use]
+pub fn encode_node_definition_tokens(node: &LedgerNode) -> Vec<DcShorthand> {
+    let mut out = Vec::with_capacity(node.tokens.len().saturating_add(4));
+    out.push(sh(DC_BEGIN_GRAPH_NODE_DEFINITION));
+    push_atom_dc(&mut out, DcShorthand::from_global_id(node.id));
+    for &tok in &node.tokens {
+        if tok == sh(DC_ESCAPE)
+            || tok == sh(DC_END_GRAPH_NODE_DEFINITION)
+        {
+            out.push(sh(DC_ESCAPE));
+        }
+        out.push(tok);
+    }
+    out.push(sh(DC_END_GRAPH_NODE_DEFINITION));
+    out
+}
+
+/// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle`) binary buffer:
+/// 8-byte `CTBNBDL\x01` magic + 21-byte `DcMM` header + `UTF-8e-128` encoded `617 .. 618` frames.
+#[must_use]
+pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(
+        CTBNBDL_MAGIC
+            .len()
+            .saturating_add(DCMM_HEADER.len())
+            .saturating_add(nodes.len().saturating_mul(32)),
+    );
+    bytes.extend_from_slice(&CTBNBDL_MAGIC);
+    bytes.extend_from_slice(&DCMM_HEADER);
+    let mut char_buf = [0u8; 24];
+    for node in nodes {
+        for tok in encode_node_definition_tokens(node) {
+            let n = encode_utf_8e_128_buf(&mut char_buf, tok.to_global_id());
+            if let Some(slice) = char_buf.get(..n) {
+                bytes.extend_from_slice(slice);
+            }
+        }
+    }
+    bytes
+}
+
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
+/// (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
+pub fn decode_nodes_from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Vec<LedgerNode>> {
+    let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
+    ensure!(
+        bytes.len() >= header_len,
+        ".ctbnbdl buffer is shorter than the {header_len}-byte header ({} bytes)",
+        bytes.len()
+    );
+    let magic_part = bytes.get(..CTBNBDL_MAGIC.len()).unwrap_or_default();
+    ensure!(
+        magic_part == CTBNBDL_MAGIC,
+        "Invalid .ctbnbdl magic bytes: expected {:?}, found {:?}",
+        CTBNBDL_MAGIC,
+        magic_part
+    );
+    let dcmm_part = bytes
+        .get(CTBNBDL_MAGIC.len()..header_len)
+        .unwrap_or_default();
+    ensure!(
+        dcmm_part == DCMM_HEADER,
+        "Invalid DcMM header in .ctbnbdl buffer"
+    );
+
+    let mut payload = bytes.get(header_len..).unwrap_or_default();
+    let mut all_tokens = Vec::new();
+    while !payload.is_empty() {
+        let Some((codepoint, consumed)) = decode_utf_8e_128_buf(payload) else {
+            bail!("Invalid UTF-8e-128 sequence in .ctbnbdl stream");
+        };
+        all_tokens.push(DcShorthand::from_global_id(codepoint));
+        payload = payload.get(consumed..).unwrap_or_default();
+    }
+
+    let mut nodes = Vec::new();
+    let mut idx = 0usize;
+    let sh_begin = sh(DC_BEGIN_GRAPH_NODE_DEFINITION);
+    let sh_end = sh(DC_END_GRAPH_NODE_DEFINITION);
+    let sh_escape = sh(DC_ESCAPE);
+
+    while idx < all_tokens.len() {
+        let open_tok = *all_tokens
+            .get(idx)
+            .context("Unexpected end of .ctbnbdl token stream")?;
+        ensure!(
+            open_tok == sh_begin,
+            "Expected Dc 617 (Begin graph node definition) at token index {idx}, found {open_tok}"
+        );
+        idx = idx.saturating_add(1);
+        let id_sh = consume_atom_dc(&all_tokens, &mut idx)
+            .context("Invalid or missing [atom_dc] node ID after Dc 617")?;
+        let id = id_sh.to_global_id();
+        let mut body_tokens = Vec::new();
+        let mut closed = false;
+        while idx < all_tokens.len() {
+            let tok = *all_tokens
+                .get(idx)
+                .context("Unexpected end of node definition in .ctbnbdl")?;
+            idx = idx.saturating_add(1);
+            if tok == sh_end {
+                closed = true;
+                break;
+            }
+            if tok == sh_escape {
+                let escaped = *all_tokens.get(idx).context(
+                    "Trailing Dc 255 escape at end of .ctbnbdl token stream",
+                )?;
+                ensure!(
+                    escaped == sh_escape || escaped == sh_end,
+                    "Unexpected escaped token {escaped} after Dc 255 in .ctbnbdl node body"
+                );
+                idx = idx.saturating_add(1);
+                body_tokens.push(escaped);
+            } else {
+                body_tokens.push(tok);
+            }
+        }
+        ensure!(
+            closed,
+            "Unterminated Dc 617 node definition for l{id} (missing Dc 618)"
+        );
+        nodes.push(LedgerNode {
+            id,
+            tokens: body_tokens,
+            comment: String::new(),
+        });
+    }
+    Ok(nodes)
 }
 
 /// Active index of a loaded ledger, tracking value nodes, seed entities, and active statements.
@@ -2473,6 +2622,56 @@ mod tests {
             decode_string_value_tokens(&str_tokens).as_deref(),
             Some("Range")
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_ctbnbdl_bundle_encode_decode_roundtrip() -> Result<()> {
+        let nodes = vec![
+            LedgerNode {
+                id: SYSTEM_REGION_START,
+                tokens: vec![
+                    sh(DC_IS_INSTANCE_OF),
+                    sh(DC_ENCLOSING_DOCUMENT),
+                    sh(DC_BIDIRECTIONAL_CLASS),
+                ],
+                comment: "Seed entity".to_string(),
+            },
+            LedgerNode {
+                id: SYSTEM_REGION_START + 1,
+                tokens: encode_string_value_tokens("Range"),
+                comment: "\"Range\"".to_string(),
+            },
+            LedgerNode {
+                id: SYSTEM_REGION_START + 2,
+                tokens: Vec::new(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: SYSTEM_REGION_START + 3,
+                tokens: vec![
+                    sh(DC_HAS_A),
+                    sh(DC_ESCAPE),
+                    sh(DC_END_GRAPH_NODE_DEFINITION),
+                    sh(DC_CANONICAL_NAME),
+                ],
+                comment: "Node containing Dc 255 and Dc 618 in body".to_string(),
+            },
+        ];
+
+        let bundle_bytes = encode_nodes_to_ctbnbdl_bytes(&nodes);
+        assert!(bundle_bytes.starts_with(&CTBNBDL_MAGIC));
+        assert_eq!(
+            &bundle_bytes[CTBNBDL_MAGIC.len()..CTBNBDL_MAGIC.len() + DCMM_HEADER.len()],
+            &DCMM_HEADER
+        );
+
+        let decoded = decode_nodes_from_ctbnbdl_bytes(&bundle_bytes)?;
+        assert_eq!(decoded.len(), nodes.len());
+        for (orig, dec) in nodes.iter().zip(decoded.iter()) {
+            assert_eq!(orig.id, dec.id);
+            assert_eq!(orig.tokens, dec.tokens);
+        }
         Ok(())
     }
 

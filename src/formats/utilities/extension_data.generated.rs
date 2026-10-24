@@ -640,6 +640,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("ctbnodes"),
     },
     ExtensionEntry {
+        format_id: FormatId::CtbNodeBundle,
+        rule: ExtensionRule::insensitive("ctbnbdl"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Utf8,
         rule: ExtensionRule::insensitive("txt"),
     },
