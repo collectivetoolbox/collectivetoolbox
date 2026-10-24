@@ -18,7 +18,7 @@ Script
 .Punctuation
 .Semantic
 .Semantic:Relationship
-.Semantic:Syntax
+.Semantic:Pattern
 .Semantic:fileflag
 .Styling
 .Symbols
