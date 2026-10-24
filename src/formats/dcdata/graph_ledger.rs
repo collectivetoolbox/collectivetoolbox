@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Translates the Document Character and Format CSV database into immutable
 //! 3-token statement triples, seed classification entities, and deduplicated
 //! value nodes in the System block (`8589934592..=12884901887`), persisted as
-//! 100-node chunk files in `assets/data/graph/system-XXXXX.ctbnodes`.
+//! 100-node chunk files in `docs/85899_34592.ctbnodes`, etc.
 
 #[allow(
     unused_imports,
@@ -465,12 +465,53 @@ fn build_initial_token_labels(
     map
 }
 
+/// Formats a global node ID into a `.ctbnodes` chunk filename with `_` grouping
+/// every 5 digits from the right (e.g., `8589934592` -> `"85899_34592.ctbnodes"`).
+#[must_use]
+pub fn format_chunk_filename(first_id: u128) -> String {
+    let digits = first_id.to_string();
+    let len = digits.len();
+    let mut grouped =
+        String::with_capacity(len.saturating_add(len.checked_div(5).unwrap_or(0)));
+    for (idx, ch) in digits.chars().enumerate() {
+        let remaining = len.saturating_sub(idx);
+        if idx > 0 && remaining.is_multiple_of(5) {
+            grouped.push('_');
+        }
+        grouped.push(ch);
+    }
+    format!("{grouped}.ctbnodes")
+}
+
+/// Parses a `.ctbnodes` chunk filename (e.g., `"85899_34592.ctbnodes"`) into its starting node ID.
+#[must_use]
+pub fn parse_chunk_filename_start_id(filename: &str) -> Option<u128> {
+    let stem = filename.strip_suffix(".ctbnodes")?;
+    if stem.is_empty() || stem.starts_with('_') || stem.ends_with('_') {
+        return None;
+    }
+    let mut clean = String::with_capacity(stem.len());
+    for ch in stem.chars() {
+        if ch.is_ascii_digit() {
+            clean.push(ch);
+        } else if ch == '_' {
+            // separator
+        } else {
+            return None;
+        }
+    }
+    if clean.is_empty() {
+        return None;
+    }
+    clean.parse::<u128>().ok()
+}
+
 /// Returns the sorted list of `.ctbnodes` chunk files in `graph_dir`.
 pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
     if !graph_dir.exists() {
         return Ok(Vec::new());
     }
-    let mut files = Vec::new();
+    let mut keyed_files: Vec<(u128, PathBuf)> = Vec::new();
     for entry in std::fs::read_dir(graph_dir).with_context(|| {
         format!("Failed to read graph directory {}", graph_dir.display())
     })? {
@@ -482,20 +523,26 @@ pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
         let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        if name.starts_with("system-") && name.ends_with(".ctbnodes") {
-            files.push(path);
+        if let Some(start_id) = parse_chunk_filename_start_id(name) {
+            if (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&start_id) {
+                keyed_files.push((start_id, path));
+            }
         }
     }
-    files.sort();
-    Ok(files)
+    keyed_files.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    Ok(keyed_files.into_iter().map(|(_, p)| p).collect())
 }
 
-/// Loads all existing `LedgerNode` entries from `assets/data/graph/system-*.ctbnodes`.
+/// Loads all existing `LedgerNode` entries from `.ctbnodes` chunk files in `graph_dir`.
 pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
     let files = list_chunk_files(graph_dir)?;
     let mut nodes = Vec::new();
     for (chunk_idx, path) in files.iter().enumerate() {
-        let expected_name = format!("system-{chunk_idx:05}.ctbnodes");
+        let chunk_start_id = SYSTEM_REGION_START.saturating_add(
+            u128::try_from(chunk_idx.saturating_mul(MAX_NODES_PER_CHUNK))
+                .unwrap_or(0),
+        );
+        let expected_name = format_chunk_filename(chunk_start_id);
         let actual_name = path
             .file_name()
             .and_then(|s| s.to_str())
@@ -538,7 +585,7 @@ pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
     Ok(nodes)
 }
 
-/// Writes `nodes` into 100-node chunk files (`system-00000.ctbnodes`, ...) in `graph_dir`,
+/// Writes `nodes` into 100-node chunk files (`85899_34592.ctbnodes`, ...) in `graph_dir`,
 /// updating only files whose contents changed. Returns the number of files written.
 pub fn write_ledger_nodes_to_dir(
     graph_dir: &Path,
@@ -548,8 +595,11 @@ pub fn write_ledger_nodes_to_dir(
         format!("Failed to create graph directory {}", graph_dir.display())
     })?;
     let mut files_written = 0usize;
-    for (chunk_idx, chunk) in nodes.chunks(MAX_NODES_PER_CHUNK).enumerate() {
-        let file_path = graph_dir.join(format!("system-{chunk_idx:05}.ctbnodes"));
+    for chunk in nodes.chunks(MAX_NODES_PER_CHUNK) {
+        let Some(first_node) = chunk.first() else {
+            continue;
+        };
+        let file_path = graph_dir.join(format_chunk_filename(first_node.id));
         let mut content = String::new();
         for node in chunk {
             content.push_str(&node.format_line());
@@ -2096,7 +2146,7 @@ pub fn update_ledger_in_memory(
     Ok((builder.nodes, stats))
 }
 
-/// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/system-*.ctbnodes`
+/// Loads the CSV dataset from `repo_root` and updates `docs/*.ctbnodes`
 /// using the append-only revision ledger algorithm.
 pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
     let data_dir = repo_root.join("src/formats/dcdata/data");
@@ -2104,7 +2154,7 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
     let formats_dir = categories_dir.join("formats");
     let scripts_path = data_dir.join("README.scripts.csv");
     let named_types_path = data_dir.join("README-named-types.csv");
-    let graph_dir = repo_root.join("assets/data/graph");
+    let graph_dir = repo_root.join("docs");
 
     let mut report = ValidationReport::new();
     let scripts_bytes = std::fs::read(&scripts_path).with_context(|| {
@@ -2365,7 +2415,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_chunk_file_rollover_at_100_nodes() -> Result<()> {
         let temp = tempfile::tempdir()?;
-        let graph_dir = temp.path().join("assets/data/graph");
+        let graph_dir = temp.path().join("docs");
         let mut nodes = Vec::new();
         for i in 0..205usize {
             let i_u128 = u128::try_from(i).unwrap();
@@ -2381,9 +2431,9 @@ mod tests {
 
         let files = list_chunk_files(&graph_dir)?;
         assert_eq!(files.len(), 3);
-        assert!(files[0].ends_with("system-00000.ctbnodes"));
-        assert!(files[1].ends_with("system-00001.ctbnodes"));
-        assert!(files[2].ends_with("system-00002.ctbnodes"));
+        assert!(files[0].ends_with("85899_34592.ctbnodes"));
+        assert!(files[1].ends_with("85899_34692.ctbnodes"));
+        assert!(files[2].ends_with("85899_34792.ctbnodes"));
 
         let reloaded = load_ledger_nodes_from_dir(&graph_dir)?;
         assert_eq!(reloaded, nodes);
