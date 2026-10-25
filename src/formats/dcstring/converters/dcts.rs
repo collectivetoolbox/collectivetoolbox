@@ -36,7 +36,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::Result;
-use ctb_formats_utf_8e_128::decode_dctf;
+use ctb_formats_dctf::decode_dctf;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,

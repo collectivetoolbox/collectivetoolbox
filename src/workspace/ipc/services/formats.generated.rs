@@ -25,13 +25,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 ipc_service_client! {
     service: formats,
     methods: {
-        async fn utf_8e_128__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>
-            => ::ctb_formats_utf_8e_128::DecodeIpcClientExt("decode", bytes);
-        async fn utf_8e_128__decode_dcutf(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>
-            => ::ctb_formats_utf_8e_128::DecodeDcutfIpcClientExt("decode_dcutf", bytes);
-        async fn utf_8e_128__encode(&self, codepoint: u128) -> Result<Vec < u8 >>
-            => ::ctb_formats_utf_8e_128::EncodeIpcClientExt("encode", codepoint);
-        async fn utf_8e_128__encode_dcutf(&self, codepoint: u128) -> Result<Vec < u8 >>
-            => ::ctb_formats_utf_8e_128::EncodeDcutfIpcClientExt("encode_dcutf", codepoint);
+        async fn dctf__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>
+            => ::ctb_formats_dctf::DecodeIpcClientExt("decode", bytes);
+        async fn dctf__decode_dcutf(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>
+            => ::ctb_formats_dctf::DecodeDcutfIpcClientExt("decode_dcutf", bytes);
+        async fn dctf__encode(&self, codepoint: u128) -> Result<Vec < u8 >>
+            => ::ctb_formats_dctf::EncodeIpcClientExt("encode", codepoint);
+        async fn dctf__encode_dcutf(&self, codepoint: u128) -> Result<Vec < u8 >>
+            => ::ctb_formats_dctf::EncodeDcutfIpcClientExt("encode_dcutf", codepoint);
     }
 }

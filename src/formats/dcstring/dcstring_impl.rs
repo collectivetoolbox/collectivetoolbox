@@ -30,7 +30,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     decode_utf_8e_128_buf, determine_utf_8e_128_error_len, encode_dctf_buf,
 };
 
@@ -355,7 +355,7 @@ mod tests {
     use super::*;
     use crate::validate_dcutf;
     use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
-    use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
+    use ctb_formats_dctf::encode_utf_8e_128_buf;
 
     #[crate::ctb_test]
     fn test_dc_char() {

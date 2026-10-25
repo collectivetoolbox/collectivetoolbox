@@ -45,7 +45,7 @@ use crate::dc_number::{
 use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
 use crate::DcString;
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     decode_dctf, decode_utf_8e_128, encode_dctf_buf, encode_utf_8e_128_buf,
 };
 
@@ -128,12 +128,12 @@ pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>>
         }
 
         if let Some((codepoint, size)) =
-            ctb_formats_utf_8e_128::decode_dctf_buf(slice)
+            ctb_formats_dctf::decode_dctf_buf(slice)
         {
             dc_string.push(DcChar(codepoint));
             i = i.saturating_add(size);
         } else if let Some((codepoint, size)) =
-            ctb_formats_utf_8e_128::decode_utf_8e_128_buf(slice)
+            ctb_formats_dctf::decode_utf_8e_128_buf(slice)
         {
             dc_string.push(DcChar(codepoint));
             i = i.saturating_add(size);

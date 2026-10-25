@@ -20,7 +20,7 @@ ctb-network = { path = "../../network" }
 ctb-renderer = { path = "../../renderer" }
 ctb-runtime = { path = "../../runtime" }
 ctb-storage = { path = "../../storage" }
-ctb-formats-utf-8e-128 = { path = "../../formats/utf_8e_128" }
+ctb-formats-dctf = { path = "../../formats/dctf" }
 
 thiserror = "2.0"
 async-trait = "0.1.89"

@@ -31,7 +31,7 @@ use std::path::{Path, PathBuf};
 
 use crate::global_graph_layout::{SYSTEM_REGION_END, SYSTEM_REGION_START};
 use crate::shorthand::DcShorthand;
-use crate::utf_8e_128::{
+use crate::dctf::{
     decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf,
 };
 

@@ -2846,6 +2846,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
  "ctb-formats-dct-el",
+ "ctb-formats-dctf",
  "ctb-formats-detection",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
@@ -2878,7 +2879,6 @@ dependencies = [
  "ctb-formats-unicode",
  "ctb-formats-uri",
  "ctb-formats-useragent",
- "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
  "ctb-formats-uuid",
@@ -3109,8 +3109,8 @@ dependencies = [
  "anyhow",
  "csv",
  "ctb-build-support",
+ "ctb-formats-dctf",
  "ctb-formats-unicode",
- "ctb-formats-utf-8e-128",
  "ctb-storage-minimal",
  "ctb-utilities",
  "include_dir",
@@ -3142,10 +3142,10 @@ dependencies = [
  "ctb-dc-macro",
  "ctb-formats-checksum",
  "ctb-formats-dcdata",
+ "ctb-formats-dctf",
  "ctb-formats-eite",
  "ctb-formats-math",
  "ctb-formats-unicode",
- "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
  "ctb-formats-wtf8",
@@ -3163,6 +3163,13 @@ name = "ctb-formats-dct-el"
 version = "0.0.0"
 dependencies = [
  "ctb-formats-utilities",
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-dctf"
+version = "0.0.0"
+dependencies = [
  "ctb-utilities",
 ]
 
@@ -3608,13 +3615,6 @@ dependencies = [
  "serde",
  "serde_yaml",
  "ua-parser",
-]
-
-[[package]]
-name = "ctb-formats-utf-8e-128"
-version = "0.0.0"
-dependencies = [
- "ctb-utilities",
 ]
 
 [[package]]
@@ -4151,7 +4151,7 @@ dependencies = [
  "clap",
  "ctb-cli",
  "ctb-formats",
- "ctb-formats-utf-8e-128",
+ "ctb-formats-dctf",
  "ctb-io",
  "ctb-io-environment",
  "ctb-network",
@@ -4244,6 +4244,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
  "ctb-formats-dct-el",
+ "ctb-formats-dctf",
  "ctb-formats-detection",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
@@ -4279,7 +4280,6 @@ dependencies = [
  "ctb-formats-unicode",
  "ctb-formats-uri",
  "ctb-formats-useragent",
- "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
  "ctb-formats-uuid",

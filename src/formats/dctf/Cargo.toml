@@ -1,9 +1,9 @@
 [package]
-name = "ctb-formats-utf-8e-128"
+name = "ctb-formats-dctf"
 edition = "2024"
 
 [lib]
-path="utf_8e_128.rs"
+path="dctf.rs"
 crate-type = ["lib"]
 
 [dependencies]

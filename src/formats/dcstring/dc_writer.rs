@@ -124,7 +124,7 @@ impl<'output> DcWriter<'output> {
     pub fn push_char(&mut self, character: impl Into<DcChar>) -> Result<()> {
         let character = character.into();
         let mut buffer = [0_u8; 24];
-        let length = ctb_formats_utf_8e_128::encode_dctf_buf(
+        let length = ctb_formats_dctf::encode_dctf_buf(
             &mut buffer,
             character.0,
         );

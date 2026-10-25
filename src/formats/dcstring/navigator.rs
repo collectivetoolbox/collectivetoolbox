@@ -57,7 +57,7 @@ use ctb_formats_dcdata::syntax::{
     SyntaxElement, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
     default_syntax_resolver, parse_data_constraint, parse_dc_syntax,
 };
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf, encode_utf_8e_128_buf,
 };
 use sha2::{Digest, Sha256};
@@ -8137,7 +8137,7 @@ impl DcDocumentNavigator<'_> {
     pub fn char_encoded_len(&self, ch: DcChar) -> u64 {
         let mut buf = [0_u8; 32];
         let len = if self.is_v1_encoding() {
-            ctb_formats_utf_8e_128::encode_utf_8e_128_buf(&mut buf, ch.to_u128())
+            ctb_formats_dctf::encode_utf_8e_128_buf(&mut buf, ch.to_u128())
         } else {
             encode_dctf_buf(&mut buf, ch.to_u128())
         };

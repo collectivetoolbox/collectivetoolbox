@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! "UTF-8e-128"/DcUtf encoding and decoding (UTF-8 extended to 128-bit integers)
+//! DcTF and legacy DcUtf / "UTF-8e-128" encoding and decoding (UTF-8 extended to 128-bit integers)
 
 #[allow(
     clippy::wildcard_imports,

@@ -53,7 +53,7 @@ pub use column_spec::{
     ParsedAliasesOrBaseColumn, parse_aliases_or_base_column,
 };
 
-pub use ctb_formats_utf_8e_128 as utf_8e_128;
+pub use ctb_formats_dctf as dctf;
 pub use ctb_storage_minimal::global_graph_layout;
 pub use ctb_storage_minimal::shorthand;
 pub use ctb_storage_minimal::shorthand::{

@@ -146,6 +146,7 @@ ctb-formats-dceutils = { path = "src/formats/dceutils" }
 ctb-formats-dcstring = { path = "src/formats/dcstring" }
 ctb-dc-macro = { path = "src/formats/dcstring/ctb_dc_macro" }
 ctb-formats-dct-el = { path = "src/formats/dct_el" }
+ctb-formats-dctf = { path = "src/formats/dctf" }
 ctb-formats-detection = { path = "src/formats/detection" }
 ctb-formats-docker = { path = "src/formats/docker" }
 ctb-formats-dpkg = { path = "src/formats/dpkg" }
@@ -182,7 +183,6 @@ ctb-formats-troff = { path = "src/formats/troff" }
 ctb-formats-unicode = { path = "src/formats/unicode" }
 ctb-formats-uri = { path = "src/formats/uri" }
 ctb-formats-useragent = { path = "src/formats/useragent" }
-ctb-formats-utf-8e-128 = { path = "src/formats/utf_8e_128" }
 ctb-formats-utf8 = { path = "src/formats/utf8" }
 ctb-formats-utilities = { path = "src/formats/utilities" }
 ctb-formats-uuid = { path = "src/formats/uuid" }

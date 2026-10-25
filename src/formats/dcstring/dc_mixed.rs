@@ -35,7 +35,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut, Index, RangeFull};
 
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     decode_dctf_buf, decode_utf_8e_128_buf, determine_dctf_error_len,
     determine_utf_8e_128_error_len, encode_dctf_buf, encode_utf_8e_128_buf,
 };

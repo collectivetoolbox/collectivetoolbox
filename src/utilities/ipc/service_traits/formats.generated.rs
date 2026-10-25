@@ -30,18 +30,18 @@ pub trait FormatsClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
 /// 
 ///  Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
 ///  malformed sequences), or `None` if `bytes` is empty.
-    async fn utf_8e_128__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
+    async fn dctf__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
 
 ///  Lossily decode the first character from `bytes` using the legacy DcUtf (`utf_8e_128`) format.
 /// 
 ///  Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
 ///  malformed sequences), or `None` if `bytes` is empty.
-    async fn utf_8e_128__decode_dcutf(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
+    async fn dctf__decode_dcutf(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
 
 ///  Encode a u128 codepoint using the DcTF format.
-    async fn utf_8e_128__encode(&self, codepoint: u128) -> Result<Vec < u8 >>;
+    async fn dctf__encode(&self, codepoint: u128) -> Result<Vec < u8 >>;
 
 ///  Encode a u128 codepoint using the `utf_8e_128` format.
-    async fn utf_8e_128__encode_dcutf(&self, codepoint: u128) -> Result<Vec < u8 >>;
+    async fn dctf__encode_dcutf(&self, codepoint: u128) -> Result<Vec < u8 >>;
 
 }

@@ -32,7 +32,7 @@ use std::ops::{
     RangeTo, RangeToInclusive,
 };
 
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     decode_dctf_buf, decode_utf_8e_128_buf, determine_dctf_error_len,
     determine_utf_8e_128_error_len,
 };

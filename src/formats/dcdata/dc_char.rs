@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_formats_utf_8e_128::{
+use ctb_formats_dctf::{
     encode_dctf, encode_dctf_buf, len_dctf, len_utf_8e_128,
 };
 pub use ctb_utilities::dc_char::DcChar;

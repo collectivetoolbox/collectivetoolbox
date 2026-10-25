@@ -29,8 +29,8 @@ pub mod global_graph_layout;
 #[path = "../storage/minimal/shorthand/core.rs"]
 pub mod shorthand;
 
-#[path = "../formats/utf_8e_128/codec.rs"]
-pub mod utf_8e_128;
+#[path = "../formats/dctf/codec.rs"]
+pub mod dctf;
 
 pub mod asset_packer;
 pub mod ctbnbdl;

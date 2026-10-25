@@ -36,7 +36,7 @@ use ctb_formats_dcdata::dc::{
     DC_LIST_ELEMENT_SEPARATOR,
 };
 use ctb_formats_dcdata::syntax::{default_syntax_resolver, SyntaxRuleResolver};
-use ctb_formats_utf_8e_128::encode_dctf_buf;
+use ctb_formats_dctf::encode_dctf_buf;
 
 fn append_dc(target: &mut Vec<u8>, ch: DcChar) {
     let mut character = crate::DcString::new();
