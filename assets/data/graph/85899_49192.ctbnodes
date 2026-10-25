@@ -1,0 +1,42 @@
+l8589949192: 591 l8589949191 l8589940878 # Supersedes (l8589949191, l8589940878)
+l8589949193: 610 l8589940903 l8589949102 # Has value (l8589940903, 406 :~ [number:Natural0] | (388 [^389]* 389))
+l8589949194: 591 l8589949193 l8589940904 # Supersedes (l8589949193, l8589940904)
+l8589949195: 610 l8589948860 l8589949112 # Has value (l8589948860, 617 :~ [atom_dc] [^618]* 618)
+l8589949196: 591 l8589949195 l8589948864 # Supersedes (l8589949195, l8589948864)
+l8589949197: 610 l8589944531 l8589949113 # Has value (l8589944531, [number] :6 [format:number] [^7]+ 7)
+l8589949198: 591 l8589949197 l8589944532 # Supersedes (l8589949197, l8589944532)
+l8589949199: 610 l8589944549 l8589949114 # Has value (l8589944549, [typed_data] :203 [type:$type] [number $length]? [checksum]? ([127..190] | 195)* 204)
+l8589949200: 591 l8589949199 l8589944550 # Supersedes (l8589949199, l8589944550)
+l8589949201: 600 298 603 4 l8589949073 299 u2e u65 u6e u2e 600 298 603 4 l8589949073 299 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, FULL STOP, U+0065, U+006E, FULL STOP, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949202: 600 298 603 4 l8589949073 299 u2e u65 u6e u2d u55 u53 u2e 600 298 603 4 l8589949073 299 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, FULL STOP, U+0065, U+006E, HYPHEN-MINUS, U+0055, U+0053, FULL STOP, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949203: 600 298 603 4 l8589949073 299 u5f u66 u69 u6c u65 u73 u2e u78 u6d u6c # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+005F, U+0066, U+0069, U+006C, U+0065, U+0073, FULL STOP, U+0078, U+006D, U+006C
+l8589949204: 600 298 603 4 l8589949073 299 u5f u6d u65 u74 u61 u2e u78 u6d u6c # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+005F, U+006D, U+0065, U+0074, U+0061, FULL STOP, U+0078, U+006D, U+006C
+l8589949205: 600 298 603 4 l8589949073 299 u5f u6d u65 u74 u61 u2e u73 u71 u6c u69 u74 u65 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+005F, U+006D, U+0065, U+0074, U+0061, FULL STOP, U+0073, U+0071, U+006C, U+0069, U+0074, U+0065
+l8589949206: 600 298 603 4 l8589949073 299 u5f u61 u72 u63 u68 u69 u76 u65 u2e u74 u6f u72 u72 u65 u6e u74 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+005F, U+0061, U+0072, U+0063, U+0068, U+0069, U+0076, U+0065, FULL STOP, U+0074, U+006F, U+0072, U+0072, U+0065, U+006E, U+0074
+l8589949207: 600 298 603 4 l8589949073 299 u2f u2e u41 u70 u70 u6c u65 u44 u6f u75 u62 u6c u65 u2f 600 298 603 4 l8589949073 299 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+002F, FULL STOP, U+0041, U+0070, U+0070, U+006C, U+0065, U+0044, U+006F, U+0075, U+0062, U+006C, U+0065, U+002F, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949208: 600 298 603 4 l8589949073 299 u2f u5f u5f u4d u41 u43 u4f u53 u58 u2f 600 298 603 4 l8589949073 299 # Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, U+002F, U+005F, U+005F, U+004D, U+0041, U+0043, U+004F, U+0053, U+0058, U+002F, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949209: u25 600 298 603 4 l8589949073 299 # U+0025, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949210: u52 u2e 600 298 603 4 l8589949073 299 # U+0052, FULL STOP, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949211: u2e u5f 600 298 603 4 l8589949073 299 # FULL STOP, U+005F, Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group
+l8589949212: 610 l8589945608 l8589949201 # Has value (l8589945608, ~\.en\.~)
+l8589949213: 591 l8589949212 l8589948880 # Supersedes (l8589949212, l8589948880)
+l8589949214: 610 l8589945610 l8589949202 # Has value (l8589945610, ~\.en-US\.~)
+l8589949215: 591 l8589949214 l8589948882 # Supersedes (l8589949214, l8589948882)
+l8589949216: 610 l8589945934 l8589949203 # Has value (l8589945934, ~_files\.xml$~)
+l8589949217: 591 l8589949216 l8589948884 # Supersedes (l8589949216, l8589948884)
+l8589949218: 610 l8589945936 l8589949204 # Has value (l8589945936, ~_meta\.xml$~)
+l8589949219: 591 l8589949218 l8589948886 # Supersedes (l8589949218, l8589948886)
+l8589949220: 610 l8589945938 l8589949205 # Has value (l8589945938, ~_meta\.sqlite$~)
+l8589949221: 591 l8589949220 l8589948888 # Supersedes (l8589949220, l8589948888)
+l8589949222: 610 l8589945964 l8589949206 # Has value (l8589945964, ~_archive\.torrent$~)
+l8589949223: 591 l8589949222 l8589948890 # Supersedes (l8589949222, l8589948890)
+l8589949224: 610 l8589946164 l8589949207 # Has value (l8589946164, ~/\.AppleDouble/~)
+l8589949225: 591 l8589949224 l8589948892 # Supersedes (l8589949224, l8589948892)
+l8589949226: 610 l8589946166 l8589949208 # Has value (l8589946166, ~/__MACOSX/~)
+l8589949227: 591 l8589949226 l8589948894 # Supersedes (l8589949226, l8589948894)
+l8589949228: 610 l8589946168 l8589949209 # Has value (l8589946168, ~^%~)
+l8589949229: 591 l8589949228 l8589948896 # Supersedes (l8589949228, l8589948896)
+l8589949230: 610 l8589946170 l8589949210 # Has value (l8589946170, ~^R\.~)
+l8589949231: 591 l8589949230 l8589948898 # Supersedes (l8589949230, l8589948898)
+l8589949232: 610 l8589946172 l8589949211 # Has value (l8589946172, ~^\._~)
+l8589949233: 591 l8589949232 l8589948900 # Supersedes (l8589949232, l8589948900)

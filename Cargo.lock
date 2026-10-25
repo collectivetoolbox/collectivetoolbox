@@ -3112,6 +3112,7 @@ dependencies = [
  "ctb-build-support",
  "ctb-formats-dctf",
  "ctb-formats-unicode",
+ "ctb-storage-asset-bundle",
  "ctb-storage-minimal",
  "ctb-utilities",
  "include_dir",

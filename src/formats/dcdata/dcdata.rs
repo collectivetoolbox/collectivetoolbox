@@ -46,6 +46,7 @@ pub mod dcts;
 #[path = "../../build_support/ctbnbdl.rs"]
 pub mod ctbnbdl;
 pub mod graph_ledger;
+pub mod seed_graph;
 pub mod updater;
 pub mod validation;
 
@@ -153,6 +154,10 @@ pub use updater::{
     assign_and_update_format_categories, find_repository_root,
     generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
     write_csv_file,
+};
+pub use seed_graph::{
+    ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, SEED_GRAPH_ASSET_GLOB,
+    SeedGraphIndex,
 };
 pub use validation::{
     parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,

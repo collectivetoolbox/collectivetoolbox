@@ -122,10 +122,14 @@ pub struct LedgerUpdateStats {
 
 /// Seed entity key identifying a classification entity in the System block.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum SeedEntityKey {
+pub enum SeedEntityKey {
+    /// Unicode bidirectional class (`BN`, `L`, `R`, etc.).
     BidiClass(String),
+    /// Unicode or Dc general category (`!Cx`, `Po`, `Ll`, etc.).
     GeneralCategory(String),
+    /// Dc or Unicode script (`.Semantic`, `.Symbols`, `Latin`, etc.).
     Script(String),
+    /// Named syntax construct (`number`, `string`, `value`, `atom_dc`, etc.).
     NamedConstruct(String),
 }
 
@@ -291,15 +295,52 @@ pub fn decode_string_value_tokens(tokens: &[DcShorthand]) -> Option<String> {
 /// `6 f199 <base64 digit Dcs 127..=190...> 7`.
 #[must_use]
 pub fn encode_integer_value_tokens(value: u128) -> Vec<DcShorthand> {
-    let digits = u128_to_dc_number_chars(value);
-    let mut tokens = Vec::with_capacity(digits.len().saturating_add(3));
-    tokens.push(sh(DC_BEGIN_NUMBER));
-    tokens.push(sh(DC_INTEGER));
-    for dc in digits {
-        tokens.push(sh(dc));
+    u128_to_dc_number_chars(value)
+        .into_iter()
+        .map(sh)
+        .collect()
+}
+
+/// Decodes a canonical base64 integer value node token sequence (`6 f199 <base64 digits> 7`)
+/// back into a `u128` (supporting both normalized `6 f199 .. 7` and legacy `6 f199 6 f199 .. 7 7`).
+#[must_use]
+pub fn decode_integer_value_tokens(tokens: &[DcShorthand]) -> Option<u128> {
+    if tokens.len() < 4 {
+        return None;
     }
-    tokens.push(sh(DC_END_NUMBER));
-    tokens
+    if tokens.first() != Some(&sh(DC_BEGIN_NUMBER))
+        || tokens.get(1) != Some(&sh(DC_INTEGER))
+        || tokens.last() != Some(&sh(DC_END_NUMBER))
+    {
+        return None;
+    }
+    let mut digit_slice = tokens.get(2..tokens.len().saturating_sub(1))?;
+    if digit_slice.first() == Some(&sh(DC_BEGIN_NUMBER))
+        && digit_slice.get(1) == Some(&sh(DC_INTEGER))
+        && digit_slice.last() == Some(&sh(DC_END_NUMBER))
+    {
+        digit_slice =
+            digit_slice.get(2..digit_slice.len().saturating_sub(1))?;
+    }
+    if digit_slice.is_empty() {
+        return None;
+    }
+    let base64_start_short = crate::dc::DC_BASE64_START.to_short().ok()?;
+    let mut val: u128 = 0;
+    for &tok in digit_slice {
+        let DcShorthand::Short(short_id) = tok else {
+            return None;
+        };
+        let short_u32 = u32::try_from(short_id).ok()?;
+        let offset = short_u32.checked_sub(base64_start_short)?;
+        if offset >= 64 {
+            return None;
+        }
+        val = val
+            .checked_mul(64)?
+            .checked_add(u128::from(offset))?;
+    }
+    Some(val)
 }
 
 fn format_string_summary(text: &str) -> String {
@@ -490,222 +531,45 @@ struct LedgerBuilder {
 }
 
 impl LedgerBuilder {
-    /// Initializes a `LedgerBuilder` from existing ledger nodes and indexes all active statements.
+    /// Initializes a `LedgerBuilder` from existing ledger nodes and indexes all active statements
+    /// via `SeedGraphIndex::from_nodes_with_single_props`.
     fn from_existing(
         existing: Vec<LedgerNode>,
         single_valued_props: &HashSet<DcShorthand>,
         initial_token_labels: HashMap<DcShorthand, String>,
     ) -> Self {
         let mut token_labels = initial_token_labels;
-        let sh_supersedes = sh(DC_SUPERSEDES);
-        let sh_retracts = sh(DC_RETRACTS);
-        let sh_has_value = sh(DC_HAS_VALUE);
-        let sh_has_a = sh(DC_HAS_A);
-        let sh_preferred = sh(DC_PREFERRED);
-        let sh_replacement = sh(DC_REPLACEMENT);
-        let sh_is_instance_of = sh(DC_IS_INSTANCE_OF);
-        let sh_enclosing_doc = sh(DC_ENCLOSING_DOCUMENT);
-        let sh_prog_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
-        let sh_canon_name = sh(DC_CANONICAL_NAME);
-        let sh_bidi_class = sh(DC_BIDIRECTIONAL_CLASS);
-        let sh_char_gen_cat = sh(DC_CHARACTER_GENERAL_CATEGORY);
-        let sh_dc_gen_cat = sh(DC_DC_GENERAL_CATEGORY);
-        let sh_char_script = sh(DC_CHARACTER_SCRIPT);
-        let sh_uni_script = sh(DC_UNICODE_SCRIPT);
-        let sh_entity_type = sh(DC_ENTITY_TYPE);
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
+            existing,
+            single_valued_props,
+        );
 
-        let mut inactive_ids = HashSet::new();
-        let mut node_by_id: HashMap<u128, &LedgerNode> =
-            HashMap::with_capacity(existing.len());
-        for node in &existing {
-            node_by_id.insert(node.id, node);
-            if let Some((verb, _subj, obj)) =
-                parse_statement_tokens(&node.tokens)
-            {
-                // 591 <new_node> l<old_node> -> old_node is superseded
-                // 592 615 l<old_node> -> old_node is retracted
-                if verb == sh_supersedes || verb == sh_retracts {
-                    if let DcShorthand::Long(old_id) = obj {
-                        inactive_ids.insert(old_id);
-                    }
-                }
-            }
+        for (&node_id, decoded) in &index.string_by_node_id {
+            token_labels.insert(
+                DcShorthand::Long(node_id),
+                format_string_summary(decoded),
+            );
         }
-
-        // First pass: index value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
-        let mut value_node_by_tokens = HashMap::new();
-        let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
-        let mut active_has_val_by_stmt: HashMap<u128, (u128, DcShorthand)> =
-            HashMap::new();
-        let mut active_pref_qual_by_stmt: HashMap<u128, u128> = HashMap::new();
-
-        for node in &existing {
-            if let Some(decoded) = decode_string_value_tokens(&node.tokens) {
-                token_labels.insert(
-                    DcShorthand::Long(node.id),
-                    format_string_summary(&decoded),
-                );
-                string_by_node_id.insert(node.id, decoded);
-            }
-            let stmt_opt = parse_statement_tokens(&node.tokens);
-            if stmt_opt.is_none() {
-                value_node_by_tokens
-                    .entry(node.tokens.clone())
-                    .or_insert(node.id);
-            }
-            if inactive_ids.contains(&node.id) {
-                continue;
-            }
-            if let Some((verb, subj, obj)) = stmt_opt {
-                if verb == sh_has_value {
-                    if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
-                            active_has_val_by_stmt
-                                .insert(has_a_id, (node.id, obj));
-                        }
-                    }
-                } else if verb == sh_has_a && obj == sh_preferred {
-                    if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
-                            active_pref_qual_by_stmt.insert(has_a_id, node.id);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Second pass: reconstruct seed entities and active statements.
-        let mut seed_candidate_class: HashMap<u128, DcShorthand> =
-            HashMap::new();
-        let mut seed_entity_ids = HashMap::new();
-        let mut active_single_props = BTreeMap::new();
-        let mut active_multi_props = BTreeMap::new();
-        let mut active_preferred = BTreeMap::new();
-        let mut active_direct_stmts = BTreeMap::new();
-
-        for node in &existing {
-            if inactive_ids.contains(&node.id) {
-                continue;
-            }
-            let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
-            else {
-                continue;
-            };
-
-            // Seed entity declaration: `586 615 <class_dc>` where `<class_dc>` is a Short Dc.
-            if verb == sh_is_instance_of
-                && subj == sh_enclosing_doc
-                && matches!(obj, DcShorthand::Short(_))
-            {
-                seed_candidate_class.insert(node.id, obj);
-                continue;
-            }
-
-            if verb == sh_has_value
-                || verb == sh_supersedes
-                || verb == sh_retracts
-            {
-                continue;
-            }
-            if verb == sh_has_a && obj == sh_preferred {
-                if let DcShorthand::Long(target_id) = subj {
-                    if node_by_id.get(&target_id).is_some_and(|n| {
-                        parse_statement_tokens(&n.tokens).is_some_and(
-                            |(v, _, o)| v == sh_has_a && o == sh_replacement,
-                        )
-                    }) {
-                        continue;
-                    }
-                }
-            }
-
-            if verb == sh_has_a {
-                if let Some(&(has_val_id, val_tok)) =
-                    active_has_val_by_stmt.get(&node.id)
-                {
-                    // Check if this names a seed entity (`584 l<seed_id> 572/574` -> `610 ... l<str_id>`).
-                    if let (
-                        DcShorthand::Long(seed_id),
-                        DcShorthand::Long(str_id),
-                    ) = (subj, val_tok)
-                    {
-                        if let (Some(&class_sh), Some(label)) = (
-                            seed_candidate_class.get(&seed_id),
-                            string_by_node_id.get(&str_id),
-                        ) {
-                            let key_opt = if class_sh == sh_bidi_class
-                                && obj == sh_prog_ident
-                            {
-                                Some(SeedEntityKey::BidiClass(label.clone()))
-                            } else if (class_sh == sh_char_gen_cat
-                                || class_sh == sh_dc_gen_cat)
-                                && obj == sh_prog_ident
-                            {
-                                Some(SeedEntityKey::GeneralCategory(
-                                    label.clone(),
-                                ))
-                            } else if (class_sh == sh_char_script
-                                || class_sh == sh_uni_script)
-                                && obj == sh_canon_name
-                            {
-                                Some(SeedEntityKey::Script(label.clone()))
-                            } else if class_sh == sh_entity_type
-                                && obj == sh_canon_name
-                            {
-                                Some(SeedEntityKey::NamedConstruct(
-                                    label.clone(),
-                                ))
-                            } else {
-                                None
-                            };
-                            if let Some(seed_key) = key_opt {
-                                token_labels.insert(
-                                    DcShorthand::Long(seed_id),
-                                    seed_key.comment(),
-                                );
-                                seed_entity_ids.insert(seed_key, seed_id);
-                            }
-                        }
-                    }
-
-                    if obj == sh_replacement {
-                        if let Some(&pref_id) =
-                            active_pref_qual_by_stmt.get(&node.id)
-                        {
-                            active_preferred.insert(
-                                (subj, val_tok),
-                                (node.id, has_val_id, pref_id),
-                            );
-                            continue;
-                        }
-                    }
-
-                    if single_valued_props.contains(&obj) {
-                        active_single_props
-                            .insert((subj, obj), (node.id, has_val_id, val_tok));
-                    } else {
-                        active_multi_props
-                            .insert((subj, obj, val_tok), (node.id, has_val_id));
-                    }
-                }
-            } else {
-                active_direct_stmts.insert((verb, subj, obj), node.id);
-            }
+        for (seed_key, &seed_id) in &index.seed_entity_ids {
+            token_labels.insert(
+                DcShorthand::Long(seed_id),
+                seed_key.comment(),
+            );
         }
 
         Self {
-            nodes: existing,
+            nodes: index.nodes,
             appended_count: 0,
             superseded_count: 0,
             retracted_count: 0,
             token_labels,
-            string_by_node_id,
-            value_node_by_tokens,
-            seed_entity_ids,
-            active_single_props,
-            active_multi_props,
-            active_preferred,
-            active_direct_stmts,
+            string_by_node_id: index.string_by_node_id,
+            value_node_by_tokens: index.value_node_by_tokens,
+            seed_entity_ids: index.seed_entity_ids,
+            active_single_props: index.active_single_props,
+            active_multi_props: index.active_multi_props,
+            active_preferred: index.active_preferred,
+            active_direct_stmts: index.active_direct_stmts,
         }
     }
 
@@ -1460,7 +1324,9 @@ impl LedgerBuilder {
     }
 }
 
-fn single_valued_property_set() -> HashSet<DcShorthand> {
+/// Returns the canonical set of single-valued property Document Characters.
+#[must_use]
+pub fn single_valued_property_set() -> HashSet<DcShorthand> {
     HashSet::from([
         sh(DC_CANONICAL_NAME),
         sh(DC_DESCRIPTION),

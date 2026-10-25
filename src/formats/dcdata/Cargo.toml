@@ -15,6 +15,7 @@ test = false
 ctb-utilities = { path = "../../utilities" }
 ctb-build-support = { path = "../../build_support" }
 ctb-formats-unicode = { path = "../unicode" }
+ctb-storage-asset-bundle = { path = "../../storage/asset_bundle" }
 ctb-storage-minimal = { path = "../../storage/minimal" }
 include_dir = { version = "0.7.4", features = ["glob"] }
 regex = "1.12.2"
