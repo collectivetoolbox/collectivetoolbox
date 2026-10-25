@@ -53,6 +53,25 @@ pub fn decode_dcutf(bytes: Vec<u8>) -> Option<(u128, usize)> {
     decode_utf_8e_128(&bytes)
 }
 
+#[ipc_method]
+/// Encode a u128 codepoint using the DcTF format.
+pub fn encode(codepoint: u128) -> Vec<u8> {
+    encode_dctf(codepoint)
+}
+
+#[ipc_method]
+/// Lossily decode the first character from `bytes` using the DcTF format.
+///
+/// Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
+/// malformed sequences), or `None` if `bytes` is empty.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "IPC method signature requires Vec<u8>"
+)]
+pub fn decode(bytes: Vec<u8>) -> Option<(u128, usize)> {
+    decode_dctf(&bytes)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -613,9 +632,27 @@ mod tests {
         );
 
         // 12. Overlapping byte sequence FF 87 81 80 80 80 80 80 80:
-        // Valid in both DcUtf (2^36 = 68,719,476,736) and DcTF (13,262,859,010,048).
+        // Valid in both DcUtf (2^36 = 68,719,476,736) and DcTF (13_262_859_010_048).
         let overlap = [0xFF, 0x87, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80];
         assert_eq!(decode_utf_8e_128_buf(&overlap), Some((1u128 << 36, 9)));
         assert_eq!(decode_dctf_buf(&overlap), Some((13_262_859_010_048u128, 9)));
+    }
+
+    #[crate::ctb_test]
+    fn test_ipc_encode_decode_wrappers() {
+        assert_eq!(decode(Vec::new()), None);
+        assert_eq!(decode_dcutf(Vec::new()), None);
+
+        let cp = 0x11_0000u128; // Short Dc 0
+        let encoded_dctf = encode(cp);
+        let encoded_dcutf = encode_dcutf(cp);
+        assert_eq!(encoded_dctf, encode_dctf(cp));
+        assert_eq!(encoded_dcutf, encode_utf_8e_128(cp));
+
+        let decoded_dctf = decode(encoded_dctf).unwrap();
+        assert_eq!(decoded_dctf.0, cp);
+
+        let decoded_dcutf = decode_dcutf(encoded_dcutf).unwrap();
+        assert_eq!(decoded_dcutf.0, cp);
     }
 }
