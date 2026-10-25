@@ -59,6 +59,8 @@ is_container() {
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 workspace_root="$(cd "$script_dir/../.." && pwd)"
 
+GUIX_PINNED_COMMIT="${GUIX_PINNED_COMMIT:-230aa373f315f247852ee07dff34146e9b480aec}"
+
 mode=""
 prebuild_dest=""
 keep_failed=""
@@ -190,6 +192,16 @@ print_system_diagnostics() {
     fi
     echo "[diagnostic] Limits:"
     ulimit -a | sed 's/^/[diagnostic]   /'
+    if command -v guix >/dev/null 2>&1; then
+        local active_commit
+        active_commit="$(guix describe 2>/dev/null | grep -E 'commit:\s+[0-9a-fA-F]+' | awk '{print $2}' || true)"
+        if [ -n "$active_commit" ]; then
+            echo "[diagnostic] Active Guix commit: $active_commit (pinned: $GUIX_PINNED_COMMIT)"
+            if [ "$active_commit" != "$GUIX_PINNED_COMMIT" ]; then
+                echo "[diagnostic] WARNING: Active Guix commit ($active_commit) does not match pinned commit ($GUIX_PINNED_COMMIT)!" >&2
+            fi
+        fi
+    fi
     echo "============================================================"
 }
 
@@ -624,8 +636,17 @@ fetch_system_sources() {
 case "$mode" in
     pull)
         start_guix_daemon
-        echo "Updating Guix channels to latest..."
-        GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries pull --url="https://codeberg.org/guix/guix.git" --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        echo "Updating Guix channels to pinned commit $GUIX_PINNED_COMMIT..."
+        if [ -f "$script_dir/channels.scm" ]; then
+            GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries pull \
+                -C "$script_dir/channels.scm" \
+                --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        else
+            GUIX_MAX_ATTEMPTS="${GUIX_MAX_ATTEMPTS:-3}" guix_run_with_retries pull \
+                --url="https://codeberg.org/guix/guix.git" \
+                --commit="$GUIX_PINNED_COMMIT" \
+                --substitute-urls="https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
+        fi
         for key in /var/guix/profiles/per-user/root/current-profile/share/guix/*.pub \
                    /root/.config/guix/current/share/guix/*.pub \
                    /usr/local/share/guix/*.pub; do

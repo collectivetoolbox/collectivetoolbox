@@ -76,7 +76,7 @@ RUN set -eux; \
 
 # Pre-build Guix packages and system image in Docker for layer caching.
 # Each step is a separate layer so failures don't re-run earlier steps.
-COPY scripts/guix/build-v86-guix-image.sh /tmp/scripts/guix/build-v86-guix-image.sh
+COPY scripts/guix/build-v86-guix-image.sh scripts/guix/channels.scm /tmp/scripts/guix/
 COPY src/nopersonality /tmp/src/nopersonality
 
 # Layer 0: Update Guix channels with substitute support (cached independently of package patch edits)
