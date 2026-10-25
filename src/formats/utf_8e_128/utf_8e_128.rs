@@ -245,8 +245,8 @@ mod tests {
         let mut buf = [0u8; 24];
         let cp = 0x10FFFFu128 + 1;
         let n = encode_dctf_buf(&mut buf, cp);
-        assert!(n >= 3);
-        assert_eq!(buf[0], 0xFF);
+        assert_eq!(n, 4);
+        assert_eq!(buf[0], 0xF4);
         let (v, m) = decode_dctf_buf(&buf[..n]).unwrap();
         assert_eq!(v, cp);
         assert_eq!(n, m);
@@ -317,8 +317,13 @@ mod tests {
         // 4-byte
         let n = encode_dctf_buf(&mut buf, 0x10000);
         assert_eq!(&buf[..n], &[0xF0, 0x90, 0x80, 0x80]);
-        // Extended
-        encode_dctf_buf(&mut buf, 0x1_0000_0000);
+        // 7-byte (36-bit tier)
+        let n = encode_dctf_buf(&mut buf, 0x1_0000_0000);
+        assert_eq!(n, 7);
+        assert_eq!(buf[0], 0xFE);
+        // 8-byte (0xFF tier 0, >= 2^36)
+        let n = encode_dctf_buf(&mut buf, 0x10_0000_0000);
+        assert_eq!(n, 8);
         assert_eq!(buf[0], 0xFF);
     }
 
