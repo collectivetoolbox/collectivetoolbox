@@ -167,6 +167,26 @@ impl Quantifier {
     pub const fn is_redundant(self) -> bool {
         matches!(self, Self::Range { min: 1, max: Some(1) })
     }
+
+    /// Formats this quantifier as its canonical DSL suffix (`""`, `"+"`, `"*"`, `"?"`, or `"{...}"`).
+    #[must_use]
+    pub fn format_dsl_suffix(self) -> String {
+        match self {
+            Self::ExactOne => String::new(),
+            Self::OneOrMore => "+".to_string(),
+            Self::ZeroOrMore => "*".to_string(),
+            Self::Optional => "?".to_string(),
+            Self::Range {
+                min,
+                max: Some(max),
+            } if min == max => format!("{{{min}}}"),
+            Self::Range {
+                min,
+                max: Some(max),
+            } => format!("{{{min}..{max}}}"),
+            Self::Range { min, max: None } => format!("{{{min}..}}"),
+        }
+    }
 }
 
 /// Syntactic term in a Dc syntax rule.
@@ -201,6 +221,48 @@ pub enum SyntaxTerm {
     Group(SyntaxPattern),
 }
 
+impl SyntaxTerm {
+    /// Formats this term into canonical Dc syntax DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        match self {
+            Self::SelfChar => "~".to_string(),
+            Self::CharRef(target) => target.to_string(),
+            Self::CharSet { negated, members } => {
+                let prefix = if *negated { "^" } else { "" };
+                let items: Vec<String> =
+                    members.iter().map(ToString::to_string).collect();
+                format!("[{prefix}{}]", items.join(" "))
+            }
+            Self::CharRange { start, end } => format!("[{start}-{end}]"),
+            Self::RuleRef { target } => format!("{target}:"),
+            Self::NamedConstruct {
+                name,
+                subtype,
+                capture_var,
+            } => {
+                let mut inner = name.clone();
+                if let Some(sub) = subtype {
+                    inner.push(':');
+                    inner.push_str(sub);
+                }
+                if let Some(var) = capture_var {
+                    inner.push_str(" $");
+                    inner.push_str(var);
+                }
+                format!("[{inner}]")
+            }
+            Self::Group(pattern) => {
+                if matches!(pattern, SyntaxPattern::Alternation(_)) {
+                    pattern.format_dsl()
+                } else {
+                    format!("({})", pattern.format_dsl())
+                }
+            }
+        }
+    }
+}
+
 /// Quantified element combining a term and its repetition quantifier.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxElement {
@@ -222,6 +284,16 @@ impl SyntaxElement {
     #[must_use]
     pub const fn with_quantifier(term: SyntaxTerm, quantifier: Quantifier) -> Self {
         Self { term, quantifier }
+    }
+
+    /// Formats this quantified element into canonical Dc syntax DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        format!(
+            "{}{}",
+            self.term.format_dsl(),
+            self.quantifier.format_dsl_suffix()
+        )
     }
 }
 
@@ -251,6 +323,23 @@ impl SyntaxPattern {
             }
         }
     }
+
+    /// Formats this syntax pattern into canonical Dc syntax DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        match self {
+            Self::Sequence(elements) => {
+                let parts: Vec<String> =
+                    elements.iter().map(SyntaxElement::format_dsl).collect();
+                parts.join(" ")
+            }
+            Self::Alternation(branches) => {
+                let parts: Vec<String> =
+                    branches.iter().map(Self::format_dsl).collect();
+                format!("({})", parts.join(" | "))
+            }
+        }
+    }
 }
 
 /// Argument passed to an action invocation.
@@ -271,6 +360,25 @@ pub struct SyntaxAction {
     pub args: Vec<ActionArg>,
 }
 
+impl SyntaxAction {
+    /// Formats this syntax action into canonical Dc syntax DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        let args: Vec<String> = self
+            .args
+            .iter()
+            .map(|arg| match arg {
+                ActionArg::Variable(var) => format!("${var}"),
+                ActionArg::Literal(lit) => {
+                    let escaped = lit.replace('\\', "\\\\").replace('"', "\\\"");
+                    format!("\"{escaped}\"")
+                }
+            })
+            .collect();
+        format!("{}({})", self.method, args.join(", "))
+    }
+}
+
 /// Root AST structure for a complete Dc syntax declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DcSyntaxRule {
@@ -280,6 +388,28 @@ pub struct DcSyntaxRule {
     pub action: Option<SyntaxAction>,
     /// Original raw source representation.
     pub raw: String,
+}
+
+impl DcSyntaxRule {
+    /// Formats a `SyntaxPattern` and optional `SyntaxAction` into a canonical `:...` DSL string.
+    #[must_use]
+    pub fn format_dsl_parts(
+        pattern: &SyntaxPattern,
+        action: Option<&SyntaxAction>,
+    ) -> String {
+        let pat_str = pattern.format_dsl();
+        if let Some(act) = action {
+            format!(":{pat_str}: {}", act.format_dsl())
+        } else {
+            format!(":{pat_str}")
+        }
+    }
+
+    /// Formats this syntax rule into a canonical `:...` DSL string.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        Self::format_dsl_parts(&self.pattern, self.action.as_ref())
+    }
 }
 
 /// Diagnostic message emitted during parsing or matching.

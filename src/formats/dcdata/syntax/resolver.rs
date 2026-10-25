@@ -949,19 +949,393 @@ impl DatasetRuleResolver {
             }
         }
 
-        let equivalents: Vec<_> = dc_defns.iter().flat_map(|defn| {
-            defn.decompositions.iter().filter_map(move |decomposition| {
-                parse_decomposition_target(std::slice::from_ref(decomposition), "<equiv>")
-                    .map(|target| (defn.dc_id, target))
+        let equivalents: Vec<_> = dc_defns
+            .iter()
+            .flat_map(|defn| {
+                defn.decompositions
+                    .iter()
+                    .filter_map(move |decomposition| {
+                        parse_decomposition_target(
+                            std::slice::from_ref(decomposition),
+                            "<equiv>",
+                        )
+                        .map(|target| (defn.dc_id, target))
+                    })
             })
-        }).collect();
+            .collect();
+        let closes_by_id: HashMap<u128, ctb_storage_minimal::shorthand::DcShorthand> = dc_defns
+            .iter()
+            .chain(format_defns.iter())
+            .filter_map(|d| d.closes.map(|c| (d.dc_id, c)))
+            .collect();
+        let non_routine_short_ids: Vec<u32> = dc_defns
+            .iter()
+            .filter(|d| d.script != ".EL Routines" && d.syntax.is_some())
+            .filter_map(|d| d.short_id.and_then(|sid| u32::try_from(sid).ok()))
+            .collect();
+
+        resolver.finalize_equivalences_and_derived_tables(
+            &equivalents,
+            &explicit_closes_pairs,
+            &closes_by_id,
+            &non_routine_short_ids,
+        )?;
+        Ok(resolver)
+    }
+
+    /// Builds a resolver directly from the runtime `SeedGraphIndex` (`data/graph/85899_34592.ctbnbdl`).
+    pub fn from_seed_graph(
+        index: &crate::seed_graph::SeedGraphIndex,
+    ) -> Result<Self> {
+        use crate::dc::{
+            DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
+            DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
+            DC_PROGRAMMATIC_IDENTIFIER,
+        };
+        use crate::graph_ledger::SeedEntityKey;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let sh_name = DcShorthand::from_global_id(DC_CANONICAL_NAME.to_u128());
+        let sh_ident =
+            DcShorthand::from_global_id(DC_PROGRAMMATIC_IDENTIFIER.to_u128());
+        let sh_inst = DcShorthand::from_global_id(DC_IS_INSTANCE_OF.to_u128());
+        let sh_dep = DcShorthand::from_global_id(DC_IS_DEPRECATED.to_u128());
+        let sh_true = DcShorthand::from_global_id(DC_BOOLEAN_TRUE.to_u128());
+        let sh_closes =
+            DcShorthand::from_global_id(DC_IS_CLOSING_DELIMITER_FOR.to_u128());
+        let sh_equiv =
+            DcShorthand::from_global_id(DC_CANONICAL_DECOMPOSITION.to_u128());
+
+        let mut resolver = Self::new();
+        let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
+        let mut closes_by_id: HashMap<u128, DcShorthand> = HashMap::new();
+        let mut non_routine_short_ids: Vec<u32> = Vec::new();
+        let mut el_type_names: HashSet<String> = HashSet::new();
+
+        // Collect all Short Dcs, Unicode clarifications, and Format Dcs in ascending `dc_id` order.
+        let mut short_subjects: Vec<(u128, u32)> = Vec::new();
+        let mut unicode_subjects: Vec<(u128, u32)> = Vec::new();
+        let mut format_subjects: Vec<(u128, usize)> = Vec::new();
+
+        for &(subj, prop) in index.active_single_props().keys() {
+            if prop != sh_name {
+                continue;
+            }
+            match subj {
+                DcShorthand::Short(sid) => {
+                    if let Ok(gid) = subj.to_global_id() {
+                        short_subjects.push((gid, sid));
+                    }
+                }
+                DcShorthand::Unicode(cp) => {
+                    if let Ok(gid) = subj.to_global_id() {
+                        unicode_subjects.push((gid, cp));
+                    }
+                }
+                DcShorthand::Format(fid) => {
+                    if let Ok(gid) = subj.to_global_id() {
+                        format_subjects.push((gid, fid));
+                    }
+                }
+                DcShorthand::Long(_) | DcShorthand::Local(_) => {}
+            }
+        }
+        short_subjects.sort_by_key(|&(gid, _)| gid);
+        unicode_subjects.sort_by_key(|&(gid, _)| gid);
+        format_subjects.sort_by_key(|&(gid, _)| gid);
+
+        for &(gid, cp) in &unicode_subjects {
+            let subj = DcShorthand::Unicode(cp);
+            if let Some(&closes) =
+                index.get_direct_objects(sh_closes, subj).first()
+            {
+                closes_by_id.insert(gid, closes);
+            }
+        }
+
+        // 1. Index rules, scripts, deprecation, and explicit `@closes` from Short Dcs
+        let mut short_scripts: Vec<(u32, String)> =
+            Vec::with_capacity(short_subjects.len());
+        for &(sid_u128, sid_u32) in &short_subjects {
+            let subj = DcShorthand::Short(sid_u32);
+            let target = CharTarget::Dc(sid_u32);
+
+            let mut script = String::new();
+            for &obj in index.get_direct_objects(sh_inst, subj) {
+                if let DcShorthand::Long(seed_id) = obj {
+                    if let Some(SeedEntityKey::Script(s)) =
+                        index.get_seed_entity(seed_id)
+                    {
+                        script.clone_from(s);
+                    }
+                }
+            }
+            if !script.is_empty() {
+                resolver.add_script_char(script.clone(), sid_u128);
+            }
+            if script == ".EL Types" {
+                if let Some(name) =
+                    index.get_single_property_string(subj, sh_name)
+                {
+                    if let Some(el_type_name) =
+                        crate::validation::extract_el_type_name(name)
+                    {
+                        el_type_names.insert(el_type_name);
+                    }
+                }
+            }
+
+            let preferred = index
+                .get_preferred_replacements(subj)
+                .first()
+                .and_then(|tok| tok.to_global_id().ok())
+                .and_then(CharTarget::from_u128);
+            let is_deprecated =
+                index.has_direct_statement(sh_dep, subj, sh_true);
+            if is_deprecated || preferred.is_some() {
+                resolver.register_deprecated(target.clone(), preferred);
+            }
+
+            if let Some(rule) = index.decode_syntax_rule_for_subject(subj)? {
+                if script != ".EL Routines" {
+                    non_routine_short_ids.push(sid_u32);
+                }
+                resolver.add_rule(target, rule);
+            }
+
+            if let Some(&closes) =
+                index.get_direct_objects(sh_closes, subj).first()
+            {
+                closes_by_id.insert(sid_u128, closes);
+                let opener_target = match closes {
+                    DcShorthand::Short(id) => Some(CharTarget::Dc(id)),
+                    DcShorthand::Format(id) => {
+                        ctb_utilities::format_id::FormatId::from_shorthand(
+                            &format!("f{id}"),
+                        )
+                        .map(CharTarget::Format)
+                    }
+                    DcShorthand::Unicode(cp) => Some(CharTarget::Unicode(cp)),
+                    DcShorthand::Long(_) | DcShorthand::Local(_) => None,
+                };
+                if let Some(opener) = opener_target {
+                    explicit_closes_pairs.push((sid_u128, opener.clone()));
+                    resolver.register_closing_delimiter(sid_u128, opener);
+                }
+            }
+
+            short_scripts.push((sid_u32, script));
+        }
+
+        // Declared delimiters take precedence: auto-detect container closers for Short Dcs
+        for (sid_u32, script) in &short_scripts {
+            if script == ".EL Routines" {
+                continue;
+            }
+            let target = CharTarget::Dc(*sid_u32);
+            if let Some(closer) = resolver
+                .rules
+                .get(&target)
+                .and_then(|rule| detect_container_closer(&rule.pattern))
+            {
+                if !resolver.opener_to_closer.contains_key(&target)
+                    && !resolver.closing_delimiters.contains_key(&closer)
+                {
+                    resolver.register_closing_delimiter(closer, target);
+                }
+            }
+        }
+
+        // Index formats under their script, deprecation, and syntax rules
+        for &(dc_id, short_id) in &format_subjects {
+            let subj = DcShorthand::Format(short_id);
+            for &obj in index.get_direct_objects(sh_inst, subj) {
+                if let DcShorthand::Long(seed_id) = obj {
+                    if let Some(SeedEntityKey::Script(s)) =
+                        index.get_seed_entity(seed_id)
+                    {
+                        if !s.is_empty() {
+                            resolver.add_script_char(s.clone(), dc_id);
+                        }
+                    }
+                }
+            }
+            let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(
+                &format!("f{short_id}"),
+            )
+            .or_else(|| {
+                index
+                    .get_single_property_string(subj, sh_ident)
+                    .and_then(ctb_utilities::format_id::FormatId::from_ident)
+            }) else {
+                continue;
+            };
+            let target = CharTarget::Format(fid);
+            let preferred = index
+                .get_preferred_replacements(subj)
+                .first()
+                .and_then(|tok| tok.to_global_id().ok())
+                .and_then(CharTarget::from_u128);
+            let is_deprecated =
+                index.has_direct_statement(sh_dep, subj, sh_true);
+            if is_deprecated || preferred.is_some() {
+                resolver.register_deprecated(target.clone(), preferred);
+            }
+            if let Some(rule) = index.decode_syntax_rule_for_subject(subj)? {
+                if let Some(closer_tok) = detect_container_closer(&rule.pattern)
+                {
+                    if !resolver.opener_to_closer.contains_key(&target)
+                        && !resolver
+                            .closing_delimiters
+                            .contains_key(&closer_tok)
+                    {
+                        resolver.register_closing_delimiter(
+                            closer_tok,
+                            target.clone(),
+                        );
+                    }
+                }
+                resolver.add_rule(target, rule);
+            }
+            if let Some(&closes) =
+                index.get_direct_objects(sh_closes, subj).first()
+            {
+                closes_by_id.insert(dc_id, closes);
+            }
+        }
+
+        // 2. Index named constructs from the seed graph in ascending `seed_id` order
+        let mut named_constructs: Vec<(u128, String)> = index
+            .seed_entities()
+            .iter()
+            .filter_map(|(key, &seed_id)| match key {
+                SeedEntityKey::NamedConstruct(name) => {
+                    Some((seed_id, name.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+        named_constructs.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+        for (seed_id, name) in named_constructs {
+            let Some(rule) = index
+                .decode_syntax_rule_for_subject(DcShorthand::Long(seed_id))?
+            else {
+                continue;
+            };
+            resolver.add_named_type(name.clone(), rule.pattern.clone());
+            if !el_type_names.contains(&name) {
+                if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
+                    if let Some(first_elem) = elems.first() {
+                        if first_elem.quantifier == Quantifier::ExactOne {
+                            if let SyntaxTerm::CharRef(ref lead_target) =
+                                first_elem.term
+                            {
+                                if !resolver.rules.contains_key(lead_target) {
+                                    resolver.add_rule(
+                                        lead_target.clone(),
+                                        rule.clone(),
+                                    );
+                                }
+                                if let Some(closer_tok) =
+                                    detect_container_closer(&rule.pattern)
+                                {
+                                    if let Some(&existing_closer) =
+                                        resolver.opener_to_closer.get(lead_target)
+                                    {
+                                        ensure!(
+                                            existing_closer == closer_tok,
+                                            "Named type '{name}' closer {closer_tok:#X} for {lead_target} conflicts with existing closer {existing_closer:#X}"
+                                        );
+                                    }
+                                    if let Some(existing_opener) = resolver
+                                        .closing_delimiters
+                                        .get(&closer_tok)
+                                    {
+                                        ensure!(
+                                            existing_opener == lead_target,
+                                            "Named type '{name}' closer {closer_tok:#X} for {lead_target} already closes {existing_opener}"
+                                        );
+                                    }
+                                    resolver.register_closing_delimiter(
+                                        closer_tok,
+                                        lead_target.clone(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Collect `<equiv>` (`DC_CANONICAL_DECOMPOSITION`) pairs across Unicode clarifications and Short Dcs
+        let mut all_char_subjects: Vec<(u128, DcShorthand)> = unicode_subjects
+            .iter()
+            .map(|&(gid, cp)| (gid, DcShorthand::Unicode(cp)))
+            .chain(
+                short_subjects
+                    .iter()
+                    .map(|&(gid, sid)| (gid, DcShorthand::Short(sid))),
+            )
+            .collect();
+        all_char_subjects.sort_by_key(|&(gid, _)| gid);
+
+        let mut equivalents: Vec<(u128, CharTarget)> = Vec::new();
+        for (source_gid, subj) in all_char_subjects {
+            for entry in index.get_multi_properties(subj, sh_equiv) {
+                if matches!(
+                    entry.value,
+                    DcShorthand::Short(_)
+                        | DcShorthand::Format(_)
+                        | DcShorthand::Unicode(_)
+                ) {
+                    if let Ok(target_gid) = entry.value.to_global_id() {
+                        if let Some(target_ct) =
+                            CharTarget::from_u128(target_gid)
+                        {
+                            equivalents.push((source_gid, target_ct));
+                        }
+                    }
+                }
+            }
+        }
+
+        resolver.finalize_equivalences_and_derived_tables(
+            &equivalents,
+            &explicit_closes_pairs,
+            &closes_by_id,
+            &non_routine_short_ids,
+        )?;
+        Ok(resolver)
+    }
+
+    /// Loads a `DatasetRuleResolver` from the process-wide shared `SeedGraphIndex`
+    /// (`data/graph/85899_34592.ctbnbdl`).
+    pub fn load_from_seed_graph() -> Result<Self> {
+        let index = crate::seed_graph::SeedGraphIndex::shared()?;
+        Self::from_seed_graph(index)
+    }
+
+    fn finalize_equivalences_and_derived_tables(
+        &mut self,
+        equivalents: &[(u128, CharTarget)],
+        explicit_closes_pairs: &[(u128, CharTarget)],
+        closes_by_id: &HashMap<
+            u128,
+            ctb_storage_minimal::shorthand::DcShorthand,
+        >,
+        non_routine_short_ids: &[u32],
+    ) -> Result<()> {
         let mut graph: HashMap<u128, HashSet<u128>> = HashMap::new();
-        for (source, target) in &equivalents {
+        for (source, target) in equivalents {
             graph.entry(*source).or_default().insert(target.to_u128());
             graph.entry(target.to_u128()).or_default().insert(*source);
         }
-        let equiv_sources: HashSet<u128> = equivalents.iter().map(|(s, _)| *s).collect();
-        let equiv_targets: HashSet<u128> = equivalents.iter().map(|(_, t)| t.to_u128()).collect();
+        let equiv_sources: HashSet<u128> =
+            equivalents.iter().map(|(s, _)| *s).collect();
+        let equiv_targets: HashSet<u128> =
+            equivalents.iter().map(|(_, t)| t.to_u128()).collect();
 
         // Find connected equivalence components
         let mut visited = HashSet::new();
@@ -985,13 +1359,18 @@ impl DatasetRuleResolver {
 
         for members in &components {
             let is_dep = |token: u128| -> bool {
-                CharTarget::from_u128(token).is_some_and(|ct| resolver.is_deprecated(&ct))
+                CharTarget::from_u128(token)
+                    .is_some_and(|ct| self.is_deprecated(&ct))
             };
 
             let terminal_targets: Vec<u128> = members
                 .iter()
                 .copied()
-                .filter(|m| equiv_targets.contains(m) && !equiv_sources.contains(m) && !is_dep(*m))
+                .filter(|m| {
+                    equiv_targets.contains(m)
+                        && !equiv_sources.contains(m)
+                        && !is_dep(*m)
+                })
                 .collect();
             let non_dep_targets: Vec<u128> = members
                 .iter()
@@ -1019,27 +1398,37 @@ impl DatasetRuleResolver {
                 .context("Equivalence component cannot be empty")?;
 
             for &member in members {
-                resolver.canonical_map.insert(member, canonical);
-                resolver.semantic_equivalents.insert(member, members.clone());
+                self.canonical_map.insert(member, canonical);
+                self.semantic_equivalents.insert(member, members.clone());
             }
         }
 
         // Validate syntax rule and @closes parity across equivalent tokens
-        let defns_by_id: HashMap<u128, &DcDefn> = dc_defns.iter().chain(format_defns.iter()).map(|d| (d.dc_id, d)).collect();
-        for (source, target) in &equivalents {
-            let source_defn = defns_by_id.get(source);
+        for (source, target) in equivalents {
             let target_u128 = target.to_u128();
-            let target_defn = defns_by_id.get(&target_u128);
 
             // 1. Verify syntax rule parity with pattern normalization
-            let source_rule = CharTarget::from_u128(*source).and_then(|key| resolver.rules.get(&key));
-            let target_rule = resolver.rules.get(target);
+            let source_rule = CharTarget::from_u128(*source)
+                .and_then(|key| self.rules.get(&key));
+            let target_rule = self.rules.get(target);
 
-            let s_self = source_defn.and_then(|d| d.short_id).and_then(|id| u32::try_from(id).ok());
-            let t_self = target_defn.and_then(|d| d.short_id).and_then(|id| u32::try_from(id).ok());
+            let s_self = DcChar::from_u128(*source).to_short().ok();
+            let t_self = DcChar::from_u128(target_u128).to_short().ok();
 
-            let s_norm_pattern = source_rule.map(|r| super::ast::normalize_syntax_pattern(&r.pattern, s_self, &resolver.canonical_map));
-            let t_norm_pattern = target_rule.map(|r| super::ast::normalize_syntax_pattern(&r.pattern, t_self, &resolver.canonical_map));
+            let s_norm_pattern = source_rule.map(|r| {
+                super::ast::normalize_syntax_pattern(
+                    &r.pattern,
+                    s_self,
+                    &self.canonical_map,
+                )
+            });
+            let t_norm_pattern = target_rule.map(|r| {
+                super::ast::normalize_syntax_pattern(
+                    &r.pattern,
+                    t_self,
+                    &self.canonical_map,
+                )
+            });
             let s_action = source_rule.map(|r| &r.action);
             let t_action = target_rule.map(|r| &r.action);
 
@@ -1049,17 +1438,29 @@ impl DatasetRuleResolver {
             );
 
             // 2. Verify @closes parity
-            let s_closes = source_defn.and_then(|d| d.closes.as_ref());
-            let t_closes = target_defn.and_then(|d| d.closes.as_ref());
+            let s_closes = closes_by_id.get(source);
+            let t_closes = closes_by_id.get(&target_u128);
             match (s_closes, t_closes) {
                 (None, None) => {}
                 (Some(s_c), Some(t_c)) => {
-                    let s_gid: u128 = s_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
-                    let t_gid: u128 = t_c.to_global_id().map_err(|e| anyhow::anyhow!("{e}"))?;
+                    let s_gid: u128 = s_c
+                        .to_global_id()
+                        .map_err(|e| anyhow::anyhow!("{e}"))?;
+                    let t_gid: u128 = t_c
+                        .to_global_id()
+                        .map_err(|e| anyhow::anyhow!("{e}"))?;
                     // Reason for fallback: token not in canonical_map is self-canonical.
-                    let s_canon = resolver.canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                    let s_canon = self
+                        .canonical_map
+                        .get(&s_gid)
+                        .copied()
+                        .unwrap_or(s_gid);
                     // Reason for fallback: token not in canonical_map is self-canonical.
-                    let t_canon = resolver.canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
+                    let t_canon = self
+                        .canonical_map
+                        .get(&t_gid)
+                        .copied()
+                        .unwrap_or(t_gid);
                     ensure!(
                         s_canon == t_canon,
                         "Equivalent tokens {source} and {target:?} have incompatible @closes: {s_c:?} vs {t_c:?}"
@@ -1075,11 +1476,14 @@ impl DatasetRuleResolver {
 
         // Validate that non-equivalent closers do not claim @closes for the same canonical opener,
         // and that an opener's syntax rule does not end with a closer that conflicts with @closes.
-        let mut canonical_opener_to_closer: HashMap<u128, u128> = HashMap::new();
-        for (closer_tok, opener_target) in &explicit_closes_pairs {
-            let canon_opener = resolver.canonical_token(opener_target.to_u128());
-            let canon_closer = resolver.canonical_token(*closer_tok);
-            if let Some(&existing_closer) = canonical_opener_to_closer.get(&canon_opener) {
+        let mut canonical_opener_to_closer: HashMap<u128, u128> =
+            HashMap::new();
+        for (closer_tok, opener_target) in explicit_closes_pairs {
+            let canon_opener = self.canonical_token(opener_target.to_u128());
+            let canon_closer = self.canonical_token(*closer_tok);
+            if let Some(&existing_closer) =
+                canonical_opener_to_closer.get(&canon_opener)
+            {
                 ensure!(
                     existing_closer == canon_closer,
                     "Ambiguous @closes declarations for opener {opener_target}: non-equivalent closers {existing_closer:#X} and {canon_closer:#X}"
@@ -1088,37 +1492,41 @@ impl DatasetRuleResolver {
                 canonical_opener_to_closer.insert(canon_opener, canon_closer);
             }
         }
-        for defn in dc_defns {
-            if defn.script == ".EL Routines" {
-                continue;
-            }
-            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
-                if let (Ok(id), Some(detected_closer)) = (
-                    u32::try_from(short_id),
-                    detect_container_closer(&rule.pattern),
-                ) {
-                    let target = CharTarget::Dc(id);
-                    let canon_opener = resolver.canonical_token(target.to_u128());
-                    if let Some(&declared_closer) = canonical_opener_to_closer.get(&canon_opener) {
-                        let canon_detected = resolver.canonical_token(detected_closer);
-                        ensure!(
-                            canon_detected == declared_closer,
-                            "Opener {target} syntax rule ends with closer {detected_closer:#X}, conflicting with @closes closer {declared_closer:#X}"
-                        );
-                    }
+        for &id in non_routine_short_ids {
+            let target = CharTarget::Dc(id);
+            if let Some(detected_closer) = self
+                .rules
+                .get(&target)
+                .and_then(|rule| detect_container_closer(&rule.pattern))
+            {
+                let canon_opener = self.canonical_token(target.to_u128());
+                if let Some(&declared_closer) =
+                    canonical_opener_to_closer.get(&canon_opener)
+                {
+                    let canon_detected = self.canonical_token(detected_closer);
+                    ensure!(
+                        canon_detected == declared_closer,
+                        "Opener {target} syntax rule ends with closer {detected_closer:#X}, conflicting with @closes closer {declared_closer:#X}"
+                    );
                 }
             }
         }
 
         // Expand rules across equivalent tokens
         for members in &components {
-            let rule = members.iter().find_map(|m| {
-                CharTarget::from_u128(*m).and_then(|target| resolver.rules.get(&target))
-            }).cloned();
+            let rule = members
+                .iter()
+                .find_map(|m| {
+                    CharTarget::from_u128(*m)
+                        .and_then(|target| self.rules.get(&target))
+                })
+                .cloned();
             if let Some(rule) = rule {
                 for &m in members {
                     if let Some(target) = CharTarget::from_u128(m) {
-                        resolver.rules.entry(target).or_insert_with(|| rule.clone());
+                        self.rules
+                            .entry(target)
+                            .or_insert_with(|| rule.clone());
                     }
                 }
             }
@@ -1126,53 +1534,50 @@ impl DatasetRuleResolver {
 
         // Expand closing delimiters and opener_to_closer across equivalent tokens
         let mut delimiter_pairs: Vec<(CharTarget, u128)> = Vec::new();
-        for (opener, &closer) in &resolver.opener_to_closer {
+        for (opener, &closer) in &self.opener_to_closer {
             delimiter_pairs.push((opener.clone(), closer));
         }
-        for (&closer, opener) in &resolver.closing_delimiters {
+        for (&closer, opener) in &self.closing_delimiters {
             delimiter_pairs.push((opener.clone(), closer));
         }
 
         let empty_set = HashSet::new();
         for (opener, closer) in delimiter_pairs {
             let opener_u128 = opener.to_u128();
-            let canonical_opener_u128 = resolver.canonical_token(opener_u128);
+            let canonical_opener_u128 = self.canonical_token(opener_u128);
             // Reason for fallback: unrepresentable canonical GID defaults to original opener.
             let canonical_opener_target =
                 CharTarget::from_u128(canonical_opener_u128).unwrap_or(opener);
-            let canonical_closer = resolver.canonical_token(closer);
+            let canonical_closer = self.canonical_token(closer);
 
             // Reason for fallback: tokens without equivalents use empty set.
-            let opener_members = resolver
+            let opener_members = self
                 .semantic_equivalents
                 .get(&opener_u128)
                 .unwrap_or(&empty_set);
             // Reason for fallback: tokens without equivalents use empty set.
-            let closer_members = resolver
-                .semantic_equivalents
-                .get(&closer)
-                .unwrap_or(&empty_set);
+            let closer_members =
+                self.semantic_equivalents.get(&closer).unwrap_or(&empty_set);
 
-            resolver
-                .opener_to_closer
+            self.opener_to_closer
                 .insert(canonical_opener_target.clone(), canonical_closer);
             for &o in opener_members {
                 if let Some(target) = CharTarget::from_u128(o) {
-                    resolver.opener_to_closer.insert(target, canonical_closer);
+                    self.opener_to_closer.insert(target, canonical_closer);
                 }
             }
 
-            resolver
-                .closing_delimiters
+            self.closing_delimiters
                 .insert(canonical_closer, canonical_opener_target.clone());
             for &c in closer_members {
-                resolver.closing_delimiters.insert(c, canonical_opener_target.clone());
+                self.closing_delimiters
+                    .insert(c, canonical_opener_target.clone());
             }
         }
 
         // Expand script_chars across equivalent tokens
         for members in &components {
-            for set in resolver.script_chars.values_mut() {
+            for set in self.script_chars.values_mut() {
                 if members.iter().any(|m| set.contains(m)) {
                     for &m in members {
                         set.insert(m);
@@ -1181,63 +1586,87 @@ impl DatasetRuleResolver {
             }
         }
 
-        resolver.precompute_derived_tables();
+        self.precompute_derived_tables();
 
         // Ensure derived tables are fully closed across equivalent tokens
         for members in &components {
-            let headers = members.iter().find_map(|m| {
-                CharTarget::from_u128(*m).and_then(|target| resolver.container_headers.get(&target))
-            }).cloned();
+            let headers = members
+                .iter()
+                .find_map(|m| {
+                    CharTarget::from_u128(*m)
+                        .and_then(|target| self.container_headers.get(&target))
+                })
+                .cloned();
             if let Some(headers) = headers {
                 for &m in members {
                     if let Some(target) = CharTarget::from_u128(m) {
-                        resolver.container_headers.entry(target).or_insert_with(|| headers.clone());
+                        self.container_headers
+                            .entry(target)
+                            .or_insert_with(|| headers.clone());
                     }
                 }
             }
 
-            let trailing = members.iter().find_map(|m| {
-                CharTarget::from_u128(*m).and_then(|target| resolver.trailing_after_closer.get(&target))
-            }).cloned();
+            let trailing = members
+                .iter()
+                .find_map(|m| {
+                    CharTarget::from_u128(*m).and_then(|target| {
+                        self.trailing_after_closer.get(&target)
+                    })
+                })
+                .cloned();
             if let Some(trailing) = trailing {
                 for &m in members {
                     if let Some(target) = CharTarget::from_u128(m) {
-                        resolver.trailing_after_closer.entry(target).or_insert_with(|| trailing.clone());
+                        self.trailing_after_closer
+                            .entry(target)
+                            .or_insert_with(|| trailing.clone());
                     }
                 }
             }
 
-            let infix = members.iter().find_map(|m| resolver.infix_rules.get(m)).cloned();
+            let infix = members
+                .iter()
+                .find_map(|m| self.infix_rules.get(m))
+                .cloned();
             if let Some(infix) = infix {
                 for &m in members {
-                    resolver.infix_rules.entry(m).or_insert_with(|| infix.clone());
+                    self.infix_rules
+                        .entry(m)
+                        .or_insert_with(|| infix.clone());
                 }
             }
 
-            if members.iter().any(|m| resolver.opaque_containers.contains(m)) {
+            if members.iter().any(|m| self.opaque_containers.contains(m)) {
                 for &m in members {
-                    resolver.opaque_containers.insert(m);
+                    self.opaque_containers.insert(m);
                 }
             }
         }
 
-        for starters in resolver.named_type_starters.values_mut() {
+        for starters in self.named_type_starters.values_mut() {
             loop {
                 let mut changed = false;
-                for (source, target) in &equivalents {
+                for (source, target) in equivalents {
                     let target = target.to_u128();
-                    for (alias, equivalent) in [(*source, target), (target, *source)] {
+                    for (alias, equivalent) in
+                        [(*source, target), (target, *source)]
+                    {
                         if starters.exact_tokens.contains(&equivalent)
-                            || starters.ranges.iter().any(|(start, end)| (*start..=*end).contains(&equivalent))
+                            || starters.ranges.iter().any(|(start, end)| {
+                                (*start..=*end).contains(&equivalent)
+                            })
                         {
                             changed |= starters.exact_tokens.insert(alias);
                         }
                     }
                 }
-                if !changed { break; }
+                if !changed {
+                    break;
+                }
             }
         }
-        Ok(resolver)
+        Ok(())
     }
 }
 
@@ -1494,67 +1923,7 @@ mod tests {
         Ok(())
     }
 
-    /// Verifies that the generated static syntax table matches the resolver
-    /// built directly from the compiled-in CSV dataset. A failure here means
-    /// `syntax_table.generated.rs` is stale or diverged; regenerate it with
-    /// `./scripts/validate-data-tables`.
-    #[crate::ctb_test]
-    fn test_static_syntax_table_matches_csv_dataset() {
-        let static_table = DatasetRuleResolver::load();
-        let from_dataset = DatasetRuleResolver::load_from_embedded_dataset().unwrap();
-        const STALE: &str = "generated static syntax table diverged from the \
-            CSV dataset; regenerate with ./scripts/validate-data-tables";
-        assert_eq!(static_table.rules, from_dataset.rules, "{STALE}: rules");
-        assert_eq!(
-            static_table.canonical_map, from_dataset.canonical_map,
-            "{STALE}: canonical_map"
-        );
-        assert_eq!(static_table.semantic_equivalents, from_dataset.semantic_equivalents, "{STALE}: semantic_equivalents");
-        assert_eq!(
-            static_table.named_types, from_dataset.named_types,
-            "{STALE}: named_types"
-        );
-        assert_eq!(
-            static_table.script_chars, from_dataset.script_chars,
-            "{STALE}: script_chars"
-        );
-        assert_eq!(
-            static_table.closing_delimiters, from_dataset.closing_delimiters,
-            "{STALE}: closing_delimiters"
-        );
-        assert_eq!(
-            static_table.opener_to_closer, from_dataset.opener_to_closer,
-            "{STALE}: opener_to_closer"
-        );
-        assert_eq!(
-            static_table.deprecated_targets, from_dataset.deprecated_targets,
-            "{STALE}: deprecated_targets"
-        );
-        assert_eq!(
-            static_table.container_headers, from_dataset.container_headers,
-            "{STALE}: container_headers"
-        );
-        assert_eq!(
-            static_table.trailing_after_closer,
-            from_dataset.trailing_after_closer,
-            "{STALE}: trailing_after_closer"
-        );
-        assert_eq!(
-            static_table.infix_rules, from_dataset.infix_rules,
-            "{STALE}: infix_rules"
-        );
-        assert_eq!(
-            static_table.named_type_starters,
-            from_dataset.named_type_starters,
-            "{STALE}: named_type_starters"
-        );
-        assert_eq!(
-            static_table.opaque_containers, from_dataset.opaque_containers,
-            "{STALE}: opaque_containers"
-        );
-    }
-
-    /// Spot-checks that the static table exposes core derived facts used by
+    /// Spot-checks that the default resolver exposes core derived facts used by
     /// the navigator and projector layers.
     #[crate::ctb_test]
     fn test_static_syntax_table_sanity() {
@@ -1755,6 +2124,106 @@ mod tests {
             .is_err()
         );
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_seed_graph_resolver_matches_csv_dataset() -> Result<()> {
+        let from_graph = DatasetRuleResolver::load();
+        let from_csv = DatasetRuleResolver::load_from_embedded_dataset()?;
+
+        assert_eq!(from_graph.named_types, from_csv.named_types);
+        assert_eq!(from_graph.script_chars, from_csv.script_chars);
+        assert_eq!(from_graph.closing_delimiters, from_csv.closing_delimiters);
+        assert_eq!(from_graph.opener_to_closer, from_csv.opener_to_closer);
+        assert_eq!(from_graph.deprecated_targets, from_csv.deprecated_targets);
+        assert_eq!(from_graph.container_headers, from_csv.container_headers);
+        assert_eq!(
+            from_graph.trailing_after_closer,
+            from_csv.trailing_after_closer
+        );
+        assert_eq!(from_graph.infix_rules, from_csv.infix_rules);
+        assert_eq!(
+            from_graph.named_type_starters,
+            from_csv.named_type_starters
+        );
+        assert_eq!(
+            from_graph.semantic_equivalents,
+            from_csv.semantic_equivalents
+        );
+        assert_eq!(from_graph.opaque_containers, from_csv.opaque_containers);
+        assert_eq!(from_graph.canonical_map, from_csv.canonical_map);
+
+        assert_eq!(from_graph.rules.len(), from_csv.rules.len());
+        for (target, csv_rule) in &from_csv.rules {
+            let graph_rule = from_graph
+                .rules
+                .get(target)
+                .with_context(|| format!("Missing rule for {target} in seed graph resolver"))?;
+            assert_eq!(
+                graph_rule.pattern, csv_rule.pattern,
+                "Pattern mismatch for {target}"
+            );
+            assert_eq!(
+                graph_rule.action, csv_rule.action,
+                "Action mismatch for {target}"
+            );
+            assert!(
+                !graph_rule.raw.is_empty(),
+                "Expected non-empty canonical raw DSL for {target}"
+            );
+        }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_rejects_invalid_named_types() -> Result<()> {
+        for (csv, expected) in [
+            ("Named type,Syntax\nbroken,:[\n", "invalid syntax"),
+            ("Named type,Syntax\nbroken,:(260){1..bad}\n", "invalid syntax"),
+            ("Named type,Syntax\nbroken\n", "has no syntax"),
+            ("Named type,Syntax\nbroken,\n", "has no syntax"),
+            ("Named type,Syntax\n,:(260)\n", "missing named type"),
+        ] {
+            let error = DatasetRuleResolver::load_from_dataset(
+                &[],
+                &[],
+                Some(csv.as_bytes()),
+            )
+            .err()
+            .context("Invalid named grammar was accepted")?;
+            let message = format!("{error:#}");
+            assert!(message.contains("README-named-types.csv row 2"), "{message}");
+            assert!(message.contains(expected), "{message}");
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_rejects_invalid_quantifiers() -> Result<()> {
+        for bounds in [
+            "bad..3",
+            "1..bad",
+            "3..1",
+            "bad,3",
+            "1,bad",
+            "3,1",
+            "1..2..3",
+            "1,2,3",
+            "",
+            "bad",
+            "-1..3",
+            "999999999999999999999999999999999999999999..3",
+            "1..999999999999999999999999999999999999999999",
+        ] {
+            let raw = format!(":(260){{{bounds}}}");
+            assert!(parse_dc_syntax(&raw).is_err(), "accepted {raw}");
+        }
+        assert!(parse_dc_syntax(":(260){1..3").is_err());
+        for bounds in ["2", "0..3", "..3", "1..", "..", ",3", "1,", ","] {
+            parse_dc_syntax(&format!(":(260){{{bounds}}}"))?;
+        }
         Ok(())
     }
 }

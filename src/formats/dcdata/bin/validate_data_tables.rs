@@ -184,18 +184,6 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_formats_dcdata::syntax::codegen::generate_syntax_table_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated syntax/resolver/syntax_table.generated.rs from CSV syntax rules.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating syntax/resolver/syntax_table.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
     match ctb_formats_dcdata::graph_ledger::update_system_graph_ledger(&repo_root) {
         Ok(stats) => {
             if stats.nodes_appended > 0 || stats.files_written > 0 {

@@ -78,6 +78,11 @@ echo "=== Running Rust linters ==="
 # - Workspace crate registration in root Cargo.toml
 # - License headers and docblocks
 # - Test module boilerplate
+if [[ ! -f "built/ctoolbox.rsrc" ]]; then
+    echo "Preparing runtime asset bundle..."
+    cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- . || exit 1
+fi
+
 quick_flag=""
 if [[ -n "$quick" ]]; then
     quick_flag="--quick"

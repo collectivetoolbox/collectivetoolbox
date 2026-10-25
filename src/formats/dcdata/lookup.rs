@@ -26,37 +26,27 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use anyhow::{Result, anyhow};
 
 use crate::dc_def::DcDefn;
-use crate::report::ValidationReport;
-use crate::validation::validate_all_dc_files;
-use crate::{get_dc_categories_dir, get_dc_data_file};
+use crate::get_dc_data_file;
 
 static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
-    let mut report = ValidationReport::new();
-    let known_format_ids = HashSet::new();
     #[expect(
         clippy::expect_used,
-        reason = "categories directory is embedded at compile time via include_dir!(\"$CARGO_MANIFEST_DIR/data\")"
+        reason = "Bundled runtime seed graph (data/graph/85899_34592.ctbnbdl) is validated at build time and must load"
     )]
-    let dc_dir =
-        get_dc_categories_dir().expect("Embedded categories directory must be present");
-    let mut defns = validate_all_dc_files(
-        dc_dir,
-        &known_format_ids,
-        None,
-        None,
-        None,
-        None,
-        None,
-        &mut report,
-    );
-    defns.sort_by_key(|d| d.dc_id);
-    defns
+    let index = crate::seed_graph::SeedGraphIndex::shared()
+        .expect("Bundled runtime seed graph must be present");
+    #[expect(
+        clippy::expect_used,
+        reason = "Bundled runtime seed graph Dc definitions are validated at build time"
+    )]
+    index
+        .reconstruct_dc_defns()
+        .expect("Bundled runtime seed graph Dc definitions must reconstruct cleanly")
 });
 
 static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
@@ -233,5 +223,72 @@ mod tests {
         assert_eq!(row308.len(), 9);
         assert_eq!(row308[0], "308");
         assert_eq!(row308[1], "Next number is a long (global graph) Dc");
+    }
+
+    #[crate::ctb_test]
+    fn test_seed_graph_dc_defns_match_embedded_csv_defns() {
+        let from_graph = get_all_dc_defns();
+        let mut report = crate::report::ValidationReport::new();
+        let known_format_ids = std::collections::HashSet::new();
+        let dc_dir = crate::get_dc_categories_dir()
+            .expect("Embedded categories directory must be present");
+        let mut from_csv = crate::validation::validate_all_dc_files(
+            dc_dir,
+            &known_format_ids,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut report,
+        );
+        from_csv.sort_by_key(|d| d.dc_id);
+
+        assert_eq!(from_graph.len(), from_csv.len());
+        for (g, c) in from_graph.iter().zip(from_csv.iter()) {
+            assert_eq!(g.dc_id, c.dc_id);
+            assert_eq!(g.short_id, c.short_id, "short_id mismatch on {}", c.dc_id);
+            assert_eq!(g.ident, c.ident, "ident mismatch on {}", c.dc_id);
+            assert_eq!(g.name, c.name, "name mismatch on {}", c.dc_id);
+            assert_eq!(g.category, c.category, "category mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.combining_class, c.combining_class,
+                "combining_class mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(
+                g.bidi_class, c.bidi_class,
+                "bidi_class mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(
+                g.casing_partner, c.casing_partner,
+                "casing_partner mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(
+                g.general_category, c.general_category,
+                "general_category mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(g.script, c.script, "script mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.is_deprecated, c.is_deprecated,
+                "is_deprecated mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(g.closes, c.closes, "closes mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.description, c.description,
+                "description mismatch on {}",
+                c.dc_id
+            );
+            assert_eq!(
+                g.syntax.as_ref().map(|r| (&r.pattern, &r.action)),
+                c.syntax.as_ref().map(|r| (&r.pattern, &r.action)),
+                "syntax AST mismatch on {}",
+                c.dc_id
+            );
+        }
     }
 }

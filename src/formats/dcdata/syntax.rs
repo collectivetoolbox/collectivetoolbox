@@ -38,12 +38,6 @@ pub mod resolver;
 pub mod role;
 pub mod validator;
 
-#[path = "syntax/resolver/codegen.rs"]
-pub mod codegen;
-
-#[path = "syntax/resolver/syntax_table.generated.rs"]
-mod syntax_table;
-
 mod data_constraint;
 
 pub use ast::{
@@ -68,19 +62,16 @@ pub use validator::{
 pub use data_constraint::parse_data_constraint;
 
 impl DatasetRuleResolver {
-    /// Loads the authoritative resolver state from the generated static
-    /// syntax table (`syntax_table.generated.rs`).
-    ///
-    /// The static table is generated from the CSV dataset in
-    /// `src/formats/dcdata/data/` by `codegen::generate_syntax_table_file`
-    /// (invoked via `./scripts/validate-data-tables`), so loading performs a
-    /// single materialization pass over compiled-in table data with no CSV
-    /// parsing, syntax DSL parsing, or derived-table recomputation.
+    /// Loads the authoritative resolver state from the bundled runtime seed graph
+    /// (`data/graph/85899_34592.ctbnbdl` via `SeedGraphIndex::shared()`).
     #[must_use]
     pub fn load() -> Self {
-        let mut resolver = Self::new();
-        syntax_table::populate(&mut resolver);
-        resolver
+        #[expect(
+            clippy::expect_used,
+            reason = "Bundled runtime seed graph (data/graph/85899_34592.ctbnbdl) is validated at build time and must load"
+        )]
+        Self::load_from_seed_graph()
+            .expect("Bundled runtime seed graph syntax resolver must load")
     }
 
     /// Builds a resolver by indexing the compiled-in (embedded) CSV dataset

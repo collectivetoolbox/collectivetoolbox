@@ -327,6 +327,11 @@ export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
 export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 
+if [[ ! -f "built/ctoolbox.rsrc" ]]; then
+    echo "Preparing runtime asset bundle..."
+    cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- .
+fi
+
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
 

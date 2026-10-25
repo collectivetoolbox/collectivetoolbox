@@ -41,22 +41,30 @@ use ctb_storage_minimal::global_graph_layout::{
 use ctb_storage_minimal::shorthand::DcShorthand;
 
 use crate::dc::{
-    DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BIDIRECTIONAL_CLASS, DC_CANONICAL_NAME,
-    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT, DC_DC_GENERAL_CATEGORY,
-    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP, DC_ENTITY_TYPE,
-    DC_HAS_A, DC_HAS_VALUE, DC_IS_INSTANCE_OF, DC_NEGATED_PATTERN,
-    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT,
-    DC_PATTERN_REPETITION, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
-    DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
-    DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SUBPATTERN_MATCH,
+    DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
+    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS,
+    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
+    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE, DC_DC_GENERAL_CATEGORY,
+    DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
+    DC_ENTITY_TYPE, DC_FORMAL_ALIAS, DC_HAS_A, DC_HAS_VALUE, DC_INFORMAL_ALIAS,
+    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
+    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
+    DC_NEGATED_PATTERN, DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE,
+    DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION, DC_PREFERRED,
+    DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE, DC_REFERENCE_NAMED_OBJECT,
+    DC_REPLACEMENT, DC_RETRACTS, DC_ROUTINE_INVOCATION,
+    DC_SEMANTIC_DECOMPOSITION, DC_SELF_REFERENCE, DC_SUBPATTERN_MATCH,
     DC_SUPERSEDES, DC_SYNTAX_RULE, DC_UNICODE_SCRIPT, DcChar,
 };
+use crate::dc_def::DcDefn;
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_integer_value_tokens,
     decode_nodes_from_ctbnbdl_bytes, decode_string_value_tokens,
     format_chunk_bundle_filename, parse_chunk_bundle_filename_start_id,
     parse_statement_tokens, single_valued_property_set,
 };
+use crate::shared::{BidiClass, GeneralCategory};
 use crate::syntax::ast::{
     ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxElement, SyntaxPattern, SyntaxTerm,
@@ -847,6 +855,289 @@ impl SeedGraphIndex {
             .map_or(&[], Vec::as_slice)
     }
 
+    /// Returns a map of all indexed `SeedEntityKey` entries to their allocated `u128` node IDs.
+    #[must_use]
+    pub fn seed_entities(&self) -> &HashMap<SeedEntityKey, u128> {
+        &self.seed_entity_ids
+    }
+
+    /// Returns the map of all active single-valued properties `(subject, prop_token) -> (has_a_id, has_val_id, val_token)`.
+    #[must_use]
+    pub fn active_single_props(
+        &self,
+    ) -> &BTreeMap<(DcShorthand, DcShorthand), (u128, u128, DcShorthand)> {
+        &self.active_single_props
+    }
+
+    /// Returns the map of all active multi-valued properties `(subject, prop_token, val_token) -> (has_a_id, has_val_id)`.
+    #[must_use]
+    pub fn active_multi_props(
+        &self,
+    ) -> &BTreeMap<(DcShorthand, DcShorthand, DcShorthand), (u128, u128)> {
+        &self.active_multi_props
+    }
+
+    /// Returns the map of all active preferred replacements `(subject, val_token) -> (has_a_id, has_val_id, pref_qual_id)`.
+    #[must_use]
+    pub fn active_preferred(
+        &self,
+    ) -> &BTreeMap<(DcShorthand, DcShorthand), (u128, u128, u128)> {
+        &self.active_preferred
+    }
+
+    /// Returns the map of all active direct binary statements `(verb, subject, object) -> stmt_id`.
+    #[must_use]
+    pub fn active_direct_stmts(
+        &self,
+    ) -> &BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128> {
+        &self.active_direct_stmts
+    }
+
+    /// Reconstructs all Document Character definitions (`DcDefn` for Unicode clarifications and Short Dcs)
+    /// directly from the indexed seed graph, sorted in ascending `dc_id` order.
+    pub fn reconstruct_dc_defns(&self) -> Result<Vec<DcDefn>> {
+        let sh_name = sh(DC_CANONICAL_NAME);
+        let sh_desc = sh(DC_DESCRIPTION);
+        let sh_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
+        let sh_cc = sh(DC_CANONICAL_COMBINING_CLASS);
+        let sh_bidi = sh(DC_BIDIRECTIONAL_CLASS);
+        let sh_inst = sh(DC_IS_INSTANCE_OF);
+        let sh_case = sh(DC_CASE_MAPPING_PARTNER);
+        let sh_dep = sh(DC_IS_DEPRECATED);
+        let sh_true = sh(DC_BOOLEAN_TRUE);
+        let sh_closes = sh(DC_IS_CLOSING_DELIMITER_FOR);
+        let sh_subtype = sh(DC_IS_SUBTYPE_OF);
+        let sh_based = sh(DC_IS_BASED_ON);
+        let sh_assoc = sh(DC_IS_ASSOCIATED_WITH);
+        let sh_alias = sh(DC_INFORMAL_ALIAS);
+        let sh_falias = sh(DC_FORMAL_ALIAS);
+        let sh_ann = sh(DC_ANNOTATION);
+        let sh_magic = sh(DC_MAGIC_SIGNATURE);
+        let sh_xref = sh(DC_CROSS_REFERENCE);
+        let sh_equiv = sh(DC_CANONICAL_DECOMPOSITION);
+        let sh_approx = sh(DC_APPROXIMATE_DECOMPOSITION);
+        let sh_sem = sh(DC_SEMANTIC_DECOMPOSITION);
+        let sh_compat = sh(DC_COMPATIBILITY_DECOMPOSITION);
+
+        let mut subjects: Vec<DcShorthand> = self
+            .active_single_props
+            .keys()
+            .filter_map(|&(subj, prop)| {
+                if prop == sh_name
+                    && matches!(
+                        subj,
+                        DcShorthand::Unicode(_) | DcShorthand::Short(_)
+                    )
+                {
+                    Some(subj)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        subjects.sort_by_key(|s| {
+            // Reason for fallback: Unicode and Short shorthands always have valid global IDs.
+            s.to_global_id().unwrap_or(0)
+        });
+        subjects.dedup();
+
+        let mut defns = Vec::with_capacity(subjects.len());
+        for subj in subjects {
+            let dc_id = subj.to_global_id()?;
+            let short_id = match subj {
+                DcShorthand::Short(sid) => usize::try_from(sid).ok(),
+                _ => None,
+            };
+            // Reason for fallback: subjects were selected from active_single_props by sh_name.
+            let name = self
+                .get_single_property_string(subj, sh_name)
+                .unwrap_or_default()
+                .to_string();
+            // Reason for fallback: characters without an explicit description default to empty string.
+            let description = self
+                .get_single_property_string(subj, sh_desc)
+                .unwrap_or_default()
+                .to_string();
+            let ident = self
+                .get_single_property_string(subj, sh_ident)
+                .map(str::to_string);
+            // Reason for fallback: characters without a combining class statement have combining class 0.
+            let combining_class = self
+                .get_single_property_integer(subj, sh_cc)
+                .and_then(|v| u8::try_from(v).ok())
+                .unwrap_or(0);
+
+            let bidi_class = if let Some(DcShorthand::Long(seed_id)) =
+                self.get_single_property(subj, sh_bidi)
+            {
+                if let Some(SeedEntityKey::BidiClass(code)) =
+                    self.get_seed_entity(seed_id)
+                {
+                    code.parse::<BidiClass>()?
+                } else {
+                    BidiClass::BN
+                }
+            } else {
+                BidiClass::BN
+            };
+
+            let mut general_category = GeneralCategory::NonUnicodeControl;
+            let mut script = String::new();
+            for &obj in self.get_direct_objects(sh_inst, subj) {
+                if let DcShorthand::Long(seed_id) = obj {
+                    match self.get_seed_entity(seed_id) {
+                        Some(SeedEntityKey::GeneralCategory(code)) => {
+                            general_category =
+                                code.parse::<GeneralCategory>()?;
+                        }
+                        Some(SeedEntityKey::Script(s)) => {
+                            script.clone_from(s);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            let category = category_for_dc_subject(subj, &script);
+            let casing_partner = match self.get_single_property(subj, sh_case) {
+                Some(DcShorthand::Short(partner)) => Some(partner),
+                _ => None,
+            };
+            let is_deprecated =
+                self.has_direct_statement(sh_dep, subj, sh_true);
+            let closes =
+                self.get_direct_objects(sh_closes, subj).first().copied();
+            let syntax = self.decode_syntax_rule_for_subject(subj)?;
+
+            let aliases: Vec<String> = self
+                .get_multi_properties(subj, sh_alias)
+                .iter()
+                .filter_map(|e| self.get_string(e.value).map(str::to_string))
+                .collect();
+            let formal_aliases: Vec<(String, String)> = self
+                .get_multi_properties(subj, sh_falias)
+                .iter()
+                .filter_map(|e| {
+                    self.get_string(e.value)
+                        .map(|s| (String::new(), s.to_string()))
+                })
+                .collect();
+            let annotations: Vec<String> = self
+                .get_multi_properties(subj, sh_ann)
+                .iter()
+                .filter_map(|e| self.get_string(e.value).map(str::to_string))
+                .collect();
+            let magic_names: Vec<String> = self
+                .get_multi_properties(subj, sh_magic)
+                .iter()
+                .filter_map(|e| self.get_string(e.value).map(str::to_string))
+                .collect();
+            let cross_references: Vec<String> = self
+                .get_multi_properties(subj, sh_xref)
+                .iter()
+                .map(|e| {
+                    if let Some(s) = self.get_string(e.value) {
+                        s.to_string()
+                    } else {
+                        e.value.to_string()
+                    }
+                })
+                .collect();
+
+            let mut decompositions = Vec::new();
+            for (decomp_prop, tag) in [
+                (sh_equiv, "equiv"),
+                (sh_approx, "approx"),
+                (sh_sem, "semantic"),
+                (sh_compat, "compat"),
+            ] {
+                for entry in self.get_multi_properties(subj, decomp_prop) {
+                    let payload = self.decode_decomposition_payload(entry.value);
+                    decompositions.push(format!("<{tag}>{payload}"));
+                }
+            }
+            for &pref_val in self.get_preferred_replacements(subj) {
+                let payload = self.decode_decomposition_payload(pref_val);
+                decompositions.push(format!("<prefer>{payload}"));
+            }
+
+            let implies: Vec<String> = self
+                .get_direct_objects(sh_subtype, subj)
+                .iter()
+                .map(|&obj| self.decode_relation_target_string(obj))
+                .collect();
+            let based_on: Vec<String> = self
+                .get_direct_objects(sh_based, subj)
+                .iter()
+                .map(|&obj| self.decode_relation_target_string(obj))
+                .collect();
+            let os_associations: Vec<String> = self
+                .get_direct_objects(sh_assoc, subj)
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+
+            defns.push(DcDefn {
+                dc_id,
+                short_id,
+                ident,
+                role_def: false,
+                title: None,
+                name,
+                category: category.clone(),
+                combining_class,
+                bidi_class,
+                casing_partner,
+                general_category,
+                script,
+                is_deprecated,
+                decompositions,
+                aliases,
+                formal_aliases,
+                cross_references,
+                annotations,
+                implies,
+                based_on,
+                os_associations,
+                magic_names,
+                syntax,
+                closes,
+                description,
+                format: None,
+                source_file: format!("{category}.csv"),
+                line_number: 0,
+            });
+        }
+
+        Ok(defns)
+    }
+
+    fn decode_decomposition_payload(&self, val_tok: DcShorthand) -> String {
+        if let Some(s) = self.get_string(val_tok) {
+            return s.to_string();
+        }
+        if let DcShorthand::Long(node_id) = val_tok {
+            if let Some(node) = self.get_node(node_id) {
+                let parts: Vec<String> =
+                    node.tokens.iter().map(ToString::to_string).collect();
+                return parts.join(" ");
+            }
+        }
+        val_tok.to_string()
+    }
+
+    fn decode_relation_target_string(&self, obj: DcShorthand) -> String {
+        if let Some(s) = self.get_string(obj) {
+            return s.to_string();
+        }
+        if let DcShorthand::Long(node_id) = obj {
+            if let Ok(rule) = self.decode_pattern_node(node_id) {
+                return rule.pattern.format_dsl();
+            }
+        }
+        obj.to_string()
+    }
+
     /// Decodes a `.Semantic:Pattern` value node by its `node_id` into a `DcSyntaxRule`.
     pub fn decode_pattern_node(&self, node_id: u128) -> Result<DcSyntaxRule> {
         let node = self.get_node(node_id).with_context(|| {
@@ -908,10 +1199,11 @@ impl SeedGraphIndex {
         let (pattern_tokens, action) =
             self.split_trailing_syntax_action(tokens)?;
         let pattern = self.decode_syntax_pattern_tokens(pattern_tokens)?;
+        let raw = DcSyntaxRule::format_dsl_parts(&pattern, action.as_ref());
         Ok(DcSyntaxRule {
             pattern,
             action,
-            raw: String::new(),
+            raw,
         })
     }
 
@@ -1320,6 +1612,47 @@ fn shorthand_to_char_target(shorthand: DcShorthand) -> Result<CharTarget> {
             "Token shorthand '{shorthand}' (GID {gid}) cannot be represented as a CharTarget"
         )
     })
+}
+
+fn category_for_dc_subject(subj: DcShorthand, script: &str) -> String {
+    if matches!(subj, DcShorthand::Unicode(_)) {
+        return "unicode-clarifications".to_string();
+    }
+    if let Some(fmt_cat) = script
+        .strip_prefix(".Formats:")
+        .or_else(|| script.strip_prefix("Formats:"))
+    {
+        let cat_trimmed = fmt_cat.trim();
+        if cat_trimmed.starts_with("format_") {
+            return cat_trimmed.to_string();
+        }
+        return format!("format_{cat_trimmed}");
+    }
+    if script == ".Semantic" || script.starts_with(".Semantic:") {
+        return "semantic".to_string();
+    }
+    if script == ".EL" || script.starts_with(".EL ") {
+        return "el".to_string();
+    }
+    if script == ".DCE" || script.starts_with(".DCE ") {
+        return "dce".to_string();
+    }
+    let static_cat = match script {
+        ".Colors" => "colors",
+        ".Controls" => "controls",
+        ".Encapsulation" => "encapsulation",
+        ".Financial" => "financial",
+        "Latin" => "latin",
+        ".Mathematics" => "mathematics",
+        ".Miscellaneous" => "miscellaneous",
+        ".Noncharacters" => "noncharacters",
+        ".Punctuation" => "punctuation",
+        ".Styling" => "styling",
+        ".Symbols" | ".Emoji" => "symbols",
+        ".Variant selectors" => "variant_selectors",
+        _ => "controls",
+    };
+    static_cat.to_string()
 }
 
 #[cfg(test)]

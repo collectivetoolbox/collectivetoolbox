@@ -1442,6 +1442,10 @@ fn compile_desired_dataset_state(
                     "README-named-types.csv row {line_no} ('{name}') has invalid syntax '{raw_syntax}'"
                 )
             })?;
+            collect_named_constructs_from_pattern(
+                &parsed.pattern,
+                &mut state.seed_entities,
+            );
             state
                 .seed_entities
                 .insert(SeedEntityKey::NamedConstruct(name.to_string()));
@@ -1463,19 +1467,54 @@ fn compile_desired_dataset_state(
                         state.seed_entities.insert(
                             SeedEntityKey::NamedConstruct(type_name.clone()),
                         );
-                        state
-                            .named_construct_rules
-                            .entry(type_name)
-                            .or_insert_with(|| {
-                                (
-                                    SyntaxPattern::Sequence(vec![
-                                        SyntaxElement::exact(SyntaxTerm::CharRef(
-                                            CharTarget::Dc(short_u32),
-                                        )),
-                                    ]),
-                                    format!(":{short_u32}"),
-                                )
-                            });
+                        if !state.named_construct_rules.contains_key(&type_name)
+                        {
+                            let (pattern, raw_syntax) = if let Some(imp) = defn
+                                .implies
+                                .iter()
+                                .map(|s| s.trim())
+                                .find(|s| {
+                                    s.starts_with('[') && s.ends_with(']')
+                                }) {
+                                let raw = format!(":{imp}");
+                                let parsed =
+                                    parse_dc_syntax(&raw).with_context(|| {
+                                        format!(
+                                            "Invalid @implies syntax '{imp}' on .EL Types '{}'",
+                                            defn.name
+                                        )
+                                    })?;
+                                (parsed.pattern, raw)
+                            } else {
+                                let lower = type_name.to_ascii_lowercase();
+                                if let Some((existing_pat, existing_raw)) =
+                                    state
+                                        .named_construct_rules
+                                        .get(&lower)
+                                        .cloned()
+                                {
+                                    (existing_pat, existing_raw)
+                                } else {
+                                    let raw = format!(
+                                        ":260 262 {short_u32} 263 [^261]+ 261"
+                                    );
+                                    let parsed = parse_dc_syntax(&raw)
+                                        .with_context(|| {
+                                            format!(
+                                                "Failed to synthesize pattern for .EL Types '{type_name}'"
+                                            )
+                                        })?;
+                                    (parsed.pattern, raw)
+                                }
+                            };
+                            collect_named_constructs_from_pattern(
+                                &pattern,
+                                &mut state.seed_entities,
+                            );
+                            state
+                                .named_construct_rules
+                                .insert(type_name, (pattern, raw_syntax));
+                        }
                     }
                 }
             }
