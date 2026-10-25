@@ -33,7 +33,7 @@ use ctb_formats_dcstring::{
     DcMixedEncode, DcMstring, DcProjectionPolicy, SharedJson,
     SharedValueContext,
 };
-use ctb_io::file::entity::{FileEntity, FileEntityKind};
+use ctb_io::file::entity::{FileEntity, FileEntityKind, FileEntityWithPayload};
 use ctb_io::file::identity::{
     FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os,
 };
@@ -43,15 +43,17 @@ use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Cursor, Read, Seek, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use super::{
-    JournalErrorRecord, JournalErrorRecordPayload, JournalSessionRecord,
-    JournalSnapshot, JournalWarningRecord, JournalWarningRecordPayload,
-    JOURNAL_MAGIC, PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
+    JournalErrorRecord, JournalErrorRecordPayload, JournalReader,
+    JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
+    JournalWarningRecordPayload, ReadMode, JOURNAL_MAGIC, PLATFORM_WINDOWS,
+    SESSION_ENVIRONMENT_BINDING,
 };
 
 pub const JOURNAL_MAGIC_V1: &[u8; 8] = b"CTBCSCJ\x01";
@@ -70,6 +72,15 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
     journal_path: &Path,
     policy: &DcProjectionPolicy,
 ) -> Result<JournalSnapshot> {
+    if reader.stream_position()? == 0 {
+        let mut magic = [0_u8; 8];
+        reader.read_exact(&mut magic).context("Incomplete journal magic")?;
+        anyhow::ensure!(
+            &magic == JOURNAL_MAGIC_V1,
+            "Expected legacy journal magic CTBCSCJ\\x01"
+        );
+    }
+
     let mut sources = Vec::new();
     let mut destination = PathBuf::new();
     let mut origin_platform = 0_u8;
@@ -211,27 +222,35 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
                 let Ok(err_bytes) = read_bytes(reader) else {
                     break;
                 };
-                if let Ok(json_str) = std::str::from_utf8(&err_bytes) {
-                    if let Ok(record) =
-                        serde_json::from_str::<JournalErrorRecord>(json_str)
-                    {
-                        errors.push(record);
-                    }
+                let Ok(json_str) = std::str::from_utf8(&err_bytes) else {
+                    break;
+                };
+                let Ok(record) =
+                    serde_json::from_str::<JournalErrorRecord>(json_str)
+                else {
+                    break;
+                };
+                errors.push(record);
+                if pending_entities.is_empty() {
+                    valid_length = reader.stream_position()?;
                 }
-                valid_length = reader.stream_position()?;
             }
             TAG_WARNING_RECORD => {
                 let Ok(warn_bytes) = read_bytes(reader) else {
                     break;
                 };
-                if let Ok(json_str) = std::str::from_utf8(&warn_bytes) {
-                    if let Ok(record) =
-                        serde_json::from_str::<JournalWarningRecord>(json_str)
-                    {
-                        warnings.push(record);
-                    }
+                let Ok(json_str) = std::str::from_utf8(&warn_bytes) else {
+                    break;
+                };
+                let Ok(record) =
+                    serde_json::from_str::<JournalWarningRecord>(json_str)
+                else {
+                    break;
+                };
+                warnings.push(record);
+                if pending_entities.is_empty() {
+                    valid_length = reader.stream_position()?;
                 }
-                valid_length = reader.stream_position()?;
             }
             _ => {
                 break;
@@ -264,6 +283,54 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
         errors,
         warnings,
         applied_directories: HashMap::new(),
+    })
+}
+
+/// Reads a legacy state journal (revision 1..=3) into a [`JournalReader`].
+pub(crate) fn read_legacy_journal_reader(
+    mut file: File,
+    mode: ReadMode,
+    policy: &DcProjectionPolicy,
+) -> Result<JournalReader> {
+    file.seek(SeekFrom::Start(0))?;
+    let file_len = file.metadata()?.len();
+    let mut reader = BufReader::new(file.try_clone()?);
+    let snapshot = read_legacy_journal_snapshot(&mut reader, Path::new(""), policy)?;
+    if mode == ReadMode::Complete {
+        ensure!(
+            snapshot.is_completed && snapshot.valid_length == file_len,
+            "Legacy CSC journal is incomplete or truncated"
+        );
+    }
+    let mut members: Vec<FileEntityWithPayload> = snapshot
+        .committed_entities
+        .into_values()
+        .map(|entity| FileEntityWithPayload {
+            entity,
+            payload: None,
+        })
+        .collect();
+    members.sort_by(|a, b| {
+        a.entity
+            .identity
+            .path_bytes()
+            .cmp(&b.entity.identity.path_bytes())
+    });
+    Ok(JournalReader {
+        file,
+        session: JournalSessionRecord {
+            sources: snapshot.sources,
+            destination: snapshot.destination,
+            origin_platform: u32::from(snapshot.origin_platform),
+            environment: snapshot.environment,
+        },
+        members,
+        errors: snapshot.errors,
+        warnings: snapshot.warnings,
+        completed: snapshot.is_completed,
+        sequence: snapshot.last_batch_id,
+        valid_length: snapshot.valid_length,
+        is_legacy: true,
     })
 }
 

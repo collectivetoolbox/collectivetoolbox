@@ -79,49 +79,7 @@ impl JournalReader {
         let mut magic = [0_u8; 8];
         file.read_exact(&mut magic)?;
         if &magic == crate::journal::JOURNAL_MAGIC_V1 {
-            let file_len = file.metadata()?.len();
-            let mut reader = std::io::BufReader::new(file.try_clone()?);
-            let snapshot = crate::journal::legacy::read_legacy_journal_snapshot(
-                &mut reader,
-                std::path::Path::new(""),
-                policy,
-            )?;
-            if mode == ReadMode::Complete {
-                ensure!(
-                    snapshot.is_completed && snapshot.valid_length == file_len,
-                    "Legacy CSC journal is incomplete or truncated"
-                );
-            }
-            let mut members: Vec<FileEntityWithPayload> = snapshot
-                .committed_entities
-                .into_values()
-                .map(|entity| FileEntityWithPayload {
-                    entity,
-                    payload: None,
-                })
-                .collect();
-            members.sort_by(|a, b| {
-                a.entity
-                    .identity
-                    .path_bytes()
-                    .cmp(&b.entity.identity.path_bytes())
-            });
-            return Ok(Self {
-                file,
-                session: JournalSessionRecord {
-                    sources: snapshot.sources,
-                    destination: snapshot.destination,
-                    origin_platform: u32::from(snapshot.origin_platform),
-                    environment: snapshot.environment,
-                },
-                members,
-                errors: snapshot.errors,
-                warnings: snapshot.warnings,
-                completed: snapshot.is_completed,
-                sequence: snapshot.last_batch_id,
-                valid_length: snapshot.valid_length,
-                is_legacy: true,
-            });
+            return crate::journal::legacy::read_legacy_journal_reader(file, mode, policy);
         }
         let is_legacy_magic = &magic == crate::journal::ARCHIVE_MAGIC_V1
             || &magic == crate::journal::JOURNAL_MAGIC_V4;
@@ -1010,6 +968,138 @@ mod tests {
         };
         let writer = JournalWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV2)?;
         ensure!(writer.finish().is_err(), "Broken stdout reported success");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn legacy_v1_journal_reader_roundtrip_and_diagnostics() -> Result<()> {
+        use crate::journal::legacy::{
+            JOURNAL_MAGIC_V1, TAG_BATCH_COMMIT, TAG_ENTITY, TAG_ERROR_RECORD,
+            TAG_JOB_COMPLETED, TAG_SESSION_HEADER, TAG_WARNING_RECORD,
+            write_bytes, write_entity_payload, write_u32, write_u64,
+        };
+        use ctb_formats_checksum::xxhash;
+        use ctb_formats_dcstring::SharedValueContext;
+
+        let context = SharedValueContext::default();
+        let mut empty_entity = FileEntity::from_vec(Vec::new());
+        empty_entity.identity.relative_path = Some("empty.txt".into());
+        let mut nonempty_entity = FileEntity::from_vec(b"hello".to_vec());
+        nonempty_entity.identity.relative_path = Some("nonempty.txt".into());
+
+        let mut encoded_empty = Vec::new();
+        write_entity_payload(&mut encoded_empty, &empty_entity, &context)?;
+        let mut encoded_nonempty = Vec::new();
+        write_entity_payload(&mut encoded_nonempty, &nonempty_entity, &context)?;
+
+        let mut batch_hasher = Sha256Stream::new();
+        batch_hasher.update(&encoded_empty);
+        batch_hasher.update(&encoded_nonempty);
+        let batch_hash = batch_hasher.finalize();
+
+        let mut journal = JOURNAL_MAGIC_V1.to_vec();
+        journal.extend_from_slice(&[
+            TAG_SESSION_HEADER,
+            crate::journal::current_platform(),
+        ]);
+        write_u32(&mut journal, 1)?;
+        write_bytes(&mut journal, b"src")?;
+        write_bytes(&mut journal, b"dst")?;
+
+        for encoded in [&encoded_empty, &encoded_nonempty] {
+            journal.push(TAG_ENTITY);
+            write_u32(&mut journal, u32::try_from(encoded.len())?)?;
+            journal.extend_from_slice(&xxhash::xxhash3_64(encoded));
+            journal.extend_from_slice(encoded);
+        }
+        journal.push(TAG_BATCH_COMMIT);
+        write_u64(&mut journal, 1)?;
+        journal.extend_from_slice(&batch_hash);
+
+        let incomplete_bytes = journal.clone();
+        journal.push(TAG_JOB_COMPLETED);
+
+        // 1. Complete v1 journal succeeds under JournalReader::new
+        let reader = JournalReader::new(archive_file(&journal)?)?;
+        ensure!(reader.is_completed() && reader.is_legacy && reader.sequence == 1);
+        ensure!(reader.members.len() == 2);
+        reader.verify()?;
+        ensure!(
+            reader.verify_self_contained().is_err(),
+            "Journal without file bodies must fail verify_self_contained"
+        );
+        ensure!(
+            reader.resume_writer(Vec::new()).is_err(),
+            "Resuming legacy v1 journal must be refused"
+        );
+
+        let empty_member = reader
+            .members
+            .iter()
+            .find(|m| {
+                m.entity.identity.relative_path.as_deref()
+                    == Some(std::path::Path::new("empty.txt"))
+            })
+            .context("Missing empty member")?;
+        let mut empty_payload = reader.payload(empty_member)?;
+        let mut buf = Vec::new();
+        empty_payload.read_to_end(&mut buf)?;
+        ensure!(buf.is_empty());
+
+        let nonempty_member = reader
+            .members
+            .iter()
+            .find(|m| {
+                m.entity.identity.relative_path.as_deref()
+                    == Some(std::path::Path::new("nonempty.txt"))
+            })
+            .context("Missing nonempty member")?;
+        ensure!(
+            reader.payload(nonempty_member).is_err(),
+            "Nonempty journal member without body must error in payload()"
+        );
+
+        // 2. Incomplete v1 journal is rejected by Complete mode, accepted by Recover mode
+        ensure!(JournalReader::new(archive_file(&incomplete_bytes)?).is_err());
+        let recovered = JournalReader::recover(archive_file(&incomplete_bytes)?)?;
+        ensure!(!recovered.is_completed() && recovered.is_legacy && recovered.members.len() == 2);
+        recovered.verify_recover()?;
+        ensure!(recovered.resume_writer(Vec::new()).is_err());
+
+        // 3. Malformed error/warning JSON in v1 journal must not advance valid_length or pass Complete mode
+        for tag in [TAG_ERROR_RECORD, TAG_WARNING_RECORD] {
+            let mut malformed = incomplete_bytes.clone();
+            malformed.push(tag);
+            write_bytes(&mut malformed, b"{not valid json")?;
+            malformed.push(TAG_JOB_COMPLETED);
+            ensure!(
+                JournalReader::new(archive_file(&malformed)?).is_err(),
+                "Complete mode accepted malformed diagnostic tag {tag}"
+            );
+            let salvaged = JournalReader::recover(archive_file(&malformed)?)?;
+            ensure!(
+                !salvaged.is_completed()
+                    && salvaged.valid_length
+                        == u64::try_from(incomplete_bytes.len())?
+            );
+        }
+
+        // 4. Valid error/warning records in v1 journal roundtrip through JournalReader
+        let mut with_diag = incomplete_bytes;
+        let expected_err = error_record();
+        let expected_warn = warning_record();
+        with_diag.push(TAG_ERROR_RECORD);
+        write_bytes(&mut with_diag, &serde_json::to_vec(&expected_err)?)?;
+        with_diag.push(TAG_WARNING_RECORD);
+        write_bytes(&mut with_diag, &serde_json::to_vec(&expected_warn)?)?;
+        with_diag.push(TAG_JOB_COMPLETED);
+        let diag_reader = JournalReader::new(archive_file(&with_diag)?)?;
+        ensure!(diag_reader.is_completed() && diag_reader.has_diagnostics());
+        ensure!(diag_reader.errors == vec![expected_err]);
+        ensure!(diag_reader.warnings == vec![expected_warn]);
+        diag_reader.verify_integrity()?;
+        ensure!(diag_reader.verify().is_err());
+
         Ok(())
     }
 }

@@ -645,8 +645,13 @@ fn resume_archive(path: &Path, journal: bool) -> Result<()> {
     file.read_exact(&mut magic)?;
     let is_journal = &magic == crate::journal::JOURNAL_MAGIC_V5
         || &magic == crate::journal::JOURNAL_MAGIC_V4
+        || &magic == crate::journal::JOURNAL_MAGIC_V1
         || journal;
     let recovered = JournalReader::recover(file.try_clone()?)?;
+    ensure!(
+        !recovered.is_legacy,
+        "Cannot resume a legacy CSC archive or journal"
+    );
     ensure!(!recovered.completed, "Cannot resume a completed archive");
     if is_journal {
         recovered.verify_contents()?;
@@ -1504,13 +1509,17 @@ mod tests {
             timestamps.ctime_nsec = 0;
         }
         extract_archive(&reader, &temporary.path().join("normal"), &MaterializeOptions::default(), false)?;
-        for (name, options) in [
-            ("ctime", MaterializeOptions { check_ctime: true, ..Default::default() }),
-            ("full", MaterializeOptions { check_atime: true, check_ctime: true, check_birthtime: true, ..Default::default() }),
+        for (name, options, expected) in [
+            ("ctime", MaterializeOptions { check_ctime: true, ..Default::default() }, "Ctime mismatch"),
+            ("full", MaterializeOptions { check_atime: true, check_ctime: true, check_birthtime: true, ..Default::default() }, "Cannot reproduce birth time"),
         ] {
             let error = extract_archive(&reader, &temporary.path().join(name), &options, false)
                 .err().context("Explicit timestamp checks unexpectedly passed")?;
-            ensure!(format!("{error:#}").contains("Ctime mismatch"), "{error:#}");
+            let formatted = format!("{error:#}");
+            ensure!(
+                formatted.contains(expected) || formatted.contains("Ctime mismatch"),
+                "{error:#}"
+            );
         }
         Ok(())
     }
@@ -1964,7 +1973,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_create_journal_flag_writes_journal_v4_and_omits_bodies() -> Result<()> {
+    fn archive_create_journal_flag_writes_journal_v5_and_omits_bodies() -> Result<()> {
         let temporary = tempfile::tempdir()?;
         let source = temporary.path().join("source");
         std::fs::create_dir(&source)?;
@@ -2089,6 +2098,118 @@ mod tests {
         std::fs::write(dest.join("alpha.txt"), b"corrupted content")?;
         let corrupt_res = run_csc_verify(&verify_args)?;
         ensure!(matches!(corrupt_res, ToolResult::Immediate { exit_code: 1, .. }));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_legacy_v1_journal_cli_and_resume_refusal_without_truncation() -> Result<()> {
+        use crate::journal::legacy::{
+            JOURNAL_MAGIC_V1, TAG_BATCH_COMMIT, TAG_ENTITY, TAG_JOB_COMPLETED,
+            TAG_SESSION_HEADER, write_bytes, write_entity_payload, write_u32,
+            write_u64,
+        };
+        use ctb_formats_checksum::{Sha256Stream, xxhash};
+        use ctb_formats_dcstring::SharedValueContext;
+
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        let file_path = source.join("alpha.txt");
+        std::fs::write(&file_path, b"alpha")?;
+
+        let context = SharedValueContext::default();
+        let mut entity = FileEntity::from_filesystem(&file_path, None)?;
+        entity.identity.relative_path = Some("source/alpha.txt".into());
+        let mut encoded = Vec::new();
+        write_entity_payload(&mut encoded, &entity, &context)?;
+
+        let mut batch_hasher = Sha256Stream::new();
+        batch_hasher.update(&encoded);
+        let batch_hash = batch_hasher.finalize();
+
+        let mut v1_bytes = JOURNAL_MAGIC_V1.to_vec();
+        v1_bytes.extend_from_slice(&[
+            TAG_SESSION_HEADER,
+            crate::journal::current_platform(),
+        ]);
+        write_u32(&mut v1_bytes, 1)?;
+        write_bytes(&mut v1_bytes, source.as_os_str().as_encoded_bytes())?;
+        write_bytes(&mut v1_bytes, b"dest")?;
+        v1_bytes.push(TAG_ENTITY);
+        write_u32(&mut v1_bytes, u32::try_from(encoded.len())?)?;
+        v1_bytes.extend_from_slice(&xxhash::xxhash3_64(&encoded));
+        v1_bytes.extend_from_slice(&encoded);
+        v1_bytes.push(TAG_BATCH_COMMIT);
+        write_u64(&mut v1_bytes, 1)?;
+        v1_bytes.extend_from_slice(&batch_hash);
+
+        // Incomplete v1 journal with trailing uncommitted bytes to verify resume does not truncate
+        let mut incomplete_with_tail = v1_bytes.clone();
+        incomplete_with_tail.push(TAG_ENTITY);
+        incomplete_with_tail.extend_from_slice(&[0x01, 0x02]);
+        let incomplete_path = temporary.path().join("incomplete_v1.cscjournal");
+        std::fs::write(&incomplete_path, &incomplete_with_tail)?;
+
+        for journal_flag in [false, true] {
+            let err = run_archive(&ArchiveArgs {
+                command: ArchiveCommand::Create {
+                    archive: incomplete_path.clone(),
+                    sources: Vec::new(),
+                    resume: true,
+                    continue_on_error: false,
+                    journal: journal_flag,
+                },
+            })
+            .err()
+            .context("Resuming legacy v1 journal must fail")?;
+            ensure!(
+                format!("{err:#}").contains("Cannot resume a legacy CSC archive or journal"),
+                "Unexpected error: {err:#}"
+            );
+            ensure!(
+                std::fs::read(&incomplete_path)? == incomplete_with_tail,
+                "Refused legacy v1 journal resume must not truncate or modify file"
+            );
+        }
+
+        // Completed v1 journal supports `archive list` and `archive verify --allow-journal-errors`
+        v1_bytes.push(TAG_JOB_COMPLETED);
+        let completed_path = temporary.path().join("completed_v1.cscjournal");
+        std::fs::write(&completed_path, &v1_bytes)?;
+
+        let list_res = run_archive(&ArchiveArgs {
+            command: ArchiveCommand::List {
+                archive: completed_path.clone(),
+            },
+        })?;
+        let ToolResult::Immediate { stdout, exit_code: 0, .. } = list_res else {
+            bail!("Expected archive list on completed v1 journal to succeed");
+        };
+        ensure!(String::from_utf8_lossy(&stdout).contains("source/alpha.txt"));
+
+        // Strict verify requires self-contained file payloads, so it errors on nonempty journal members
+        ensure!(
+            run_archive(&ArchiveArgs {
+                command: ArchiveCommand::Verify {
+                    archive: completed_path.clone(),
+                    recover: false,
+                },
+            })
+            .is_err()
+        );
+
+        // Recover / --allow-journal-errors verify succeeds on v1 journal
+        let verify_recover = run_archive(&ArchiveArgs {
+            command: ArchiveCommand::Verify {
+                archive: completed_path,
+                recover: true,
+            },
+        })?;
+        ensure!(matches!(
+            verify_recover,
+            ToolResult::Immediate { exit_code: 0, .. }
+        ));
 
         Ok(())
     }

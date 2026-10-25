@@ -948,18 +948,11 @@ pub fn read_journal_snapshot_with_policy(
     let mut snapshot = match &magic {
         m if m == JOURNAL_MAGIC_V5
             || m == JOURNAL_MAGIC_V4
+            || m == JOURNAL_MAGIC_V1
             || m == ARCHIVE_MAGIC_V2
             || m == ARCHIVE_MAGIC_V1 =>
         {
             read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)?
-        }
-        m if m == JOURNAL_MAGIC_V1 => {
-            let mut reader = BufReader::new(file);
-            let mut snapshot = legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)?;
-            for entity in snapshot.committed_entities.values() {
-                warn_unexpected_stream_bodies(entity, &mut snapshot.warnings);
-            }
-            snapshot
         }
         _ => {
             anyhow::bail!(
