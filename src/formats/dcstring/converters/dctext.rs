@@ -476,7 +476,7 @@ pub fn dctext_to_dcarray(
 /// 60 chars and returns it. Otherwise, returns a `<binary data: N bytes>` preview.
 pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
     let raw_bytes = if is_dctext {
-        dcutf_to_dctext(data.to_vec())
+        dctf_to_dctext(data.to_vec())
     } else {
         data.to_vec()
     };
@@ -533,6 +533,11 @@ mod tests {
         assert_eq!(
             format_blob_preview(long_str.as_bytes(), false),
             format!("{}...", "a".repeat(60))
+        );
+        let dctf_redirect = dctext_to_dctf(b"@1114409@@42@".to_vec()).unwrap();
+        assert_eq!(
+            format_blob_preview(&dctf_redirect, true),
+            "@1114409@@42@"
         );
     }
 

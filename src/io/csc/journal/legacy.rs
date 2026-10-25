@@ -267,7 +267,7 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
     })
 }
 
-/// Converts a legacy state journal (revisions 1..=3) to the v4 Dc format (`CTBCSCJ\x04`).
+/// Converts a legacy state journal (revisions 1..=3) to the current DcMixed journal format (`CSCJRNL5`).
 /// Embedded Dc identities are decoded strictly.
 pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
@@ -532,7 +532,7 @@ pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
     Ok(())
 }
 
-/// Converts in-memory legacy journal bytes to v4 journal bytes (`CTBCSCJ\x04`).
+/// Converts in-memory legacy journal bytes to current DcMixed journal bytes (`CSCJRNL5`).
 pub fn convert_legacy_journal_bytes_to_v4(bytes: &[u8]) -> Result<Vec<u8>> {
     convert_legacy_journal_bytes_to_v4_with_policy(bytes, &DcProjectionPolicy::strict())
 }

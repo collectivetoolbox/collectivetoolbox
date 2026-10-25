@@ -59,8 +59,8 @@ pub use dctext::{
     DcList, dcarray_to_dclist, dcarray_to_dcstring, dcarray_to_dctext,
     dclist_to_dcarray, dclist_to_dctext, dclist_to_dcutf, dcstring_to_dcarray,
     dcstring_to_dctext, dctext_to_dcarray, dctext_to_dclist,
-    dctext_to_dcstring, dctext_to_dcutf, dcutf_to_dclist, dcutf_to_dctext,
-    format_blob_preview,
+    dctext_to_dcstring, dctext_to_dctf, dctext_to_dcutf, dctf_to_dctext,
+    dcutf_to_dclist, dcutf_to_dctext, format_blob_preview,
 };
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,

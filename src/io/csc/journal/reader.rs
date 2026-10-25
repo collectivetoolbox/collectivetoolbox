@@ -78,6 +78,51 @@ impl JournalReader {
         file.seek(SeekFrom::Start(0))?;
         let mut magic = [0_u8; 8];
         file.read_exact(&mut magic)?;
+        if &magic == crate::journal::JOURNAL_MAGIC_V1 {
+            let file_len = file.metadata()?.len();
+            let mut reader = std::io::BufReader::new(file.try_clone()?);
+            let snapshot = crate::journal::legacy::read_legacy_journal_snapshot(
+                &mut reader,
+                std::path::Path::new(""),
+                policy,
+            )?;
+            if mode == ReadMode::Complete {
+                ensure!(
+                    snapshot.is_completed && snapshot.valid_length == file_len,
+                    "Legacy CSC journal is incomplete or truncated"
+                );
+            }
+            let mut members: Vec<FileEntityWithPayload> = snapshot
+                .committed_entities
+                .into_values()
+                .map(|entity| FileEntityWithPayload {
+                    entity,
+                    payload: None,
+                })
+                .collect();
+            members.sort_by(|a, b| {
+                a.entity
+                    .identity
+                    .path_bytes()
+                    .cmp(&b.entity.identity.path_bytes())
+            });
+            return Ok(Self {
+                file,
+                session: JournalSessionRecord {
+                    sources: snapshot.sources,
+                    destination: snapshot.destination,
+                    origin_platform: u32::from(snapshot.origin_platform),
+                    environment: snapshot.environment,
+                },
+                members,
+                errors: snapshot.errors,
+                warnings: snapshot.warnings,
+                completed: snapshot.is_completed,
+                sequence: snapshot.last_batch_id,
+                valid_length: snapshot.valid_length,
+                is_legacy: true,
+            });
+        }
         let is_legacy_magic = &magic == crate::journal::ARCHIVE_MAGIC_V1
             || &magic == crate::journal::JOURNAL_MAGIC_V4;
         ensure!(

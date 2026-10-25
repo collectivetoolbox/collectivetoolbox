@@ -1043,8 +1043,8 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
     ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(dcmm_bytes)
 }
 
-/// Converts in-memory cscjournal bytes to version 4+ journal bytes (`CTBCSCJ\x04`).
-/// If already version 4+, returns the bytes unmodified.
+/// Converts in-memory cscjournal bytes to current DcMixed journal bytes (`CSCJRNL5`),
+/// or returns version 4+ journal bytes unmodified.
 pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
     convert_cscjournal_to_v4_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
 }

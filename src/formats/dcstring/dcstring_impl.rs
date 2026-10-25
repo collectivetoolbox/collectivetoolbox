@@ -103,19 +103,6 @@ impl DcString {
         Ok(out)
     }
 
-    /// Creates a `DcString` from a `Vec<u8>` without validation.
-    ///
-    /// # Safety
-    /// The caller must ensure that `bytes` contains valid DcTF data.
-    #[must_use]
-    #[expect(
-        unsafe_code,
-        reason = "Caller guarantees bytes are valid DcTF"
-    )]
-    pub const unsafe fn from_dcutf_unchecked(bytes: Vec<u8>) -> Self {
-        Self { inner: bytes }
-    }
-
     /// Consumes this `DcString` and returns the underlying byte buffer.
     #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {
@@ -206,9 +193,9 @@ impl Deref for DcString {
     fn deref(&self) -> &Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcString inner bytes are validated valid UTF-8e-128"
+            reason = "DcString inner bytes are validated valid DcTF"
         )]
-        // Safety: DcString inner bytes are guaranteed to be valid UTF-8e-128.
+        // Safety: DcString inner bytes are guaranteed to be valid DcTF.
         unsafe {
             DcStr::from_bytes_unchecked(&self.inner)
         }
@@ -220,9 +207,9 @@ impl DerefMut for DcString {
     fn deref_mut(&mut self) -> &mut Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcString inner bytes are validated valid UTF-8e-128"
+            reason = "DcString inner bytes are validated valid DcTF"
         )]
-        // Safety: DcString inner bytes are guaranteed to be valid UTF-8e-128.
+        // Safety: DcString inner bytes are guaranteed to be valid DcTF.
         unsafe {
             DcStr::from_bytes_unchecked_mut(&mut self.inner)
         }

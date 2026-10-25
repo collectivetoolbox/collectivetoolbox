@@ -97,14 +97,14 @@ impl DcStr {
     /// Creates a `&mut DcStr` from a mutable byte slice without validation.
     ///
     /// # Safety
-    /// The caller must ensure that `bytes` contains valid UTF-8e-128 data.
+    /// The caller must ensure that `bytes` contains valid DcTF data.
     #[expect(
         unsafe_code,
         clippy::transmute_ptr_to_ptr,
         reason = "DcStr is #[repr(transparent)] around [u8], so &mut [u8] and &mut DcStr have identical layout; pointer casts require as which is denied by clippy"
     )]
     pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Self {
-        // Safety: Caller guarantees bytes are valid UTF-8e-128, and DcStr is #[repr(transparent)] around [u8].
+        // Safety: Caller guarantees bytes are valid DcTF, and DcStr is #[repr(transparent)] around [u8].
         unsafe {
             std::mem::transmute::<&mut [u8], &mut Self>(bytes)
         }
@@ -130,7 +130,7 @@ impl DcStr {
 
     /// Returns `true` if the given byte index is a character boundary.
     ///
-    /// In `UTF-8e-128`, a byte index is a character boundary if and only if
+    /// In `DcTF`, a byte index is a character boundary if and only if
     /// it is at index 0, index `len`, or points to a byte that is not a
     /// continuation byte (`b & 0xC0 != 0x80`).
     #[inline]
@@ -204,9 +204,9 @@ impl<'a> From<&'a str> for &'a DcStr {
     fn from(s: &'a str) -> Self {
         #[expect(
             unsafe_code,
-            reason = "Valid standard UTF-8 is unconditionally valid UTF-8e-128"
+            reason = "Valid standard UTF-8 is unconditionally valid DcTF"
         )]
-        // Safety: Valid standard UTF-8 is unconditionally valid UTF-8e-128.
+        // Safety: Valid standard UTF-8 is unconditionally valid DcTF.
         unsafe {
             DcStr::from_bytes_unchecked(s.as_bytes())
         }

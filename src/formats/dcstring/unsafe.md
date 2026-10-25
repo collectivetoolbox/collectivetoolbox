@@ -47,13 +47,13 @@ Here is the breakdown of whether [dc_char.rs](file:///workspaces/ctoolbox/src/fo
 ### 3. [dcstring_impl.rs](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring_impl.rs)
 - **Status:** **Does NOT inherently need `unsafe` code.**
 - Currently, it has 3 `unsafe` touchpoints:
-  1. [from_dcutf_unchecked](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring_impl.rs#L77):
+  1. [from_dctf_unchecked](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring_impl.rs#L78):
      ```rust
-     pub const unsafe fn from_dcutf_unchecked(bytes: Vec<u8>) -> Self {
+     pub const unsafe fn from_dctf_unchecked(bytes: Vec<u8>) -> Self {
          Self { inner: bytes }
      }
      ```
-     The body is **purely safe code** (`Vec<u8>`). The function is only qualified `unsafe fn` as an API contract to signal an unchecked UTF-8e-128 validity invariant (similar to `String::from_utf8_unchecked`).
+     The body is **purely safe code** (`Vec<u8>`). The function is only qualified `unsafe fn` as an API contract to signal an unchecked DcTF validity invariant (similar to `String::from_utf8_unchecked`).
   2. [Deref::deref](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring_impl.rs#L168) and [DerefMut::deref_mut](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring_impl.rs#L182):
      These call `unsafe { DcStr::from_bytes_unchecked(&self.inner) }` because [from_bytes_unchecked](file:///workspaces/ctoolbox/src/formats/dcstring/dc_str.rs#L72) is marked `unsafe`.
 - **Can it be safe?**

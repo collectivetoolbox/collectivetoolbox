@@ -39,6 +39,7 @@ pub mod m2026_07_05_1_add_client_sync_tables;
 pub mod m2026_07_05_2_create_server_sync_tables;
 pub mod m2026_07_05_3_add_user_remote_status;
 pub mod m2026_08_06_1_add_node_timestamp;
+pub mod m2026_10_24_1_migrate_nodes_to_dctf;
 
 /// Represents a database schema migration.
 pub struct Migration {
@@ -81,6 +82,11 @@ pub static NODES_MIGRATIONS: &[Migration] = &[
         name: m2026_08_06_1_add_node_timestamp::NAME,
         description: m2026_08_06_1_add_node_timestamp::DESCRIPTION,
         up_sql: m2026_08_06_1_add_node_timestamp::UP_SQL,
+    },
+    Migration {
+        name: m2026_10_24_1_migrate_nodes_to_dctf::NAME,
+        description: m2026_10_24_1_migrate_nodes_to_dctf::DESCRIPTION,
+        up_sql: m2026_10_24_1_migrate_nodes_to_dctf::UP_SQL,
     },
 ];
 
@@ -172,6 +178,10 @@ async fn run_rust_migration(
         }
         (DbSchemaType::Nodes, m2026_08_06_1_add_node_timestamp::NAME) => {
             m2026_08_06_1_add_node_timestamp::run_rust_migration(conn).await?;
+        }
+        (DbSchemaType::Nodes, m2026_10_24_1_migrate_nodes_to_dctf::NAME) => {
+            m2026_10_24_1_migrate_nodes_to_dctf::run_rust_migration(conn)
+                .await?;
         }
         (DbSchemaType::Sync, m2026_07_05_2_create_server_sync_tables::NAME) => {
             m2026_07_05_2_create_server_sync_tables::run_rust_migration(conn)

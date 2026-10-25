@@ -1,5 +1,11 @@
 While I won't document all breaking changes until this application is stable, I'll try to note the most significant ones here.
 
+# October 24, 2026
+
+Possibly breaking change:
+
+- Reworked several data formats and the node database to use a more compact encoding. This shouldn't generally cause problems, but if you have corruption in your database the migration may fail.
+
 # September 28, 2026
 
 Breaking changes:

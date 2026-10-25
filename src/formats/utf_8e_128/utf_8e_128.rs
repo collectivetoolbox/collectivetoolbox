@@ -41,10 +41,10 @@ pub fn encode(codepoint: u128) -> Vec<u8> {
 }
 
 #[ipc_method]
-/// Decode bytes using the `utf_8e_128` format.
+/// Lossily decode the first character from `bytes` using the legacy `utf_8e_128` (`DcUtf`) format.
 ///
-/// Returns `(value, used_len)` on success, or `None` if the bytes are not a
-/// valid prefix for the encoding.
+/// Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
+/// malformed sequences), or `None` if `bytes` is empty.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "IPC method signature requires Vec<u8>"

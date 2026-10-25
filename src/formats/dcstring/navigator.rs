@@ -184,7 +184,7 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
                 .and_then(|t| resolver.closer_for_opener(&t))
                 .map(DcChar::from_u128)
                 .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-            let close_len = dc_char_utf8e128_len(list_closer);
+            let close_len = nav.char_encoded_len(list_closer);
             let Ok(mstr_len) = u64::try_from(mstr.len()) else {
                 return Ok(None);
             };
@@ -1577,7 +1577,7 @@ impl<'a> DcSyntaxNode<'a> {
     pub fn is_escaped_atom(&self) -> bool {
         match self.kind {
             DcSyntaxKind::Atom(ch) => {
-                self.escaped || self.span.len() >= dc_char_utf8e128_len(ch).saturating_add(4)
+                self.escaped || self.span.len() >= dc_char_dctf_len(ch).saturating_add(4)
             }
             _ => false,
         }
@@ -4138,7 +4138,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         );
                         let l = usize::from(second[0] & 0x3F);
                         ensure!(
-                            (4..=24).contains(&l),
+                            (4..=22).contains(&l),
                             "Invalid UTF-8e128 continuation count {l} at offset {offset}"
                         );
                         let total = l.saturating_add(2);
@@ -8114,7 +8114,7 @@ fn encapsulated_byte_length(stream: &[u128], resolver: &dyn SyntaxRuleResolver) 
     clippy::expect_used,
     reason = "encode_dctf_buf returns 1..=23, which is provably within u64::MAX"
 )]
-fn dc_char_utf8e128_len(ch: DcChar) -> u64 {
+fn dc_char_dctf_len(ch: DcChar) -> u64 {
     let mut buf = [0_u8; 32];
     let len = encode_dctf_buf(&mut buf, ch.to_u128());
     u64::try_from(len).expect("DcTF encoded length fits in u64")

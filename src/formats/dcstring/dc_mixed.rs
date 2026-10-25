@@ -1551,7 +1551,6 @@ pub fn dcmstring_to_dcmm2(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
 
 struct SectionContainerFrame {
     closer: DcChar,
-    is_opaque: bool,
     is_number: bool,
     checksummed_body_starts: Option<(usize, usize)>,
 }
@@ -1627,45 +1626,37 @@ impl ChecksumSectionTracker {
             return Ok(());
         }
 
-        if self.stack.last().is_some_and(|f| f.is_opaque) {
-            if self.stack.last().is_some_and(|top| {
-                top.closer == ch
-                    || self.resolver.is_equivalent_to(ch.to_u128(), top.closer.to_u128())
-            }) {
-                self.stack.pop();
+        if self.stack.last().is_some_and(|top| {
+            top.closer == ch
+                || self.resolver.is_equivalent_to(ch.to_u128(), top.closer.to_u128())
+        }) {
+            if let Some(popped) = self.stack.pop() {
+                if let Some((src_body_start, dst_body_start)) =
+                    popped.checksummed_body_starts
+                {
+                    self.awaiting_digest = Some(ClosedChecksummedSection {
+                        src_body_range: src_body_start..src_start,
+                        dst_body_range: dst_body_start..dst_start,
+                        saw_digest_tag: false,
+                    });
+                }
             }
             return Ok(());
         }
 
-        if let Some(pos) = self.stack.iter().rposition(|f| {
+        if self.stack.iter().any(|f| {
             f.closer == ch
                 || self.resolver.is_equivalent_to(ch.to_u128(), f.closer.to_u128())
         }) {
-            let popped = self.stack.remove(pos);
-            self.stack.truncate(pos);
-            if let Some((src_body_start, dst_body_start)) =
-                popped.checksummed_body_starts
-            {
-                self.awaiting_digest = Some(ClosedChecksummedSection {
-                    src_body_range: src_body_start..src_start,
-                    dst_body_range: dst_body_start..dst_start,
-                    saw_digest_tag: false,
-                });
-            }
-            return Ok(());
+            bail!(
+                "Unclosed inner container before closer {ch:?} at offset {src_start}"
+            );
         }
 
         if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
             if let Some(inner_closer) = self.resolver.closer_for_opener(&target) {
                 let is_number =
                     ch.fills_role_with(DcRole::BeginNumber, self.resolver.as_ref());
-                let is_opaque = is_number
-                    || self.resolver.is_opaque_container(ch.to_u128())
-                    || ch.fills_role_with(DcRole::BeginLiteral, self.resolver.as_ref())
-                    || ch.fills_role_with(
-                        DcRole::BeginIdentifier,
-                        self.resolver.as_ref(),
-                    );
                 let checksummed_body_starts = if ch.fills_role_with(
                     DcRole::BeginChecksummedSection,
                     self.resolver.as_ref(),
@@ -1676,7 +1667,6 @@ impl ChecksumSectionTracker {
                 };
                 self.stack.push(SectionContainerFrame {
                     closer: DcChar::from_u128(inner_closer),
-                    is_opaque,
                     is_number,
                     checksummed_body_starts,
                 });
@@ -2488,8 +2478,21 @@ pub fn validate_and_copy_dcmm_stream_with_options<
     } else {
         let magic_matches = header_buf.get(..5).is_some_and(|m| m == DCMM_MAGIC);
         let uuid_matches = header_buf.get(5..21).is_some_and(|u| u == DCMM_UUID);
+        let uuid_v1_matches =
+            header_buf.get(5..21).is_some_and(|u| u == DCMM_UUID_V1);
 
-        if magic_matches && uuid_matches {
+        if magic_matches && uuid_v1_matches {
+            let mut raw = Vec::with_capacity(DCMM_HEADER_LEN);
+            raw.extend_from_slice(&header_buf);
+            reader.read_to_end(&mut raw)?;
+            let (doc, conv_log) = if options.best_effort {
+                dcmm_to_dcmstring_lossy(&raw)
+            } else {
+                dcmm1_to_dcmstring(&raw)?
+            };
+            writer.write_all(doc.as_bytes())?;
+            return Ok((u64::try_from(doc.as_bytes().len())?, conv_log));
+        } else if magic_matches && uuid_matches {
             writer.write_all(&header_buf)?;
             let hdr_len_u64 = u64::try_from(DCMM_HEADER_LEN)?;
             bytes_written = bytes_written.saturating_add(hdr_len_u64);
@@ -3525,6 +3528,49 @@ mod tests {
         unsupported_doc.push_char(DC_SECTION_DIGEST);
         unsupported_doc.push_checksum(DcChar::from_format(217), &[0u8; 16])?;
         assert!(dcmstring_to_dcmm1(&unsupported_doc).is_err());
+
+        // Quoted checksummed section inside a literal frame (260..261) must also have
+        // its digest verified and recomputed across DcMixed2 <-> DcMixed1 conversion.
+        let mut quoted_doc = DcMstring::new();
+        quoted_doc.push_char(ctb_formats_dcdata::dc::DC_BEGIN_LITERAL);
+        quoted_doc.push_char(ctb_formats_dcdata::dc::DC_BEGIN_TYPE_DEF);
+        quoted_doc.push_char(ctb_formats_dcdata::dc::DC_TYPE_STRING);
+        quoted_doc.push_char(ctb_formats_dcdata::dc::DC_END_TYPE_DEF);
+        quoted_doc.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        let quoted_body_start = quoted_doc.len();
+        quoted_doc.push_char(DC_BOOLEAN_TRUE);
+        let quoted_body_end = quoted_doc.len();
+        let quoted_digest = ctb_formats_checksum::sha256(
+            &quoted_doc.as_bytes()[quoted_body_start..quoted_body_end],
+        );
+        quoted_doc.push_char(DC_END_CHECKSUMMED_SECTION);
+        quoted_doc.push_char(DC_SECTION_DIGEST);
+        quoted_doc.push_checksum(ctb_utilities::format_id::DC_SHA256, &quoted_digest)?;
+        quoted_doc.push_char(ctb_formats_dcdata::dc::DC_END_LITERAL);
+
+        let (quoted_dcmm1, _) = dcmstring_to_dcmm1(&quoted_doc)?;
+        assert_ne!(quoted_dcmm1.as_slice(), quoted_doc.as_bytes());
+        let (quoted_roundtrip, _) = dcmm1_to_dcmstring(&quoted_dcmm1)?;
+        assert_eq!(quoted_roundtrip.as_bytes(), quoted_doc.as_bytes());
+
+        // Unclosed inner container inside a checksummed section must fail conversion
+        // rather than truncating the container stack and hashing a partial span.
+        let mut unclosed_inner = DcMstring::new();
+        unclosed_inner.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        let unclosed_start = unclosed_inner.len();
+        unclosed_inner.push_char(ctb_formats_dcdata::dc::DC_BEGIN_LIST);
+        unclosed_inner.push_char(DC_BOOLEAN_TRUE);
+        let unclosed_end = unclosed_inner.len();
+        let unclosed_digest = ctb_formats_checksum::sha256(
+            &unclosed_inner.as_bytes()[unclosed_start..unclosed_end],
+        );
+        unclosed_inner.push_char(DC_END_CHECKSUMMED_SECTION);
+        unclosed_inner.push_char(DC_SECTION_DIGEST);
+        unclosed_inner.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &unclosed_digest,
+        )?;
+        assert!(dcmstring_to_dcmm1(&unclosed_inner).is_err());
 
         Ok(())
     }

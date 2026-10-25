@@ -26,10 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[async_trait]
 #[expect(non_snake_case, reason = "generated trait methods matching formats naming conventions")]
 pub trait FormatsClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + std::fmt::Debug {
-///  Decode bytes using the `utf_8e_128` format.
+///  Lossily decode the first character from `bytes` using the legacy `utf_8e_128` (`DcUtf`) format.
 /// 
-///  Returns `(value, used_len)` on success, or `None` if the bytes are not a
-///  valid prefix for the encoding.
+///  Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
+///  malformed sequences), or `None` if `bytes` is empty.
     async fn utf_8e_128__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
 
 ///  Encode a u128 codepoint using the `utf_8e_128` format.

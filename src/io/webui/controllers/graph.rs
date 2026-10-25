@@ -173,7 +173,7 @@ pub async fn get_nodes_view(
 
     let display_content = if is_statements {
         let dctext_bytes =
-            ctb_formats_dcstring::dctext::dcutf_to_dctext(node.data.clone());
+            ctb_formats_dcstring::dctext::dctf_to_dctext(node.data.clone());
         String::from_utf8_lossy(&dctext_bytes).into_owned()
     } else {
         String::from_utf8_lossy(&node.data).into_owned()
@@ -1132,7 +1132,7 @@ mod tests {
         assert_eq!(updated_node.node_type, NodeType::System);
 
         let dctext_bytes =
-            ctb_formats_dcstring::dctext::dcutf_to_dctext(updated_node.data);
+            ctb_formats_dcstring::dctext::dctf_to_dctext(updated_node.data);
         let redirect_dctext = String::from_utf8(dctext_bytes).unwrap();
         assert_eq!(redirect_dctext, format!("@1114409@@{target_id}@"));
 

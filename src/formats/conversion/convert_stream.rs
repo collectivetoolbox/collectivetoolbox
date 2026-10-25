@@ -296,8 +296,6 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     let mut buf_reader = BufReader::new(reader);
     let mut header = [0u8; DCMM_HEADER_LEN];
     buf_reader.read_exact(&mut header).context("Reading DcMixed header")?;
-    ctb_formats_dcstring::validate_dcmst(&header)
-        .context("Validating DcMixed stream header")?;
 
     let mut payload = Vec::new();
     buf_reader.read_to_end(&mut payload)?;
@@ -306,17 +304,24 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     dcmm_bytes.extend_from_slice(&header);
     dcmm_bytes.extend_from_slice(&payload);
 
-    let doc = DcMstring::from_bytes(dcmm_bytes)
+    let (doc, mut log) = ctb_formats_dcstring::dcmm_to_dcmstring(&dcmm_bytes)
         .context("Parsing DcMixed stream payload into DcMstring")?;
 
     let export = convert_dcmstring_to_bytes(&doc, format, options)?;
+    for entry in export.log.entries() {
+        match entry.severity {
+            ctb_formats_utilities::LogSeverity::Info => log.info(entry.message.clone()),
+            ctb_formats_utilities::LogSeverity::Warning => log.warn(entry.message.clone()),
+            ctb_formats_utilities::LogSeverity::Error => log.error(entry.message.clone()),
+        }
+    }
     writer.write_all(&export.bytes)?;
     let bytes_written = u64::try_from(export.bytes.len())?;
 
     Ok(StreamExportReceipt {
         target_format: format.to_format_id(),
         bytes_written,
-        log: export.log,
+        log,
     })
 }
 
@@ -443,5 +448,46 @@ mod tests {
         assert_eq!(export_receipt.target_format, FormatId::DcMixed);
         assert_eq!(export_receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
         assert_eq!(export_out, input_bytes);
+    }
+
+    #[crate::ctb_test]
+    fn test_streaming_dcmm1_export() {
+        let mut doc = DcMstring::new();
+        doc.push_str("Legacy DcMixed1 stream ");
+        doc.push_char(ctb_formats_dcstring::DcChar(1_114_112));
+        doc.push_binary(b"\x00\x01\x02");
+        let dcmm1_bytes = ctb_formats_dcstring::dcmstring_to_dcmm1(&doc).unwrap();
+
+        // 1. Export DcMixed1 stream to DcMixed2
+        let mut cursor_v1 = std::io::Cursor::new(&dcmm1_bytes);
+        let mut out_dcmm2 = Vec::new();
+        let receipt_dcmm2 = stream_dcmreader_to_writer(
+            &mut cursor_v1,
+            &mut out_dcmm2,
+            SupportedDcOutputFormat::DcMixed2,
+            &DcExportOptions::default(),
+        )
+        .expect("stream export dcmm1 -> dcmm2");
+        assert_eq!(receipt_dcmm2.target_format, FormatId::DcMixed2);
+        assert_eq!(out_dcmm2, doc.as_bytes());
+
+        // 2. Export DcMixed1 stream to DcText
+        let mut cursor_v1_text = std::io::Cursor::new(&dcmm1_bytes);
+        let mut out_dctext = Vec::new();
+        let receipt_dctext = stream_dcmreader_to_writer(
+            &mut cursor_v1_text,
+            &mut out_dctext,
+            SupportedDcOutputFormat::DcText,
+            &DcExportOptions::default(),
+        )
+        .expect("stream export dcmm1 -> dctext");
+        assert_eq!(receipt_dctext.target_format, FormatId::DcText);
+        let expected_dctext = convert_dcmstring_to_bytes(
+            &doc,
+            SupportedDcOutputFormat::DcText,
+            &DcExportOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(out_dctext, expected_dctext.bytes);
     }
 }
