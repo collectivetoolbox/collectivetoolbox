@@ -2486,7 +2486,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             raw.extend_from_slice(&header_buf);
             reader.read_to_end(&mut raw)?;
             let (doc, conv_log) = if options.best_effort {
-                dcmm_to_dcmstring_lossy(&raw)
+                DcMstring::from_bytes_lossy(&raw)
             } else {
                 dcmm1_to_dcmstring(&raw)?
             };

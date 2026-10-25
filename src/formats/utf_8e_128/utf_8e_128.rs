@@ -216,6 +216,154 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_dctf_standard_ascii() {
+        let mut buf = [0u8; 24];
+        for ch in [0x00u128, 0x41, 0x7F] {
+            let n = encode_dctf_buf(&mut buf, ch);
+            let (v, m) = decode_dctf_buf(&buf[..n]).unwrap();
+            assert_eq!(v, ch);
+            assert_eq!(n, m);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_standard_multibyte() {
+        let samples = [
+            0x80u128, 0x7FF, 0x800, 0x1234, 0x20AC, 0xFFFF, 0x10000, 0x10FFFF,
+        ];
+        let mut buf = [0u8; 24];
+        for cp in samples {
+            let n = encode_dctf_buf(&mut buf, cp);
+            let (v, m) = decode_dctf_buf(&buf[..n]).unwrap();
+            assert_eq!(v, cp);
+            assert_eq!(n, m);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_extended_simple() {
+        let mut buf = [0u8; 24];
+        let cp = 0x10FFFFu128 + 1;
+        let n = encode_dctf_buf(&mut buf, cp);
+        assert!(n >= 3);
+        assert_eq!(buf[0], 0xFF);
+        let (v, m) = decode_dctf_buf(&buf[..n]).unwrap();
+        assert_eq!(v, cp);
+        assert_eq!(n, m);
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_extended_large() {
+        let mut buf = [0u8; 24];
+        let cp = u128::MAX;
+        let n = encode_dctf_buf(&mut buf, cp);
+        assert_eq!(buf[0], 0xFF);
+        let (v, m) = decode_dctf_buf(&buf[..n]).unwrap();
+        assert_eq!(v, cp);
+        assert_eq!(n, m);
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_malformed() {
+        assert!(decode_dctf_buf(&[]).is_none());
+        assert!(decode_dctf_buf(&[0x80]).is_none()); // continuation as start
+        assert!(decode_dctf_buf(&[0xFF]).is_none()); // incomplete extended
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_overlaps_rejected() {
+        // If value <= U+10FFFF must be encoded in standard form; constructing extended form should be rejected.
+        // Manually craft extended for 0x41
+        let bytes = vec![0xFF, 0x81, 0xC1]; // length=1, payload=0x01 -> value=1 (<= U+10FFFF)
+        assert!(decode_dctf_buf(&bytes).is_none());
+
+        // Construct an extended encoding for a value in standard range (should decode to None)
+        // Manually: value = 0x10FFFF (should have used standard form)
+        let mut bytes = Vec::new();
+        bytes.push(0xFF);
+        // Determine minimal groups for 0x10FFFF
+        let val = 0x10FFFFu128;
+        let bits = 128usize.saturating_sub(
+            usize::try_from(val.leading_zeros())
+                .expect("Failed to create usize"),
+        );
+        let l = bits.div_ceil(6);
+        bytes.push(0x80 | u8::try_from(l).expect("Failed to create byte"));
+        let mut groups = [0u8; 22];
+        let mut tmp = val;
+        for i in 0..l {
+            groups[l.saturating_sub(1).saturating_sub(i)] =
+                u8::try_from(tmp & 0x3F).expect("Failed to create byte");
+            tmp >>= 6;
+        }
+        for i in 0..l {
+            bytes.push(0x80 | groups[i]);
+        }
+        assert!(decode_dctf_buf(&bytes).is_none());
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_encode_dctf_buf_basic() {
+        let mut buf = [0u8; 24];
+        // ASCII
+        let n = encode_dctf_buf(&mut buf, 0x41);
+        assert_eq!(&buf[..n], &[0x41]);
+        // 2-byte
+        let n = encode_dctf_buf(&mut buf, 0x80);
+        assert_eq!(&buf[..n], &[0xC2, 0x80]);
+        // 3-byte
+        let n = encode_dctf_buf(&mut buf, 0x800);
+        assert_eq!(&buf[..n], &[0xE0, 0xA0, 0x80]);
+        // 4-byte
+        let n = encode_dctf_buf(&mut buf, 0x10000);
+        assert_eq!(&buf[..n], &[0xF0, 0x90, 0x80, 0x80]);
+        // Extended
+        encode_dctf_buf(&mut buf, 0x1_0000_0000);
+        assert_eq!(buf[0], 0xFF);
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_decode_dctf_buf_basic() {
+        // ASCII
+        let res = decode_dctf_buf(&[0x41]);
+        assert_eq!(res, Some((0x41, 1)));
+        // 2-byte
+        let res = decode_dctf_buf(&[0xC2, 0x80]);
+        assert_eq!(res, Some((0x80, 2)));
+        // 3-byte
+        let res = decode_dctf_buf(&[0xE0, 0xA0, 0x80]);
+        assert_eq!(res, Some((0x800, 3)));
+        // 4-byte
+        let res = decode_dctf_buf(&[0xF0, 0x90, 0x80, 0x80]);
+        assert_eq!(res, Some((0x10000, 4)));
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_encode_decode_dctf() {
+        // Roundtrip
+        for &cp in &[
+            0x41u128,
+            0x80,
+            0x800,
+            0x10000,
+            0x10FFFF,
+            0x1_0000_0000,
+            u128::MAX,
+        ] {
+            let encoded = encode_dctf(cp);
+            let decoded = decode_dctf(&encoded).unwrap();
+            assert_eq!(decoded.0, cp);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dctf_decode_dctf_replacement() {
+        // Invalid input returns replacement character consuming exact maximal subpart
+        let res = decode_dctf(&[0xFF]);
+        assert_eq!(res, Some((0xFFFD, 1)));
+    }
+
+    #[crate::ctb_test]
     fn test_dctf_all_tier_boundaries_and_ordering() {
         // Every tier boundary from 1B through 23B (k = 0..=15), plus surrogates
         let mut boundaries: Vec<(u128, usize)> = vec![
