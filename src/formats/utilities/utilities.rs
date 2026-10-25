@@ -77,6 +77,7 @@ pub use ctb_formats_dcdata::describe_general_category;
 #[derive(Debug)]
 pub struct ConversionOutput<T> {
     pub result: T,
+    #[must_use]
     pub log: FormatLog,
 }
 
@@ -87,6 +88,7 @@ impl<T> ConversionOutput<T> {
 }
 
 #[derive(Default, Debug)]
+#[must_use]
 pub struct FormatLog {
     errors: Vec<String>,
     warnings: Vec<String>,

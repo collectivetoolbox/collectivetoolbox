@@ -534,10 +534,10 @@ mod tests {
             format_blob_preview(long_str.as_bytes(), false),
             format!("{}...", "a".repeat(60))
         );
-        let dctf_redirect = dctext_to_dctf(b"@1114409@@42@".to_vec()).unwrap();
+        let dctf_redirect = dctext_to_dctf(b"@1114409@@L42@".to_vec()).unwrap();
         assert_eq!(
             format_blob_preview(&dctf_redirect, true),
-            "@1114409@@42@"
+            "@1114409@@L42@"
         );
     }
 

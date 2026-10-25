@@ -1522,6 +1522,7 @@ fn validate_dcmst_with_policy(
 pub type DcMstSlice = DcMstr;
 
 /// Decodes in-memory `.dcmm` bytes (`DcMixed2` or legacy `DcMixed1`) into a `DcMstring`.
+#[must_use]
 pub fn dcmm_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
     if bytes.len() >= DCMM_HEADER_LEN
         && bytes.get(..5) == Some(&DCMM_MAGIC)
@@ -2485,11 +2486,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             let mut raw = Vec::with_capacity(DCMM_HEADER_LEN);
             raw.extend_from_slice(&header_buf);
             reader.read_to_end(&mut raw)?;
-            let (doc, conv_log) = if options.best_effort {
-                DcMstring::from_bytes_lossy(&raw)
-            } else {
-                dcmm1_to_dcmstring(&raw)?
-            };
+            let (doc, conv_log) = dcmm1_to_dcmstring(&raw)?;
             writer.write_all(doc.as_bytes())?;
             return Ok((u64::try_from(doc.as_bytes().len())?, conv_log));
         } else if magic_matches && uuid_matches {
