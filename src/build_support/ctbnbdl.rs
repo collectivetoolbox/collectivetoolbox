@@ -660,7 +660,14 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
         }
     }
 
-    // Remove any stale `.ctbnodes` files or obsolete `.ctbnbdl` files in `dst_dir`.
+    // Remove any stale `.ctbnodes` files (when destination differs from source)
+    // or obsolete `.ctbnbdl` files in `dst_dir`.
+    let is_same_dir = if let (Ok(c_src), Ok(c_dst)) = (src_dir.canonicalize(), dst_dir.canonicalize()) {
+        c_src == c_dst
+    } else {
+        src_dir == dst_dir
+    };
+
     for entry in std::fs::read_dir(dst_dir).with_context(|| {
         format!(
             "Failed to read destination directory {}",
@@ -676,7 +683,7 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
             continue;
         };
         let ext = path.extension().and_then(|e| e.to_str());
-        if ext == Some("ctbnodes")
+        if (!is_same_dir && ext == Some("ctbnodes"))
             || (ext == Some("ctbnbdl") && !expected_bundle_names.contains(name))
         {
             std::fs::remove_file(&path).with_context(|| {

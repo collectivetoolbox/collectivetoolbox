@@ -800,8 +800,15 @@ fn prepare_runtime_assets(
     let framing_dcs =
         crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&categories_dir)
             .context("Failed to resolve .ctbnbdl framing Dcs from category tables")?;
+    let input_graph_dir = project_root.join("assets/data/graph");
     crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
-        &project_root.join("assets/data/graph"),
+        &input_graph_dir,
+        &input_graph_dir,
+        framing_dcs,
+    )
+    .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
+    crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
+        &input_graph_dir,
         &runtime_assets.join("data/graph"),
         framing_dcs,
     )

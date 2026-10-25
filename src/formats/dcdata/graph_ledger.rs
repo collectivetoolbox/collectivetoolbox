@@ -2190,6 +2190,14 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         Some(&named_types_bytes),
     )?;
     stats.files_written = write_ledger_nodes_to_dir(&graph_dir, &updated_nodes)?;
+    let framing = default_ctbnbdl_framing_dcs();
+    compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &graph_dir, framing)
+        .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
+    let runtime_graph_dir = repo_root.join("built/assets/data/graph");
+    if runtime_graph_dir.is_dir() {
+        compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &runtime_graph_dir, framing)
+            .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
+    }
     Ok(stats)
 }
 
@@ -2569,6 +2577,33 @@ mod tests {
             default_ctbnbdl_framing_dcs(),
         )?;
         assert_eq!(compiled_again, 0);
+
+        // Compiling in-place (src_dir == dst_dir) should produce the .ctbnbdl file
+        // without deleting the source .ctbnodes files.
+        let src_chunk_file = src_dir.join(format_chunk_filename(SYSTEM_REGION_START));
+        assert!(src_chunk_file.is_file());
+        let in_place_compiled = compile_ctbnodes_dir_to_ctbnbdl(
+            &src_dir,
+            &src_dir,
+            default_ctbnbdl_framing_dcs(),
+        )?;
+        assert_eq!(in_place_compiled, 1);
+        assert!(
+            src_chunk_file.is_file(),
+            "Source .ctbnodes file must be preserved when compiling in-place"
+        );
+        let in_place_bundle = src_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        assert!(in_place_bundle.is_file());
+        assert_eq!(std::fs::read(&in_place_bundle)?, bundle_bytes);
+
+        // In-place second call should compile 0 files.
+        let in_place_again = compile_ctbnodes_dir_to_ctbnbdl(
+            &src_dir,
+            &src_dir,
+            default_ctbnbdl_framing_dcs(),
+        )?;
+        assert_eq!(in_place_again, 0);
+        assert!(src_chunk_file.is_file());
         Ok(())
     }
 
