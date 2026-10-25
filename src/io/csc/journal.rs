@@ -478,7 +478,6 @@ pub struct StateJournal {
     snapshot: Option<JournalSnapshot>,
     errors: Vec<JournalErrorRecord>,
     warnings: Vec<JournalWarningRecord>,
-    is_legacy: bool,
     pending_descriptor_status: Option<String>,
     applied_directories: HashMap<PathBuf, InodeKey>,
 }
@@ -528,7 +527,6 @@ impl StateJournal {
             snapshot: None,
             errors: Vec::new(),
             warnings: Vec::new(),
-            is_legacy: false,
             pending_descriptor_status: None,
             applied_directories: HashMap::new(),
         };
@@ -560,11 +558,29 @@ impl StateJournal {
 
     /// Reopens a journal, preserving all committed bytes and completion markers.
     /// Previously completed journals explicitly begin a new writable session.
+    /// Legacy journals (prior to `CSCJRNL5` / `DcMixed2`) are rejected with an error.
     pub fn open_for_resume(
         journal_path: &Path,
         desc_path: &Path,
         snapshot: &JournalSnapshot,
     ) -> Result<Self> {
+        let mut header = [0_u8; 8 + ctb_formats_dcstring::DCMM_HEADER_LEN];
+        {
+            let mut f = File::open(journal_path).with_context(|| {
+                format!("Failed to open state journal: {}", journal_path.display())
+            })?;
+            f.read_exact(&mut header).with_context(|| {
+                format!("State journal header is too short to resume: {}", journal_path.display())
+            })?;
+        }
+        ensure!(
+            header.get(..8) == Some(JOURNAL_MAGIC_V5.as_slice())
+                && header.get(8..13) == Some(&ctb_formats_dcstring::DCMM_MAGIC)
+                && header.get(13..29) == Some(&ctb_formats_dcstring::DCMM_UUID),
+            "Cannot resume a legacy CSC journal (expected CSCJRNL5 / DcMixed2): {}",
+            journal_path.display()
+        );
+
         let mut file = OpenOptions::new()
             .write(true)
             .open(journal_path)
@@ -579,16 +595,6 @@ impl StateJournal {
                 total_files = total_files.saturating_add(1);
             }
         }
-
-        let mut magic = [0_u8; 8];
-        let is_legacy = if let Ok(mut f) = File::open(journal_path) {
-            match f.read_exact(&mut magic) {
-                Ok(()) => magic == *JOURNAL_MAGIC_V1,
-                Err(_) => false,
-            }
-        } else {
-            false
-        };
 
         file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
         file.sync_all()?;
@@ -614,7 +620,6 @@ impl StateJournal {
             snapshot: Some(snapshot.clone()),
             errors: snapshot.errors.clone(),
             warnings: snapshot.warnings.clone(),
-            is_legacy,
             pending_descriptor_status: None,
             applied_directories: snapshot.applied_directories.clone(),
         })
@@ -667,35 +672,8 @@ impl StateJournal {
             return Ok(());
         }
 
-        if self.is_legacy {
-            let next = self.current_batch_id.checked_add(1).context("Journal sequence overflow")?;
-            self.writer.transaction(|writer, context| {
-            let mut batch_hasher = Sha256Stream::new();
-            for entity in &self.uncommitted_entities {
-                let mut payload = Vec::new();
-                legacy::write_entity_payload(&mut payload, entity, context)?;
-                let payload_len = u32::try_from(payload.len())?;
-                let checksum = xxhash::xxhash3_64(&payload);
-
-                batch_hasher.update(&payload);
-
-                writer.write_all(&[legacy::TAG_ENTITY])?;
-                legacy::write_u32(writer, payload_len)?;
-                writer.write_all(&checksum)?;
-                writer.write_all(&payload)?;
-            }
-
-            writer.write_all(&[legacy::TAG_BATCH_COMMIT])?;
-            legacy::write_u64(writer, next)?;
-            let batch_sha256 = batch_hasher.finalize();
-            writer.write_all(&batch_sha256)?;
-            Ok(())
-            }, Self::sync_output)?;
-            self.current_batch_id = next;
-        } else {
-            self.writer.write_batch(&self.uncommitted_entities, Self::sync_output)?;
-            self.current_batch_id = self.writer.sequence();
-        }
+        self.writer.write_batch(&self.uncommitted_entities, Self::sync_output)?;
+        self.current_batch_id = self.writer.sequence();
         for entity in &self.uncommitted_entities {
             if let FileEntityKind::Regular { size, .. } = entity.kind {
                 self.total_committed_files = self.total_committed_files.saturating_add(1);
@@ -711,11 +689,7 @@ impl StateJournal {
     /// Marks the job as completely finished and updates the `.cscdesc` companion file.
     pub fn mark_completed(&mut self) -> Result<()> {
         self.commit_batch()?;
-        if self.is_legacy {
-            self.writer.complete_legacy(Self::sync_output)?;
-        } else {
-            self.writer.complete(Self::sync_output)?;
-        }
+        self.writer.complete(Self::sync_output)?;
         if self.errors.is_empty() && !self.warnings.is_empty() {
             self.persist_descriptor(format!("Completed with {} warning(s)", self.warnings.len()))?;
         } else if self.errors.is_empty() {
@@ -729,16 +703,7 @@ impl StateJournal {
     /// Records an item or operational error directly into the state journal and descriptor.
     pub fn record_error(&mut self, error: &JournalErrorRecord) -> Result<()> {
         self.ensure_ready()?;
-        if self.is_legacy {
-            self.writer.transaction(|writer, _| {
-            let json = serde_json::to_vec(error)?;
-            writer.write_all(&[legacy::TAG_ERROR_RECORD])?;
-            legacy::write_bytes(writer, &json)?;
-            Ok(())
-            }, Self::sync_output)?;
-        } else {
-            self.writer.record_error_durable(error, Self::sync_output)?;
-        }
+        self.writer.record_error_durable(error, Self::sync_output)?;
         self.errors.push(error.clone());
         self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
@@ -758,16 +723,7 @@ impl StateJournal {
             message: message.to_string(),
             timestamp_sec: now_sec,
         };
-        if self.is_legacy {
-            self.writer.transaction(|writer, _| {
-            let json = serde_json::to_vec(&record)?;
-            writer.write_all(&[legacy::TAG_WARNING_RECORD])?;
-            legacy::write_bytes(writer, &json)?;
-            Ok(())
-            }, Self::sync_output)?;
-        } else {
-            self.writer.record_warning_durable(&record, Self::sync_output)?;
-        }
+        self.writer.record_warning_durable(&record, Self::sync_output)?;
         self.warnings.push(record);
         self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
@@ -1280,136 +1236,112 @@ mod tests {
 
     #[crate::ctb_test]
     fn journal_descriptor_failure_requires_metadata_only_repair() -> Result<()> {
-        for legacy in [false, true] {
-            for operation in ["batch", "completion", "warning", "error", "failure"] {
-                let temporary = tempdir()?;
-                let journal = temporary.path().join("copy.cscjournal");
-                let description = temporary.path().join("copy.cscdesc");
-                let mut writer = journal_lifecycle_writer(&journal, &description, legacy)?;
-                let mut entity = FileEntity::from_vec(b"payload".to_vec());
-                entity.identity.relative_path = Some("payload".into());
-                writer.record_entity(&entity);
-                writer.commit_batch()?;
-                let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("injected"));
-                if operation == "completion" {
-                    writer.record_error(&error)?;
-                }
-                fs::remove_file(&description)?;
-                fs::create_dir(&description)?;
-                let result = match operation {
-                    "batch" => {
-                        entity.identity.relative_path = Some("second".into());
-                        writer.record_entity(&entity);
-                        writer.commit_batch()
-                    }
-                    "completion" => writer.mark_completed(),
-                    "warning" => writer.record_warning("injected", "warning"),
-                    "error" => writer.record_error(&error),
-                    _ => writer.mark_failed("injected"),
-                };
-                ensure!(format!("{:#}", result.expect_err("Descriptor failure must propagate")).contains("operation is durable"));
-                let status = writer.pending_descriptor_status().context("Missing pending descriptor")?.to_owned();
-                ensure!(status == match operation {
-                    "completion" => "Completed with 1 error(s)",
-                    "failure" => "Failed: injected",
-                    _ => "InProgress",
-                });
-                let bytes = fs::read(&journal)?;
-                let counters = (writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes);
-                ensure!(writer.uncommitted_entities.is_empty());
-                ensure!(!writer.writer.is_failed());
-                ensure!(writer.retry_descriptor().is_err());
-                ensure!(writer.commit_batch().is_err());
-                ensure!(writer.mark_completed().is_err());
-                ensure!(writer.record_warning("blocked", "blocked").is_err());
-                ensure!(writer.record_error(&error).is_err());
-                ensure!(writer.mark_failed("blocked").is_err());
-                ensure!(writer.pending_descriptor_status() == Some(status.as_str()));
-                ensure!(fs::read(&journal)? == bytes);
-                fs::remove_dir(&description)?;
-                writer.retry_descriptor()?;
-                ensure!(writer.pending_descriptor_status().is_none());
-                ensure!(fs::read(&journal)? == bytes);
-                ensure!((writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes) == counters);
-                let descriptor = fs::read_to_string(&description)?;
-                ensure!(descriptor.contains(&format!("Status: {status}\n")));
-                ensure!(descriptor.contains(&format!("FilesCommitted: {}\nBytesCommitted: {}\n", counters.1, counters.2)));
-                ensure!(descriptor.contains(&format!("ErrorsCount: {}\n", writer.errors().len())));
-                ensure!(descriptor.contains(&format!("WarningsCount: {}\n", writer.warnings().len())));
-                ensure!(writer.retry_descriptor().is_err());
-                if operation == "completion" {
-                    ensure!(writer.mark_completed().is_err());
-                    ensure!(writer.record_warning("late", "late").is_err());
-                    ensure!(fs::read(&journal)? == bytes);
-                } else {
-                    writer.mark_completed()?;
-                }
-                let snapshot = read_journal_snapshot(&journal)?;
-                ensure!(snapshot.is_completed && snapshot.last_batch_id == counters.0);
+        for operation in ["batch", "completion", "warning", "error", "failure"] {
+            let temporary = tempdir()?;
+            let journal = temporary.path().join("copy.cscjournal");
+            let description = temporary.path().join("copy.cscdesc");
+            let mut writer = StateJournal::create_at_path(&journal, &description, &[], Path::new(""))?;
+            let mut entity = FileEntity::from_vec(b"payload".to_vec());
+            entity.identity.relative_path = Some("payload".into());
+            writer.record_entity(&entity);
+            writer.commit_batch()?;
+            let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("injected"));
+            if operation == "completion" {
+                writer.record_error(&error)?;
             }
+            fs::remove_file(&description)?;
+            fs::create_dir(&description)?;
+            let result = match operation {
+                "batch" => {
+                    entity.identity.relative_path = Some("second".into());
+                    writer.record_entity(&entity);
+                    writer.commit_batch()
+                }
+                "completion" => writer.mark_completed(),
+                "warning" => writer.record_warning("injected", "warning"),
+                "error" => writer.record_error(&error),
+                _ => writer.mark_failed("injected"),
+            };
+            ensure!(format!("{:#}", result.expect_err("Descriptor failure must propagate")).contains("operation is durable"));
+            let status = writer.pending_descriptor_status().context("Missing pending descriptor")?.to_owned();
+            ensure!(status == match operation {
+                "completion" => "Completed with 1 error(s)",
+                "failure" => "Failed: injected",
+                _ => "InProgress",
+            });
+            let bytes = fs::read(&journal)?;
+            let counters = (writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes);
+            ensure!(writer.uncommitted_entities.is_empty());
+            ensure!(!writer.writer.is_failed());
+            ensure!(writer.retry_descriptor().is_err());
+            ensure!(writer.commit_batch().is_err());
+            ensure!(writer.mark_completed().is_err());
+            ensure!(writer.record_warning("blocked", "blocked").is_err());
+            ensure!(writer.record_error(&error).is_err());
+            ensure!(writer.mark_failed("blocked").is_err());
+            ensure!(writer.pending_descriptor_status() == Some(status.as_str()));
+            ensure!(fs::read(&journal)? == bytes);
+            fs::remove_dir(&description)?;
+            writer.retry_descriptor()?;
+            ensure!(writer.pending_descriptor_status().is_none());
+            ensure!(fs::read(&journal)? == bytes);
+            ensure!((writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes) == counters);
+            let descriptor = fs::read_to_string(&description)?;
+            ensure!(descriptor.contains(&format!("Status: {status}\n")));
+            ensure!(descriptor.contains(&format!("FilesCommitted: {}\nBytesCommitted: {}\n", counters.1, counters.2)));
+            ensure!(descriptor.contains(&format!("ErrorsCount: {}\n", writer.errors().len())));
+            ensure!(descriptor.contains(&format!("WarningsCount: {}\n", writer.warnings().len())));
+            ensure!(writer.retry_descriptor().is_err());
+            if operation == "completion" {
+                ensure!(writer.mark_completed().is_err());
+                ensure!(writer.record_warning("late", "late").is_err());
+                ensure!(fs::read(&journal)? == bytes);
+            } else {
+                writer.mark_completed()?;
+            }
+            let snapshot = read_journal_snapshot(&journal)?;
+            ensure!(snapshot.is_completed && snapshot.last_batch_id == counters.0);
         }
         Ok(())
     }
 
-    fn journal_lifecycle_writer(journal: &Path, description: &Path, legacy: bool) -> Result<StateJournal> {
-        if !legacy {
-            return StateJournal::create_at_path(journal, description, &[], Path::new(""));
-        }
-        let mut bytes = JOURNAL_MAGIC_V1.to_vec();
-        bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
-        write_u32(&mut bytes, 0)?;
-        write_bytes(&mut bytes, b"")?;
-        fs::write(journal, bytes)?;
-        let snapshot = read_journal_snapshot(journal)?;
-        StateJournal::open_for_resume(journal, description, &snapshot)
-    }
-
     #[crate::ctb_test]
     fn journal_resume_preserves_completed_diagnostics_and_prefix() -> Result<()> {
-        for legacy in [false, true] {
-            let temporary = tempdir()?;
-            let journal = temporary.path().join("copy.cscjournal");
-            let description = temporary.path().join("copy.cscdesc");
-            let mut writer = journal_lifecycle_writer(&journal, &description, legacy)?;
-            let mut entity = FileEntity::from_vec(b"original".to_vec());
-            entity.identity.relative_path = Some("original".into());
-            writer.record_entity(&entity);
-            writer.mark_completed()?;
-            drop(writer);
-            let warning = JournalWarningRecord { code: "historical".into(), message: "warning".into(), timestamp_sec: 1 };
-            let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("historical"));
-            let mut output = OpenOptions::new().append(true).open(&journal)?;
-            if legacy {
-                output.write_all(&[legacy::TAG_WARNING_RECORD])?;
-                write_bytes(&mut output, &serde_json::to_vec(&warning)?)?;
-                output.write_all(&[legacy::TAG_ERROR_RECORD])?;
-                write_bytes(&mut output, &serde_json::to_vec(&error)?)?;
-            } else {
-                let mut diagnostics = DcMstring::new();
-                JournalWarningRecordPayload::from_record(&warning).encode_dc_mixed(&mut diagnostics)?;
-                JournalErrorRecordPayload::from_record(&error)?.encode_dc_mixed(&mut diagnostics)?;
-                output.write_all(diagnostics.payload_bytes())?;
-            }
-            output.sync_all()?;
-            drop(output);
-            let prefix = fs::read(&journal)?;
-            let snapshot = read_journal_snapshot(&journal)?;
-            ensure!(snapshot.is_completed && snapshot.valid_length == u64::try_from(prefix.len())?);
-            let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
-            ensure!(fs::read(&journal)? == prefix);
-            entity.identity.relative_path = Some("resumed".into());
-            resumed.record_entity(&entity);
-            resumed.commit_batch()?;
-            let snapshot = read_journal_snapshot(&journal)?;
-            ensure!(!snapshot.is_completed && snapshot.last_batch_id == 2);
-            ensure!(snapshot.is_committed(b"original") && snapshot.is_committed(b"resumed"));
-            ensure!(snapshot.warnings.len() == 1 && snapshot.warnings.first() == Some(&warning));
-            ensure!(snapshot.errors.len() == 1 && snapshot.errors.first() == Some(&error));
-            resumed.mark_completed()?;
-            ensure!(fs::read(&journal)?.starts_with(&prefix));
-            let snapshot = read_journal_snapshot(&journal)?;
-            ensure!(snapshot.is_completed && snapshot.errors.len() == 1 && snapshot.warnings.len() == 1);
-        }
+        let temporary = tempdir()?;
+        let journal = temporary.path().join("copy.cscjournal");
+        let description = temporary.path().join("copy.cscdesc");
+        let mut writer = StateJournal::create_at_path(&journal, &description, &[], Path::new(""))?;
+        let mut entity = FileEntity::from_vec(b"original".to_vec());
+        entity.identity.relative_path = Some("original".into());
+        writer.record_entity(&entity);
+        writer.mark_completed()?;
+        drop(writer);
+        let warning = JournalWarningRecord { code: "historical".into(), message: "warning".into(), timestamp_sec: 1 };
+        let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("historical"));
+        let mut output = OpenOptions::new().append(true).open(&journal)?;
+        let mut diagnostics = DcMstring::new();
+        JournalWarningRecordPayload::from_record(&warning).encode_dc_mixed(&mut diagnostics)?;
+        JournalErrorRecordPayload::from_record(&error)?.encode_dc_mixed(&mut diagnostics)?;
+        output.write_all(diagnostics.payload_bytes())?;
+        output.sync_all()?;
+        drop(output);
+        let prefix = fs::read(&journal)?;
+        let snapshot = read_journal_snapshot(&journal)?;
+        ensure!(snapshot.is_completed && snapshot.valid_length == u64::try_from(prefix.len())?);
+        let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
+        ensure!(fs::read(&journal)? == prefix);
+        entity.identity.relative_path = Some("resumed".into());
+        resumed.record_entity(&entity);
+        resumed.commit_batch()?;
+        let snapshot = read_journal_snapshot(&journal)?;
+        ensure!(!snapshot.is_completed && snapshot.last_batch_id == 2);
+        ensure!(snapshot.is_committed(b"original") && snapshot.is_committed(b"resumed"));
+        ensure!(snapshot.warnings.len() == 1 && snapshot.warnings.first() == Some(&warning));
+        ensure!(snapshot.errors.len() == 1 && snapshot.errors.first() == Some(&error));
+        resumed.mark_completed()?;
+        ensure!(fs::read(&journal)?.starts_with(&prefix));
+        let snapshot = read_journal_snapshot(&journal)?;
+        ensure!(snapshot.is_completed && snapshot.errors.len() == 1 && snapshot.warnings.len() == 1);
         Ok(())
     }
 
@@ -1630,14 +1562,20 @@ mod tests {
         let mut document = DcMstring::new();
         session.encode_dc_mixed(&mut document)?;
         JournalErrorRecordPayload::from_record(&record)?.encode_dc_mixed(&mut document)?;
-        let mut bytes = JOURNAL_MAGIC_V4.to_vec();
-        bytes.extend_from_slice(document.as_bytes());
-        let temp = tempdir()?;
-        let journal_path = temp.path().join("windows-path.cscjournal");
-        fs::write(&journal_path, bytes)?;
-        let snapshot = read_journal_snapshot(&journal_path)?;
-        assert_eq!(snapshot.origin_platform, PLATFORM_WINDOWS);
-        assert_eq!(snapshot.errors, vec![record]);
+        let (dcmm1_bytes, _) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&document)?;
+        for (magic, payload) in [
+            (JOURNAL_MAGIC_V5, document.as_bytes()),
+            (JOURNAL_MAGIC_V4, dcmm1_bytes.as_slice()),
+        ] {
+            let mut bytes = magic.to_vec();
+            bytes.extend_from_slice(payload);
+            let temp = tempdir()?;
+            let journal_path = temp.path().join("windows-path.cscjournal");
+            fs::write(&journal_path, bytes)?;
+            let snapshot = read_journal_snapshot(&journal_path)?;
+            assert_eq!(snapshot.origin_platform, PLATFORM_WINDOWS);
+            assert_eq!(snapshot.errors, vec![record.clone()]);
+        }
         Ok(())
     }
 
@@ -1887,23 +1825,64 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_journal_legacy_resume_keeps_unknown_environment() -> Result<()> {
+    fn test_journal_legacy_resume_refused_and_v5_unknown_environment_preserved() -> Result<()> {
         let temp = tempdir()?;
-        let journal_path = temp.path().join("legacy.cscjournal");
-        let mut bytes = JOURNAL_MAGIC_V1.to_vec();
-        bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
-        write_u32(&mut bytes, 0)?;
-        write_bytes(&mut bytes, b"")?;
-        bytes.push(TAG_JOB_COMPLETED);
-        fs::write(&journal_path, bytes)?;
-        let snapshot = read_journal_snapshot(&journal_path)?;
-        let mut writer = StateJournal::open_for_resume(&journal_path, &temp.path().join("legacy.cscdesc"), &snapshot)?;
+
+        // 1. Legacy v1 journal must be refused by open_for_resume without modifying disk bytes
+        let v1_path = temp.path().join("legacy_v1.cscjournal");
+        let mut v1_bytes = JOURNAL_MAGIC_V1.to_vec();
+        v1_bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
+        write_u32(&mut v1_bytes, 0)?;
+        write_bytes(&mut v1_bytes, b"")?;
+        v1_bytes.push(TAG_JOB_COMPLETED);
+        fs::write(&v1_path, &v1_bytes)?;
+        let v1_snapshot = read_journal_snapshot(&v1_path)?;
+        assert!(
+            StateJournal::open_for_resume(&v1_path, &temp.path().join("legacy_v1.cscdesc"), &v1_snapshot).is_err(),
+            "Resuming a legacy v1 journal must fail with an error"
+        );
+        assert_eq!(fs::read(&v1_path)?, v1_bytes, "Refused v1 journal must remain unmodified");
+
+        // 2. Legacy v4 (DcMixed1) journal must be refused by open_for_resume without modifying disk bytes
+        let session = JournalSessionRecord {
+            sources: Vec::new(),
+            destination: PathBuf::new(),
+            origin_platform: u32::from(current_platform()),
+            environment: None,
+        };
+        let v5_bytes = stream::JournalWriter::new(Vec::new(), &session, stream::JournalMagic::JournalV5)?.finish()?;
+        let v5_mstr = DcMstring::from_slice(v5_bytes.get(8..).context("Missing v5 payload")?)?;
+        let (dcmm1_payload, _) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&v5_mstr)?;
+        let mut v4_bytes = JOURNAL_MAGIC_V4.to_vec();
+        v4_bytes.extend_from_slice(&dcmm1_payload);
+        let v4_path = temp.path().join("legacy_v4.cscjournal");
+        fs::write(&v4_path, &v4_bytes)?;
+        let v4_snapshot = read_journal_snapshot(&v4_path)?;
+        assert!(
+            StateJournal::open_for_resume(&v4_path, &temp.path().join("legacy_v4.cscdesc"), &v4_snapshot).is_err(),
+            "Resuming a legacy v4 (DcMixed1) journal must fail with an error"
+        );
+        assert_eq!(fs::read(&v4_path)?, v4_bytes, "Refused v4 journal must remain unmodified");
+        assert!(read_journal_snapshot(&v4_path)?.is_completed, "Refused v4 journal must remain readable");
+
+        // Mismatched outer magic and inner DcMixed UUID must be rejected
+        let mut mismatched_v4 = JOURNAL_MAGIC_V4.to_vec();
+        mismatched_v4.extend_from_slice(v5_mstr.as_bytes());
+        let mismatched_v4_path = temp.path().join("mismatched_v4.cscjournal");
+        fs::write(&mismatched_v4_path, &mismatched_v4)?;
+        assert!(read_journal_snapshot(&mismatched_v4_path).is_err());
+
+        // 3. Modern v5 (DcMixed2) journal with environment: None preserves unknown environment across resume
+        let v5_path = temp.path().join("modern_v5.cscjournal");
+        fs::write(&v5_path, v5_bytes)?;
+        let snapshot = read_journal_snapshot(&v5_path)?;
+        let mut writer = StateJournal::open_for_resume(&v5_path, &temp.path().join("modern_v5.cscdesc"), &snapshot)?;
         assert!(writer.environment.is_none());
         let mut entity = FileEntity::from_vec(b"unknown".to_vec());
         entity.identity.relative_path = Some(PathBuf::from("unknown"));
         writer.record_entity(&entity);
         writer.commit_batch()?;
-        let snapshot = read_journal_snapshot(&journal_path)?;
+        let snapshot = read_journal_snapshot(&v5_path)?;
         assert!(snapshot.environment.is_none());
         assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing resumed entity")?.metadata.environment.is_none());
         Ok(())

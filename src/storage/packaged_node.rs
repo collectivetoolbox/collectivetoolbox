@@ -25,9 +25,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::node::NodeType;
+
+fn compute_sha256(bytes: &[u8]) -> [u8; 32] {
+    Sha256::digest(bytes).into()
+}
 
 pub const NODE_DATA_UUID: Uuid =
     Uuid::from_u128(0x0c639d0043ac41b28a319fb9ce7910e0);
@@ -167,14 +172,23 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 
             // 8. Body (v1 statements/system bodies used DcUtf; transcode to DcTF)
             let raw_body = bytes.get(97..).context("Missing body bytes")?.to_vec();
-            let body = if matches!(node_type, NodeType::Statements | NodeType::System) {
-                match ctb_formats_dcstring::DcString::from_dcutf(raw_body.clone()) {
-                    Ok(dc_string) => dc_string.into_bytes(),
-                    Err(_) => raw_body,
-                }
-            } else {
-                raw_body
-            };
+            let actual_raw_checksum = compute_sha256(&raw_body);
+            anyhow::ensure!(
+                actual_raw_checksum == checksum,
+                "Packaged node v1 body checksum mismatch"
+            );
+            let (body, checksum) =
+                if matches!(node_type, NodeType::Statements | NodeType::System)
+                {
+                    let dc_string =
+                        ctb_formats_dcstring::DcString::from_dcutf(raw_body)
+                            .context("Invalid DcUtf in v1 packaged node body")?;
+                    let body = dc_string.into_bytes();
+                    let new_checksum = compute_sha256(&body);
+                    (body, new_checksum)
+                } else {
+                    (raw_body, checksum)
+                };
 
             Ok(PackagedNode {
                 node_type,
@@ -237,15 +251,27 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 
             // 8. Body (v2 statements/system bodies used DcUtf; transcode to DcTF)
             let raw_body = bytes.get(105..).context("Missing body bytes")?.to_vec();
-            let body = if version == 2
+            let actual_raw_checksum = compute_sha256(&raw_body);
+            anyhow::ensure!(
+                actual_raw_checksum == checksum,
+                "Packaged node v{version} body checksum mismatch"
+            );
+            let (body, checksum) = if version == 2
                 && matches!(node_type, NodeType::Statements | NodeType::System)
             {
-                match ctb_formats_dcstring::DcString::from_dcutf(raw_body.clone()) {
-                    Ok(dc_string) => dc_string.into_bytes(),
-                    Err(_) => raw_body,
-                }
+                let dc_string =
+                    ctb_formats_dcstring::DcString::from_dcutf(raw_body)
+                        .context("Invalid DcUtf in v2 packaged node body")?;
+                let body = dc_string.into_bytes();
+                let new_checksum = compute_sha256(&body);
+                (body, new_checksum)
             } else {
-                raw_body
+                if matches!(node_type, NodeType::Statements | NodeType::System)
+                {
+                    ctb_formats_dcstring::DcStr::from_bytes(&raw_body)
+                        .context("Invalid DcTF in v3 packaged node body")?;
+                }
+                (raw_body, checksum)
             };
 
             Ok(PackagedNode {
@@ -280,15 +306,15 @@ mod tests {
     fn test_packaged_node_v2_roundtrip() -> Result<()> {
         let node_type = NodeType::Data;
         let timestamp = 1700000000123456u128;
-        let checksum = b"12345678901234567890123456789012";
+        let body = b"hello, this is some packaged node body data";
+        let checksum = compute_sha256(body);
         let original_node_id = 98765432101234567890u128;
         let original_graph_id = 11223344556677889900u128;
-        let body = b"hello, this is some packaged node body data";
 
         let serialized = serialize_packaged_node(
             node_type,
             timestamp,
-            checksum,
+            &checksum,
             original_node_id,
             original_graph_id,
             body,
@@ -298,10 +324,75 @@ mod tests {
 
         assert_eq!(deserialized.node_type, node_type);
         assert_eq!(deserialized.timestamp, timestamp);
-        assert_eq!(deserialized.checksum, *checksum);
+        assert_eq!(deserialized.checksum, checksum);
         assert_eq!(deserialized.original_node_id, original_node_id);
         assert_eq!(deserialized.original_graph_id, original_graph_id);
         assert_eq!(deserialized.body, body.to_vec());
+
+        // Tampered checksum must fail deserialization
+        let mut bad = serialized.clone();
+        bad[41] ^= 0xFF;
+        assert!(deserialize_packaged_node(&bad).is_err());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_packaged_node_legacy_v1_v2_migration_recomputes_checksum() -> Result<()> {
+        let mut dc_string = ctb_formats_dcstring::DcString::new();
+        dc_string.push(DcChar::from_short(5));
+        dc_string.push(DcChar::from_short(7));
+        let mst = ctb_formats_dcstring::DcMstring::from_dc_string(&dc_string)?;
+        let (dcutf_body, _) =
+            ctb_formats_dcstring::converters::utf8::dcmstring_to_dcutf(&mst)?;
+        let dcutf_checksum = compute_sha256(&dcutf_body);
+        let dctf_body = dc_string.as_bytes().to_vec();
+        let dctf_checksum = compute_sha256(&dctf_body);
+        assert_ne!(dcutf_body, dctf_body);
+        assert_ne!(dcutf_checksum, dctf_checksum);
+
+        for (version, node_type, type_uuid) in [
+            (1_u8, NodeType::Statements, NODE_STATEMENTS_UUID),
+            (1_u8, NodeType::System, NODE_SYSTEM_UUID),
+            (2_u8, NodeType::Statements, NODE_STATEMENTS_UUID),
+            (2_u8, NodeType::System, NODE_SYSTEM_UUID),
+        ] {
+            let mut pkg = Vec::new();
+            pkg.extend_from_slice(b"CTBNODE\x00");
+            pkg.push(version);
+            pkg.extend_from_slice(type_uuid.as_bytes());
+            if version == 1 {
+                pkg.extend_from_slice(&1_700_000_000_u64.to_le_bytes());
+            } else {
+                pkg.extend_from_slice(&1_700_000_000_000_000_u128.to_le_bytes());
+            }
+            pkg.extend_from_slice(&dcutf_checksum);
+            pkg.extend_from_slice(&42_u128.to_le_bytes());
+            pkg.extend_from_slice(&7_u128.to_le_bytes());
+            pkg.extend_from_slice(&dcutf_body);
+
+            let deserialized = deserialize_packaged_node(&pkg)?;
+            assert_eq!(deserialized.node_type, node_type);
+            assert_eq!(deserialized.body, dctf_body);
+            assert_eq!(
+                deserialized.checksum,
+                dctf_checksum,
+                "v{version} {node_type:?} migration must update checksum to match transcoded DcTF body"
+            );
+            assert_eq!(
+                compute_sha256(&deserialized.body),
+                deserialized.checksum
+            );
+
+            // Corrupted source checksum must be rejected
+            let mut bad_ck = pkg.clone();
+            let ck_offset = if version == 1 { 33 } else { 41 };
+            bad_ck[ck_offset] ^= 0xFF;
+            assert!(
+                deserialize_packaged_node(&bad_ck).is_err(),
+                "v{version} {node_type:?} with mismatched source checksum must be rejected"
+            );
+        }
 
         Ok(())
     }

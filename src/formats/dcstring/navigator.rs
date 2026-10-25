@@ -2338,12 +2338,20 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Reads a raw byte range from the underlying source and wraps it in a
     /// validated [`DcMstring`].
     pub fn read_span_as_mstring(&mut self, span: DcByteSpan) -> Result<DcMstring> {
+        let is_v1 = self.is_v1_encoding();
         let raw_bytes = self.read_span_bytes(span)?;
         let mut wrapped = Vec::with_capacity(DCMM_HEADER_LEN.saturating_add(raw_bytes.len()));
         wrapped.extend_from_slice(&DCMM_MAGIC);
-        wrapped.extend_from_slice(&DCMM_UUID);
-        wrapped.extend_from_slice(&raw_bytes);
-        Ok(DcMstring::from_bytes(wrapped)?)
+        if is_v1 {
+            wrapped.extend_from_slice(&crate::dc_mixed::DCMM_UUID_V1);
+            wrapped.extend_from_slice(&raw_bytes);
+            let (mst, _) = crate::dc_mixed::dcmm1_to_dcmstring(&wrapped)?;
+            Ok(mst)
+        } else {
+            wrapped.extend_from_slice(&DCMM_UUID);
+            wrapped.extend_from_slice(&raw_bytes);
+            Ok(DcMstring::from_bytes(wrapped)?)
+        }
     }
 
     /// Computes the SHA-256 digest of a byte span, streaming in 64 KiB chunks
@@ -8113,6 +8121,12 @@ fn dc_char_utf8e128_len(ch: DcChar) -> u64 {
 }
 
 impl DcDocumentNavigator<'_> {
+    /// Returns true if the navigator is backed by a `DcMixed1` (`DcUtf`) file.
+    #[must_use]
+    pub const fn is_v1_encoding(&self) -> bool {
+        matches!(self.backend, NavBackend::SeekableFile { is_v1: true, .. })
+    }
+
     /// Returns the encoded byte length of `ch` in the underlying stream's Dc encoding
     /// (`DcUtf` for `DcMixed1`, `DcTF` for `DcMixed2` and in-memory buffers).
     #[must_use]
@@ -8122,7 +8136,7 @@ impl DcDocumentNavigator<'_> {
     )]
     pub fn char_encoded_len(&self, ch: DcChar) -> u64 {
         let mut buf = [0_u8; 32];
-        let len = if matches!(self.backend, NavBackend::SeekableFile { is_v1: true, .. }) {
+        let len = if self.is_v1_encoding() {
             ctb_formats_utf_8e_128::encode_utf_8e_128_buf(&mut buf, ch.to_u128())
         } else {
             encode_dctf_buf(&mut buf, ch.to_u128())

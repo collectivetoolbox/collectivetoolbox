@@ -55,6 +55,7 @@ pub(crate) struct ScanResult {
     pub sequence: u64,
     pub completed: bool,
     pub valid_length: u64,
+    pub is_v1: bool,
 }
 
 fn retain_recovery_diagnostics(
@@ -112,6 +113,7 @@ pub(crate) fn scan(
     policy: &DcProjectionPolicy,
 ) -> Result<ScanResult> {
     let mut navigator = DcDocumentNavigator::from_dcmm_file(file, 8)?;
+    let is_v1 = navigator.is_v1_encoding();
     let quiet = DcProjectionPolicy::forgiving_quiet();
     let scan_policy = if mode == ReadMode::Recover {
         &quiet
@@ -146,6 +148,7 @@ pub(crate) fn scan(
         sequence: 0,
         completed: false,
         valid_length: session_stub.outer_span.end,
+        is_v1,
     };
     retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
     loop {
@@ -332,8 +335,8 @@ mod tests {
     #[crate::ctb_test]
     fn either_magic_accepts_batches_optional_bodies_and_diagnostics(
     ) -> Result<()> {
-        let journal = fixture(JournalMagic::JournalV4)?;
-        let archive = fixture(JournalMagic::ArchiveV1)?;
+        let journal = fixture(JournalMagic::JournalV5)?;
+        let archive = fixture(JournalMagic::ArchiveV2)?;
         ensure!(journal.get(8..) == archive.get(8..));
         for bytes in [&journal, &archive] {
             let scanned = read(bytes, ReadMode::Complete)?;
@@ -356,7 +359,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn closed_corruption_is_not_an_incomplete_tail() -> Result<()> {
-        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let session = JournalSessionRecord {
                 sources: Vec::new(),
                 destination: "output".into(),
@@ -396,7 +399,7 @@ mod tests {
     #[crate::ctb_test]
     fn journal_sequence_and_completion_rules_apply_to_either_magic(
     ) -> Result<()> {
-        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let session = JournalSessionRecord {
                 sources: Vec::new(),
                 destination: "output".into(),
@@ -445,7 +448,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn recovery_and_completion_policy_are_independent_of_magic() -> Result<()> {
-        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let bytes = fixture(magic)?;
             for length in 8..bytes.len() {
                 let Some(prefix) = bytes.get(..length) else {

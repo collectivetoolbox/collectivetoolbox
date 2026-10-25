@@ -50,6 +50,7 @@ pub struct JournalReader {
     pub(crate) completed: bool,
     pub(crate) sequence: u64,
     pub(crate) valid_length: u64,
+    pub(crate) is_legacy: bool,
 }
 
 impl JournalReader {
@@ -63,6 +64,7 @@ impl JournalReader {
 
     /// Continues encoding after the caller verifies and positions the output.
     pub(crate) fn resume_writer<W: Write>(&self, writer: W) -> Result<JournalWriter<W>> {
+        ensure!(!self.is_legacy, "Cannot resume a legacy CSC archive or journal");
         ensure!(!self.is_completed(), "Cannot resume a completed archive");
         ensure!(!self.has_diagnostics(), "Cannot resume an archive containing capture diagnostics");
         for member in &self.members {
@@ -76,18 +78,24 @@ impl JournalReader {
         file.seek(SeekFrom::Start(0))?;
         let mut magic = [0_u8; 8];
         file.read_exact(&mut magic)?;
+        let is_legacy_magic = &magic == crate::journal::ARCHIVE_MAGIC_V1
+            || &magic == crate::journal::JOURNAL_MAGIC_V4;
         ensure!(
             &magic == ARCHIVE_MAGIC
-                || &magic == crate::journal::ARCHIVE_MAGIC_V1
                 || &magic == crate::journal::JOURNAL_MAGIC
-                || &magic == crate::journal::JOURNAL_MAGIC_V4,
+                || is_legacy_magic,
             "Unsupported CSC journal magic or version"
         );
         let scanned = scanner::scan(file.try_clone()?, mode, policy)?;
+        ensure!(
+            scanned.is_v1 == is_legacy_magic,
+            "CSC outer magic version does not match inner DcMixed format version"
+        );
         Ok(Self {
             file, session: scanned.session, members: scanned.members, errors: scanned.errors,
             warnings: scanned.warnings, completed: scanned.completed,
             sequence: scanned.sequence, valid_length: scanned.valid_length,
+            is_legacy: is_legacy_magic,
         })
     }
 
@@ -318,7 +326,7 @@ mod tests {
         let session = JournalSessionRecord {
             sources: Vec::new(), destination: "output".into(), origin_platform: 1, environment: None,
         };
-        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             for include_body in [false, true] {
                 let entity = FileEntity::from_vec(b"body".to_vec());
                 let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
@@ -351,7 +359,7 @@ mod tests {
                 sources: Vec::new(), destination: "archive.cscarchive".into(),
                 origin_platform: u32::from(crate::journal::current_platform()), environment: None,
             };
-            let bytes = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?.finish()?;
+            let bytes = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?.finish()?;
             let mut marker = DcMstring::new();
             marker.push_char(dc::DC_BEGIN_CHECKSUMMED_SECTION);
             for length in 1..=marker.payload_bytes().len() {
@@ -382,7 +390,7 @@ mod tests {
             ctb_io::file::StreamKind::ExtendedAttribute, &source,
         )?);
         let session = JournalSessionRecord { sources: Vec::new(), destination: archive.clone(), origin_platform: 1, environment: None };
-        let mut writer = JournalWriter::new(File::create(&archive)?, &session, JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(File::create(&archive)?, &session, JournalMagic::ArchiveV2)?;
         writer.write_entity(&entity, None)?;
         drop(writer.finish()?);
         std::fs::remove_file(&source)?;
@@ -402,7 +410,7 @@ mod tests {
         JournalWriter::new(Vec::new(), &JournalSessionRecord {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
-        }, JournalMagic::ArchiveV1)
+        }, JournalMagic::ArchiveV2)
     }
 
     fn archive_file(bytes: &[u8]) -> Result<File> {
@@ -772,7 +780,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(), origin_platform: 1, environment: None,
         };
         for fail_rollback in [false, true] {
-            let mut writer = JournalWriter::new(tempfile::tempfile()?, &session, JournalMagic::ArchiveV1)?;
+            let mut writer = JournalWriter::new(tempfile::tempfile()?, &session, JournalMagic::ArchiveV2)?;
             let boundary = writer.output_mut().stream_position()?;
             let entity = FileEntity::from_vec(b"expected".to_vec());
             let mut source = FaultySource::new(SourceFault::Finish)?;
@@ -902,7 +910,7 @@ mod tests {
         let data = vec![0xA5; 131_072];
         let entity = FileEntity::from_vec(data.clone());
         let mut source = MemoryPayloadSource::new(data.clone())?;
-        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
         writer.write_entity(&entity, Some(&mut source))?;
         let bytes = writer.finish()?;
         let mut file = tempfile::tempfile()?;
@@ -929,7 +937,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
         };
-        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut source = MemoryPayloadSource::new(b"modified".to_vec())?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
@@ -955,7 +963,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
         };
-        let writer = JournalWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV1)?;
+        let writer = JournalWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV2)?;
         ensure!(writer.finish().is_err(), "Broken stdout reported success");
         Ok(())
     }

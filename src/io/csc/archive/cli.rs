@@ -1428,7 +1428,7 @@ mod tests {
             sources: vec![source.clone()], destination: archive.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = JournalWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV2)?;
         writer.record_error(&crate::journal::JournalErrorRecord {
             path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
             stage: crate::journal::JournalErrorStage::MetadataRead,
@@ -1923,7 +1923,7 @@ mod tests {
             origin_platform: u32::from(current_platform()), environment: None,
         };
         let mut writer = JournalWriter::new(File::create(&archive_path)?, &session,
-            crate::journal::stream::JournalMagic::ArchiveV1)?;
+            crate::journal::stream::JournalMagic::ArchiveV2)?;
         let mut data = FileEntity::from_vec(b"linked payload".to_vec());
         data.identity.relative_path = Some(PathBuf::from("source/data"));
         data.streams.push(ctb_io::file::AttachedStream::from_data(

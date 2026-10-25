@@ -51,12 +51,8 @@ pub(crate) fn ensure_clean_metadata(entity: &FileEntity) -> Result<()> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JournalMagic {
-    /// Journal v4 (`DcMixed1`) header magic.
-    JournalV4,
     /// Journal v5 (`DcMixed2`) header magic.
     JournalV5,
-    /// Archive v1 (`DcMixed1`) header magic.
-    ArchiveV1,
     /// Archive v2 (`DcMixed2`) header magic.
     ArchiveV2,
 }
@@ -81,9 +77,7 @@ impl<W: Write> JournalWriter<W> {
         session.encode_dc_mixed(&mut header)?;
         ctb_formats_dcstring::validate_dc_mixed_strict(&header)?;
         writer.write_all(match magic {
-            JournalMagic::JournalV4 => super::JOURNAL_MAGIC_V4,
             JournalMagic::JournalV5 => super::JOURNAL_MAGIC_V5,
-            JournalMagic::ArchiveV1 => ARCHIVE_MAGIC_V1,
             JournalMagic::ArchiveV2 => ARCHIVE_MAGIC_V2,
         })?;
         writer.write_all(header.as_bytes())?;
@@ -390,21 +384,6 @@ impl<W: Write> JournalWriter<W> {
         Ok(self.into_output())
     }
 
-    pub(crate) fn complete_legacy(
-        &mut self,
-        durable: impl FnOnce(&mut W) -> Result<()>,
-    ) -> Result<()> {
-        self.transaction(
-            |writer, _| {
-                writer.write_all(&[super::legacy::TAG_JOB_COMPLETED])?;
-                Ok(())
-            },
-            durable,
-        )?;
-        self.completed = true;
-        Ok(())
-    }
-
     #[cfg(test)]
     pub(crate) fn map_output<T: Write>(
         self,
@@ -606,7 +585,7 @@ mod tests {
         let error = JournalErrorRecord::from_error(std::path::Path::new("source"),
             super::super::JournalErrorStage::PayloadRead, &anyhow::anyhow!("capture failure"));
         let mut encodings = Vec::new();
-        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
             writer.write_batch(std::slice::from_ref(&entity), |_| Ok(()))?;
             let mut payload = MemoryPayloadSource::new(b"body".to_vec())?;
@@ -642,7 +621,7 @@ mod tests {
             message: "warning".into(),
             timestamp_sec: 13,
         };
-        for profile in [JournalMagic::JournalV4, JournalMagic::JournalV5, JournalMagic::ArchiveV1, JournalMagic::ArchiveV2] {
+        for profile in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let mut writer = JournalWriter::new(
                 ShortOutput(Vec::new()),
                 &session,
@@ -651,13 +630,9 @@ mod tests {
             let mut header = DcMstring::new();
             session.encode_dc_mixed(&mut header)?;
             let mut expected = match profile {
-                JournalMagic::JournalV4 => {
-                    super::super::JOURNAL_MAGIC_V4.to_vec()
-                }
                 JournalMagic::JournalV5 => {
                     super::super::JOURNAL_MAGIC_V5.to_vec()
                 }
-                JournalMagic::ArchiveV1 => ARCHIVE_MAGIC_V1.to_vec(),
                 JournalMagic::ArchiveV2 => ARCHIVE_MAGIC_V2.to_vec(),
             };
             expected.extend_from_slice(header.as_bytes());
@@ -703,7 +678,7 @@ mod tests {
         let mut writer = JournalWriter::new(
             Vec::new(),
             &session(),
-            JournalMagic::JournalV4,
+            JournalMagic::JournalV5,
         )?;
         let entity = FileEntity::from_vec(b"payload".to_vec());
         ensure!(
@@ -737,7 +712,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn capture_metadata_precommit_failure_has_no_footer_and_can_rollback() -> Result<()> {
-        let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::ArchiveV2)?;
         let checkpoint = writer.output_mut().len();
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.kind = FileEntityKind::Directory;
@@ -755,31 +730,24 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn journal_completion_durability_failure_poisoned_modern_and_legacy() -> Result<()> {
-        for legacy in [false, true] {
-            let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::JournalV4)?;
-            let result = if legacy {
-                writer.complete_legacy(|_| bail!("injected completion sync failure"))
-            } else {
-                writer.complete(|_| bail!("injected completion sync failure"))
-            };
-            ensure!(result.is_err() && writer.is_failed());
-            ensure!(!writer.completed && !writer.can_rollback_source_failure());
-            let bytes = writer.output_mut().clone();
-            let mut called = false;
-            ensure!(writer.complete(|_| { called = true; Ok(()) }).is_err());
-            ensure!(writer.complete_legacy(|_| { called = true; Ok(()) }).is_err());
-            ensure!(writer.write_batch(&[], |_| { called = true; Ok(()) }).is_err());
-            ensure!(writer.transaction(|_, _| { called = true; Ok(()) }, |_| Ok(())).is_err());
-            ensure!(!called && *writer.output_mut() == bytes && writer.sequence() == 0);
-        }
+    fn journal_completion_durability_failure_poisoned() -> Result<()> {
+        let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::JournalV5)?;
+        let result = writer.complete(|_| bail!("injected completion sync failure"));
+        ensure!(result.is_err() && writer.is_failed());
+        ensure!(!writer.completed && !writer.can_rollback_source_failure());
+        let bytes = writer.output_mut().clone();
+        let mut called = false;
+        ensure!(writer.complete(|_| { called = true; Ok(()) }).is_err());
+        ensure!(writer.write_batch(&[], |_| { called = true; Ok(()) }).is_err());
+        ensure!(writer.transaction(|_, _| { called = true; Ok(()) }, |_| Ok(())).is_err());
+        ensure!(!called && *writer.output_mut() == bytes && writer.sequence() == 0);
         Ok(())
     }
 
     #[crate::ctb_test]
     fn completed_profiles_refuse_all_writes_and_duplicate_completion()
     -> Result<()> {
-        for profile in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for profile in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let mut writer =
                 JournalWriter::new(Vec::new(), &session(), profile)?;
             writer.complete(|_| Ok(()))?;
