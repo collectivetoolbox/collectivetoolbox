@@ -1363,7 +1363,7 @@ pub enum FormatId {
     CtbNodes,
     /// Collective Toolbox Node Bundle (Short 640, Category: document)
     CtbNodeBundle,
-    /// DcTF (Short 641, Category: document)
+    /// DcTF (Dc Transformation Format) (Short 641, Category: document)
     DcTf,
     /// Dc mixed mode, version 1 (DcUtf) (Short 642, Category: document)
     DcMixed1,
@@ -7472,7 +7472,7 @@ pub const DC_APPLE_OS_TYPE: DcChar = DcChar::from_format(638);
 pub const DC_CTB_NODES: DcChar = DcChar::from_format(639);
 /// DcChar constant for Format `CtbNodeBundle` (Short f640, Category: document): Collective Toolbox Node Bundle
 pub const DC_CTB_NODE_BUNDLE: DcChar = DcChar::from_format(640);
-/// DcChar constant for Format `DcTf` (Short f641, Category: document): DcTF
+/// DcChar constant for Format `DcTf` (Short f641, Category: document): DcTF (Dc Transformation Format)
 pub const DC_DC_TF: DcChar = DcChar::from_format(641);
 /// DcChar constant for Format `DcMixed1` (Short f642, Category: document): Dc mixed mode, version 1 (DcUtf)
 pub const DC_DC_MIXED1: DcChar = DcChar::from_format(642);

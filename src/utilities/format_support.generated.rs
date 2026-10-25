@@ -756,7 +756,7 @@ pub enum SupportedDcInputFormat {
     /// Dc mixed mode
     #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
     DcMixed,
-    /// DcTF
+    /// DcTF (Dc Transformation Format)
     #[value(name = "dctf")]
     DcTf,
     /// Dc mixed mode, version 1 (DcUtf)
@@ -958,7 +958,7 @@ pub enum SupportedDcOutputFormat {
     /// Dc mixed mode
     #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
     DcMixed,
-    /// DcTF
+    /// DcTF (Dc Transformation Format)
     #[value(name = "dctf")]
     DcTf,
     /// Dc mixed mode, version 1 (DcUtf)

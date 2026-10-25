@@ -53,7 +53,7 @@ use ctb_io_csc::journal::{
     JOURNAL_MAGIC_V4, JournalErrorRecord, JournalErrorRecordPayload, JournalErrorStage,
     JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
     JournalWarningRecordPayload, JournalWarningRecordStringPayload, StateJournal,
-    convert_cscjournal_to_dcmstring, convert_cscjournal_to_v4_bytes,
+    convert_cscjournal_to_dcmstring, convert_cscjournal_to_bytes,
     read_journal_snapshot, read_journal_snapshot_with_policy, read_v4_journal_snapshot,
 };
 use ctb_io_environment::EnvDescription;

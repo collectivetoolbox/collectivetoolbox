@@ -1550,16 +1550,116 @@ pub fn dcmstring_to_dcmm2(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
     Ok((doc.as_bytes().to_vec(), ctb_formats_utilities::FormatLog::default()))
 }
 
+struct SectionHashers {
+    pairs: Vec<(
+        SupportedHashFormat,
+        ctb_formats_checksum::StreamingHasher,
+        ctb_formats_checksum::StreamingHasher,
+    )>,
+}
+
+impl SectionHashers {
+    fn new() -> Self {
+        let mut pairs = Vec::with_capacity(SupportedHashFormat::ALL_FORMAT_IDS.len());
+        for &fmt_id in SupportedHashFormat::ALL_FORMAT_IDS {
+            if let Some(algo) = SupportedHashFormat::from_format_id(fmt_id) {
+                pairs.push((
+                    algo,
+                    ctb_formats_checksum::StreamingHasher::new(algo),
+                    ctb_formats_checksum::StreamingHasher::new(algo),
+                ));
+            }
+        }
+        Self { pairs }
+    }
+
+    fn update(&mut self, src_bytes: &[u8], dst_bytes: &[u8]) {
+        for (_algo, src_h, dst_h) in &mut self.pairs {
+            src_h.update(src_bytes);
+            dst_h.update(dst_bytes);
+        }
+    }
+
+    fn finalize_algorithm(self, algorithm: SupportedHashFormat) -> Result<(Vec<u8>, Vec<u8>)> {
+        for (algo, src_h, dst_h) in self.pairs {
+            if algo == algorithm {
+                return Ok((src_h.finalize(), dst_h.finalize()));
+            }
+        }
+        bail!("Section checksum algorithm {algorithm:?} is not initialized")
+    }
+}
+
 struct SectionContainerFrame {
     closer: DcChar,
     is_number: bool,
-    checksummed_body_starts: Option<(usize, usize)>,
+    section_hashers: Option<SectionHashers>,
 }
 
 struct ClosedChecksummedSection {
-    src_body_range: std::ops::Range<usize>,
-    dst_body_range: std::ops::Range<usize>,
+    hashers: SectionHashers,
     saw_digest_tag: bool,
+}
+
+impl ClosedChecksummedSection {
+    fn recompute_typed_digest(
+        self,
+        meta_dcstring: &DcStr,
+        payload: &[u8],
+        src_offset: usize,
+        resolver: &ctb_formats_dcdata::syntax::DatasetRuleResolver,
+    ) -> Result<Vec<u8>> {
+        let strict = crate::DcProjectionPolicy::strict();
+        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(
+            meta_dcstring,
+            &strict,
+            resolver,
+        )?;
+        ensure!(
+            parsed.checksum.is_none(),
+            "Nested checksum metadata on section digest is not supported"
+        );
+        let data_type = parsed
+            .data_type
+            .context("Section digest requires a hash type header")?;
+        let Some(algorithm) =
+            crate::encapsulation::ChecksumSpec::algorithm_for_digest_with_resolver(
+                data_type,
+                u64::try_from(payload.len())?,
+                &strict,
+                resolver,
+            )?
+        else {
+            bail!("Section checksum algorithm is unsupported");
+        };
+        let (actual_src_digest, dst_digest) = self.hashers.finalize_algorithm(algorithm)?;
+        ensure!(
+            actual_src_digest.as_slice() == payload,
+            "Section checksum mismatch at offset {src_offset}"
+        );
+        Ok(dst_digest)
+    }
+
+    fn recompute_untyped_sha256_digest(
+        self,
+        payload: &[u8],
+        src_offset: usize,
+    ) -> Result<[u8; 32]> {
+        ensure!(
+            payload.len() == 32,
+            "Untyped section digest at offset {src_offset} must be 32-byte SHA-256"
+        );
+        let (actual_src, dst_digest) = self
+            .hashers
+            .finalize_algorithm(SupportedHashFormat::Sha256)?;
+        ensure!(
+            actual_src.as_slice() == payload,
+            "Section checksum mismatch at offset {src_offset}"
+        );
+        let mut out = [0_u8; 32];
+        out.copy_from_slice(&dst_digest);
+        Ok(out)
+    }
 }
 
 struct ChecksumSectionTracker {
@@ -1579,13 +1679,24 @@ impl ChecksumSectionTracker {
         }
     }
 
+    fn has_active_section(&self) -> bool {
+        self.stack.iter().any(|f| f.section_hashers.is_some())
+    }
+
+    fn update_active_sections(&mut self, src_bytes: &[u8], dst_bytes: &[u8]) {
+        for frame in &mut self.stack {
+            if let Some(hashers) = &mut frame.section_hashers {
+                hashers.update(src_bytes, dst_bytes);
+            }
+        }
+    }
+
     fn on_char(
         &mut self,
         ch: DcChar,
+        src_char_bytes: &[u8],
+        dst_char_bytes: &[u8],
         src_start: usize,
-        src_end: usize,
-        dst_start: usize,
-        dst_end: usize,
     ) -> Result<()> {
         use ctb_formats_dcdata::dc_char::DcCharExt;
         use ctb_formats_dcdata::syntax::{CharTarget, DcRole, SyntaxRuleResolver};
@@ -1596,6 +1707,7 @@ impl ChecksumSectionTracker {
                     && ch.fills_role_with(DcRole::SectionDigest, self.resolver.as_ref())
                 {
                     closed.saw_digest_tag = true;
+                    self.update_active_sections(src_char_bytes, dst_char_bytes);
                     return Ok(());
                 }
                 bail!(
@@ -1609,6 +1721,7 @@ impl ChecksumSectionTracker {
 
         if self.escaped {
             self.escaped = false;
+            self.update_active_sections(src_char_bytes, dst_char_bytes);
             return Ok(());
         }
 
@@ -1619,11 +1732,13 @@ impl ChecksumSectionTracker {
             }) {
                 self.stack.pop();
             }
+            self.update_active_sections(src_char_bytes, dst_char_bytes);
             return Ok(());
         }
 
         if ch.fills_role_with(DcRole::Escape, self.resolver.as_ref()) {
             self.escaped = true;
+            self.update_active_sections(src_char_bytes, dst_char_bytes);
             return Ok(());
         }
 
@@ -1632,12 +1747,10 @@ impl ChecksumSectionTracker {
                 || self.resolver.is_equivalent_to(ch.to_u128(), top.closer.to_u128())
         }) {
             if let Some(popped) = self.stack.pop() {
-                if let Some((src_body_start, dst_body_start)) =
-                    popped.checksummed_body_starts
-                {
+                self.update_active_sections(src_char_bytes, dst_char_bytes);
+                if let Some(hashers) = popped.section_hashers {
                     self.awaiting_digest = Some(ClosedChecksummedSection {
-                        src_body_range: src_body_start..src_start,
-                        dst_body_range: dst_body_start..dst_start,
+                        hashers,
                         saw_digest_tag: false,
                     });
                 }
@@ -1654,22 +1767,24 @@ impl ChecksumSectionTracker {
             );
         }
 
+        self.update_active_sections(src_char_bytes, dst_char_bytes);
+
         if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
             if let Some(inner_closer) = self.resolver.closer_for_opener(&target) {
                 let is_number =
                     ch.fills_role_with(DcRole::BeginNumber, self.resolver.as_ref());
-                let checksummed_body_starts = if ch.fills_role_with(
+                let section_hashers = if ch.fills_role_with(
                     DcRole::BeginChecksummedSection,
                     self.resolver.as_ref(),
                 ) {
-                    Some((src_end, dst_end))
+                    Some(SectionHashers::new())
                 } else {
                     None
                 };
                 self.stack.push(SectionContainerFrame {
                     closer: DcChar::from_u128(inner_closer),
                     is_number,
-                    checksummed_body_starts,
+                    section_hashers,
                 });
             }
         }
@@ -1692,90 +1807,14 @@ impl ChecksumSectionTracker {
         Ok(None)
     }
 
-    fn recompute_typed_digest(
-        &self,
-        closed: &ClosedChecksummedSection,
-        src_bytes: &[u8],
-        dst_bytes: &[u8],
-        meta_dcstring: &DcStr,
-        payload: &[u8],
-        src_offset: usize,
-    ) -> Result<Vec<u8>> {
-        let strict = crate::DcProjectionPolicy::strict();
-        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(
-            meta_dcstring,
-            &strict,
-            self.resolver.as_ref(),
-        )?;
-        ensure!(
-            parsed.checksum.is_none(),
-            "Nested checksum metadata on section digest is not supported"
-        );
-        let data_type = parsed
-            .data_type
-            .context("Section digest requires a hash type header")?;
-        let Some(algorithm) =
-            crate::encapsulation::ChecksumSpec::algorithm_for_digest_with_resolver(
-                data_type,
-                u64::try_from(payload.len())?,
-                &strict,
-                self.resolver.as_ref(),
-            )?
-        else {
-            bail!("Section checksum algorithm is unsupported");
-        };
-        let src_body = src_bytes
-            .get(closed.src_body_range.clone())
-            .context("Section body range out of bounds")?;
-        let mut src_hasher = ctb_formats_checksum::StreamingHasher::new(algorithm);
-        src_hasher.update(src_body);
-        let actual_src_digest = src_hasher.finalize();
-        ensure!(
-            actual_src_digest.as_slice() == payload,
-            "Section checksum mismatch at offset {src_offset}"
-        );
-        let dst_body = dst_bytes
-            .get(closed.dst_body_range.clone())
-            .context("Transcoded section body range out of bounds")?;
-        let mut dst_hasher = ctb_formats_checksum::StreamingHasher::new(algorithm);
-        dst_hasher.update(dst_body);
-        Ok(dst_hasher.finalize())
-    }
-
-    fn recompute_untyped_sha256_digest(
-        &self,
-        closed: &ClosedChecksummedSection,
-        src_bytes: &[u8],
-        dst_bytes: &[u8],
-        payload: &[u8],
-        src_offset: usize,
-    ) -> Result<[u8; 32]> {
-        ensure!(
-            payload.len() == 32,
-            "Untyped section digest at offset {src_offset} must be 32-byte SHA-256"
-        );
-        let src_body = src_bytes
-            .get(closed.src_body_range.clone())
-            .context("Section body range out of bounds")?;
-        let actual_src = Sha256::digest(src_body);
-        ensure!(
-            actual_src.as_slice() == payload,
-            "Section checksum mismatch at offset {src_offset}"
-        );
-        let dst_body = dst_bytes
-            .get(closed.dst_body_range.clone())
-            .context("Transcoded section body range out of bounds")?;
-        let new_digest = Sha256::digest(dst_body);
-        let mut out = [0_u8; 32];
-        out.copy_from_slice(new_digest.as_slice());
-        Ok(out)
-    }
-
     fn finish(&self) -> Result<()> {
         if self.awaiting_digest.is_some() {
             bail!(
                 "Missing Dc 545 (SectionDigest) or [checksum] after Dc 544 (EndChecksummedSection)"
             );
+        }
+        if self.has_active_section() {
+            bail!("Unclosed Dc 543 (BeginChecksummedSection) at end of document");
         }
         Ok(())
     }
@@ -1862,11 +1901,9 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                         }
                         .into());
                     };
+                    let dst_encap_start = mst.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_untyped_sha256_digest(
-                            &closed,
-                            bytes,
-                            mst.as_bytes(),
+                        let new_digest = closed.recompute_untyped_sha256_digest(
                             payload,
                             offset,
                         )?;
@@ -1879,6 +1916,14 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                             data: payload,
                             sha256: None,
                         })?;
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            mst.as_bytes().get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -1937,14 +1982,13 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                         }
                         .into());
                     };
+                    let dst_encap_start = mst.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_typed_digest(
-                            &closed,
-                            bytes,
-                            mst.as_bytes(),
+                        let new_digest = closed.recompute_typed_digest(
                             &meta_dcstring,
                             payload,
                             offset,
+                            tracker.resolver.as_ref(),
                         )?;
                         mst.push_binary_with_metadata(&new_digest, &meta_dcstring)
                             .map_err(|err| DcMixedError::InvalidMetadata {
@@ -1957,6 +2001,14 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                                 offset,
                                 message: format!("{err:#}"),
                             })?;
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            mst.as_bytes().get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -1997,11 +2049,9 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                         }
                         .into());
                     }
+                    let dst_encap_start = mst.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_untyped_sha256_digest(
-                            &closed,
-                            bytes,
-                            mst.as_bytes(),
+                        let new_digest = closed.recompute_untyped_sha256_digest(
                             payload,
                             offset,
                         )?;
@@ -2017,6 +2067,14 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
                             data: payload,
                             sha256: Some(expected_sha),
                         })?;
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            mst.as_bytes().get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -2044,7 +2102,12 @@ pub fn dcmm1_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilit
             mst.push_char(ch);
             let dst_end = mst.len();
             let next_offset = offset.saturating_add(char_len);
-            tracker.on_char(ch, offset, next_offset, dst_start, dst_end)?;
+            if let (Some(src_char), Some(dst_char)) = (
+                bytes.get(offset..next_offset),
+                mst.as_bytes().get(dst_start..dst_end),
+            ) {
+                tracker.on_char(ch, src_char, dst_char, offset)?;
+            }
             offset = next_offset;
         }
     }
@@ -2112,11 +2175,9 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                         }
                         .into());
                     };
+                    let dst_encap_start = out.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_untyped_sha256_digest(
-                            &closed,
-                            bytes,
-                            &out,
+                        let new_digest = closed.recompute_untyped_sha256_digest(
                             payload,
                             offset,
                         )?;
@@ -2129,6 +2190,14 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                         out.push(TYPE_BINARY);
                         out.extend_from_slice(&u128::try_from(payload.len())?.to_be_bytes());
                         out.extend_from_slice(payload);
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            out.get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -2194,14 +2263,13 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                             meta_dcutf.extend_from_slice(s);
                         }
                     }
+                    let dst_encap_start = out.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_typed_digest(
-                            &closed,
-                            bytes,
-                            &out,
+                        let new_digest = closed.recompute_typed_digest(
                             meta_dcstr,
                             payload,
                             offset,
+                            tracker.resolver.as_ref(),
                         )?;
                         out.extend_from_slice(&DC_203_BYTES_V1);
                         out.push(TYPE_BINARY_METADATA);
@@ -2216,6 +2284,14 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                         out.extend_from_slice(&u128::try_from(meta_dcutf.len())?.to_be_bytes());
                         out.extend_from_slice(&meta_dcutf);
                         out.extend_from_slice(payload);
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            out.get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -2245,11 +2321,9 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                         }
                         .into());
                     };
+                    let dst_encap_start = out.len();
                     if let Some(closed) = closed_section {
-                        let new_digest = tracker.recompute_untyped_sha256_digest(
-                            &closed,
-                            bytes,
-                            &out,
+                        let new_digest = closed.recompute_untyped_sha256_digest(
                             payload,
                             offset,
                         )?;
@@ -2265,6 +2339,14 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
                         out.extend_from_slice(&u128::try_from(payload.len())?.to_be_bytes());
                         out.extend_from_slice(&expected_sha);
                         out.extend_from_slice(payload);
+                    }
+                    if tracker.has_active_section() {
+                        if let (Some(src_encap), Some(dst_encap)) = (
+                            bytes.get(offset..payload_end),
+                            out.get(dst_encap_start..),
+                        ) {
+                            tracker.update_active_sections(src_encap, dst_encap);
+                        }
                     }
                     offset = payload_end;
                 }
@@ -2294,7 +2376,12 @@ pub fn dcmstring_to_dcmm1(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utili
             }
             let dst_end = out.len();
             let next_offset = offset.saturating_add(char_len);
-            tracker.on_char(DcChar(val), offset, next_offset, dst_start, dst_end)?;
+            if let (Some(src_char), Some(dst_char)) = (
+                bytes.get(offset..next_offset),
+                out.get(dst_start..dst_end),
+            ) {
+                tracker.on_char(DcChar(val), src_char, dst_char, offset)?;
+            }
             offset = next_offset;
         }
     }
@@ -2349,6 +2436,7 @@ fn stream_encapsulation_payload<R: std::io::Read, W: std::io::Write>(
     total_hdr_len: usize,
     enc_start: usize,
     mut hasher: Option<&mut ctb_formats_checksum::StreamingHasher>,
+    mut section_tracker: Option<&mut ChecksumSectionTracker>,
     bytes_written: &mut u64,
     stream_offset: &mut usize,
     options: &DcmmStreamOptions,
@@ -2361,6 +2449,11 @@ fn stream_encapsulation_payload<R: std::io::Read, W: std::io::Write>(
             if let Some(slice) = buffer.get(..to_take) {
                 if let Some(h) = hasher.as_deref_mut() {
                     h.update(slice);
+                }
+                if let Some(t) = section_tracker.as_deref_mut() {
+                    if t.has_active_section() {
+                        t.update_active_sections(slice, slice);
+                    }
                 }
                 writer.write_all(slice)?;
                 let to_take_u64 = u64::try_from(to_take)?;
@@ -2383,6 +2476,11 @@ fn stream_encapsulation_payload<R: std::io::Read, W: std::io::Write>(
         if let Some(slice) = chunk.get(..n) {
             if let Some(h) = hasher.as_deref_mut() {
                 h.update(slice);
+            }
+            if let Some(t) = section_tracker.as_deref_mut() {
+                if t.has_active_section() {
+                    t.update_active_sections(slice, slice);
+                }
             }
             writer.write_all(slice)?;
             let n_u64 = u64::try_from(n)?;
@@ -2461,6 +2559,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
 
     let mut buffer: Vec<u8> = Vec::with_capacity(64 * 1024);
     let mut eof_reached = false;
+    let mut is_v1 = false;
 
     if header_read < DCMM_HEADER_LEN {
         if !options.best_effort {
@@ -2484,12 +2583,12 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             header_buf.get(5..21).is_some_and(|u| u == DCMM_UUID_V1);
 
         if magic_matches && uuid_v1_matches {
-            let mut raw = Vec::with_capacity(DCMM_HEADER_LEN);
-            raw.extend_from_slice(&header_buf);
-            reader.read_to_end(&mut raw)?;
-            let (doc, conv_log) = dcmm1_to_dcmstring(&raw)?;
-            writer.write_all(doc.as_bytes())?;
-            return Ok((u64::try_from(doc.as_bytes().len())?, conv_log));
+            is_v1 = true;
+            writer.write_all(&DCMM_MAGIC)?;
+            writer.write_all(&DCMM_UUID)?;
+            let hdr_len_u64 = u64::try_from(DCMM_HEADER_LEN)?;
+            bytes_written = bytes_written.saturating_add(hdr_len_u64);
+            stream_offset = stream_offset.saturating_add(DCMM_HEADER_LEN);
         } else if magic_matches && uuid_matches {
             writer.write_all(&header_buf)?;
             let hdr_len_u64 = u64::try_from(DCMM_HEADER_LEN)?;
@@ -2518,6 +2617,25 @@ pub fn validate_and_copy_dcmm_stream_with_options<
         }
     }
 
+    let dc203_bytes: &[u8] = if is_v1 {
+        &DC_203_BYTES_V1
+    } else {
+        &DC_203_BYTES
+    };
+    let dc203_len = dc203_bytes.len();
+    let encap_type_idx = dc203_len;
+    let encap_size_start = dc203_len.saturating_add(1);
+    let encap_size_end = encap_size_start.saturating_add(16);
+    let encap_sha256_end = encap_size_end.saturating_add(32);
+    let encap_meta_len_end = encap_size_end.saturating_add(16);
+
+    let mut tracker = ChecksumSectionTracker::new();
+    let mut transcoded_text: Vec<u8> = if is_v1 {
+        Vec::with_capacity(64 * 1024)
+    } else {
+        Vec::new()
+    };
+
     // 2. Stream & Validate Payload
     loop {
         if buffer.len() < 24 && !eof_reached {
@@ -2528,27 +2646,41 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             break;
         }
 
-        // Check if buffer starts with DC_203_BYTES
-        let is_encapsulation = if buffer.starts_with(&DC_203_BYTES) {
+        // Check if buffer starts with dc203_bytes
+        let is_encapsulation = if buffer.starts_with(dc203_bytes) {
             true
-        } else if !eof_reached && DC_203_BYTES.starts_with(&buffer) {
-            refill_stream_buffer(reader, &mut buffer, ENCAP_TYPE_IDX, &mut eof_reached)?;
-            buffer.starts_with(&DC_203_BYTES)
+        } else if !eof_reached && dc203_bytes.starts_with(&buffer) {
+            refill_stream_buffer(reader, &mut buffer, encap_type_idx, &mut eof_reached)?;
+            buffer.starts_with(dc203_bytes)
         } else {
             false
         };
 
         if is_encapsulation {
             let enc_start = stream_offset;
+            let closed_section = if is_v1 {
+                match tracker.on_binary_chunk(enc_start) {
+                    Ok(cs) => cs,
+                    Err(err) => {
+                        if !options.best_effort {
+                            return Err(err);
+                        }
+                        log.warn(&format!("{err:#}"));
+                        None
+                    }
+                }
+            } else {
+                None
+            };
 
-            if buffer.len() < ENCAP_SIZE_START && !eof_reached {
-                refill_stream_buffer(reader, &mut buffer, ENCAP_SIZE_START, &mut eof_reached)?;
+            if buffer.len() < encap_size_start && !eof_reached {
+                refill_stream_buffer(reader, &mut buffer, encap_size_start, &mut eof_reached)?;
             }
-            if buffer.len() < ENCAP_SIZE_START {
+            if buffer.len() < encap_size_start {
                 if !options.best_effort {
                     return Err(DcMixedError::TruncatedEncapsulation {
                         offset: enc_start,
-                        expected: ENCAP_SIZE_START,
+                        expected: encap_size_start,
                         available: buffer.len(),
                     }.into());
                 }
@@ -2560,19 +2692,19 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                 break;
             }
 
-            let Some(&type_byte) = buffer.get(ENCAP_TYPE_IDX) else { unreachable!() };
+            let Some(&type_byte) = buffer.get(encap_type_idx) else { unreachable!() };
             let mut effective_type = type_byte;
 
             if matches!(type_byte, 1 | 4) {
                 if !options.best_effort {
                     return Err(DcMixedError::UnsupportedLegacyType {
-                        offset: enc_start.saturating_add(ENCAP_TYPE_IDX),
+                        offset: enc_start.saturating_add(encap_type_idx),
                         type_byte,
                     }.into());
                 }
                 log.warn(&format!(
                     "Unsupported legacy encapsulation type {type_byte} at offset {}; treating as binary",
-                    enc_start.saturating_add(ENCAP_TYPE_IDX)
+                    enc_start.saturating_add(encap_type_idx)
                 ));
                 effective_type = if type_byte == 4 { TYPE_BINARY_SHA256 } else { TYPE_BINARY };
             } else if type_byte != TYPE_BINARY
@@ -2581,31 +2713,31 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             {
                 if !options.best_effort {
                     return Err(DcMixedError::InvalidEncapsulationType {
-                        offset: enc_start.saturating_add(ENCAP_TYPE_IDX),
+                        offset: enc_start.saturating_add(encap_type_idx),
                         type_byte,
                     }.into());
                 }
                 log.warn(&format!(
                     "Invalid encapsulation type {type_byte} at offset {}",
-                    enc_start.saturating_add(ENCAP_TYPE_IDX)
+                    enc_start.saturating_add(encap_type_idx)
                 ));
                 writer.write_all("\u{FFFD}".as_bytes())?;
                 let rep_len = u64::try_from("\u{FFFD}".len())?;
                 bytes_written = bytes_written.saturating_add(rep_len);
-                stream_offset = stream_offset.saturating_add(ENCAP_SIZE_START);
-                buffer.drain(..ENCAP_SIZE_START);
+                stream_offset = stream_offset.saturating_add(encap_size_start);
+                buffer.drain(..encap_size_start);
                 continue;
             }
 
-            // Read payload size (16 bytes at ENCAP_SIZE_START..ENCAP_SIZE_END)
-            if buffer.len() < ENCAP_SIZE_END && !eof_reached {
-                refill_stream_buffer(reader, &mut buffer, ENCAP_SIZE_END, &mut eof_reached)?;
+            // Read payload size (16 bytes at encap_size_start..encap_size_end)
+            if buffer.len() < encap_size_end && !eof_reached {
+                refill_stream_buffer(reader, &mut buffer, encap_size_end, &mut eof_reached)?;
             }
-            if buffer.len() < ENCAP_SIZE_END {
+            if buffer.len() < encap_size_end {
                 if !options.best_effort {
                     return Err(DcMixedError::TruncatedEncapsulation {
                         offset: enc_start,
-                        expected: ENCAP_SIZE_END,
+                        expected: encap_size_end,
                         available: buffer.len(),
                     }.into());
                 }
@@ -2618,7 +2750,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             }
 
             let mut size_buf = [0u8; 16];
-            if let Some(s) = buffer.get(ENCAP_SIZE_START..ENCAP_SIZE_END) {
+            if let Some(s) = buffer.get(encap_size_start..encap_size_end) {
                 size_buf.copy_from_slice(s);
             }
             let size_u128 = u128::from_be_bytes(size_buf);
@@ -2640,32 +2772,88 @@ pub fn validate_and_copy_dcmm_stream_with_options<
 
             match effective_type {
                 TYPE_BINARY => {
-                    let total_hdr_len = ENCAP_SIZE_END;
-                    if let Some(hdr) = buffer.get(..total_hdr_len) {
-                        writer.write_all(hdr)?;
-                    }
-                    let hdr_len_u64 = u64::try_from(total_hdr_len)?;
-                    bytes_written = bytes_written.saturating_add(hdr_len_u64);
-                    stream_offset = stream_offset.saturating_add(total_hdr_len);
-                    buffer.drain(..total_hdr_len);
+                    let total_hdr_len = encap_size_end;
+                    if let Some(closed) = closed_section {
+                        let total_len = total_hdr_len.checked_add(payload_size).ok_or(
+                            DcMixedError::SizeOverflow {
+                                offset: enc_start,
+                                size: size_u128,
+                            },
+                        )?;
+                        if buffer.len() < total_len && !eof_reached {
+                            refill_stream_buffer(reader, &mut buffer, total_len, &mut eof_reached)?;
+                        }
+                        let Some(payload) = buffer.get(total_hdr_len..total_len) else {
+                            return Err(DcMixedError::TruncatedEncapsulation {
+                                offset: enc_start,
+                                expected: total_len,
+                                available: buffer.len(),
+                            }
+                            .into());
+                        };
+                        let new_digest = closed.recompute_untyped_sha256_digest(payload, enc_start)?;
+                        let mut dst_encap = Vec::with_capacity(ENCAP_SIZE_END.saturating_add(new_digest.len()));
+                        dst_encap.extend_from_slice(&DC_203_BYTES);
+                        dst_encap.push(TYPE_BINARY);
+                        dst_encap.extend_from_slice(&u128::try_from(new_digest.len())?.to_be_bytes());
+                        dst_encap.extend_from_slice(&new_digest);
+                        if tracker.has_active_section() {
+                            if let Some(src_encap) = buffer.get(..total_len) {
+                                tracker.update_active_sections(src_encap, &dst_encap);
+                            }
+                        }
+                        writer.write_all(&dst_encap)?;
+                        bytes_written = bytes_written.saturating_add(u64::try_from(dst_encap.len())?);
+                        stream_offset = stream_offset.saturating_add(total_len);
+                        buffer.drain(..total_len);
+                    } else {
+                        if is_v1 {
+                            let mut dst_hdr = [0u8; ENCAP_SIZE_END];
+                            if let Some(slot) = dst_hdr.get_mut(..4) {
+                                slot.copy_from_slice(&DC_203_BYTES);
+                            }
+                            if let Some(slot) = dst_hdr.get_mut(ENCAP_TYPE_IDX) {
+                                *slot = TYPE_BINARY;
+                            }
+                            if let Some(slot) = dst_hdr.get_mut(ENCAP_SIZE_START..ENCAP_SIZE_END) {
+                                slot.copy_from_slice(&size_buf);
+                            }
+                            if tracker.has_active_section() {
+                                if let Some(src_hdr) = buffer.get(..total_hdr_len) {
+                                    tracker.update_active_sections(src_hdr, &dst_hdr);
+                                }
+                            }
+                            writer.write_all(&dst_hdr)?;
+                            bytes_written = bytes_written.saturating_add(u64::try_from(dst_hdr.len())?);
+                        } else {
+                            if let Some(hdr) = buffer.get(..total_hdr_len) {
+                                writer.write_all(hdr)?;
+                            }
+                            let hdr_len_u64 = u64::try_from(total_hdr_len)?;
+                            bytes_written = bytes_written.saturating_add(hdr_len_u64);
+                        }
+                        stream_offset = stream_offset.saturating_add(total_hdr_len);
+                        buffer.drain(..total_hdr_len);
 
-                    stream_encapsulation_payload(
-                        reader,
-                        writer,
-                        &mut buffer,
-                        &mut eof_reached,
-                        payload_size,
-                        total_hdr_len,
-                        enc_start,
-                        None,
-                        &mut bytes_written,
-                        &mut stream_offset,
-                        options,
-                        &mut log,
-                    )?;
+                        stream_encapsulation_payload(
+                            reader,
+                            writer,
+                            &mut buffer,
+                            &mut eof_reached,
+                            payload_size,
+                            total_hdr_len,
+                            enc_start,
+                            None,
+                            is_v1.then_some(&mut tracker),
+                            &mut bytes_written,
+                            &mut stream_offset,
+                            options,
+                            &mut log,
+                        )?;
+                    }
                 }
                 TYPE_BINARY_SHA256 => {
-                    let total_hdr_len = ENCAP_SHA256_END;
+                    let total_hdr_len = encap_sha256_end;
                     if buffer.len() < total_hdr_len && !eof_reached {
                         refill_stream_buffer(reader, &mut buffer, total_hdr_len, &mut eof_reached)?;
                     }
@@ -2686,63 +2874,135 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                     }
 
                     let mut expected_sha = [0u8; 32];
-                    if let Some(sha_slice) = buffer.get(ENCAP_SIZE_END..ENCAP_SHA256_END) {
+                    if let Some(sha_slice) = buffer.get(encap_size_end..encap_sha256_end) {
                         expected_sha.copy_from_slice(sha_slice);
                     }
 
-                    if let Some(hdr) = buffer.get(..total_hdr_len) {
-                        writer.write_all(hdr)?;
-                    }
-                    let hdr_len_u64 = u64::try_from(total_hdr_len)?;
-                    bytes_written = bytes_written.saturating_add(hdr_len_u64);
-                    stream_offset = stream_offset.saturating_add(total_hdr_len);
-                    buffer.drain(..total_hdr_len);
-
-                    let mut hasher = Some(ctb_formats_checksum::StreamingHasher::new(
-                        SupportedHashFormat::Sha256,
-                    ));
-
-                    stream_encapsulation_payload(
-                        reader,
-                        writer,
-                        &mut buffer,
-                        &mut eof_reached,
-                        payload_size,
-                        total_hdr_len,
-                        enc_start,
-                        hasher.as_mut(),
-                        &mut bytes_written,
-                        &mut stream_offset,
-                        options,
-                        &mut log,
-                    )?;
-
-                    if let Some(h) = hasher {
-                        let actual_digest = h.finalize();
-                        if actual_digest.as_slice() != expected_sha.as_slice() {
-                            if !options.best_effort {
-                                let mut actual_arr = [0u8; 32];
-                                actual_arr.copy_from_slice(&actual_digest);
-                                return Err(DcMixedError::ChecksumMismatch {
-                                    offset: enc_start,
-                                    expected: expected_sha,
-                                    actual: actual_arr,
-                                }.into());
+                    if let Some(closed) = closed_section {
+                        let total_len = total_hdr_len.checked_add(payload_size).ok_or(
+                            DcMixedError::SizeOverflow {
+                                offset: enc_start,
+                                size: size_u128,
+                            },
+                        )?;
+                        if buffer.len() < total_len && !eof_reached {
+                            refill_stream_buffer(reader, &mut buffer, total_len, &mut eof_reached)?;
+                        }
+                        let Some(payload) = buffer.get(total_hdr_len..total_len) else {
+                            return Err(DcMixedError::TruncatedEncapsulation {
+                                offset: enc_start,
+                                expected: total_len,
+                                available: buffer.len(),
                             }
-                            log.warn(&format!(
-                                "SHA-256 checksum mismatch at offset {enc_start}: expected {expected_sha:?}, actual {actual_digest:?}"
-                            ));
+                            .into());
+                        };
+                        let actual = Sha256::digest(payload);
+                        if actual.as_slice() != expected_sha.as_slice() {
+                            let mut actual_arr = [0u8; 32];
+                            actual_arr.copy_from_slice(actual.as_slice());
+                            return Err(DcMixedError::ChecksumMismatch {
+                                offset: enc_start,
+                                expected: expected_sha,
+                                actual: actual_arr,
+                            }
+                            .into());
+                        }
+                        let new_digest = closed.recompute_untyped_sha256_digest(payload, enc_start)?;
+                        let new_sha = Sha256::digest(new_digest);
+                        let mut dst_encap = Vec::with_capacity(ENCAP_SHA256_END.saturating_add(new_digest.len()));
+                        dst_encap.extend_from_slice(&DC_203_BYTES);
+                        dst_encap.push(TYPE_BINARY_SHA256);
+                        dst_encap.extend_from_slice(&u128::try_from(new_digest.len())?.to_be_bytes());
+                        dst_encap.extend_from_slice(new_sha.as_slice());
+                        dst_encap.extend_from_slice(&new_digest);
+                        if tracker.has_active_section() {
+                            if let Some(src_encap) = buffer.get(..total_len) {
+                                tracker.update_active_sections(src_encap, &dst_encap);
+                            }
+                        }
+                        writer.write_all(&dst_encap)?;
+                        bytes_written = bytes_written.saturating_add(u64::try_from(dst_encap.len())?);
+                        stream_offset = stream_offset.saturating_add(total_len);
+                        buffer.drain(..total_len);
+                    } else {
+                        if is_v1 {
+                            let mut dst_hdr = [0u8; ENCAP_SHA256_END];
+                            if let Some(slot) = dst_hdr.get_mut(..4) {
+                                slot.copy_from_slice(&DC_203_BYTES);
+                            }
+                            if let Some(slot) = dst_hdr.get_mut(ENCAP_TYPE_IDX) {
+                                *slot = TYPE_BINARY_SHA256;
+                            }
+                            if let Some(slot) = dst_hdr.get_mut(ENCAP_SIZE_START..ENCAP_SIZE_END) {
+                                slot.copy_from_slice(&size_buf);
+                            }
+                            if let Some(slot) = dst_hdr.get_mut(ENCAP_SIZE_END..ENCAP_SHA256_END) {
+                                slot.copy_from_slice(&expected_sha);
+                            }
+                            if tracker.has_active_section() {
+                                if let Some(src_hdr) = buffer.get(..total_hdr_len) {
+                                    tracker.update_active_sections(src_hdr, &dst_hdr);
+                                }
+                            }
+                            writer.write_all(&dst_hdr)?;
+                            bytes_written = bytes_written.saturating_add(u64::try_from(dst_hdr.len())?);
+                        } else {
+                            if let Some(hdr) = buffer.get(..total_hdr_len) {
+                                writer.write_all(hdr)?;
+                            }
+                            let hdr_len_u64 = u64::try_from(total_hdr_len)?;
+                            bytes_written = bytes_written.saturating_add(hdr_len_u64);
+                        }
+                        stream_offset = stream_offset.saturating_add(total_hdr_len);
+                        buffer.drain(..total_hdr_len);
+
+                        let mut hasher = Some(ctb_formats_checksum::StreamingHasher::new(
+                            SupportedHashFormat::Sha256,
+                        ));
+
+                        stream_encapsulation_payload(
+                            reader,
+                            writer,
+                            &mut buffer,
+                            &mut eof_reached,
+                            payload_size,
+                            total_hdr_len,
+                            enc_start,
+                            hasher.as_mut(),
+                            is_v1.then_some(&mut tracker),
+                            &mut bytes_written,
+                            &mut stream_offset,
+                            options,
+                            &mut log,
+                        )?;
+
+                        if let Some(h) = hasher {
+                            let actual_digest = h.finalize();
+                            if actual_digest.as_slice() != expected_sha.as_slice() {
+                                if !options.best_effort {
+                                    let mut actual_arr = [0u8; 32];
+                                    actual_arr.copy_from_slice(&actual_digest);
+                                    return Err(DcMixedError::ChecksumMismatch {
+                                        offset: enc_start,
+                                        expected: expected_sha,
+                                        actual: actual_arr,
+                                    }.into());
+                                }
+                                log.warn(&format!(
+                                    "SHA-256 checksum mismatch at offset {enc_start}: expected {expected_sha:?}, actual {actual_digest:?}"
+                                ));
+                            }
                         }
                     }
                 }
                 TYPE_BINARY_METADATA => {
-                    if buffer.len() < ENCAP_META_LEN_END && !eof_reached {
-                        refill_stream_buffer(reader, &mut buffer, ENCAP_META_LEN_END, &mut eof_reached)?;
+                    if buffer.len() < encap_meta_len_end && !eof_reached {
+                        refill_stream_buffer(reader, &mut buffer, encap_meta_len_end, &mut eof_reached)?;
                     }
-                    if buffer.len() < ENCAP_META_LEN_END {
+                    if buffer.len() < encap_meta_len_end {
                         if !options.best_effort {
                             return Err(DcMixedError::InvalidMetadata {
-                                offset: enc_start.saturating_add(ENCAP_SIZE_END),
+                                offset: enc_start.saturating_add(encap_size_end),
                                 message: "Truncated metadata length".to_owned(),
                             }.into());
                         }
@@ -2755,7 +3015,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                     }
 
                     let mut meta_len_buf = [0u8; 16];
-                    if let Some(s) = buffer.get(ENCAP_SIZE_END..ENCAP_META_LEN_END) {
+                    if let Some(s) = buffer.get(encap_size_end..encap_meta_len_end) {
                         meta_len_buf.copy_from_slice(s);
                     }
                     let meta_len_u128 = u128::from_be_bytes(meta_len_buf);
@@ -2764,7 +3024,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         Err(_) => {
                             if !options.best_effort {
                                 return Err(DcMixedError::InvalidMetadata {
-                                    offset: enc_start.saturating_add(ENCAP_SIZE_END),
+                                    offset: enc_start.saturating_add(encap_size_end),
                                     message: "Metadata exceeds addressable memory".to_owned(),
                                 }.into());
                             }
@@ -2773,14 +3033,14 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         }
                     };
 
-                    let total_hdr_len = ENCAP_META_LEN_END.saturating_add(meta_len);
+                    let total_hdr_len = encap_meta_len_end.saturating_add(meta_len);
                     if buffer.len() < total_hdr_len && !eof_reached {
                         refill_stream_buffer(reader, &mut buffer, total_hdr_len, &mut eof_reached)?;
                     }
                     if buffer.len() < total_hdr_len {
                         if !options.best_effort {
                             return Err(DcMixedError::InvalidMetadata {
-                                offset: enc_start.saturating_add(ENCAP_SIZE_END),
+                                offset: enc_start.saturating_add(encap_size_end),
                                 message: "Truncated metadata".to_owned(),
                             }.into());
                         }
@@ -2792,87 +3052,187 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         break;
                     }
 
-                    let Some(meta_bytes) = buffer.get(ENCAP_META_LEN_END..total_hdr_len) else {
+                    let Some(meta_bytes) = buffer.get(encap_meta_len_end..total_hdr_len) else {
                         unreachable!("Buffer length was verified to be >= total_hdr_len");
                     };
-                    let meta_dc_str = match DcStr::from_bytes(meta_bytes) {
-                        Ok(s) => Some(s),
-                        Err(source) => {
-                            if !options.best_effort {
-                                return Err(DcMixedError::InvalidUtf8e128 {
-                                    offset: enc_start.saturating_add(ENCAP_META_LEN_END).saturating_add(source.valid_up_to()),
-                                    source,
-                                }.into());
-                            }
-                            log.warn(&format!(
-                                "Invalid DcTF in encapsulation metadata at offset {}",
-                                enc_start.saturating_add(ENCAP_META_LEN_END)
-                            ));
-                            None
-                        }
-                    };
-
-                    let checksum_spec = if let Some(meta) = meta_dc_str {
-                        match crate::encapsulation::parse_checksum_spec(meta) {
-                            Ok(cs) => cs,
-                            Err(err) => {
+                    let meta_owned: Option<DcString> = if is_v1 {
+                        match DcString::from_dcutf(meta_bytes.to_vec()) {
+                            Ok(s) => Some(s),
+                            Err(source) => {
                                 if !options.best_effort {
-                                    return Err(DcMixedError::InvalidMetadata {
-                                        offset: enc_start,
-                                        message: format!("{err:#}"),
-                                    }.into());
+                                    return Err(DcMixedError::InvalidUtf8e128 {
+                                        offset: enc_start
+                                            .saturating_add(encap_meta_len_end)
+                                            .saturating_add(source.valid_up_to()),
+                                        source,
+                                    }
+                                    .into());
                                 }
-                                log.warn(&format!("Invalid metadata syntax at offset {enc_start}: {err:#}"));
+                                log.warn(&format!(
+                                    "Invalid DcUtf in encapsulation metadata at offset {}",
+                                    enc_start.saturating_add(encap_meta_len_end)
+                                ));
                                 None
                             }
                         }
                     } else {
-                        None
+                        match DcStr::from_bytes(meta_bytes) {
+                            Ok(s) => Some(s.to_owned()),
+                            Err(source) => {
+                                if !options.best_effort {
+                                    return Err(DcMixedError::InvalidUtf8e128 {
+                                        offset: enc_start
+                                            .saturating_add(encap_meta_len_end)
+                                            .saturating_add(source.valid_up_to()),
+                                        source,
+                                    }
+                                    .into());
+                                }
+                                log.warn(&format!(
+                                    "Invalid DcTF in encapsulation metadata at offset {}",
+                                    enc_start.saturating_add(encap_meta_len_end)
+                                ));
+                                None
+                            }
+                        }
                     };
 
-                    if let Some(hdr) = buffer.get(..total_hdr_len) {
-                        writer.write_all(hdr)?;
-                    }
-                    let hdr_len_u64 = u64::try_from(total_hdr_len)?;
-                    bytes_written = bytes_written.saturating_add(hdr_len_u64);
-                    stream_offset = stream_offset.saturating_add(total_hdr_len);
-                    buffer.drain(..total_hdr_len);
-
-                    let mut hasher = checksum_spec.as_ref().map(|spec| {
-                        ctb_formats_checksum::StreamingHasher::new(spec.algorithm)
-                    });
-
-                    stream_encapsulation_payload(
-                        reader,
-                        writer,
-                        &mut buffer,
-                        &mut eof_reached,
-                        payload_size,
-                        total_hdr_len,
-                        enc_start,
-                        hasher.as_mut(),
-                        &mut bytes_written,
-                        &mut stream_offset,
-                        options,
-                        &mut log,
-                    )?;
-
-                    if let (Some(h), Some(spec)) = (hasher, checksum_spec) {
-                        let actual_digest = h.finalize();
-                        if actual_digest != spec.expected_digest {
-                            if !options.best_effort {
-                                return Err(DcMixedError::InvalidMetadata {
-                                    offset: enc_start,
-                                    message: format!(
-                                        "Encapsulation checksum mismatch ({:?})",
-                                        spec.algorithm
-                                    ),
-                                }.into());
+                    if let Some(closed) = closed_section {
+                        let total_len = total_hdr_len.checked_add(payload_size).ok_or(
+                            DcMixedError::SizeOverflow {
+                                offset: enc_start,
+                                size: size_u128,
+                            },
+                        )?;
+                        if buffer.len() < total_len && !eof_reached {
+                            refill_stream_buffer(reader, &mut buffer, total_len, &mut eof_reached)?;
+                        }
+                        let Some(payload) = buffer.get(total_hdr_len..total_len) else {
+                            return Err(DcMixedError::TruncatedEncapsulation {
+                                offset: enc_start,
+                                expected: total_len,
+                                available: buffer.len(),
                             }
-                            log.warn(&format!(
-                                "Encapsulation checksum mismatch ({:?}) at offset {enc_start}",
-                                spec.algorithm
-                            ));
+                            .into());
+                        };
+                        let meta_ref = meta_owned.as_deref().context(
+                            "Section digest metadata must be valid DcTF",
+                        )?;
+                        let new_digest = closed.recompute_typed_digest(
+                            meta_ref,
+                            payload,
+                            enc_start,
+                            tracker.resolver.as_ref(),
+                        )?;
+                        let meta_dctf_bytes = meta_ref.as_bytes();
+                        let mut dst_encap = Vec::with_capacity(
+                            ENCAP_META_LEN_END
+                                .saturating_add(meta_dctf_bytes.len())
+                                .saturating_add(new_digest.len()),
+                        );
+                        dst_encap.extend_from_slice(&DC_203_BYTES);
+                        dst_encap.push(TYPE_BINARY_METADATA);
+                        dst_encap.extend_from_slice(&u128::try_from(new_digest.len())?.to_be_bytes());
+                        dst_encap.extend_from_slice(&u128::try_from(meta_dctf_bytes.len())?.to_be_bytes());
+                        dst_encap.extend_from_slice(meta_dctf_bytes);
+                        dst_encap.extend_from_slice(&new_digest);
+                        if tracker.has_active_section() {
+                            if let Some(src_encap) = buffer.get(..total_len) {
+                                tracker.update_active_sections(src_encap, &dst_encap);
+                            }
+                        }
+                        writer.write_all(&dst_encap)?;
+                        bytes_written = bytes_written.saturating_add(u64::try_from(dst_encap.len())?);
+                        stream_offset = stream_offset.saturating_add(total_len);
+                        buffer.drain(..total_len);
+                    } else {
+                        let checksum_spec = if let Some(meta) = meta_owned.as_deref() {
+                            match crate::encapsulation::parse_checksum_spec(meta) {
+                                Ok(cs) => cs,
+                                Err(err) => {
+                                    if !options.best_effort {
+                                        return Err(DcMixedError::InvalidMetadata {
+                                            offset: enc_start,
+                                            message: format!("{err:#}"),
+                                        }.into());
+                                    }
+                                    log.warn(&format!("Invalid metadata syntax at offset {enc_start}: {err:#}"));
+                                    None
+                                }
+                            }
+                        } else {
+                            None
+                        };
+
+                        if is_v1 {
+                            let meta_dctf_bytes = meta_owned
+                                .as_deref()
+                                .map_or(&[][..], DcStr::as_bytes);
+                            let mut dst_hdr = Vec::with_capacity(
+                                ENCAP_META_LEN_END.saturating_add(meta_dctf_bytes.len()),
+                            );
+                            dst_hdr.extend_from_slice(&DC_203_BYTES);
+                            dst_hdr.push(TYPE_BINARY_METADATA);
+                            dst_hdr.extend_from_slice(&size_buf);
+                            dst_hdr.extend_from_slice(
+                                &u128::try_from(meta_dctf_bytes.len())?.to_be_bytes(),
+                            );
+                            dst_hdr.extend_from_slice(meta_dctf_bytes);
+                            if tracker.has_active_section() {
+                                if let Some(src_hdr) = buffer.get(..total_hdr_len) {
+                                    tracker.update_active_sections(src_hdr, &dst_hdr);
+                                }
+                            }
+                            writer.write_all(&dst_hdr)?;
+                            bytes_written =
+                                bytes_written.saturating_add(u64::try_from(dst_hdr.len())?);
+                        } else {
+                            if let Some(hdr) = buffer.get(..total_hdr_len) {
+                                writer.write_all(hdr)?;
+                            }
+                            let hdr_len_u64 = u64::try_from(total_hdr_len)?;
+                            bytes_written = bytes_written.saturating_add(hdr_len_u64);
+                        }
+                        stream_offset = stream_offset.saturating_add(total_hdr_len);
+                        buffer.drain(..total_hdr_len);
+
+                        let mut hasher = checksum_spec.as_ref().map(|spec| {
+                            ctb_formats_checksum::StreamingHasher::new(spec.algorithm)
+                        });
+
+                        stream_encapsulation_payload(
+                            reader,
+                            writer,
+                            &mut buffer,
+                            &mut eof_reached,
+                            payload_size,
+                            total_hdr_len,
+                            enc_start,
+                            hasher.as_mut(),
+                            is_v1.then_some(&mut tracker),
+                            &mut bytes_written,
+                            &mut stream_offset,
+                            options,
+                            &mut log,
+                        )?;
+
+                        if let (Some(h), Some(spec)) = (hasher, checksum_spec) {
+                            let actual_digest = h.finalize();
+                            if actual_digest != spec.expected_digest {
+                                if !options.best_effort {
+                                    return Err(DcMixedError::InvalidMetadata {
+                                        offset: enc_start,
+                                        message: format!(
+                                            "Encapsulation checksum mismatch ({:?})",
+                                            spec.algorithm
+                                        ),
+                                    }.into());
+                                }
+                                log.warn(&format!(
+                                    "Encapsulation checksum mismatch ({:?}) at offset {enc_start}",
+                                    spec.algorithm
+                                ));
+                            }
                         }
                     }
                 }
@@ -2881,21 +3241,53 @@ pub fn validate_and_copy_dcmm_stream_with_options<
         } else {
             // Text Region
             let mut pos = 0;
+            if is_v1 {
+                transcoded_text.clear();
+            }
+            let mut dctf_buf = [0u8; 24];
             while pos < buffer.len() {
                 let Some(slice) = buffer.get(pos..) else { break };
-                if slice.starts_with(&DC_203_BYTES) {
+                if slice.starts_with(dc203_bytes) {
                     break;
                 }
-                if !eof_reached && DC_203_BYTES.starts_with(slice) {
+                if !eof_reached && dc203_bytes.starts_with(slice) {
                     break;
                 }
-                if let Some((_val, char_len)) = decode_dctf_buf(slice) {
+                let decoded = if is_v1 {
+                    decode_utf_8e_128_buf(slice)
+                } else {
+                    decode_dctf_buf(slice)
+                };
+                if let Some((val, char_len)) = decoded {
+                    if is_v1 {
+                        let dctf_len = encode_dctf_buf(&mut dctf_buf, val);
+                        if let (Some(src_char), Some(dst_char)) =
+                            (slice.get(..char_len), dctf_buf.get(..dctf_len))
+                        {
+                            if let Err(err) = tracker.on_char(
+                                DcChar(val),
+                                src_char,
+                                dst_char,
+                                stream_offset.saturating_add(pos),
+                            ) {
+                                if !options.best_effort {
+                                    return Err(err);
+                                }
+                                log.warn(&format!("{err:#}"));
+                            }
+                            transcoded_text.extend_from_slice(dst_char);
+                        }
+                    }
                     pos = pos.saturating_add(char_len);
                 } else {
                     if !eof_reached && slice.len() < 24 {
                         break;
                     }
-                    let err_len = determine_dctf_error_len(slice);
+                    let err_len = if is_v1 {
+                        determine_utf_8e_128_error_len(slice)
+                    } else {
+                        determine_dctf_error_len(slice)
+                    };
                     if !options.best_effort {
                         return Err(DcMixedError::InvalidUtf8e128 {
                             offset: stream_offset.saturating_add(pos),
@@ -2906,12 +3298,17 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         }.into());
                     }
                     if pos > 0 {
-                        if let Some(valid_slice) = buffer.get(..pos) {
+                        if is_v1 {
+                            writer.write_all(&transcoded_text)?;
+                            let len_u64 = u64::try_from(transcoded_text.len())?;
+                            bytes_written = bytes_written.saturating_add(len_u64);
+                            transcoded_text.clear();
+                        } else if let Some(valid_slice) = buffer.get(..pos) {
                             writer.write_all(valid_slice)?;
                             let len_u64 = u64::try_from(pos)?;
                             bytes_written = bytes_written.saturating_add(len_u64);
-                            stream_offset = stream_offset.saturating_add(pos);
                         }
+                        stream_offset = stream_offset.saturating_add(pos);
                         buffer.drain(..pos);
                         pos = 0;
                     }
@@ -2929,12 +3326,17 @@ pub fn validate_and_copy_dcmm_stream_with_options<
             }
 
             if pos > 0 {
-                if let Some(valid_slice) = buffer.get(..pos) {
+                if is_v1 {
+                    writer.write_all(&transcoded_text)?;
+                    let len_u64 = u64::try_from(transcoded_text.len())?;
+                    bytes_written = bytes_written.saturating_add(len_u64);
+                    transcoded_text.clear();
+                } else if let Some(valid_slice) = buffer.get(..pos) {
                     writer.write_all(valid_slice)?;
                     let len_u64 = u64::try_from(pos)?;
                     bytes_written = bytes_written.saturating_add(len_u64);
-                    stream_offset = stream_offset.saturating_add(pos);
                 }
+                stream_offset = stream_offset.saturating_add(pos);
                 buffer.drain(..pos);
             } else if eof_reached && !buffer.is_empty() {
                 if !options.best_effort {
@@ -2942,7 +3344,11 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         offset: stream_offset,
                         source: DcUtfError {
                             valid_up_to: 0,
-                            error_len: determine_dctf_error_len(&buffer),
+                            error_len: if is_v1 {
+                                determine_utf_8e_128_error_len(&buffer)
+                            } else {
+                                determine_dctf_error_len(&buffer)
+                            },
                         },
                     }.into());
                 }
@@ -2955,6 +3361,15 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                 stream_offset = stream_offset.saturating_add(buffer.len());
                 buffer.clear();
             }
+        }
+    }
+
+    if is_v1 {
+        if let Err(err) = tracker.finish() {
+            if !options.best_effort {
+                return Err(err);
+            }
+            log.warn(&format!("{err:#}"));
         }
     }
 
@@ -3493,6 +3908,14 @@ mod tests {
         let (restored, _) = dcmm1_to_dcmstring(&dcmm1_bytes)?;
         crate::navigator::validate_dc_mixed_strict(&restored)?;
         assert_eq!(restored.as_bytes(), doc.as_bytes());
+
+        // Also verify bounded-memory streaming of DcMixed1 (with 1-byte fragmented reads)
+        // produces the exact same DcMixed2 output and recomputed section checksum.
+        let mut one_byte_reader = OneByteReader { slice: &dcmm1_bytes };
+        let mut streamed_out = Vec::new();
+        let written = validate_and_copy_dcmm_stream(&mut one_byte_reader, &mut streamed_out)?;
+        assert_eq!(written, u64::try_from(doc.len())?);
+        assert_eq!(streamed_out.as_slice(), doc.as_bytes());
 
         // Tamper with the last byte of the digest in DcMixed1 and verify
         // dcmm1_to_dcmstring rejects the corrupted section checksum.

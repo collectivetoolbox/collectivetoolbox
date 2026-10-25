@@ -269,15 +269,15 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
 
 /// Converts a legacy state journal (revisions 1..=3) to the current DcMixed journal format (`CSCJRNL5`).
 /// Embedded Dc identities are decoded strictly.
-pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
+pub fn convert_legacy_journal<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
     writer: &mut W,
 ) -> Result<()> {
-    convert_legacy_journal_to_v4_with_policy(reader, writer, &DcProjectionPolicy::strict())
+    convert_legacy_journal_with_policy(reader, writer, &DcProjectionPolicy::strict())
 }
 
 /// Converts a legacy journal with an explicit embedded Dc projection policy.
-pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
+pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
     writer: &mut W,
     policy: &DcProjectionPolicy,
@@ -533,19 +533,19 @@ pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
 }
 
 /// Converts in-memory legacy journal bytes to current DcMixed journal bytes (`CSCJRNL5`).
-pub fn convert_legacy_journal_bytes_to_v4(bytes: &[u8]) -> Result<Vec<u8>> {
-    convert_legacy_journal_bytes_to_v4_with_policy(bytes, &DcProjectionPolicy::strict())
+pub fn convert_legacy_journal_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    convert_legacy_journal_bytes_with_policy(bytes, &DcProjectionPolicy::strict())
 }
 
 /// Converts legacy journal bytes using an explicit embedded Dc projection policy.
-pub fn convert_legacy_journal_bytes_to_v4_with_policy(
+pub fn convert_legacy_journal_bytes_with_policy(
     bytes: &[u8],
     policy: &DcProjectionPolicy,
 ) -> Result<Vec<u8>> {
     let mut cursor = Cursor::new(bytes);
     let mut reader = BufReader::new(&mut cursor);
     let mut out = Vec::new();
-    convert_legacy_journal_to_v4_with_policy(&mut reader, &mut out, policy)?;
+    convert_legacy_journal_with_policy(&mut reader, &mut out, policy)?;
     Ok(out)
 }
 

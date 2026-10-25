@@ -58,8 +58,8 @@ pub use scanner::ReadMode;
 pub use stream::{ARCHIVE_MAGIC, ARCHIVE_MAGIC_V1, ARCHIVE_MAGIC_V2, JournalMagic, JournalWriter};
 
 pub use legacy::{
-    convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
-    convert_legacy_journal_to_v4, convert_legacy_journal_to_v4_with_policy,
+    convert_legacy_journal_bytes, convert_legacy_journal_bytes_with_policy,
+    convert_legacy_journal, convert_legacy_journal_with_policy,
 };
 
 pub(crate) use legacy::{
@@ -996,8 +996,8 @@ fn warn_unexpected_stream_bodies(entity: &FileEntity, warnings: &mut Vec<Journal
 
 /// Converts any in-memory cscjournal bytes (legacy or v4+) to a `DcMstring` document.
 ///
-/// Legacy journal versions (revisions 1..=3) are converted to the Dc format (version 4+),
-/// and then the 8 leading magic bytes are removed from the beginning of the version 4 data,
+/// Legacy journal versions (revisions 1..=3) are converted to the current Dc format,
+/// and then the 8 leading magic bytes are removed from the beginning of the converted data,
 /// yielding a native `DcMixed` document.
 pub fn convert_cscjournal_to_dcmstring(
     bytes: &[u8],
@@ -1032,9 +1032,9 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
             is_legacy,
             "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
         );
-        let v4_bytes = legacy::convert_legacy_journal_bytes_to_v4_with_policy(bytes, policy)?;
+        let converted_bytes = legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)?;
         return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(
-            v4_bytes
+            converted_bytes
                 .get(8..)
                 .context("Slice bounds invalid for converted journal payload")?,
         );
@@ -1045,12 +1045,12 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
 
 /// Converts in-memory cscjournal bytes to current DcMixed journal bytes (`CSCJRNL5`),
 /// or returns version 4+ journal bytes unmodified.
-pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
-    convert_cscjournal_to_v4_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+pub fn convert_cscjournal_to_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    convert_cscjournal_to_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
 }
 
 /// Converts journal bytes, using `policy` when projecting legacy Dc identities.
-pub fn convert_cscjournal_to_v4_bytes_with_policy(
+pub fn convert_cscjournal_to_bytes_with_policy(
     bytes: &[u8],
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<Vec<u8>> {
@@ -1068,7 +1068,7 @@ pub fn convert_cscjournal_to_v4_bytes_with_policy(
     } else if magic == JOURNAL_MAGIC_V1
         || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4))
     {
-        legacy::convert_legacy_journal_bytes_to_v4_with_policy(bytes, policy)
+        legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)
     } else {
         anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
     }
@@ -1667,11 +1667,11 @@ mod tests {
         legacy::write_u64(&mut journal, 1)?;
         journal.extend_from_slice(&ctb_formats_checksum::sha256(&malformed));
         journal.push(TAG_JOB_COMPLETED);
-        assert!(convert_cscjournal_to_v4_bytes(&journal).is_err());
+        assert!(convert_cscjournal_to_bytes(&journal).is_err());
         assert!(convert_cscjournal_to_dcmstring(&journal).is_err());
-        assert!(convert_cscjournal_to_v4_bytes_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
+        assert!(convert_cscjournal_to_bytes_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
         assert!(convert_cscjournal_to_dcmstring_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
-        let converted = convert_cscjournal_to_v4_bytes_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
+        let converted = convert_cscjournal_to_bytes_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
         let temp = tempdir()?;
         let path = temp.path().join("salvaged.cscjournal");
         fs::write(&path, converted)?;
@@ -2696,7 +2696,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_journal_conversion_all_revisions_to_v4_and_dcmstring() -> Result<()> {
+    fn test_journal_conversion_all_revisions_to_bytes_and_dcmstring() -> Result<()> {
         let fixtures_dir = ctb_utilities::manifest_fixture_path(
             env!("CARGO_MANIFEST_DIR"),
             "fixtures/journals",
@@ -2704,7 +2704,7 @@ mod tests {
 
         let temp = tempfile::tempdir()?;
 
-        // Test converting legacy revisions 1..=3 to v4 bytes and validating snapshot parity
+        // Test converting legacy revisions 1..=3 to current bytes and validating snapshot parity
         for (rev_name, filename, policy) in [
             ("v1_ctbmeta1", "v1_ctbmeta1-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
             ("v2_ctbmeta2", "v2_ctbmeta2-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
@@ -2715,37 +2715,37 @@ mod tests {
             let orig_snap = read_journal_snapshot_with_policy(&legacy_path, &policy)
                 .with_context(|| format!("Failed to read {rev_name} fixture before conversion"))?;
 
-            let v4_bytes = convert_cscjournal_to_v4_bytes_with_policy(&legacy_bytes, &policy)?;
+            let converted_bytes = convert_cscjournal_to_bytes_with_policy(&legacy_bytes, &policy)?;
             assert!(
-                v4_bytes.starts_with(JOURNAL_MAGIC),
+                converted_bytes.starts_with(JOURNAL_MAGIC),
                 "{rev_name} converted bytes must start with JOURNAL_MAGIC"
             );
 
-            let converted_v4_path = temp.path().join(format!("{rev_name}_converted.cscjournal"));
-            fs::write(&converted_v4_path, &v4_bytes)?;
+            let converted_path = temp.path().join(format!("{rev_name}_converted.cscjournal"));
+            fs::write(&converted_path, &converted_bytes)?;
 
-            let v4_snap = read_journal_snapshot(&converted_v4_path)?;
+            let converted_snap = read_journal_snapshot(&converted_path)?;
             assert_eq!(
-                v4_snap.is_completed, orig_snap.is_completed,
+                converted_snap.is_completed, orig_snap.is_completed,
                 "{rev_name}: completed status must match"
             );
             assert_eq!(
-                v4_snap.committed_entities.len(),
+                converted_snap.committed_entities.len(),
                 orig_snap.committed_entities.len(),
                 "{rev_name}: entity count must match"
             );
             assert_eq!(
-                v4_snap.origin_platform, orig_snap.origin_platform,
+                converted_snap.origin_platform, orig_snap.origin_platform,
                 "{rev_name}: origin platform must match"
             );
             assert_eq!(
-                v4_snap.destination, orig_snap.destination,
+                converted_snap.destination, orig_snap.destination,
                 "{rev_name}: destination must match"
             );
             for key in orig_snap.committed_entities.keys() {
                 assert!(
-                    v4_snap.committed_entities.contains_key(key),
-                    "{rev_name}: converted v4 journal must retain entity {key:?}"
+                    converted_snap.committed_entities.contains_key(key),
+                    "{rev_name}: converted journal must retain entity {key:?}"
                 );
             }
         }
