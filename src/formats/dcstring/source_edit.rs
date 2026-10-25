@@ -36,7 +36,7 @@ use ctb_formats_dcdata::dc::{
     DC_LIST_ELEMENT_SEPARATOR,
 };
 use ctb_formats_dcdata::syntax::{default_syntax_resolver, SyntaxRuleResolver};
-use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
+use ctb_formats_utf_8e_128::encode_dctf_buf;
 
 fn append_dc(target: &mut Vec<u8>, ch: DcChar) {
     let mut character = crate::DcString::new();
@@ -62,7 +62,7 @@ fn append_entry_end(target: &mut Vec<u8>, encoding: crate::DcKvMapEncoding) {
 
 fn dc_char_len(ch: &DcChar) -> usize {
     let mut buf = [0_u8; 32];
-    encode_utf_8e_128_buf(&mut buf, ch.to_u128())
+    encode_dctf_buf(&mut buf, ch.to_u128())
 }
 
 struct SourceView<'a> {
@@ -531,7 +531,7 @@ pub fn preserve_text_with_policy_and_resolver(
 
     let mut result = Vec::new();
     write_sequence(&old_view, old_arena.roots(), &new_view, new_arena.roots(), &mut result)?;
-    Ok(crate::DcString::from_dcutf(result)?)
+    Ok(crate::DcString::from_dctf(result)?)
 }
 
 #[cfg(test)]

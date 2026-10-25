@@ -55,7 +55,7 @@ pub(crate) mod stream;
 
 pub use reader::{JournalReader, JournalPayload};
 pub use scanner::ReadMode;
-pub use stream::{JournalWriter, JournalMagic, ARCHIVE_MAGIC};
+pub use stream::{ARCHIVE_MAGIC, ARCHIVE_MAGIC_V1, ARCHIVE_MAGIC_V2, JournalMagic, JournalWriter};
 
 pub use legacy::{
     convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
@@ -70,7 +70,8 @@ pub(crate) use legacy::{
 };
 
 pub const JOURNAL_MAGIC_V4: &[u8; 8] = b"CTBCSCJ\x04";
-pub const JOURNAL_MAGIC: &[u8; 8] = JOURNAL_MAGIC_V4;
+pub const JOURNAL_MAGIC_V5: &[u8; 8] = b"CTBCSCJ\x05";
+pub const JOURNAL_MAGIC: &[u8; 8] = JOURNAL_MAGIC_V5;
 pub const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
 
 pub(crate) fn session_context(session: &JournalSessionRecord) -> Result<SharedValueContext> {
@@ -509,7 +510,7 @@ impl StateJournal {
             sources: sources.to_vec(), destination: destination.to_path_buf(),
             origin_platform: u32::from(current_platform()), environment: Some(Arc::clone(&env)),
         };
-        let mut writer = stream::JournalWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV4)?;
+        let mut writer = stream::JournalWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV5)?;
         Self::sync_output(writer.output_mut())?;
 
         let jw = Self {
@@ -989,7 +990,11 @@ pub fn read_journal_snapshot_with_policy(
     };
 
     let mut snapshot = match &magic {
-        m if m == JOURNAL_MAGIC_V4 || m == ARCHIVE_MAGIC => {
+        m if m == JOURNAL_MAGIC_V5
+            || m == JOURNAL_MAGIC_V4
+            || m == ARCHIVE_MAGIC_V2
+            || m == ARCHIVE_MAGIC_V1 =>
+        {
             read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)?
         }
         m if m == JOURNAL_MAGIC_V1 => {
@@ -1054,9 +1059,11 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
         .get(..8)
         .context("Slice bounds invalid for journal magic")?;
 
-    let is_v4_or_newer = magic == JOURNAL_MAGIC_V4
+    let is_v4_or_newer = magic == JOURNAL_MAGIC_V5
+        || magic == JOURNAL_MAGIC_V4
         || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
-        || magic == ARCHIVE_MAGIC;
+        || magic == ARCHIVE_MAGIC_V2
+        || magic == ARCHIVE_MAGIC_V1;
 
     let dcmm_bytes = if is_v4_or_newer {
         bytes
@@ -1095,9 +1102,11 @@ pub fn convert_cscjournal_to_v4_bytes_with_policy(
     let magic = bytes
         .get(..8)
         .context("Slice bounds invalid for journal magic")?;
-    if magic == JOURNAL_MAGIC_V4
+    if magic == JOURNAL_MAGIC_V5
+        || magic == JOURNAL_MAGIC_V4
         || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
-        || magic == ARCHIVE_MAGIC
+        || magic == ARCHIVE_MAGIC_V2
+        || magic == ARCHIVE_MAGIC_V1
     {
         Ok(bytes.to_vec())
     } else if magic == JOURNAL_MAGIC_V1
@@ -1123,7 +1132,7 @@ pub fn read_v4_journal_snapshot(
     nav_file.seek(SeekFrom::Start(0))?;
     let mut magic = [0_u8; 8];
     nav_file.read_exact(&mut magic)?;
-    let is_archive = &magic == ARCHIVE_MAGIC;
+    let is_archive = &magic == ARCHIVE_MAGIC_V2 || &magic == ARCHIVE_MAGIC_V1;
 
     let scanned = JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
         .with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
@@ -2729,8 +2738,8 @@ mod tests {
 
             let v4_bytes = convert_cscjournal_to_v4_bytes_with_policy(&legacy_bytes, &policy)?;
             assert!(
-                v4_bytes.starts_with(JOURNAL_MAGIC_V4),
-                "{rev_name} converted bytes must start with JOURNAL_MAGIC_V4"
+                v4_bytes.starts_with(JOURNAL_MAGIC),
+                "{rev_name} converted bytes must start with JOURNAL_MAGIC"
             );
 
             let converted_v4_path = temp.path().join(format!("{rev_name}_converted.cscjournal"));

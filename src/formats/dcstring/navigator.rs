@@ -57,7 +57,9 @@ use ctb_formats_dcdata::syntax::{
     SyntaxElement, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
     default_syntax_resolver, parse_data_constraint, parse_dc_syntax,
 };
-use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
+use ctb_formats_utf_8e_128::{
+    decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf, encode_utf_8e_128_buf,
+};
 use sha2::{Digest, Sha256};
 
 pub use crate::encapsulation::ChecksumSpec as BinaryChecksum;
@@ -1574,7 +1576,9 @@ impl<'a> DcSyntaxNode<'a> {
     #[must_use]
     pub fn is_escaped_atom(&self) -> bool {
         match self.kind {
-            DcSyntaxKind::Atom(ch) => self.escaped || self.span.len() > dc_char_utf8e128_len(ch),
+            DcSyntaxKind::Atom(ch) => {
+                self.escaped || self.span.len() >= dc_char_utf8e128_len(ch).saturating_add(4)
+            }
             _ => false,
         }
     }
@@ -1943,6 +1947,7 @@ enum NavBackend<'a> {
         reader: BufReader<File>,
         base_offset: u64,
         end_offset: u64,
+        is_v1: bool,
     },
 }
 
@@ -2211,15 +2216,18 @@ impl<'a> DcDocumentNavigator<'a> {
             .context("Failed to read DcMixed header")?;
         ensure!(
             header.get(..5) == Some(&DCMM_MAGIC)
-                && header.get(5..21) == Some(&DCMM_UUID),
+                && (header.get(5..21) == Some(&DCMM_UUID)
+                    || header.get(5..21) == Some(&crate::DCMM_UUID_V1)),
             "Invalid DcMixed (.dcmm) header magic or UUID"
         );
+        let is_v1 = header.get(5..21) == Some(&crate::DCMM_UUID_V1);
         let reader = BufReader::with_capacity(64 * 1024, file);
         Ok(Self {
             backend: NavBackend::SeekableFile {
                 reader,
                 base_offset,
                 end_offset: file_len,
+                is_v1,
             },
             cursor: header_end,
             active_span: DcByteSpan::new(header_end, file_len),
@@ -3224,7 +3232,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 .closer_for_opener(&CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?)
                 .map(DcChar::from_u128)
                 .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-            let body_end = span.end.checked_sub(dc_char_utf8e128_len(list_closer)).context("Invalid equivalent list span")?;
+            let body_end = span.end.checked_sub(self.char_encoded_len(list_closer)).context("Invalid equivalent list span")?;
             self.active_span = DcByteSpan::new(after_open, body_end);
             self.cursor = after_open;
             let target = CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?;
@@ -3796,7 +3804,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     let ident_span = DcByteSpan::new(
                         stub.outer_span.start,
-                        inner.start.saturating_sub(dc_char_utf8e128_len(head)),
+                        inner.start.saturating_sub(nav.char_encoded_len(head)),
                     );
                     let ident = nav.decode_identifier_span_with_resolver(ident_span, policy, resolver)?;
                     nav.enter_frame(stub)?;
@@ -4066,8 +4074,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 if rem.is_empty() {
                     return Ok(None);
                 }
-                let Some((val, len)) = decode_utf_8e_128_buf(rem) else {
-                    bail!("Invalid UTF-8e128 character at byte offset {offset}");
+                let Some((val, len)) = decode_dctf_buf(rem) else {
+                    bail!("Invalid DcTF character at byte offset {offset}");
                 };
                 let next_offset = offset.saturating_add(u64::try_from(len)?);
                 if next_offset > self.active_span.end {
@@ -4083,8 +4091,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 if rem.is_empty() {
                     return Ok(None);
                 }
-                let Some((val, len)) = decode_utf_8e_128_buf(rem) else {
-                    bail!("Invalid UTF-8e128 character at byte offset {offset}");
+                let Some((val, len)) = decode_dctf_buf(rem) else {
+                    bail!("Invalid DcTF character at byte offset {offset}");
                 };
                 let next_offset = offset.saturating_add(u64::try_from(len)?);
                 if next_offset > self.active_span.end {
@@ -4092,7 +4100,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 Ok(Some((DcChar::from_u128(val), next_offset)))
             }
-            NavBackend::SeekableFile { reader, .. } => {
+            NavBackend::SeekableFile { reader, is_v1, .. } => {
                 reader.seek(SeekFrom::Start(offset))?;
                 let mut first = [0_u8; 1];
                 if reader.read(&mut first)? == 0 {
@@ -4100,6 +4108,63 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 let mut buf = [0_u8; 32];
                 buf[0] = first[0];
+                if *is_v1 {
+                    let seq_len = if first[0] < 0x80 {
+                        1usize
+                    } else if (first[0] & 0xE0) == 0xC0 {
+                        2usize
+                    } else if (first[0] & 0xF0) == 0xE0 {
+                        3usize
+                    } else if (first[0] & 0xF8) == 0xF0 {
+                        4usize
+                    } else if first[0] == 0xFF {
+                        let mut second = [0_u8; 1];
+                        reader
+                            .read_exact(&mut second)
+                            .with_context(|| format!("Truncated UTF-8e128 header at offset {offset}"))?;
+                        buf[1] = second[0];
+                        ensure!(
+                            (second[0] & 0xC0) == 0x80,
+                            "Invalid UTF-8e128 length byte 0x{:02x} at offset {offset}",
+                            second[0]
+                        );
+                        let l = usize::from(second[0] & 0x3F);
+                        ensure!(
+                            (4..=24).contains(&l),
+                            "Invalid UTF-8e128 continuation count {l} at offset {offset}"
+                        );
+                        let total = l.saturating_add(2);
+                        let tail = buf
+                            .get_mut(2..total)
+                            .context("UTF-8e128 sequence length exceeds buffer")?;
+                        reader
+                            .read_exact(tail)
+                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        total
+                    } else {
+                        bail!(
+                            "Invalid UTF-8e128 lead byte 0x{:02x} at offset {offset}",
+                            first[0]
+                        );
+                    };
+                    if seq_len > 1 && first[0] != 0xFF {
+                        let tail = buf
+                            .get_mut(1..seq_len)
+                            .context("UTF-8e128 sequence length exceeds buffer")?;
+                        reader
+                            .read_exact(tail)
+                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                    }
+                    let slice = buf.get(..seq_len).context("UTF-8e128 slice bounds")?;
+                    let Some((val, _)) = decode_utf_8e_128_buf(slice) else {
+                        bail!("Invalid UTF-8e128 sequence at offset {offset}");
+                    };
+                    let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
+                    if next_offset > self.active_span.end {
+                        return Ok(None);
+                    }
+                    return Ok(Some((DcChar::from_u128(val), next_offset)));
+                }
                 let seq_len = if first[0] < 0x80 {
                     1usize
                 } else if (first[0] & 0xE0) == 0xC0 {
@@ -4108,47 +4173,49 @@ impl<'a> DcDocumentNavigator<'a> {
                     3usize
                 } else if (first[0] & 0xF8) == 0xF0 {
                     4usize
+                } else if (first[0] & 0xFC) == 0xF8 {
+                    5usize
+                } else if (first[0] & 0xFE) == 0xFC {
+                    6usize
+                } else if first[0] == 0xFE {
+                    7usize
                 } else if first[0] == 0xFF {
                     let mut second = [0_u8; 1];
                     reader
                         .read_exact(&mut second)
-                        .with_context(|| format!("Truncated UTF-8e128 header at offset {offset}"))?;
+                        .with_context(|| format!("Truncated DcTF header at offset {offset}"))?;
                     buf[1] = second[0];
                     ensure!(
                         (second[0] & 0xC0) == 0x80,
-                        "Invalid UTF-8e128 length byte 0x{:02x} at offset {offset}",
+                        "Invalid DcTF tier byte 0x{:02x} at offset {offset}",
                         second[0]
                     );
-                    let l = usize::from(second[0] & 0x3F);
-                    ensure!(
-                        (4..=24).contains(&l),
-                        "Invalid UTF-8e128 continuation count {l} at offset {offset}"
-                    );
-                    let total = l.saturating_add(2);
+                    let tier = usize::from((second[0] >> 2) & 0x0F);
+                    let total = tier.saturating_add(8);
                     let tail = buf
                         .get_mut(2..total)
-                        .context("UTF-8e128 sequence length exceeds buffer")?;
+                        .context("DcTF sequence length exceeds buffer")?;
                     reader
                         .read_exact(tail)
-                        .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
                     total
                 } else {
                     bail!(
-                        "Invalid UTF-8e128 lead byte 0x{:02x} at offset {offset}",
+                        "Invalid DcTF lead byte 0x{:02x} at offset {offset}",
                         first[0]
                     );
                 };
                 if seq_len > 1 && first[0] != 0xFF {
                     let tail = buf
                         .get_mut(1..seq_len)
-                        .context("UTF-8e128 sequence length exceeds buffer")?;
+                        .context("DcTF sequence length exceeds buffer")?;
                     reader
                         .read_exact(tail)
-                        .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
                 }
-                let slice = buf.get(..seq_len).context("UTF-8e128 slice bounds")?;
-                let Some((val, _)) = decode_utf_8e_128_buf(slice) else {
-                    bail!("Invalid UTF-8e128 sequence at offset {offset}");
+                let slice = buf.get(..seq_len).context("DcTF slice bounds")?;
+                let Some((val, _)) = decode_dctf_buf(slice) else {
+                    bail!("Invalid DcTF sequence at offset {offset}");
                 };
                 let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
                 if next_offset > self.active_span.end {
@@ -4219,9 +4286,15 @@ impl<'a> DcDocumentNavigator<'a> {
                 reader,
                 base_offset,
                 end_offset,
+                is_v1,
             } => {
+                let dc203_len = if *is_v1 {
+                    crate::dc_mixed::DC_203_BYTES_V1.len()
+                } else {
+                    crate::dc_mixed::DC_203_BYTES.len()
+                };
                 let after_dc203 = start_offset
-                    .checked_add(u64::try_from(crate::dc_mixed::DC_203_BYTES.len())?)
+                    .checked_add(u64::try_from(dc203_len)?)
                     .context("Binary encapsulation offset overflow")?;
                 let source_end = self.active_span.end.min(*end_offset);
                 ensure!(
@@ -4283,10 +4356,17 @@ impl<'a> DcDocumentNavigator<'a> {
                         reader
                             .read_exact(&mut meta_bytes)
                             .context("Truncated .dcmm metadata payload")?;
-                        let meta_str = DcStr::from_bytes(&meta_bytes)?;
-                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(meta_str, policy, resolver)?;
-                        data_type = parsed.data_type.map(DcStr::to_owned);
-                        checksum = parsed.checksum_spec;
+                        if *is_v1 {
+                            let meta_owned = crate::DcString::from_dcutf(meta_bytes)?;
+                            let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(&meta_owned, policy, resolver)?;
+                            data_type = parsed.data_type.map(DcStr::to_owned);
+                            checksum = parsed.checksum_spec;
+                        } else {
+                            let meta_str = DcStr::from_bytes(&meta_bytes)?;
+                            let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(meta_str, policy, resolver)?;
+                            data_type = parsed.data_type.map(DcStr::to_owned);
+                            checksum = parsed.checksum_spec;
+                        }
                     }
                     crate::dc_mixed::TYPE_BINARY_SHA256 => {
                         let payload_end = reader.stream_position()?.checked_add(32)
@@ -5985,7 +6065,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(target) {
                                 if !ctx.resolver.is_opaque_container(first) {
                                     let inner_end = matched_end.saturating_sub(
-                                        dc_char_utf8e128_len(DcChar::from_u128(closer_u128)),
+                                        self.char_encoded_len(DcChar::from_u128(closer_u128)),
                                     );
                                     if self
                                         .validate_span_with_resolver(
@@ -6198,7 +6278,7 @@ impl<'a> DcDocumentNavigator<'a> {
             .and_then(|t| ctx.resolver.closer_for_opener(&t))
             .map(DcChar::from_u128)
             .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-        let close_len = dc_char_utf8e128_len(list_closer);
+        let close_len = self.char_encoded_len(list_closer);
         if wrapper_end < after_list_open.saturating_add(close_len) {
             return Ok(false);
         }
@@ -7133,7 +7213,7 @@ impl<'a> DcDocumentNavigator<'a> {
             .and_then(|t| ctx.resolver.closer_for_opener(&t))
             .map(DcChar::from_u128)
             .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-        let close_len = dc_char_utf8e128_len(list_closer);
+        let close_len = self.char_encoded_len(list_closer);
         if list_end < after_list_open.saturating_add(close_len) {
             return Ok(false);
         }
@@ -8024,12 +8104,31 @@ fn encapsulated_byte_length(stream: &[u128], resolver: &dyn SyntaxRuleResolver) 
 
 #[expect(
     clippy::expect_used,
-    reason = "encode_utf_8e_128_buf returns 1..=26, which is provably within u64::MAX"
+    reason = "encode_dctf_buf returns 1..=23, which is provably within u64::MAX"
 )]
 fn dc_char_utf8e128_len(ch: DcChar) -> u64 {
     let mut buf = [0_u8; 32];
-    let len = encode_utf_8e_128_buf(&mut buf, ch.to_u128());
-    u64::try_from(len).expect("UTF-8e128 encoded length fits in u64")
+    let len = encode_dctf_buf(&mut buf, ch.to_u128());
+    u64::try_from(len).expect("DcTF encoded length fits in u64")
+}
+
+impl DcDocumentNavigator<'_> {
+    /// Returns the encoded byte length of `ch` in the underlying stream's Dc encoding
+    /// (`DcUtf` for `DcMixed1`, `DcTF` for `DcMixed2` and in-memory buffers).
+    #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "encoded DcChar length is 1..=24, which is provably within u64::MAX"
+    )]
+    pub fn char_encoded_len(&self, ch: DcChar) -> u64 {
+        let mut buf = [0_u8; 32];
+        let len = if matches!(self.backend, NavBackend::SeekableFile { is_v1: true, .. }) {
+            ctb_formats_utf_8e_128::encode_utf_8e_128_buf(&mut buf, ch.to_u128())
+        } else {
+            encode_dctf_buf(&mut buf, ch.to_u128())
+        };
+        u64::try_from(len).expect("encoded DcChar length fits in u64")
+    }
 }
 
 /// Strictly validates a [`DcMstr`] buffer against all Document Character syntax

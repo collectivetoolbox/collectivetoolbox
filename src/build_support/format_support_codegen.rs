@@ -137,6 +137,7 @@ fn generate_enum_code(
         out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n");
     }
     out.push_str(&format!("pub enum {enum_name} {{\n"));
+    let mut used_value_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for r in records {
         let escaped_label = r.label.replace('`', "");
         out.push_str(&format!("    /// {escaped_label}\n"));
@@ -147,17 +148,17 @@ fn generate_enum_code(
             let mut names: Vec<String> = Vec::new();
             for nick in &r.nicknames {
                 let n = nick.to_ascii_lowercase();
-                if !names.contains(&n) {
+                if !names.contains(&n) && used_value_names.insert(n.clone()) {
                     names.push(n);
                 }
             }
             let lower_ident = r.ident.to_ascii_lowercase();
-            if !names.contains(&lower_ident) {
+            if !names.contains(&lower_ident) && used_value_names.insert(lower_ident.clone()) {
                 names.push(lower_ident);
             }
             for ext in &r.extensions {
                 let clean = ext.trim_start_matches('.').to_ascii_lowercase();
-                if !clean.is_empty() && !names.contains(&clean) {
+                if !clean.is_empty() && !names.contains(&clean) && used_value_names.insert(clean.clone()) {
                     names.push(clean);
                 }
             }
@@ -336,6 +337,7 @@ pub fn generate_format_support_code(
         ("CscJournal1Meta2", "CscJournal"),
         ("CscJournal1Meta3", "CscJournal"),
         ("CscJournal4", "CscJournal"),
+        ("CscJournal5", "CscJournal"),
     ];
 
     let dc_input_records: Vec<&FormatSupportRecord> = document_records

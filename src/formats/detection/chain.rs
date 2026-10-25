@@ -764,11 +764,11 @@ mod tests {
     #[ctb_test]
     fn test_tie_boost_common_implied_ancestor() {
         // Each CscJournal variant @implies() the base CscJournal format, so a
-        // .cscjournal filename yields five chains tied at 50; the
+        // .cscjournal filename yields six chains tied at 50; the
         // undifferentiated superset gets the +1 nudge while the variants keep
         // their catalog order.
         let chains = guess_format_chains("v4_dcmixed.cscjournal", None);
-        assert_eq!(chains.len(), 5);
+        assert_eq!(chains.len(), 6);
         assert_eq!(chains[0].outer, FormatId::CscJournal);
         assert_eq!(chains[0].score, 51);
         assert_eq!(
@@ -781,6 +781,7 @@ mod tests {
                 (FormatId::CscJournal1Meta2, 50),
                 (FormatId::CscJournal1Meta3, 50),
                 (FormatId::CscJournal4, 50),
+                (FormatId::CscJournal5, 50),
             ]
         );
     }
@@ -792,7 +793,7 @@ mod tests {
         // +1 nudge keys on the inner payload format and lifts the
         // undifferentiated CscJournal superset to the top.
         let chains = guess_format_chains("v4_dcmixed.cscjournal.gz", None);
-        assert_eq!(chains.len(), 5);
+        assert_eq!(chains.len(), 6);
         assert_eq!(chains[0].outer, FormatId::Gzip);
         assert_eq!(chains[0].inner, Some(FormatId::CscJournal));
         assert_eq!(chains[0].stem, "v4_dcmixed");
@@ -807,6 +808,7 @@ mod tests {
                 (Some(FormatId::CscJournal1Meta2), 50),
                 (Some(FormatId::CscJournal1Meta3), 50),
                 (Some(FormatId::CscJournal4), 50),
+                (Some(FormatId::CscJournal5), 50),
             ]
         );
 
@@ -838,12 +840,12 @@ mod tests {
 
     #[ctb_test]
     fn test_tie_boost_multi_ambiguous_layers() {
-        // Both .sz (5 candidates) and .cscjournal (5 candidates) branch, producing
-        // 25 chains. Sibling comparison per-layer allows CscJournal to be recognized
+        // Both .sz (5 candidates) and .cscjournal (6 candidates) branch, producing
+        // 30 chains. Sibling comparison per-layer allows CscJournal to be recognized
         // as the superset at the inner layer for every outer variant, giving it
         // score 51 over the 50-scored variant inner formats.
         let chains = guess_format_chains("v4_dcmixed.cscjournal.sz", None);
-        assert_eq!(chains.len(), 25);
+        assert_eq!(chains.len(), 30);
         // The top candidate has CscJournal inner format with boosted score 51
         assert_eq!(chains[0].outer, FormatId::Szip);
         assert_eq!(chains[0].inner, Some(FormatId::CscJournal));

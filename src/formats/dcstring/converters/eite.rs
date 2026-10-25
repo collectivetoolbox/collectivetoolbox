@@ -29,7 +29,7 @@ use crate::utilities::*;
 use anyhow::{Context, Result};
 use ctb_formats_utilities::FormatLog;
 
-use super::dctext::{dcarray_to_dclist, dclist_to_dcarray, dclist_to_dcutf};
+use super::dctext::{dcarray_to_dclist, dclist_to_dcarray, dclist_to_dctf};
 use crate::{DcMstring, DcStr};
 
 fn dca_to_dcmstring(
@@ -38,9 +38,9 @@ fn dca_to_dcmstring(
 ) -> Result<DcMstring> {
     let conv = dcarray_to_dclist(dca)?;
     accumulated_log.merge(&conv.log);
-    let dcutf_bytes = dclist_to_dcutf(&conv.result);
-    let dc_str = DcStr::from_bytes(&dcutf_bytes)
-        .context("Converting dclist to valid UTF-8e-128 DcStr")?;
+    let dctf_bytes = dclist_to_dctf(&conv.result);
+    let dc_str = DcStr::from_bytes(&dctf_bytes)
+        .context("Converting dclist to valid DcTF DcStr")?;
     DcMstring::from_dc_str(dc_str)
 }
 

@@ -33,7 +33,7 @@ use super::{
 };
 use ctb_formats_dcdata::dc;
 use ctb_formats_dcstring::{
-    DcDocumentNavigator, DcFrameHeaderInfo, DcFrameStub, DcMstring,
+    DcDocumentNavigator, DcFrameHeaderInfo, DcFrameStub,
     DcProjectionPolicy, DcSyntaxArena, SharedValueContext,
 };
 use ctb_io::file::FileEntityWithPayload;
@@ -224,11 +224,9 @@ pub(crate) fn scan(
                 result.completed = false;
             }
             head if head == dc::DC_OPERATION_COMPLETED => {
-                let mut marker = DcMstring::new();
-                marker.push_char(dc::DC_OPERATION_COMPLETED);
                 ensure!(
                     stub.outer_span.len()
-                        == u64::try_from(marker.payload_bytes().len())?,
+                        == navigator.char_encoded_len(dc::DC_OPERATION_COMPLETED),
                     "Invalid completion marker"
                 );
                 result.completed = true;
@@ -288,6 +286,7 @@ pub(crate) fn scan(
 mod tests {
     use super::*;
     use crate::journal::stream::{JournalMagic, JournalWriter};
+    use ctb_formats_dcstring::DcMstring;
     use ctb_io::file::{FileEntity, MemoryPayloadSource};
     use std::io::Write;
 

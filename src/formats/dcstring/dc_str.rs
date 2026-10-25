@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Borrowed string slice for UTF-8e-128 / DcUtf format.
+//! Borrowed string slice for DcTF format.
 
 #[allow(
     unused_imports,
@@ -32,11 +32,14 @@ use std::ops::{
     RangeTo, RangeToInclusive,
 };
 
-use ctb_formats_utf_8e_128::decode_utf_8e_128_buf;
+use ctb_formats_utf_8e_128::{
+    decode_dctf_buf, decode_utf_8e_128_buf, determine_dctf_error_len,
+    determine_utf_8e_128_error_len,
+};
 
 use crate::{DcChar, DcString, DcUtfError};
 
-/// A borrowed string slice containing valid UTF-8e-128 (DcUtf) data. Analogous to `DcMstr` and Rust's `str`.
+/// A borrowed string slice containing valid DcTF data. Analogous to `DcMstr` and Rust's `str`.
 #[repr(transparent)]
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DcStr {
@@ -44,25 +47,25 @@ pub struct DcStr {
 }
 
 impl DcStr {
-    /// Validates that the provided byte slice is valid UTF-8e-128 and wraps
+    /// Validates that the provided byte slice is valid DcTF and wraps
     /// it as a `&DcStr`.
     ///
     /// # Errors
     /// Returns `DcUtfError` if the slice contains malformed or non-canonical sequences.
     pub fn from_bytes(bytes: &[u8]) -> Result<&Self, DcUtfError> {
-        validate_dcutf(bytes)?;
+        validate_dctf(bytes)?;
         #[expect(
             unsafe_code,
-            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid UTF-8e-128"
+            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid DcTF"
         )]
-        // Safety: bytes have been verified as valid UTF-8e-128.
+        // Safety: bytes have been verified as valid DcTF.
         Ok(unsafe { Self::from_bytes_unchecked(bytes) })
     }
 
     /// Creates a `&DcStr` from a byte slice without validation.
     ///
     /// # Safety
-    /// The caller must ensure that `bytes` contains valid UTF-8e-128 data.
+    /// The caller must ensure that `bytes` contains valid DcTF data.
     #[must_use]
     #[expect(
         unsafe_code,
@@ -70,24 +73,24 @@ impl DcStr {
         reason = "DcStr is #[repr(transparent)] around [u8], so &[u8] and &DcStr have identical layout; pointer casts require as which is denied by clippy"
     )]
     pub const unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
-        // Safety: Caller guarantees bytes are valid UTF-8e-128, and DcStr is #[repr(transparent)] around [u8].
+        // Safety: Caller guarantees bytes are valid DcTF, and DcStr is #[repr(transparent)] around [u8].
         unsafe {
             std::mem::transmute::<&[u8], &Self>(bytes)
         }
     }
 
-    /// Validates that the provided mutable byte slice is valid UTF-8e-128 and
+    /// Validates that the provided mutable byte slice is valid DcTF and
     /// wraps it as a `&mut DcStr`.
     ///
     /// # Errors
     /// Returns `DcUtfError` if the slice contains malformed or non-canonical sequences.
     pub fn from_bytes_mut(bytes: &mut [u8]) -> Result<&mut Self, DcUtfError> {
-        validate_dcutf(bytes)?;
+        validate_dctf(bytes)?;
         #[expect(
             unsafe_code,
-            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid UTF-8e-128"
+            reason = "DcStr is #[repr(transparent)] around [u8], and bytes have been validated as valid DcTF"
         )]
-        // Safety: bytes have been verified as valid UTF-8e-128.
+        // Safety: bytes have been verified as valid DcTF.
         Ok(unsafe { Self::from_bytes_unchecked_mut(bytes) })
     }
 
@@ -379,7 +382,7 @@ impl Iterator for DcChars<'_> {
         if self.slice.is_empty() {
             return None;
         }
-        let (val, len) = decode_utf_8e_128_buf(self.slice)?;
+        let (val, len) = decode_dctf_buf(self.slice)?;
         self.slice = self.slice.get(len..)?;
         Some(DcChar(val))
     }
@@ -400,7 +403,7 @@ impl DoubleEndedIterator for DcChars<'_> {
             lead_idx = lead_idx.saturating_sub(1);
         }
         let tail = self.slice.get(lead_idx..)?;
-        let (val, _len) = decode_utf_8e_128_buf(tail)?;
+        let (val, _len) = decode_dctf_buf(tail)?;
         self.slice = self.slice.get(..lead_idx)?;
         Some(DcChar(val))
     }
@@ -431,18 +434,18 @@ impl Iterator for DcCharIndices<'_> {
 
 impl std::iter::FusedIterator for DcCharIndices<'_> {}
 
-/// Validates that a byte slice contains valid UTF-8e-128 (DcUtf) data.
+/// Validates that a byte slice contains valid DcTF data.
 ///
 /// # Errors
-/// Returns `DcUtfError` specifying the first invalid byte index and error length.
-pub fn validate_dcutf(bytes: &[u8]) -> Result<(), DcUtfError> {
+/// Returns `DcUtfError` specifying the first invalid byte index and maximal-subpart error length.
+pub fn validate_dctf(bytes: &[u8]) -> Result<(), DcUtfError> {
     let mut i = 0usize;
     while i < bytes.len() {
         let Some(slice) = bytes.get(i..) else { break };
-        if let Some((_val, size)) = decode_utf_8e_128_buf(slice) {
+        if let Some((_val, size)) = decode_dctf_buf(slice) {
             i = i.saturating_add(size);
         } else {
-            let error_len = determine_error_len(slice);
+            let error_len = determine_dctf_error_len(slice);
             return Err(DcUtfError {
                 valid_up_to: i,
                 error_len,
@@ -452,51 +455,128 @@ pub fn validate_dcutf(bytes: &[u8]) -> Result<(), DcUtfError> {
     Ok(())
 }
 
-fn determine_error_len(slice: &[u8]) -> Option<usize> {
-    let first = *slice.first()?;
-    if first == 0xFF {
-        let &h = slice.get(1)?;
-        if (h & 0xC0) != 0x80 {
-            return Some(1);
+/// Validates that a byte slice contains valid legacy UTF-8e-128 (DcUtf) data.
+///
+/// # Errors
+/// Returns `DcUtfError` specifying the first invalid byte index and maximal-subpart error length.
+pub fn validate_dcutf(bytes: &[u8]) -> Result<(), DcUtfError> {
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let Some(slice) = bytes.get(i..) else { break };
+        if let Some((_val, size)) = decode_utf_8e_128_buf(slice) {
+            i = i.saturating_add(size);
+        } else {
+            let error_len = determine_utf_8e_128_error_len(slice);
+            return Err(DcUtfError {
+                valid_up_to: i,
+                error_len,
+            });
         }
-        let l = usize::from(h & 0x3F);
-        if l == 0 || l > 22 {
-            return Some(2);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::DcString;
+    use crate::converters::dctext::dclist_to_dcutf;
+
+    #[crate::ctb_test]
+    fn test_dctf_tier_iteration_chunk_splits_and_dcutf_conversion() {
+        let mut values = vec![
+            0x00u128,
+            0x7F,
+            0x80,
+            0x7FF,
+            0x800,
+            0xD7FF,
+            0xD800,
+            0xDFFF,
+            0xE000,
+            0xFFFF,
+            0x1_0000,
+            0x10_FFFF,
+            0x11_0000,
+            0x1F_FFFF,
+            0x20_0000,
+            0x22_0000,
+            0x3FF_FFFF,
+            0x400_0000,
+            0x7FFF_FFFF,
+            0x8000_0000,
+            0xF_FFFF_FFFF,
+        ];
+        for k in 0..=15usize {
+            let min_val = if k == 0 {
+                1u128 << 36
+            } else {
+                1u128 << (32 + 6 * k)
+            };
+            let max_bits = 38 + 6 * k;
+            let max_val = if max_bits == 128 {
+                u128::MAX
+            } else {
+                (1u128 << max_bits) - 1
+            };
+            values.push(min_val);
+            values.push(max_val);
         }
-        let expected = l.saturating_add(2);
-        if slice.len() < expected {
-            for i in 2..slice.len() {
-                if (slice.get(i).copied()? & 0xC0) != 0x80 {
-                    return Some(i);
-                }
+
+        let mut s = DcString::new();
+        for &v in &values {
+            s.push(DcChar(v));
+        }
+
+        // Forward and reverse iteration must match exactly
+        let forward: Vec<u128> = s.chars().map(|c| c.0).collect();
+        assert_eq!(forward, values);
+        let mut reverse: Vec<u128> = s.chars().rev().map(|c| c.0).collect();
+        reverse.reverse();
+        assert_eq!(reverse, values);
+
+        // Streaming chunk-split verification at every byte position across every token
+        let bytes = s.as_bytes();
+        for split in 0..=bytes.len() {
+            let prefix = &bytes[..split];
+            if s.is_char_boundary(split) {
+                assert!(validate_dctf(prefix).is_ok());
+            } else {
+                let err = validate_dctf(prefix).unwrap_err();
+                // Incomplete canonical prefix at chunk boundary must return error_len == None
+                assert_eq!(
+                    err.error_len(),
+                    None,
+                    "Expected incomplete prefix (None) at byte split {split}"
+                );
             }
-            return None;
         }
-        return Some(expected);
+
+        // Round-trip DcTF <-> DcUtf conversion
+        let dcutf_bytes = dclist_to_dcutf(&s.to_dclist());
+        let roundtripped = DcString::from_dcutf(dcutf_bytes).unwrap();
+        assert_eq!(roundtripped, s);
+
+        // Overlapping byte sequence FF 87 81 80 80 80 80 80 80:
+        // Valid in both DcUtf (2^36) and DcTF (13,262,859,010,048).
+        let overlap = [0xFFu8, 0x87, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80];
+        let from_dcutf = DcString::from_dcutf(overlap.to_vec()).unwrap();
+        assert_eq!(
+            from_dcutf.chars().collect::<Vec<_>>(),
+            vec![DcChar(1u128 << 36)]
+        );
+        let from_dctf = DcStr::from_bytes(&overlap).unwrap();
+        assert_eq!(
+            from_dctf.chars().collect::<Vec<_>>(),
+            vec![DcChar(13_262_859_010_048u128)]
+        );
     }
-
-    if first < 0x80 {
-        return Some(1);
-    }
-
-    let expected_len = if (first & 0xE0) == 0xC0 {
-        2
-    } else if (first & 0xF0) == 0xE0 {
-        3
-    } else if (first & 0xF8) == 0xF0 {
-        4
-    } else {
-        return Some(1);
-    };
-
-    if slice.len() < expected_len {
-        for i in 1..slice.len() {
-            if (slice.get(i).copied()? & 0xC0) != 0x80 {
-                return Some(i);
-            }
-        }
-        return None;
-    }
-
-    Some(expected_len)
 }

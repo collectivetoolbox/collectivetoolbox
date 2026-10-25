@@ -58,8 +58,8 @@ pub fn serialize_packaged_node(
     // 1. Magic
     out.extend_from_slice(b"CTBNODE\x00");
 
-    // 2. Version (bumped to 2 for u128 high-resolution timestamp)
-    out.push(2);
+    // 2. Version (bumped to 3 for DcTF body encoding)
+    out.push(3);
 
     // 3. Node type UUID
     let type_uuid = match node_type {
@@ -165,8 +165,16 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
             let original_graph_id =
                 u128::from_le_bytes(original_graph_id_bytes);
 
-            // 8. Body
-            let body = bytes.get(97..).context("Missing body bytes")?.to_vec();
+            // 8. Body (v1 statements/system bodies used DcUtf; transcode to DcTF)
+            let raw_body = bytes.get(97..).context("Missing body bytes")?.to_vec();
+            let body = if matches!(node_type, NodeType::Statements | NodeType::System) {
+                match ctb_formats_dcstring::DcString::from_dcutf(raw_body.clone()) {
+                    Ok(dc_string) => dc_string.into_bytes(),
+                    Err(_) => raw_body,
+                }
+            } else {
+                raw_body
+            };
 
             Ok(PackagedNode {
                 node_type,
@@ -177,10 +185,10 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 body,
             })
         }
-        2 => {
+        2 | 3 => {
             if bytes.len() < 105 {
                 anyhow::bail!(
-                    "Version 2 package too small: minimum size is 105 bytes"
+                    "Version {version} package too small: minimum size is 105 bytes"
                 );
             }
 
@@ -199,7 +207,7 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 ),
             };
 
-            // 4. Timestamp (v2 uses u128)
+            // 4. Timestamp (v2/v3 uses u128)
             let timestamp_bytes: [u8; 16] = bytes
                 .get(25..41)
                 .context("Missing timestamp bytes")?
@@ -227,8 +235,18 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
             let original_graph_id =
                 u128::from_le_bytes(original_graph_id_bytes);
 
-            // 8. Body
-            let body = bytes.get(105..).context("Missing body bytes")?.to_vec();
+            // 8. Body (v2 statements/system bodies used DcUtf; transcode to DcTF)
+            let raw_body = bytes.get(105..).context("Missing body bytes")?.to_vec();
+            let body = if version == 2
+                && matches!(node_type, NodeType::Statements | NodeType::System)
+            {
+                match ctb_formats_dcstring::DcString::from_dcutf(raw_body.clone()) {
+                    Ok(dc_string) => dc_string.into_bytes(),
+                    Err(_) => raw_body,
+                }
+            } else {
+                raw_body
+            };
 
             Ok(PackagedNode {
                 node_type,

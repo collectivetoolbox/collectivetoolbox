@@ -79,7 +79,9 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
 
     // 1. Strict document validation must reject the dev-era syntax discrepancies
     let payload_bytes = initial_bytes.get(8..).context("Payload bytes")?;
-    let payload_mstr = DcMstr::from_bytes(payload_bytes).context("Parse as DcMstr")?;
+    let (payload_mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(payload_bytes)
+        .context("Parse as DcMixed1")?;
+    let payload_mstr = payload_mstring.as_mstr();
     let strict_validation = validate_dc_mixed_strict(payload_mstr);
     ensure!(
         strict_validation.is_err(),
@@ -132,7 +134,9 @@ fn test_tier4_dcmm_fixture_strict_vs_forgiving() -> Result<()> {
     let initial_bytes = fs::read(&fixture_file).context("Read initial dcmm bytes")?;
     let initial_len = initial_bytes.len();
 
-    let mstr = DcMstr::from_bytes(&initial_bytes).context("Parse dcmm as DcMstr")?;
+    let (mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(&initial_bytes)
+        .context("Parse dcmm as DcMixed1")?;
+    let mstr = mstring.as_mstr();
 
     // 1. Strict document validation must reject legacy unframed constructs
     let strict_res = validate_dc_mixed_strict(mstr);
@@ -320,8 +324,8 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
     // Check that the v4 journal data (after the 8-byte magic) is strictly valid
     let file_bytes = fs::read(&journal_path)?;
     ensure!(
-        file_bytes.starts_with(JOURNAL_MAGIC_V4),
-        "Journal must start with JOURNAL_MAGIC_V4"
+        file_bytes.starts_with(ctb_io_csc::journal::JOURNAL_MAGIC),
+        "Journal must start with JOURNAL_MAGIC"
     );
     let payload_bytes = file_bytes
         .get(8..)

@@ -17,11 +17,28 @@
 !:ext	F
 
 # Dc Mixed Mode document
-0	string		DcMM\0\xd5\xab\x81\x9e\x9b\x8e\x4d\x61\xad\xbc\x93\x3e\x88\x51\xe7\x9a	Dc Mixed Mode document
+0	string		DcMM\0\xd5\xab\x81\x9e\x9b\x8e\x4d\x61\xad\xbc\x93\x3e\x88\x51\xe7\x9a	Dc Mixed Mode document, version 1
 !:mime	application/octet-stream
 !:ext	dcmm
 
+0	string		DcMM\0\xb0\x32\x7a\x84\xb7\x45\x49\x2c\xb3\x9d\x77\xc2\x82\x7e\x3a\x6f	Dc Mixed Mode document, version 2
+!:mime	application/octet-stream
+!:ext	dcmm
+
+# Collective Toolbox Node Bundle
+0	string		CTBNBDL\x01	Collective Toolbox Node Bundle, version 1
+!:mime	application/octet-stream
+!:ext	ctbnbdl
+
+0	string		CTBNBDL\x02	Collective Toolbox Node Bundle, version 2
+!:mime	application/octet-stream
+!:ext	ctbnbdl
+
 # Collective Toolbox csc journal
+0	string		CTBCSCJ\x05	Collective Toolbox csc journal, version 5
+!:mime	application/octet-stream
+!:ext	cscjournal
+
 0	string		CTBCSCJ\x04	Collective Toolbox csc journal, version 4
 !:mime	application/octet-stream
 !:ext	cscjournal
@@ -31,6 +48,10 @@
 !:ext	cscjournal
 
 # Collective Toolbox csc archive
+0	string		CTBCSCA\x02	Collective Toolbox csc archive, version 2
+!:mime	application/octet-stream
+!:ext	cscarchive
+
 0	string		CTBCSCA\x01	Collective Toolbox csc archive, version 1
 !:mime	application/octet-stream
 !:ext	cscarchive

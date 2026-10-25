@@ -164,6 +164,9 @@ pub use validation::{
 
 use include_dir::{Dir, include_dir};
 
+const _: &[u8] = include_bytes!("data/magic/ctoolbox.magic");
+const _: &[u8] = include_bytes!("data/formats.generated.csv");
+
 static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Returns the raw bytes of an embedded data file within the `dc_data` asset directory.

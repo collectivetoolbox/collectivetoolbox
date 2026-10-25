@@ -303,7 +303,7 @@ impl DcSource for DcStr {
         let bytes = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
         let replacement = fragment.to_dc_string_with_policy_and_resolver(policy, resolver)?;
         let revised = crate::source_edit::preserve_text_with_policy_and_resolver(DcStr::from_bytes(bytes)?, &replacement, policy, resolver)?;
-        Ok(DcString::from_dcutf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
+        Ok(DcString::from_dctf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
     }
 
     fn replace_source_field(
@@ -321,7 +321,7 @@ impl DcSource for DcStr {
             "Source range splits a Dc character"
         );
         let fragment = fragment.to_dc_string()?;
-        DcString::from_dcutf(splice(
+        DcString::from_dctf(splice(
             self.as_bytes(),
             range,
             fragment.as_bytes(),

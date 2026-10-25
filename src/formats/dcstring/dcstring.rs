@@ -50,10 +50,11 @@ pub use converters::{dcal, dcts, dctext, eite, utf8};
 pub use dc_char::{DcChar, DcCharExt};
 pub use dc_writer::{DcBinaryReader, DcBinarySource, DcBinarySourceError, DcWriter, validate_and_write_dc_record};
 pub use dc_mixed::{
-    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcmmStreamOptions, DcMixed, DcMixedChunk,
-    DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,
-    validate_and_copy_dcmm_stream, validate_and_copy_dcmm_stream_with_options,
-    validate_dcmst,
+    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DCMM_UUID_V1, DcmmStreamOptions, DcMixed,
+    DcMixedChunk, DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,
+    dcmm1_to_dcmstring, dcmm2_to_dcmstring, dcmm_to_dcmstring, dcmstring_to_dcmm,
+    dcmstring_to_dcmm1, dcmstring_to_dcmm2, validate_and_copy_dcmm_stream,
+    validate_and_copy_dcmm_stream_with_options, validate_dcmst,
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{
@@ -61,7 +62,7 @@ pub use dc_mixed_serde::{
     DcProjectionContext, DcRawValue, LosslessWithContext,
     assert_dc_document_roundtrip, assert_dc_roundtrip,
 };
-pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
+pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dctf, validate_dcutf};
 pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;

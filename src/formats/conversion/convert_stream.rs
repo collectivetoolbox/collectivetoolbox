@@ -167,7 +167,13 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
         }
     };
 
-    if resolved_format == SupportedDcInputFormat::DcMixed {
+    let is_dcmm1_header = peek_bytes.len() >= DCMM_HEADER_LEN
+        && peek_bytes.get(..5) == Some(&DCMM_MAGIC)
+        && peek_bytes.get(5..21) == Some(&ctb_formats_dcstring::DCMM_UUID_V1);
+
+    if resolved_format == SupportedDcInputFormat::DcMixed2
+        || (resolved_format == SupportedDcInputFormat::DcMixed && !is_dcmm1_header)
+    {
         let (bytes_written, log) =
             ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
                 &mut buf_reader,
@@ -175,7 +181,7 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 &ctb_formats_dcstring::DcmmStreamOptions::default(),
             )?;
         return Ok(StreamConversionReceipt {
-            detected_format: FormatId::DcMixed,
+            detected_format: resolved_format.to_format_id(),
             bytes_written,
             log,
         });
@@ -231,7 +237,7 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 bail!("Incomplete UTF-8 sequence at end of stream");
             }
         }
-        SupportedDcInputFormat::DcMixed => unreachable!(),
+        SupportedDcInputFormat::DcMixed2 => unreachable!(),
         _ => {
             let mut all_bytes = Vec::new();
             buf_reader.read_to_end(&mut all_bytes)?;
@@ -270,7 +276,10 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     format: SupportedDcOutputFormat,
     options: &DcExportOptions,
 ) -> Result<StreamExportReceipt> {
-    if format == SupportedDcOutputFormat::DcMixed {
+    if matches!(
+        format,
+        SupportedDcOutputFormat::DcMixed | SupportedDcOutputFormat::DcMixed2
+    ) {
         let (bytes_written, log) =
             ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
                 reader,
@@ -278,7 +287,7 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
                 &ctb_formats_dcstring::DcmmStreamOptions::default(),
             )?;
         return Ok(StreamExportReceipt {
-            target_format: FormatId::DcMixed,
+            target_format: format.to_format_id(),
             bytes_written,
             log,
         });
@@ -415,7 +424,7 @@ mod tests {
         )
         .expect("stream dcmm passthrough");
 
-        assert_eq!(receipt.detected_format, FormatId::DcMixed);
+        assert_eq!(receipt.detected_format, FormatId::DcMixed2);
         assert_eq!(receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
         assert_eq!(dcmm_out, input_bytes);
 

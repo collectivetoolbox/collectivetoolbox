@@ -36,7 +36,9 @@ use ctb_formats_dcstring::{DcMixedEncode, DcMstring, SharedValueContext};
 use ctb_io::file::{Extent, FileEntity, FileEntityKind, PayloadSource};
 use std::io::{Read, Seek, SeekFrom, Write};
 
-pub const ARCHIVE_MAGIC: &[u8; 8] = b"CTBCSCA\x01";
+pub const ARCHIVE_MAGIC_V1: &[u8; 8] = b"CTBCSCA\x01";
+pub const ARCHIVE_MAGIC_V2: &[u8; 8] = b"CTBCSCA\x02";
+pub const ARCHIVE_MAGIC: &[u8; 8] = ARCHIVE_MAGIC_V2;
 
 pub(crate) fn ensure_clean_metadata(entity: &FileEntity) -> Result<()> {
     entity.check_ok()?;
@@ -49,10 +51,14 @@ pub(crate) fn ensure_clean_metadata(entity: &FileEntity) -> Result<()> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JournalMagic {
-    /// Journal header magic.
+    /// Journal v4 (`DcMixed1`) header magic.
     JournalV4,
-    /// Archive header magic.
+    /// Journal v5 (`DcMixed2`) header magic.
+    JournalV5,
+    /// Archive v1 (`DcMixed1`) header magic.
     ArchiveV1,
+    /// Archive v2 (`DcMixed2`) header magic.
+    ArchiveV2,
 }
 
 pub struct JournalWriter<W: Write> {
@@ -76,7 +82,9 @@ impl<W: Write> JournalWriter<W> {
         ctb_formats_dcstring::validate_dc_mixed_strict(&header)?;
         writer.write_all(match magic {
             JournalMagic::JournalV4 => super::JOURNAL_MAGIC_V4,
-            JournalMagic::ArchiveV1 => ARCHIVE_MAGIC,
+            JournalMagic::JournalV5 => super::JOURNAL_MAGIC_V5,
+            JournalMagic::ArchiveV1 => ARCHIVE_MAGIC_V1,
+            JournalMagic::ArchiveV2 => ARCHIVE_MAGIC_V2,
         })?;
         writer.write_all(header.as_bytes())?;
         Self::resume_output(writer, session, 0, false)
@@ -634,7 +642,7 @@ mod tests {
             message: "warning".into(),
             timestamp_sec: 13,
         };
-        for profile in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+        for profile in [JournalMagic::JournalV4, JournalMagic::JournalV5, JournalMagic::ArchiveV1, JournalMagic::ArchiveV2] {
             let mut writer = JournalWriter::new(
                 ShortOutput(Vec::new()),
                 &session,
@@ -646,7 +654,11 @@ mod tests {
                 JournalMagic::JournalV4 => {
                     super::super::JOURNAL_MAGIC_V4.to_vec()
                 }
-                JournalMagic::ArchiveV1 => ARCHIVE_MAGIC.to_vec(),
+                JournalMagic::JournalV5 => {
+                    super::super::JOURNAL_MAGIC_V5.to_vec()
+                }
+                JournalMagic::ArchiveV1 => ARCHIVE_MAGIC_V1.to_vec(),
+                JournalMagic::ArchiveV2 => ARCHIVE_MAGIC_V2.to_vec(),
             };
             expected.extend_from_slice(header.as_bytes());
             let mut body = DcMstring::new();

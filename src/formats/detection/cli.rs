@@ -1193,7 +1193,7 @@ mod tests {
         // The verified chain renders first, annotated; the inner-layer tie
         // boost lifts the undifferentiated CscJournal superset payload chain
         // above its variant siblings, which keep their catalog order.
-        assert_eq!(chain_lines.len(), 5);
+        assert_eq!(chain_lines.len(), 6);
         assert_eq!(
             chain_lines[0],
             "  • CscJournal4 > Gzip (score: 50) ✓ verified by content"
@@ -1205,6 +1205,7 @@ mod tests {
                 "  • CscJournal1Meta1 > Gzip (score: 50)",
                 "  • CscJournal1Meta2 > Gzip (score: 50)",
                 "  • CscJournal1Meta3 > Gzip (score: 50)",
+                "  • CscJournal5 > Gzip (score: 50)",
             ]
         );
     }

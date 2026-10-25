@@ -80,9 +80,9 @@ pub fn dclist_to_dcal(dclist: &[u128]) -> Vec<u8> {
 /// Converts a Dcal document to `DcMstring`.
 pub fn dcal_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
     let conv = dcal_to_dclist(bytes)?;
-    let dcutf_bytes = super::dctext::dclist_to_dcutf(&conv.result);
-    let dc_str = crate::DcStr::from_bytes(&dcutf_bytes)
-        .context("Converting dcal list to valid UTF-8e-128 DcStr")?;
+    let dctf_bytes = super::dctext::dclist_to_dctf(&conv.result);
+    let dc_str = crate::DcStr::from_bytes(&dctf_bytes)
+        .context("Converting dcal list to valid DcTF DcStr")?;
     let doc = crate::DcMstring::from_dc_str(dc_str)?;
     Ok((doc, conv.log))
 }

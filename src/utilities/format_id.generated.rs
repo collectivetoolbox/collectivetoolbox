@@ -1049,7 +1049,7 @@ pub enum FormatId {
     Fnv1a_512,
     /// FNV-1a hash, 1024 bits (Short 483, Category: hash)
     Fnv1a_1024,
-    /// DcUtf mixed mode (Short 484, Category: document)
+    /// Dc mixed mode (Short 484, Category: document)
     DcMixed,
     /// File metadata JSON as serialized by Collective Toolbox (Short 485, Category: container)
     CtbFileMetadataJson,
@@ -1363,6 +1363,22 @@ pub enum FormatId {
     CtbNodes,
     /// Collective Toolbox Node Bundle (Short 640, Category: document)
     CtbNodeBundle,
+    /// DcTF (Short 641, Category: document)
+    DcTf,
+    /// Dc mixed mode, version 1 (DcUtf) (Short 642, Category: document)
+    DcMixed1,
+    /// Dc mixed mode, version 2 (DcTF) (Short 643, Category: document)
+    DcMixed2,
+    /// Collective Toolbox Node Bundle, version 1 (Short 644, Category: document)
+    CtbNodeBundle1,
+    /// Collective Toolbox Node Bundle, version 2 (Short 645, Category: document)
+    CtbNodeBundle2,
+    /// Collective Toolbox serialized node package, version 3 (Short 646, Category: document)
+    CtbNodeV3,
+    /// Collective Toolbox csc journal, version 5 (Short 647, Category: database)
+    CscJournal5,
+    /// Collective Toolbox csc archive, version 2 (Short 648, Category: database)
+    CscArchive2,
 }
 
 impl FormatId {
@@ -1523,7 +1539,9 @@ impl FormatId {
             | Self::CscJournal1Meta3
             | Self::CscJournal4
             | Self::CscArchive
-            | Self::CscArchive1 => FormatCategory::Database,
+            | Self::CscArchive1
+            | Self::CscJournal5
+            | Self::CscArchive2 => FormatCategory::Database,
             Self::PanDate
             | Self::PanTime
             | Self::PanSuperDate
@@ -1635,7 +1653,13 @@ impl FormatId {
             | Self::DcMixed
             | Self::Dcsh
             | Self::CtbNodes
-            | Self::CtbNodeBundle => FormatCategory::Document,
+            | Self::CtbNodeBundle
+            | Self::DcTf
+            | Self::DcMixed1
+            | Self::DcMixed2
+            | Self::CtbNodeBundle1
+            | Self::CtbNodeBundle2
+            | Self::CtbNodeV3 => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2661,6 +2685,14 @@ impl FormatId {
             "appleostype" | "apple_os_type" => Some(Self::AppleOsType),
             "ctbnodes" | "ctb_nodes" => Some(Self::CtbNodes),
             "ctbnodebundle" | "ctb_node_bundle" | "ctbnbdl" => Some(Self::CtbNodeBundle),
+            "dctf" | "dc_tf" => Some(Self::DcTf),
+            "dcmixed1" | "dc_mixed1" | "dcmm1" => Some(Self::DcMixed1),
+            "dcmixed2" | "dc_mixed2" | "dcmm2" => Some(Self::DcMixed2),
+            "ctbnodebundle1" | "ctb_node_bundle1" | "ctbnbdl1" => Some(Self::CtbNodeBundle1),
+            "ctbnodebundle2" | "ctb_node_bundle2" | "ctbnbdl2" => Some(Self::CtbNodeBundle2),
+            "ctbnodev3" | "ctb_node_v3" => Some(Self::CtbNodeV3),
+            "cscjournal5" | "csc_journal5" => Some(Self::CscJournal5),
+            "cscarchive2" | "csc_archive2" => Some(Self::CscArchive2),
             _ => None,
         }
     }
@@ -3310,6 +3342,14 @@ impl FormatId {
             Self::AppleOsType => "AppleOsType",
             Self::CtbNodes => "CtbNodes",
             Self::CtbNodeBundle => "CtbNodeBundle",
+            Self::DcTf => "DcTf",
+            Self::DcMixed1 => "DcMixed1",
+            Self::DcMixed2 => "DcMixed2",
+            Self::CtbNodeBundle1 => "CtbNodeBundle1",
+            Self::CtbNodeBundle2 => "CtbNodeBundle2",
+            Self::CtbNodeV3 => "CtbNodeV3",
+            Self::CscJournal5 => "CscJournal5",
+            Self::CscArchive2 => "CscArchive2",
         }
     }
 
@@ -3499,6 +3539,12 @@ impl FormatId {
             Self::MediaType => &[Self::Text],
             Self::UniformTypeIdentifier => &[Self::Text],
             Self::CtbNodes => &[Self::Text],
+            Self::DcMixed1 => &[Self::DcMixed],
+            Self::DcMixed2 => &[Self::DcMixed],
+            Self::CtbNodeBundle1 => &[Self::CtbNodeBundle],
+            Self::CtbNodeBundle2 => &[Self::CtbNodeBundle],
+            Self::CscJournal5 => &[Self::CscJournal],
+            Self::CscArchive2 => &[Self::CscArchive],
             _ => &[],
         }
     }
@@ -4148,6 +4194,14 @@ impl FormatId {
             Self::AppleOsType => "f638",
             Self::CtbNodes => "f639",
             Self::CtbNodeBundle => "f640",
+            Self::DcTf => "f641",
+            Self::DcMixed1 => "f642",
+            Self::DcMixed2 => "f643",
+            Self::CtbNodeBundle1 => "f644",
+            Self::CtbNodeBundle2 => "f645",
+            Self::CtbNodeV3 => "f646",
+            Self::CscJournal5 => "f647",
+            Self::CscArchive2 => "f648",
         }
     }
 
@@ -4797,6 +4851,14 @@ impl FormatId {
             "f638" => Some(Self::AppleOsType),
             "f639" => Some(Self::CtbNodes),
             "f640" => Some(Self::CtbNodeBundle),
+            "f641" => Some(Self::DcTf),
+            "f642" => Some(Self::DcMixed1),
+            "f643" => Some(Self::DcMixed2),
+            "f644" => Some(Self::CtbNodeBundle1),
+            "f645" => Some(Self::CtbNodeBundle2),
+            "f646" => Some(Self::CtbNodeV3),
+            "f647" => Some(Self::CscJournal5),
+            "f648" => Some(Self::CscArchive2),
             _ => None,
         }
     }
@@ -5446,6 +5508,14 @@ impl FormatId {
             Self::AppleOsType => Some(2228862_u128),
             Self::CtbNodes => Some(2228863_u128),
             Self::CtbNodeBundle => Some(2228864_u128),
+            Self::DcTf => Some(2228865_u128),
+            Self::DcMixed1 => Some(2228866_u128),
+            Self::DcMixed2 => Some(2228867_u128),
+            Self::CtbNodeBundle1 => Some(2228868_u128),
+            Self::CtbNodeBundle2 => Some(2228869_u128),
+            Self::CtbNodeV3 => Some(2228870_u128),
+            Self::CscJournal5 => Some(2228871_u128),
+            Self::CscArchive2 => Some(2228872_u128),
         }
     }
 
@@ -6107,6 +6177,14 @@ impl FormatId {
             2228862_u128 => Some(Self::AppleOsType),
             2228863_u128 => Some(Self::CtbNodes),
             2228864_u128 => Some(Self::CtbNodeBundle),
+            2228865_u128 => Some(Self::DcTf),
+            2228866_u128 => Some(Self::DcMixed1),
+            2228867_u128 => Some(Self::DcMixed2),
+            2228868_u128 => Some(Self::CtbNodeBundle1),
+            2228869_u128 => Some(Self::CtbNodeBundle2),
+            2228870_u128 => Some(Self::CtbNodeV3),
+            2228871_u128 => Some(Self::CscJournal5),
+            2228872_u128 => Some(Self::CscArchive2),
             _ => None,
         }
     }
@@ -7080,7 +7158,7 @@ pub const DC_FNV1A_256: DcChar = DcChar::from_format(481);
 pub const DC_FNV1A_512: DcChar = DcChar::from_format(482);
 /// DcChar constant for Format `Fnv1a_1024` (Short f483, Category: hash): FNV-1a hash, 1024 bits
 pub const DC_FNV1A_1024: DcChar = DcChar::from_format(483);
-/// DcChar constant for Format `DcMixed` (Short f484, Category: document): DcUtf mixed mode
+/// DcChar constant for Format `DcMixed` (Short f484, Category: document): Dc mixed mode
 pub const DC_DC_MIXED: DcChar = DcChar::from_format(484);
 /// DcChar constant for Format `CtbFileMetadataJson` (Short f485, Category: container): File metadata JSON as serialized by Collective Toolbox
 pub const DC_CTB_FILE_METADATA_JSON: DcChar = DcChar::from_format(485);
@@ -7394,3 +7472,19 @@ pub const DC_APPLE_OS_TYPE: DcChar = DcChar::from_format(638);
 pub const DC_CTB_NODES: DcChar = DcChar::from_format(639);
 /// DcChar constant for Format `CtbNodeBundle` (Short f640, Category: document): Collective Toolbox Node Bundle
 pub const DC_CTB_NODE_BUNDLE: DcChar = DcChar::from_format(640);
+/// DcChar constant for Format `DcTf` (Short f641, Category: document): DcTF
+pub const DC_DC_TF: DcChar = DcChar::from_format(641);
+/// DcChar constant for Format `DcMixed1` (Short f642, Category: document): Dc mixed mode, version 1 (DcUtf)
+pub const DC_DC_MIXED1: DcChar = DcChar::from_format(642);
+/// DcChar constant for Format `DcMixed2` (Short f643, Category: document): Dc mixed mode, version 2 (DcTF)
+pub const DC_DC_MIXED2: DcChar = DcChar::from_format(643);
+/// DcChar constant for Format `CtbNodeBundle1` (Short f644, Category: document): Collective Toolbox Node Bundle, version 1
+pub const DC_CTB_NODE_BUNDLE1: DcChar = DcChar::from_format(644);
+/// DcChar constant for Format `CtbNodeBundle2` (Short f645, Category: document): Collective Toolbox Node Bundle, version 2
+pub const DC_CTB_NODE_BUNDLE2: DcChar = DcChar::from_format(645);
+/// DcChar constant for Format `CtbNodeV3` (Short f646, Category: document): Collective Toolbox serialized node package, version 3
+pub const DC_CTB_NODE_V3: DcChar = DcChar::from_format(646);
+/// DcChar constant for Format `CscJournal5` (Short f647, Category: database): Collective Toolbox csc journal, version 5
+pub const DC_CSC_JOURNAL5: DcChar = DcChar::from_format(647);
+/// DcChar constant for Format `CscArchive2` (Short f648, Category: database): Collective Toolbox csc archive, version 2
+pub const DC_CSC_ARCHIVE2: DcChar = DcChar::from_format(648);

@@ -547,18 +547,35 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
     Ok((conv.result, conv.log))
 }
 
-/// Converts DcUtf bytes to a `DcMstring`.
-pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+/// Converts DcTF bytes to a `DcMstring`.
+pub fn dctf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
     let dc_str = crate::DcStr::from_bytes(bytes)
-        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+        .map_err(|e| anyhow!("Input bytes do not conform to valid DcTF format: {e}"))?;
     let doc = crate::DcMstring::from_dc_str(dc_str)?;
     Ok((doc, FormatLog::default()))
 }
 
-/// Converts a `DcMstring` to DcUtf bytes.
-pub fn dcmstring_to_dcutf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+/// Converts a `DcMstring` to DcTF bytes.
+pub fn dcmstring_to_dctf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     Ok((dc_string.into_bytes(), FormatLog::default()))
+}
+
+/// Converts legacy DcUtf bytes to a `DcMstring`.
+pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    crate::validate_dcutf(bytes)
+        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+    let dc_string = crate::DcString::from_dcutf(bytes.to_vec())
+        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+    let doc = crate::DcMstring::from_dc_string(&dc_string)?;
+    Ok((doc, FormatLog::default()))
+}
+
+/// Converts a `DcMstring` to legacy DcUtf bytes.
+pub fn dcmstring_to_dcutf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = super::document_dc_string(doc)?;
+    let bytes = super::dctext::dclist_to_dcutf(&dc_string.to_dclist());
+    Ok((bytes, FormatLog::default()))
 }
 
 #[cfg(test)]

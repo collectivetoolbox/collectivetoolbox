@@ -472,6 +472,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("cscarchive"),
     },
     ExtensionEntry {
+        format_id: FormatId::CscJournal5,
+        rule: ExtensionRule::insensitive("cscjournal"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CscArchive2,
+        rule: ExtensionRule::insensitive("cscarchive"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Videoterminal,
         rule: ExtensionRule::insensitive("txt"),
     },
@@ -642,6 +650,30 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::CtbNodeBundle,
         rule: ExtensionRule::insensitive("ctbnbdl"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::DcTf,
+        rule: ExtensionRule::insensitive("dctf"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::DcMixed1,
+        rule: ExtensionRule::insensitive("dcmm"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::DcMixed2,
+        rule: ExtensionRule::insensitive("dcmm"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CtbNodeBundle1,
+        rule: ExtensionRule::insensitive("ctbnbdl"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CtbNodeBundle2,
+        rule: ExtensionRule::insensitive("ctbnbdl"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CtbNodeV3,
+        rule: ExtensionRule::insensitive("ctbn"),
     },
     ExtensionEntry {
         format_id: FormatId::Utf8,

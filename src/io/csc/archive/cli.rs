@@ -520,9 +520,9 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         }
     };
     let magic = if journal {
-        crate::journal::stream::JournalMagic::JournalV4
+        crate::journal::stream::JournalMagic::JournalV5
     } else {
-        crate::journal::stream::JournalMagic::ArchiveV1
+        crate::journal::stream::JournalMagic::ArchiveV2
     };
     let mut writer = if let Some(recovered) = recovered { recovered.resume_writer(output)? }
         else { JournalWriter::new(output, &session, magic)? };
@@ -643,7 +643,9 @@ fn resume_archive(path: &Path, journal: bool) -> Result<()> {
     let mut magic = [0_u8; 8];
     file.seek(SeekFrom::Start(0))?;
     file.read_exact(&mut magic)?;
-    let is_journal = &magic == crate::journal::JOURNAL_MAGIC_V4 || journal;
+    let is_journal = &magic == crate::journal::JOURNAL_MAGIC_V5
+        || &magic == crate::journal::JOURNAL_MAGIC_V4
+        || journal;
     let recovered = JournalReader::recover(file.try_clone()?)?;
     ensure!(!recovered.completed, "Cannot resume a completed archive");
     if is_journal {
@@ -1990,11 +1992,11 @@ mod tests {
         })?;
         ensure!(matches!(result, ToolResult::Immediate { exit_code: 0, .. }));
 
-        // 1. Verify leading magic is JOURNAL_MAGIC_V4 (b"CTBCSCJ\x04")
+        // 1. Verify leading magic is JOURNAL_MAGIC (b"CTBCSCJ\x05")
         let mut f = File::open(&journal_path)?;
         let mut magic = [0_u8; 8];
         f.read_exact(&mut magic)?;
-        ensure!(&magic == crate::journal::JOURNAL_MAGIC_V4, "Expected JOURNAL_MAGIC_V4 magic header");
+        ensure!(&magic == crate::journal::JOURNAL_MAGIC, "Expected JOURNAL_MAGIC magic header");
 
         // 2. Read with JournalReader: regular file bodies and stream bodies must be omitted
         let reader = JournalReader::new(File::open(&journal_path)?)?;

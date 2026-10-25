@@ -875,6 +875,7 @@ pub struct EnvDescription {
     /// can be retrieved via the [`Self::identity`] and [`Self::capabilities`]
     /// accessors.
     #[dc(flatten)]
+    #[serde(alias = "additional_support")]
     pub supported_formats: Vec<FormatId>,
 }
 

@@ -31,7 +31,9 @@ use std::path::{Path, PathBuf};
 
 use crate::global_graph_layout::{SYSTEM_REGION_END, SYSTEM_REGION_START};
 use crate::shorthand::DcShorthand;
-use crate::utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
+use crate::utf_8e_128::{
+    decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf,
+};
 
 /// Maximum number of node declarations stored in a single `.ctbnodes` chunk file.
 pub const MAX_NODES_PER_CHUNK: usize = 100;
@@ -42,11 +44,20 @@ pub const MAX_NODES_PER_BUNDLE: usize = 1_000_000;
 /// Maximum size in bytes of a single `.ctbnbdl` binary bundle file (50 MB).
 pub const MAX_BYTES_PER_BUNDLE: usize = 50_000_000;
 
-/// Leading 8-byte magic header for `.ctbnbdl` (`CtbNodeBundle`) files.
-pub const CTBNBDL_MAGIC: [u8; 8] = *b"CTBNBDL\x01";
+/// Leading 8-byte magic header for `.ctbnbdl` (`CtbNodeBundle2`, `f645`) files.
+pub const CTBNBDL_MAGIC: [u8; 8] = *b"CTBNBDL\x02";
 
-/// Standard 21-byte `DcMixed` (`f484`) header (`DcMM\0` + UUID `d5ab819e-9b8e-4d61-adbc-933e8851e79a`).
+/// Legacy 8-byte magic header for v1 `.ctbnbdl` (`CtbNodeBundle1`, `f644`) files.
+pub const CTBNBDL_MAGIC_V1: [u8; 8] = *b"CTBNBDL\x01";
+
+/// Standard 21-byte `DcMixed2` (`f643`) header (`DcMM\0` + UUID `b0327a84-b745-492c-b39d-77c2827e3a6f`).
 pub const DCMM_HEADER: [u8; 21] = [
+    b'D', b'c', b'M', b'M', 0, 0xb0, 0x32, 0x7a, 0x84, 0xb7, 0x45, 0x49, 0x2c,
+    0xb3, 0x9d, 0x77, 0xc2, 0x82, 0x7e, 0x3a, 0x6f,
+];
+
+/// Legacy 21-byte `DcMixed1` (`f642`) header (`DcMM\0` + UUID `d5ab819e-9b8e-4d61-adbc-933e8851e79a`).
+pub const DCMM_HEADER_V1: [u8; 21] = [
     b'D', b'c', b'M', b'M', 0, 0xd5, 0xab, 0x81, 0x9e, 0x9b, 0x8e, 0x4d, 0x61,
     0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
 ];
@@ -359,8 +370,8 @@ pub fn encode_node_definition_tokens_with(
     out
 }
 
-/// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle`) binary buffer:
-/// 8-byte `CTBNBDL\x01` magic + 21-byte `DcMM` header + `UTF-8e-128` encoded `617 .. 618` frames.
+/// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle2`) binary buffer:
+/// 8-byte `CTBNBDL\x02` magic + 21-byte `DcMixed2` header + `DcTF` encoded `617 .. 618` frames.
 pub fn encode_nodes_to_ctbnbdl_bytes_with(
     nodes: &[LedgerNode],
     framing: CtbnbdlFramingDcs,
@@ -377,7 +388,7 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
     for node in nodes {
         for tok in encode_node_definition_tokens_with(node, framing) {
             let gid = tok.to_global_id()?;
-            let n = encode_utf_8e_128_buf(&mut char_buf, gid);
+            let n = encode_dctf_buf(&mut char_buf, gid);
             if let Some(slice) = char_buf.get(..n) {
                 bytes.extend_from_slice(slice);
             }
@@ -386,8 +397,8 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
     Ok(bytes)
 }
 
-/// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
-/// (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer back into a list of
+/// `LedgerNode` entries (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
 pub fn decode_nodes_from_ctbnbdl_bytes_with(
     bytes: &[u8],
     framing: CtbnbdlFramingDcs,
@@ -399,25 +410,40 @@ pub fn decode_nodes_from_ctbnbdl_bytes_with(
         bytes.len()
     );
     let magic_part = bytes.get(..CTBNBDL_MAGIC.len()).unwrap_or_default();
-    ensure!(
-        magic_part == CTBNBDL_MAGIC,
-        "Invalid .ctbnbdl magic bytes: expected {:?}, found {:?}",
-        CTBNBDL_MAGIC,
-        magic_part
-    );
     let dcmm_part = bytes
         .get(CTBNBDL_MAGIC.len()..header_len)
         .unwrap_or_default();
-    ensure!(
-        dcmm_part == DCMM_HEADER,
-        "Invalid DcMM header in .ctbnbdl buffer"
-    );
+    let is_v2 = if magic_part == CTBNBDL_MAGIC {
+        ensure!(
+            dcmm_part == DCMM_HEADER,
+            "Invalid DcMixed2 header in v2 .ctbnbdl buffer"
+        );
+        true
+    } else if magic_part == CTBNBDL_MAGIC_V1 {
+        ensure!(
+            dcmm_part == DCMM_HEADER_V1,
+            "Invalid DcMixed1 header in v1 .ctbnbdl buffer"
+        );
+        false
+    } else {
+        bail!(
+            "Invalid .ctbnbdl magic bytes: expected {:?} or {:?}, found {:?}",
+            CTBNBDL_MAGIC,
+            CTBNBDL_MAGIC_V1,
+            magic_part
+        );
+    };
 
     let mut payload = bytes.get(header_len..).unwrap_or_default();
     let mut all_tokens = Vec::new();
     while !payload.is_empty() {
-        let Some((codepoint, consumed)) = decode_utf_8e_128_buf(payload) else {
-            bail!("Invalid UTF-8e-128 sequence in .ctbnbdl stream");
+        let decoded = if is_v2 {
+            decode_dctf_buf(payload)
+        } else {
+            decode_utf_8e_128_buf(payload)
+        };
+        let Some((codepoint, consumed)) = decoded else {
+            bail!("Invalid character sequence in .ctbnbdl stream");
         };
         all_tokens.push(DcShorthand::from_global_id(codepoint));
         payload = payload.get(consumed..).unwrap_or_default();
@@ -528,7 +554,7 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
         );
         for tok in encode_node_definition_tokens_with(node, framing) {
             let gid = tok.to_global_id()?;
-            let n = encode_utf_8e_128_buf(&mut char_buf, gid);
+            let n = encode_dctf_buf(&mut char_buf, gid);
             if let Some(slice) = char_buf.get(..n) {
                 node_bytes.extend_from_slice(slice);
             }

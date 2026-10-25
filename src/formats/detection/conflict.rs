@@ -491,9 +491,11 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
             };
 
             // A candidate boosted as the common implied ancestor cannot be subsumed
-            // by the very variants that imply it.
+            // by the very variants that imply it in the same tie group.
             if let Some(p_fmt) = parent_candidate.format_id {
-                if boosted_ancestors.contains(&p_fmt) {
+                if boosted_ancestors.contains(&p_fmt)
+                    && child_candidate.score <= parent_candidate.score
+                {
                     continue;
                 }
             }

@@ -175,6 +175,15 @@ pub fn convert_bytes_to_dcmstring(
         SupportedDcInputFormat::DcMixed => {
             ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(bytes)?
         }
+        SupportedDcInputFormat::DcMixed1 => {
+            ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring(bytes)?
+        }
+        SupportedDcInputFormat::DcMixed2 => {
+            ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring(bytes)?
+        }
+        SupportedDcInputFormat::DcTf => {
+            ctb_formats_dcstring::converters::utf8::dctf_to_dcmstring(bytes)?
+        }
         SupportedDcInputFormat::DcUtf => {
             ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring(bytes)?
         }
@@ -226,6 +235,15 @@ pub fn convert_dcmstring_to_bytes(
         }
         SupportedDcOutputFormat::DcMixed => {
             ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm(doc)?
+        }
+        SupportedDcOutputFormat::DcMixed1 => {
+            ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(doc)?
+        }
+        SupportedDcOutputFormat::DcMixed2 => {
+            ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm2(doc)?
+        }
+        SupportedDcOutputFormat::DcTf => {
+            ctb_formats_dcstring::converters::utf8::dcmstring_to_dctf(doc)?
         }
         SupportedDcOutputFormat::DcUtf => {
             ctb_formats_dcstring::converters::utf8::dcmstring_to_dcutf(doc)?
@@ -464,7 +482,7 @@ mod tests {
             &DcConversionOptions::default(),
         )
         .expect("convert dcmm");
-        assert_eq!(res.detected_format, FormatId::DcMixed);
+        assert_eq!(res.detected_format, FormatId::DcMixed2);
         assert_eq!(res.document.as_bytes(), bytes);
 
         let export = convert_dcmstring_to_bytes(

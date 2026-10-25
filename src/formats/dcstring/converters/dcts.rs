@@ -36,7 +36,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::Result;
-use ctb_formats_utf_8e_128::decode_utf_8e_128;
+use ctb_formats_utf_8e_128::decode_dctf;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
@@ -45,7 +45,8 @@ use ctb_storage_minimal::global_graph_layout::{
 use ctb_storage_minimal::shorthand::DcShorthand;
 
 use super::dctext::{
-    DcList, dcarray_to_dclist, dclist_to_dcarray, dcutf_to_dclist,
+    DcList, dcarray_to_dclist, dclist_to_dcarray, dclist_to_dcutf,
+    dctf_to_dclist, dcutf_to_dclist,
 };
 use crate::dc_char::DcChar;
 use crate::dc_number::{integer_to_dc_number_global, read_dc_number_global};
@@ -133,12 +134,8 @@ pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
             }
         }
 
-        if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
-            if let Some(raw_bytes) = slice.get(..size) {
-                dc_string.inner.extend_from_slice(raw_bytes);
-            } else {
-                dc_string.push(DcChar(codepoint));
-            }
+        if let Some((codepoint, size)) = decode_dctf(slice) {
+            dc_string.push(DcChar(codepoint));
             i = i.saturating_add(size);
         } else {
             dc_string.push(DcChar(u128::from(first_byte)));
@@ -184,16 +181,32 @@ pub fn dcmstring_to_dcts(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
     Ok((bytes, FormatLog::default()))
 }
 
-/// Converts Dcts format bytes to DcUtf format bytes.
+/// Converts Dcts format bytes to DcTF format bytes.
+///
+/// # Errors
+/// Returns an error if the document cannot be parsed into a `DcString`.
+pub fn dcts_to_dctf(document: Vec<u8>) -> Result<Vec<u8>> {
+    let out = dcts_to_dcstring(&document)?;
+    Ok(out.result.into_bytes())
+}
+
+/// Converts DcTF format bytes to Dcts format bytes.
+#[must_use]
+pub fn dctf_to_dcts(document: Vec<u8>) -> Vec<u8> {
+    let dclist = dctf_to_dclist(&document);
+    dclist_to_dcts(&dclist)
+}
+
+/// Converts Dcts format bytes to legacy DcUtf format bytes.
 ///
 /// # Errors
 /// Returns an error if the document cannot be parsed into a `DcString`.
 pub fn dcts_to_dcutf(document: Vec<u8>) -> Result<Vec<u8>> {
     let out = dcts_to_dcstring(&document)?;
-    Ok(out.result.into_bytes())
+    Ok(dclist_to_dcutf(&out.result.to_dclist()))
 }
 
-/// Converts DcUtf format bytes to Dcts format bytes.
+/// Converts legacy DcUtf format bytes to Dcts format bytes.
 #[must_use]
 pub fn dcutf_to_dcts(document: Vec<u8>) -> Vec<u8> {
     let dclist = dcutf_to_dclist(&document);

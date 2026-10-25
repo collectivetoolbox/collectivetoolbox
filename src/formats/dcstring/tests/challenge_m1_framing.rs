@@ -758,7 +758,7 @@ fn test_challenge_binary_encapsulation_inside_containers() -> Result<()> {
     doc_trunc_bytes.extend_from_slice(&100u128.to_be_bytes());
     doc_trunc_bytes.extend_from_slice(b"SHORT");
     // Followed by list closer (311)
-    doc_trunc_bytes.extend_from_slice(&ctb_formats_utf_8e_128::encode_utf_8e_128(DC_END_LIST.to_u128()));
+    doc_trunc_bytes.extend_from_slice(&ctb_formats_utf_8e_128::encode_dctf(DC_END_LIST.to_u128()));
 
     // Truncated binary: DcMstring::from_bytes or validate_dc_mixed_strict must reject it!
     let from_bytes_res = ctb_formats_dcstring::DcMstring::from_bytes(doc_trunc_bytes);

@@ -3537,7 +3537,7 @@ mod tests {
             let text = source.to_dc_string()?;
             let view = text.inspect_with_policy::<SampleFileRecord>(&quiet);
             let revised: crate::DcString = view.replace_field("inode", &updated)?;
-            assert_eq!(revised.inspect_with_policy::<SampleFileRecord>(&quiet).fields()[0].range().start, 6);
+            assert_eq!(revised.inspect_with_policy::<SampleFileRecord>(&quiet).fields()[0].range().start, 4);
         }
         Ok(())
     }

@@ -45,7 +45,9 @@ use crate::dc_number::{
 use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
 use crate::DcString;
-use ctb_formats_utf_8e_128::{decode_utf_8e_128, encode_utf_8e_128_buf};
+use ctb_formats_utf_8e_128::{
+    decode_dctf, decode_utf_8e_128, encode_dctf_buf, encode_utf_8e_128_buf,
+};
 
 /// A list of global graph Document Character IDs represented as `u128` values.
 pub type DcList = Vec<u128>;
@@ -125,12 +127,18 @@ pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>>
             }
         }
 
-        if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
-            if let Some(raw_bytes) = slice.get(..size) {
-                dc_string.inner.extend_from_slice(raw_bytes);
-            } else {
-                dc_string.push(DcChar(codepoint));
-            }
+        if let Some((codepoint, size)) =
+            ctb_formats_utf_8e_128::decode_dctf_buf(slice)
+        {
+            dc_string.push(DcChar(codepoint));
+            i = i.saturating_add(size);
+        } else if let Some((codepoint, size)) =
+            ctb_formats_utf_8e_128::decode_utf_8e_128_buf(slice)
+        {
+            dc_string.push(DcChar(codepoint));
+            i = i.saturating_add(size);
+        } else if let Some((codepoint, size)) = decode_dctf(slice) {
+            dc_string.push(DcChar(codepoint));
             i = i.saturating_add(size);
         } else {
             dc_string.push(DcChar(u128::from(first_byte)));
@@ -196,7 +204,41 @@ pub fn dclist_to_dctext_with_resolver(
     output.into_bytes()
 }
 
-/// Converts a `DcList` (`&[u128]`) to generalized UTF-8 bytes (`DcUtf`).
+/// Converts a `DcList` (`&[u128]`) to DcTF bytes.
+pub fn dclist_to_dctf(dclist: &[u128]) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut buf = [0u8; 24];
+    for &dcid in dclist {
+        let n = encode_dctf_buf(&mut buf, dcid);
+        if let Some(slice) = buf.get(..n) {
+            output.extend_from_slice(slice);
+        }
+    }
+    output
+}
+
+/// Decodes DcTF bytes into a `DcList` (`Vec<u128>`).
+pub fn dctf_to_dclist(document: &[u8]) -> DcList {
+    let mut list = Vec::new();
+    let mut i = 0;
+    while i < document.len() {
+        let Some(slice) = document.get(i..) else {
+            break;
+        };
+        if let Some((codepoint, size)) = decode_dctf(slice) {
+            list.push(codepoint);
+            i = i.saturating_add(size);
+        } else {
+            if let Some(&b) = document.get(i) {
+                list.push(u128::from(b));
+            }
+            i = i.saturating_add(1);
+        }
+    }
+    list
+}
+
+/// Converts a `DcList` (`&[u128]`) to legacy generalized UTF-8 bytes (`DcUtf`).
 pub fn dclist_to_dcutf(dclist: &[u128]) -> Vec<u8> {
     let mut output = Vec::new();
     let mut buf = [0u8; 24];
@@ -272,16 +314,32 @@ pub fn dcmstring_to_dctext(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog
     Ok((bytes, FormatLog::default()))
 }
 
-/// Converts DcText format bytes to DcUtf format bytes.
+/// Converts DcText format bytes to DcTF format bytes.
+///
+/// # Errors
+/// Returns an error if the document cannot be parsed into a `DcString`.
+pub fn dctext_to_dctf(document: Vec<u8>) -> Result<Vec<u8>> {
+    let out = dctext_to_dcstring(&document)?;
+    Ok(out.result.into_bytes())
+}
+
+/// Converts DcTF format bytes to DcText format bytes.
+#[must_use]
+pub fn dctf_to_dctext(document: Vec<u8>) -> Vec<u8> {
+    let dclist = dctf_to_dclist(&document);
+    dclist_to_dctext(&dclist)
+}
+
+/// Converts DcText format bytes to legacy DcUtf format bytes.
 ///
 /// # Errors
 /// Returns an error if the document cannot be parsed into a `DcString`.
 pub fn dctext_to_dcutf(document: Vec<u8>) -> Result<Vec<u8>> {
     let out = dctext_to_dcstring(&document)?;
-    Ok(out.result.into_bytes())
+    Ok(dclist_to_dcutf(&out.result.to_dclist()))
 }
 
-/// Converts DcUtf format bytes to DcText format bytes.
+/// Converts legacy DcUtf format bytes to DcText format bytes.
 #[must_use]
 pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
     let dclist = dcutf_to_dclist(&document);
@@ -502,7 +560,7 @@ mod tests {
         let dc_string = out.result;
         assert_eq!(
             dc_string.as_bytes(),
-            dctext_to_dcutf(text.as_bytes().to_vec()).unwrap().as_slice()
+            dctext_to_dctf(text.as_bytes().to_vec()).unwrap().as_slice()
         );
 
         let roundtrip = dcstring_to_dctext(&dc_string);

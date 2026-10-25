@@ -8,3 +8,93 @@ l8589948898: 610 l8589946170 l8589948878 # Has value (l8589946170, ~^R\.~)
 l8589948899: 591 l8589948898 l8589946171 # Supersedes (l8589948898, l8589946171)
 l8589948900: 610 l8589946172 l8589948879 # Has value (l8589946172, ~^\._~)
 l8589948901: 591 l8589948900 l8589946173 # Supersedes (l8589948900, l8589946173)
+l8589948902: u44 u63 u20 u6d u69 u78 u65 u64 u20 u6d u6f u64 u65 # "Dc mixed mode"
+l8589948903: u4d u69 u78 u65 u64 u2d u6d u6f u64 u65 u20 u44 u6f u63 u75 u6d u65 u6e u74 u20 u43 u68 u61 u72 u61 u63 u74 u65 u72 u20 u73 u74 u72 u65 u61 u6d u20 u66 u6f u72 u6d u61 u74 u20 u66 u61 u6d u69 u6c u79 u20 u63 u6f u6d u62 u69 u6e u69 u6e u67 u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u20 u74 u6f u6b u65 u6e u73 u20 u77 u69 u74 u68 u20 u6c u65 u6e u67 u74 u68 u2d u64 u65 u6c u69 u6d u69 u74 u65 u64 u20 u62 u69 u6e u61 u72 u79 u20 u44 u63 u20 u32 u30 u33 u20 u65 u6e u63 u61 u70 u73 u75 u6c u61 u74 u69 u6f u6e u73 u2e u20 u42 u65 u67 u69 u6e u73 u20 u77 u69 u74 u68 u20 u6d u61 u67 u69 u63 u20 u44 u63 u4d u4d u5c u30 u20 u66 u6f u6c u6c u6f u77 u65 u64 u20 u62 u79 u20 u61 u20 u31 u36 u2d u62 u79 u74 u65 u20 u76 u65 u72 u73 u69 u6f u6e u20 u55 u55 u49 u44 u2e # "Mixed-mode Document Character stream format family combining character tokens with length-delimited binary Dc 203 encapsulations. Begins with magic DcMM\\0 followed by a 16-byte version UUID."
+l8589948904: u44 u63 u20 u6d u69 u78 u65 u64 u20 u6d u6f u64 u65 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u70 u72 u65 u66 u69 u78 u65 u64 u20 u77 u69 u74 u68 u20 u61 u6e u20 u38 u2d u62 u79 u74 u65 u20 u43 u54 u42 u4e u42 u44 u4c u20 u76 u65 u72 u73 u69 u6f u6e u20 u68 u65 u61 u64 u65 u72 u20 u63 u6f u6e u74 u61 u69 u6e u69 u6e u67 u20 u6d u75 u6c u74 u69 u70 u6c u65 u20 u47 u6c u6f u62 u61 u6c u20 u47 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u73 u20 u28 u44 u63 u20 u36 u31 u37 u20 u2e u2e u20 u44 u63 u20 u36 u31 u38 u29 u2e # "Dc mixed mode document prefixed with an 8-byte CTBNBDL version header containing multiple Global Graph node definitions (Dc 617 .. Dc 618)."
+l8589948905: u44 u63 u54 u46 # "DcTF"
+l8589948906: u44 u63 u54 u46 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u66 u6f u72 u6d u61 u74 u20 u28 u31 u32 u38 u2d u62 u69 u74 u20 u55 u54 u46 u2d u38 u2f u57 u54 u46 u2d u38 u2d u73 u74 u79 u6c u65 u20 u65 u6e u63 u6f u64 u69 u6e u67 u20 u75 u73 u69 u6e u67 u20 u31 u2e u2e u37 u2d u62 u79 u74 u65 u20 u70 u72 u65 u66 u69 u78 u65 u73 u20 u30 u78 u30 u30 u2e u2e u30 u78 u46 u45 u20 u61 u6e u64 u20 u38 u2e u2e u32 u33 u2d u62 u79 u74 u65 u20 u30 u78 u46 u46 u20 u31 u30 u5f u6b u6b u6b u6b u5f u62 u62 u20 u65 u78 u74 u65 u6e u64 u65 u64 u20 u73 u65 u71 u75 u65 u6e u63 u65 u73 u29 # "DcTF document format (128-bit UTF-8/WTF-8-style encoding using 1..7-byte prefixes 0x00..0xFE and 8..23-byte 0xFF 10_kkkk_bb extended sequences)"
+l8589948907: u44 u63 u54 u66 # "DcTf"
+l8589948908: u44 u63 u20 u6d u69 u78 u65 u64 u20 u6d u6f u64 u65 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u31 u20 u28 u44 u63 u55 u74 u66 u29 # "Dc mixed mode, version 1 (DcUtf)"
+l8589948909: u44 u63 u4d u69 u78 u65 u64 u31 # "DcMixed1"
+l8589948910: u44 u63 u20 u6d u69 u78 u65 u64 u20 u6d u6f u64 u65 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u32 u20 u28 u44 u63 u54 u46 u29 # "Dc mixed mode, version 2 (DcTF)"
+l8589948911: u4c u69 u6b u65 u20 u44 u63 u4d u69 u78 u65 u64 u31 u2c u20 u62 u75 u74 u20 u62 u65 u67 u69 u6e u73 u20 u77 u69 u74 u68 u20 u6d u61 u67 u69 u63 u20 u44 u63 u4d u4d u5c u30 u20 u66 u6f u6c u6c u6f u77 u65 u64 u20 u62 u79 u20 u55 u55 u49 u44 u20 u62 u30 u33 u32 u37 u61 u38 u34 u2d u62 u37 u34 u35 u2d u34 u39 u32 u63 u2d u62 u33 u39 u64 u2d u37 u37 u63 u32 u38 u32 u37 u65 u33 u61 u36 u66 u20 u61 u73 u20 u31 u36 u20 u62 u69 u6e u61 u72 u79 u20 u62 u79 u74 u65 u73 u2c u20 u61 u6e u64 u20 u65 u6e u63 u6f u64 u65 u73 u20 u74 u68 u65 u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u20 u73 u74 u72 u65 u61 u6d u20 u61 u6e u64 u20 u74 u79 u70 u65 u2d u32 u20 u44 u63 u20 u32 u30 u33 u20 u6d u65 u74 u61 u64 u61 u74 u61 u20 u62 u6c u6f u63 u6b u73 u20 u69 u6e u20 u44 u63 u54 u46 u20 u28 u66 u36 u34 u31 u29 u20 u72 u61 u74 u68 u65 u72 u20 u74 u68 u61 u6e u20 u44 u63 u55 u74 u66 u20 u28 u66 u38 u39 u29 u2e # "Like DcMixed1, but begins with magic DcMM\\0 followed by UUID b0327a84-b745-492c-b39d-77c2827e3a6f as 16 binary bytes, and encodes the character stream and type-2 Dc 203 metadata blocks in DcTF (f641) rather than DcUtf (f89)."
+l8589948912: u44 u63 u4d u69 u78 u65 u64 u32 # "DcMixed2"
+l8589948913: u43 u6f u6c u6c u65 u63 u74 u69 u76 u65 u20 u54 u6f u6f u6c u62 u6f u78 u20 u4e u6f u64 u65 u20 u42 u75 u6e u64 u6c u65 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u31 # "Collective Toolbox Node Bundle, version 1"
+l8589948914: u44 u63 u4d u69 u78 u65 u64 u31 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u28 u66 u36 u34 u32 u29 u20 u70 u72 u65 u66 u69 u78 u65 u64 u20 u77 u69 u74 u68 u20 u43 u54 u42 u4e u42 u44 u4c u5c u30 u31 u20 u63 u6f u6e u74 u61 u69 u6e u69 u6e u67 u20 u6d u75 u6c u74 u69 u70 u6c u65 u20 u47 u6c u6f u62 u61 u6c u20 u47 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u73 u20 u28 u44 u63 u20 u36 u31 u37 u20 u2e u2e u20 u44 u63 u20 u36 u31 u38 u29 u2e # "DcMixed1 document (f642) prefixed with CTBNBDL\\01 containing multiple Global Graph node definitions (Dc 617 .. Dc 618)."
+l8589948915: u43 u74 u62 u4e u6f u64 u65 u42 u75 u6e u64 u6c u65 u31 # "CtbNodeBundle1"
+l8589948916: u43 u6f u6c u6c u65 u63 u74 u69 u76 u65 u20 u54 u6f u6f u6c u62 u6f u78 u20 u4e u6f u64 u65 u20 u42 u75 u6e u64 u6c u65 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u32 # "Collective Toolbox Node Bundle, version 2"
+l8589948917: u44 u63 u4d u69 u78 u65 u64 u32 u20 u64 u6f u63 u75 u6d u65 u6e u74 u20 u28 u66 u36 u34 u33 u29 u20 u70 u72 u65 u66 u69 u78 u65 u64 u20 u77 u69 u74 u68 u20 u43 u54 u42 u4e u42 u44 u4c u5c u30 u32 u20 u63 u6f u6e u74 u61 u69 u6e u69 u6e u67 u20 u6d u75 u6c u74 u69 u70 u6c u65 u20 u47 u6c u6f u62 u61 u6c u20 u47 u72 u61 u70 u68 u20 u6e u6f u64 u65 u20 u64 u65 u66 u69 u6e u69 u74 u69 u6f u6e u73 u20 u28 u44 u63 u20 u36 u31 u37 u20 u2e u2e u20 u44 u63 u20 u36 u31 u38 u29 u2e # "DcMixed2 document (f643) prefixed with CTBNBDL\\02 containing multiple Global Graph node definitions (Dc 617 .. Dc 618)."
+l8589948918: u43 u74 u62 u4e u6f u64 u65 u42 u75 u6e u64 u6c u65 u32 # "CtbNodeBundle2"
+l8589948919: u43 u6f u6c u6c u65 u63 u74 u69 u76 u65 u20 u54 u6f u6f u6c u62 u6f u78 u20 u73 u65 u72 u69 u61 u6c u69 u7a u65 u64 u20 u6e u6f u64 u65 u20 u70 u61 u63 u6b u61 u67 u65 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u33 # "Collective Toolbox serialized node package, version 3"
+l8589948920: u56 u65 u72 u73 u69 u6f u6e u20 u33 u20 u70 u61 u63 u6b u61 u67 u65 u64 u20 u6e u6f u64 u65 u20 u28 u43 u54 u42 u4e u4f u44 u45 u5c u30 u5c u78 u30 u33 u29 u20 u65 u6e u63 u6f u64 u69 u6e u67 u20 u53 u74 u61 u74 u65 u6d u65 u6e u74 u73 u20 u61 u6e u64 u20 u53 u79 u73 u74 u65 u6d u20 u6e u6f u64 u65 u20 u70 u61 u79 u6c u6f u61 u64 u73 u20 u69 u6e u20 u44 u63 u54 u46 u20 u28 u66 u36 u34 u31 u29 u2e # "Version 3 packaged node (CTBNODE\\0\\x03) encoding Statements and System node payloads in DcTF (f641)."
+l8589948921: u43 u74 u62 u4e u6f u64 u65 u56 u33 # "CtbNodeV3"
+l8589948922: 610 l8589943475 l8589948902 # Has value (l8589943475, "Dc mixed mode")
+l8589948923: 591 l8589948922 l8589943476 # Supersedes (l8589948922, l8589943476)
+l8589948924: 610 l8589943477 l8589948903 # Has value (l8589943477, "Mixed-mode Document Character stream format family combining character tokens with length-delimited binary Dc 203 encapsulations. Begins with magic DcMM\\0 followed by a 16-byte version UUID.")
+l8589948925: 591 l8589948924 l8589943478 # Supersedes (l8589948924, l8589943478)
+l8589948926: 610 l8589948843 l8589948904 # Has value (l8589948843, "Dc mixed mode document prefixed with an 8-byte CTBNBDL version header containing multiple Global Graph node definitions (Dc 617 .. Dc 618).")
+l8589948927: 591 l8589948926 l8589948844 # Supersedes (l8589948926, l8589948844)
+l8589948928: 584 f641 572 # Has a (DcTF, Canonical name)
+l8589948929: 610 l8589948928 l8589948905 # Has value (l8589948928, "DcTF")
+l8589948930: 584 f641 573 # Has a (DcTF, Description)
+l8589948931: 610 l8589948930 l8589948906 # Has value (l8589948930, "DcTF document format (128-bit UTF-8/WTF-8-style encoding using 1..7-byte prefixes 0x00..0xFE and 8..23-byte 0xFF 10_kkkk_bb extended sequences)")
+l8589948932: 584 f641 574 # Has a (DcTF, Programmatic identifier)
+l8589948933: 610 l8589948932 l8589948907 # Has value (l8589948932, "DcTf")
+l8589948934: 584 f642 572 # Has a (Dc mixed mode, version 1 (DcUtf), Canonical name)
+l8589948935: 610 l8589948934 l8589948908 # Has value (l8589948934, "Dc mixed mode, version 1 (DcUtf)")
+l8589948936: 584 f642 573 # Has a (Dc mixed mode, version 1 (DcUtf), Description)
+l8589948937: 610 l8589948936 l8589936944 # Has value (l8589948936, "Like DcUtf, but begins with magic DcMM\\0 followed by UUID d5ab819e-9b8e-4d61-adbc-933e8851e79a as 16 binary bytes. Every top-level Dc 203 is followed by a type byte and a 128-bit big-endian payload-byte length, including zero-length payloads. Type 2 then carries a 128-bit big-endian metadata-byte length, followed by that many DcUtf bytes encoding [type]? [checksum]?, then the raw binary payload. The checksum covers the raw payload bytes; its hash type is declared in the checksum's own Dc 203 frame. The metadata block may be empty. The terminating Dc 204 is implicit. Writers of binary and typed-checksum encapsulations use type 2; textual Dc 203 writers emit base64 payload Dcs with the decoded payload-byte length and preserve declared types and checksums. DcUtf payload bytes can use type 2 with a declared DcUtf type; they are not spliced into the surrounding character stream. Legacy type 0 stores raw binary and type 3 adds a 32-byte binary SHA-256 checksum following the payload length; both remain readable. Types 1 and 4 are retired: their original intent was, I believe, to indicate the encoding of the stored data (which it is to be interpreted as), but the original implementation used them to indicate the encoding in which the data was stored (and emitted non-encapsulation Dcs inside Dc 203, which would be invalid syntax). The use cases for them can be met by using type byte 2 with type metadata. As type bytes 1 and 4 were never used, readers reject either byte with an explicit unsupported-legacy-type error rather than interpreting or converting its ambiguous payload. Writers must not emit types 1 or 4. Type bytes 5..255 are reserved.")
+l8589948938: 584 f642 574 # Has a (Dc mixed mode, version 1 (DcUtf), Programmatic identifier)
+l8589948939: 610 l8589948938 l8589948909 # Has value (l8589948938, "DcMixed1")
+l8589948940: 584 f643 572 # Has a (Dc mixed mode, version 2 (DcTF), Canonical name)
+l8589948941: 610 l8589948940 l8589948910 # Has value (l8589948940, "Dc mixed mode, version 2 (DcTF)")
+l8589948942: 584 f643 573 # Has a (Dc mixed mode, version 2 (DcTF), Description)
+l8589948943: 610 l8589948942 l8589948911 # Has value (l8589948942, "Like DcMixed1, but begins with magic DcMM\\0 followed by UUID b0327a84-b745-492c-b39d-77c2827e3a6f as 16 binary bytes, and encodes the character stream and type-2 Dc 203 metadata blocks in DcTF (f641) rather than DcUtf (f89).")
+l8589948944: 584 f643 574 # Has a (Dc mixed mode, version 2 (DcTF), Programmatic identifier)
+l8589948945: 610 l8589948944 l8589948912 # Has value (l8589948944, "DcMixed2")
+l8589948946: 584 f644 572 # Has a (Collective Toolbox Node Bundle, version 1, Canonical name)
+l8589948947: 610 l8589948946 l8589948913 # Has value (l8589948946, "Collective Toolbox Node Bundle, version 1")
+l8589948948: 584 f644 573 # Has a (Collective Toolbox Node Bundle, version 1, Description)
+l8589948949: 610 l8589948948 l8589948914 # Has value (l8589948948, "DcMixed1 document (f642) prefixed with CTBNBDL\\01 containing multiple Global Graph node definitions (Dc 617 .. Dc 618).")
+l8589948950: 584 f644 574 # Has a (Collective Toolbox Node Bundle, version 1, Programmatic identifier)
+l8589948951: 610 l8589948950 l8589948915 # Has value (l8589948950, "CtbNodeBundle1")
+l8589948952: 584 f645 572 # Has a (Collective Toolbox Node Bundle, version 2, Canonical name)
+l8589948953: 610 l8589948952 l8589948916 # Has value (l8589948952, "Collective Toolbox Node Bundle, version 2")
+l8589948954: 584 f645 573 # Has a (Collective Toolbox Node Bundle, version 2, Description)
+l8589948955: 610 l8589948954 l8589948917 # Has value (l8589948954, "DcMixed2 document (f643) prefixed with CTBNBDL\\02 containing multiple Global Graph node definitions (Dc 617 .. Dc 618).")
+l8589948956: 584 f645 574 # Has a (Collective Toolbox Node Bundle, version 2, Programmatic identifier)
+l8589948957: 610 l8589948956 l8589948918 # Has value (l8589948956, "CtbNodeBundle2")
+l8589948958: 584 f646 572 # Has a (Collective Toolbox serialized node package, version 3, Canonical name)
+l8589948959: 610 l8589948958 l8589948919 # Has value (l8589948958, "Collective Toolbox serialized node package, version 3")
+l8589948960: 584 f646 573 # Has a (Collective Toolbox serialized node package, version 3, Description)
+l8589948961: 610 l8589948960 l8589948920 # Has value (l8589948960, "Version 3 packaged node (CTBNODE\\0\\x03) encoding Statements and System node payloads in DcTF (f641).")
+l8589948962: 584 f646 574 # Has a (Collective Toolbox serialized node package, version 3, Programmatic identifier)
+l8589948963: 610 l8589948962 l8589948921 # Has value (l8589948962, "CtbNodeV3")
+l8589948964: u44 u63 u20 u4d u69 u78 u65 u64 u20 u4d u6f u64 u65 u20 u64 u6f u63 u75 u6d u65 u6e u74 # "Dc Mixed Mode document"
+l8589948965: u64 u63 u74 u66 # "dctf"
+l8589948966: u2e u64 u63 u74 u66 # ".dctf"
+l8589948967: u64 u63 u6d u6d u31 # "dcmm1"
+l8589948968: u44 u63 u20 u4d u69 u78 u65 u64 u20 u4d u6f u64 u65 u20 u64 u6f u63 u75 u6d u65 u6e u74 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u31 # "Dc Mixed Mode document, version 1"
+l8589948969: u64 u63 u6d u6d u32 # "dcmm2"
+l8589948970: u44 u63 u20 u4d u69 u78 u65 u64 u20 u4d u6f u64 u65 u20 u64 u6f u63 u75 u6d u65 u6e u74 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u32 # "Dc Mixed Mode document, version 2"
+l8589948971: u63 u74 u62 u6e u62 u64 u6c u31 # "ctbnbdl1"
+l8589948972: u63 u74 u62 u6e u62 u64 u6c u32 # "ctbnbdl2"
+l8589948973: 584 f484 579 # Has a (Dc mixed mode, Magic signature)
+l8589948974: 610 l8589948973 l8589948964 # Has value (l8589948973, "Dc Mixed Mode document")
+l8589948975: 584 f640 579 # Has a (Collective Toolbox Node Bundle, Magic signature)
+l8589948976: 610 l8589948975 l8589948822 # Has value (l8589948975, "Collective Toolbox Node Bundle")
+l8589948977: 584 f641 576 # Has a (DcTF, Informal alias)
+l8589948978: 610 l8589948977 l8589948965 # Has value (l8589948977, "dctf")
+l8589948979: 584 f641 f264 # Has a (DcTF, File extension)
+l8589948980: 610 l8589948979 l8589948966 # Has value (l8589948979, ".dctf")
+l8589948981: 584 f642 576 # Has a (Dc mixed mode, version 1 (DcUtf), Informal alias)
+l8589948982: 610 l8589948981 l8589948967 # Has value (l8589948981, "dcmm1")
+l8589948983: 584 f642 579 # Has a (Dc mixed mode, version 1 (DcUtf), Magic signature)
+l8589948984: 610 l8589948983 l8589948968 # Has value (l8589948983, "Dc Mixed Mode document, version 1")
+l8589948985: 584 f642 f264 # Has a (Dc mixed mode, version 1 (DcUtf), File extension)
+l8589948986: 610 l8589948985 l8589944985 # Has value (l8589948985, ".dcmm")
+l8589948987: 584 f643 576 # Has a (Dc mixed mode, version 2 (DcTF), Informal alias)
+l8589948988: 610 l8589948987 l8589948969 # Has value (l8589948987, "dcmm2")
+l8589948989: 584 f643 579 # Has a (Dc mixed mode, version 2 (DcTF), Magic signature)
+l8589948990: 610 l8589948989 l8589948970 # Has value (l8589948989, "Dc Mixed Mode document, version 2")
+l8589948991: 584 f643 f264 # Has a (Dc mixed mode, version 2 (DcTF), File extension)

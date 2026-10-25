@@ -753,18 +753,26 @@ pub enum SupportedDcInputFormat {
     /// DcText short
     #[value(name = "dcts")]
     Dcts,
-    /// DcUtf mixed mode
+    /// Dc mixed mode
     #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
     DcMixed,
+    /// DcTF
+    #[value(name = "dctf")]
+    DcTf,
+    /// Dc mixed mode, version 1 (DcUtf)
+    #[value(name = "dcmm1", alias = "dcmixed1")]
+    DcMixed1,
+    /// Dc mixed mode, version 2 (DcTF)
+    #[value(name = "dcmm2", alias = "dcmixed2")]
+    DcMixed2,
     /// UTF-8
     #[default]
     #[value(name = "utf8", alias = "utf-8", alias = "txt")]
     Utf8,
     /// Printable ASCII
-    #[value(name = "asciisafesubset", alias = "txt", alias = "ascii")]
+    #[value(name = "asciisafesubset", alias = "ascii")]
     AsciiSafeSubset,
     /// ASCII
-    #[value(name = "ascii", alias = "txt")]
     Ascii,
     /// Collective Toolbox csc journal
     #[value(name = "cscjournal")]
@@ -781,6 +789,9 @@ impl SupportedDcInputFormat {
         Self::Dcal,
         Self::Dcts,
         Self::DcMixed,
+        Self::DcTf,
+        Self::DcMixed1,
+        Self::DcMixed2,
         Self::Utf8,
         Self::AsciiSafeSubset,
         Self::Ascii,
@@ -796,6 +807,9 @@ impl SupportedDcInputFormat {
         FormatId::Dcal,
         FormatId::Dcts,
         FormatId::DcMixed,
+        FormatId::DcTf,
+        FormatId::DcMixed1,
+        FormatId::DcMixed2,
         FormatId::Utf8,
         FormatId::AsciiSafeSubset,
         FormatId::Ascii,
@@ -816,6 +830,9 @@ impl SupportedDcInputFormat {
             Self::Dcal => FormatId::Dcal,
             Self::Dcts => FormatId::Dcts,
             Self::DcMixed => FormatId::DcMixed,
+            Self::DcTf => FormatId::DcTf,
+            Self::DcMixed1 => FormatId::DcMixed1,
+            Self::DcMixed2 => FormatId::DcMixed2,
             Self::Utf8 => FormatId::Utf8,
             Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
             Self::Ascii => FormatId::Ascii,
@@ -834,6 +851,9 @@ impl SupportedDcInputFormat {
             FormatId::Dcal => Some(Self::Dcal),
             FormatId::Dcts => Some(Self::Dcts),
             FormatId::DcMixed => Some(Self::DcMixed),
+            FormatId::DcTf => Some(Self::DcTf),
+            FormatId::DcMixed1 => Some(Self::DcMixed1),
+            FormatId::DcMixed2 => Some(Self::DcMixed2),
             FormatId::Utf8 => Some(Self::Utf8),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
             FormatId::Ascii => Some(Self::Ascii),
@@ -842,6 +862,7 @@ impl SupportedDcInputFormat {
             FormatId::CscJournal1Meta2 => Some(Self::CscJournal),
             FormatId::CscJournal1Meta3 => Some(Self::CscJournal),
             FormatId::CscJournal4 => Some(Self::CscJournal),
+            FormatId::CscJournal5 => Some(Self::CscJournal),
             _ => None,
         }
     }
@@ -920,7 +941,7 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "elad")]
     Elad,
     /// Color-coded HTML integer list
-    #[value(name = "eitecolorcoded", alias = "htm")]
+    #[value(name = "eitecolorcoded")]
     EiteColorCoded,
     /// DcText
     #[value(name = "dctext")]
@@ -934,18 +955,26 @@ pub enum SupportedDcOutputFormat {
     /// DcText short
     #[value(name = "dcts")]
     Dcts,
-    /// DcUtf mixed mode
+    /// Dc mixed mode
     #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
     DcMixed,
+    /// DcTF
+    #[value(name = "dctf")]
+    DcTf,
+    /// Dc mixed mode, version 1 (DcUtf)
+    #[value(name = "dcmm1", alias = "dcmixed1")]
+    DcMixed1,
+    /// Dc mixed mode, version 2 (DcTF)
+    #[value(name = "dcmm2", alias = "dcmixed2")]
+    DcMixed2,
     /// UTF-8
     #[default]
     #[value(name = "utf8", alias = "utf-8", alias = "txt")]
     Utf8,
     /// Printable ASCII
-    #[value(name = "asciisafesubset", alias = "txt", alias = "ascii")]
+    #[value(name = "asciisafesubset", alias = "ascii")]
     AsciiSafeSubset,
     /// ASCII
-    #[value(name = "ascii", alias = "txt")]
     Ascii,
 }
 
@@ -962,6 +991,9 @@ impl SupportedDcOutputFormat {
         Self::Dcal,
         Self::Dcts,
         Self::DcMixed,
+        Self::DcTf,
+        Self::DcMixed1,
+        Self::DcMixed2,
         Self::Utf8,
         Self::AsciiSafeSubset,
         Self::Ascii,
@@ -979,6 +1011,9 @@ impl SupportedDcOutputFormat {
         FormatId::Dcal,
         FormatId::Dcts,
         FormatId::DcMixed,
+        FormatId::DcTf,
+        FormatId::DcMixed1,
+        FormatId::DcMixed2,
         FormatId::Utf8,
         FormatId::AsciiSafeSubset,
         FormatId::Ascii,
@@ -998,6 +1033,9 @@ impl SupportedDcOutputFormat {
             Self::Dcal => FormatId::Dcal,
             Self::Dcts => FormatId::Dcts,
             Self::DcMixed => FormatId::DcMixed,
+            Self::DcTf => FormatId::DcTf,
+            Self::DcMixed1 => FormatId::DcMixed1,
+            Self::DcMixed2 => FormatId::DcMixed2,
             Self::Utf8 => FormatId::Utf8,
             Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
             Self::Ascii => FormatId::Ascii,
@@ -1018,6 +1056,9 @@ impl SupportedDcOutputFormat {
             FormatId::Dcal => Some(Self::Dcal),
             FormatId::Dcts => Some(Self::Dcts),
             FormatId::DcMixed => Some(Self::DcMixed),
+            FormatId::DcTf => Some(Self::DcTf),
+            FormatId::DcMixed1 => Some(Self::DcMixed1),
+            FormatId::DcMixed2 => Some(Self::DcMixed2),
             FormatId::Utf8 => Some(Self::Utf8),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
             FormatId::Ascii => Some(Self::Ascii),

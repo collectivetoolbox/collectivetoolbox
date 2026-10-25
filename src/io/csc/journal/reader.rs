@@ -76,8 +76,13 @@ impl JournalReader {
         file.seek(SeekFrom::Start(0))?;
         let mut magic = [0_u8; 8];
         file.read_exact(&mut magic)?;
-        ensure!(&magic == ARCHIVE_MAGIC || &magic == crate::journal::JOURNAL_MAGIC_V4,
-            "Unsupported CSC journal magic or version");
+        ensure!(
+            &magic == ARCHIVE_MAGIC
+                || &magic == crate::journal::ARCHIVE_MAGIC_V1
+                || &magic == crate::journal::JOURNAL_MAGIC
+                || &magic == crate::journal::JOURNAL_MAGIC_V4,
+            "Unsupported CSC journal magic or version"
+        );
         let scanned = scanner::scan(file.try_clone()?, mode, policy)?;
         Ok(Self {
             file, session: scanned.session, members: scanned.members, errors: scanned.errors,

@@ -51,7 +51,7 @@ use std::time::UNIX_EPOCH;
 use super::{
     JournalErrorRecord, JournalErrorRecordPayload, JournalSessionRecord,
     JournalSnapshot, JournalWarningRecord, JournalWarningRecordPayload,
-    JOURNAL_MAGIC_V4, PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
+    JOURNAL_MAGIC, PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
 };
 
 pub const JOURNAL_MAGIC_V1: &[u8; 8] = b"CTBCSCJ\x01";
@@ -292,7 +292,7 @@ pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
         );
     }
 
-    writer.write_all(JOURNAL_MAGIC_V4)?;
+    writer.write_all(JOURNAL_MAGIC)?;
     let header = DcMstring::new();
     writer.write_all(header.as_bytes())?;
 
@@ -1038,8 +1038,9 @@ pub fn read_entity_payload(
             "Semantic identity is missing from CTBMETA3 preservation record"
         );
         if let Some(identity_dc) = record.identity_dc {
-            let identity = DcMstring::from_bytes(identity_dc)?
-                .decode::<FileIdentity>(policy)?;
+            let (identity_doc, _) =
+                ctb_formats_dcstring::dcmm_to_dcmstring(&identity_dc)?;
+            let identity = identity_doc.decode::<FileIdentity>(policy)?;
             let semantic_path = identity
                 .relative_path
                 .as_deref()

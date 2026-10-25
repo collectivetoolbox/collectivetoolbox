@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Owned string buffer for UTF-8e-128 / DcUtf format.
+//! Owned string buffer for DcTF format.
 
 #[allow(
     unused_imports,
@@ -30,11 +30,13 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
+use ctb_formats_utf_8e_128::{
+    decode_utf_8e_128_buf, determine_utf_8e_128_error_len, encode_dctf_buf,
+};
 
-use crate::{DcChar, DcCharExt, DcStr, DcUtfError, validate_dcutf};
+use crate::{DcChar, DcCharExt, DcStr, DcUtfError, validate_dctf};
 
-/// An owned, growable string buffer containing valid UTF-8e-128 (DcUtf) data.  Analogous to `DcMstring` and Rust's `String`.
+/// An owned, growable string buffer containing valid DcTF data. Analogous to `DcMstring` and Rust's `String`.
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DcString {
     pub(crate) inner: Vec<u8>,
@@ -55,24 +57,60 @@ impl DcString {
         }
     }
 
-    /// Validates an existing `Vec<u8>` as UTF-8e-128 and wraps it in a
-    /// `DcString`.
+    /// Validates an existing `Vec<u8>` as DcTF and wraps it in a `DcString`.
     ///
     /// # Errors
-    /// Returns `DcUtfError` if the bytes are not valid UTF-8e-128.
-    pub fn from_dcutf(bytes: Vec<u8>) -> Result<Self, DcUtfError> {
-        validate_dcutf(&bytes)?;
+    /// Returns `DcUtfError` if the bytes are not valid DcTF.
+    pub fn from_dctf(bytes: Vec<u8>) -> Result<Self, DcUtfError> {
+        validate_dctf(&bytes)?;
         Ok(Self { inner: bytes })
+    }
+
+    /// Creates a `DcString` from a `Vec<u8>` of DcTF bytes without validation.
+    ///
+    /// # Safety
+    /// The caller must ensure that `bytes` contains valid DcTF data.
+    #[must_use]
+    #[expect(
+        unsafe_code,
+        reason = "Caller guarantees bytes are valid DcTF"
+    )]
+    pub const unsafe fn from_dctf_unchecked(bytes: Vec<u8>) -> Self {
+        Self { inner: bytes }
+    }
+
+    /// Validates an existing `Vec<u8>` as legacy UTF-8e-128 (`DcUtf`), transcoding
+    /// it to canonical `DcTF`, and returns a `DcString`.
+    ///
+    /// # Errors
+    /// Returns `DcUtfError` if the bytes are not valid `DcUtf`.
+    pub fn from_dcutf(bytes: Vec<u8>) -> Result<Self, DcUtfError> {
+        let mut out = Self::with_capacity(bytes.len());
+        let mut i = 0usize;
+        while i < bytes.len() {
+            let Some(slice) = bytes.get(i..) else { break };
+            if let Some((val, size)) = decode_utf_8e_128_buf(slice) {
+                out.push(DcChar(val));
+                i = i.saturating_add(size);
+            } else {
+                let error_len = determine_utf_8e_128_error_len(slice);
+                return Err(DcUtfError {
+                    valid_up_to: i,
+                    error_len,
+                });
+            }
+        }
+        Ok(out)
     }
 
     /// Creates a `DcString` from a `Vec<u8>` without validation.
     ///
     /// # Safety
-    /// The caller must ensure that `bytes` contains valid UTF-8e-128 data.
+    /// The caller must ensure that `bytes` contains valid DcTF data.
     #[must_use]
     #[expect(
         unsafe_code,
-        reason = "Caller guarantees bytes are valid UTF-8e-128"
+        reason = "Caller guarantees bytes are valid DcTF"
     )]
     pub const unsafe fn from_dcutf_unchecked(bytes: Vec<u8>) -> Self {
         Self { inner: bytes }
@@ -88,7 +126,7 @@ impl DcString {
     pub fn push(&mut self, ch: impl Into<DcChar>) {
         let dc = ch.into();
         let mut buf = [0u8; 24];
-        let n = encode_utf_8e_128_buf(&mut buf, dc.0);
+        let n = encode_dctf_buf(&mut buf, dc.0);
         if let Some(slice) = buf.get(..n) {
             self.inner.extend_from_slice(slice);
         }
@@ -122,7 +160,7 @@ impl DcString {
     /// or `None` if the string is empty.
     pub fn pop(&mut self) -> Option<DcChar> {
         let ch = self.chars().next_back()?;
-        let ch_len = ch.len_utf_8e_128();
+        let ch_len = ch.len_dctf();
         let new_len = self.inner.len().saturating_sub(ch_len);
         self.inner.truncate(new_len);
         Some(ch)
@@ -151,7 +189,7 @@ impl DcString {
         for ch in self.chars() {
             if f(ch) {
                 let mut buf = [0u8; 24];
-                let n = encode_utf_8e_128_buf(&mut buf, ch.0);
+                let n = encode_dctf_buf(&mut buf, ch.0);
                 if let Some(slice) = buf.get(..n) {
                     target.extend_from_slice(slice);
                 }
@@ -328,6 +366,7 @@ impl fmt::Debug for DcString {
 )]
 mod tests {
     use super::*;
+    use crate::validate_dcutf;
     use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
     use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
@@ -370,7 +409,7 @@ mod tests {
 
         assert_eq!(
             s.len(),
-            3 + DcChar(SHORT_DC_REGION_START).len_utf_8e_128()
+            3 + DcChar(SHORT_DC_REGION_START).len_dctf()
         );
         assert!(!s.is_empty());
         assert!(s.is_char_boundary(0));
@@ -438,6 +477,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_validation_and_errors() {
+        assert!(validate_dctf(b"hello world").is_ok());
         assert!(validate_dcutf(b"hello world").is_ok());
 
         let mut buf = Vec::new();
@@ -447,21 +487,35 @@ mod tests {
         buf.extend_from_slice(&dc_buf[..n]);
         assert!(validate_dcutf(&buf).is_ok());
 
+        let mut dctf_buf = Vec::new();
+        dctf_buf.extend_from_slice(b"abc");
+        let n_dctf = encode_dctf_buf(&mut dc_buf, SHORT_DC_REGION_START + 100);
+        dctf_buf.extend_from_slice(&dc_buf[..n_dctf]);
+        assert!(validate_dctf(&dctf_buf).is_ok());
+
         // Invalid continuation byte as start
-        let err = validate_dcutf(b"abc\x80def").unwrap_err();
+        let err = validate_dctf(b"abc\x80def").unwrap_err();
         assert_eq!(err.valid_up_to(), 3);
         assert_eq!(err.error_len(), Some(1));
 
-        // Truncated extended sequence
-        let err = validate_dcutf(b"\xFF\x84\x81").unwrap_err();
+        // Truncated extended sequence in DcTF and DcUtf
+        let err_dctf = validate_dctf(b"\xFF\x81\x80").unwrap_err();
+        assert_eq!(err_dctf.valid_up_to(), 0);
+        assert_eq!(err_dctf.error_len(), None);
+
+        let err = validate_dcutf(b"\xFF\x84\x84").unwrap_err();
         assert_eq!(err.valid_up_to(), 0);
         assert_eq!(err.error_len(), None);
 
-        // Safe conversion via from_bytes
+        // Safe conversion via from_bytes / from_dctf / from_dcutf
         let dc_str = DcStr::from_bytes(b"hello").unwrap();
         assert_eq!(dc_str, "hello");
 
+        let dc_string_dctf = DcString::from_dctf(dctf_buf).unwrap();
+        assert_eq!(dc_string_dctf.chars().count(), 4);
+
         let dc_string = DcString::from_dcutf(buf).unwrap();
         assert_eq!(dc_string.chars().count(), 4);
+        assert_eq!(dc_string, dc_string_dctf);
     }
 }

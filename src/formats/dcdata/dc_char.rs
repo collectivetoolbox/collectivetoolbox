@@ -26,7 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
+use ctb_formats_utf_8e_128::{
+    encode_dctf, encode_dctf_buf, len_dctf, len_utf_8e_128,
+};
 pub use ctb_utilities::dc_char::DcChar;
 use crate::syntax::SyntaxRuleResolver;
 
@@ -63,15 +65,20 @@ pub trait DcCharExt {
     fn to_short_vec(self) -> Vec<u32>;
 
     /// Returns the number of bytes required to encode this `DcChar` in
-    /// `UTF-8e-128` format (1..=24 bytes).
+    /// `DcTF` (`.dctf`, `f641`) format (1..=23 bytes).
+    #[must_use]
+    fn len_dctf(self) -> usize;
+
+    /// Returns the number of bytes required to encode this `DcChar` in legacy
+    /// `UTF-8e-128` (`DcUtf`, `f89`) format (1..=24 bytes).
     #[must_use]
     fn len_utf_8e_128(self) -> usize;
 
-    /// Encodes this `DcChar` into the provided byte buffer (must be at least 24
-    /// bytes) and returns the number of bytes written.
+    /// Encodes this `DcChar` in `DcTF` into the provided byte buffer (must be
+    /// at least 23 bytes) and returns the number of bytes written.
     fn encode_buf(self, buf: &mut [u8]) -> usize;
 
-    /// Encodes this `DcChar` into a newly allocated `Vec<u8>`.
+    /// Encodes this `DcChar` in `DcTF` into a newly allocated `Vec<u8>`.
     #[must_use]
     fn encode(self) -> Vec<u8>;
 }
@@ -118,42 +125,20 @@ impl DcCharExt for DcChar {
         }
     }
 
+    fn len_dctf(self) -> usize {
+        len_dctf(self.0)
+    }
+
     fn len_utf_8e_128(self) -> usize {
-        if self.0 <= 0x7F {
-            1
-        } else if self.0 <= 0x7FF {
-            2
-        } else if self.0 <= 0xFFFF {
-            3
-        } else if self.0 <= 0x10_FFFF {
-            4
-        } else {
-            #[expect(
-                clippy::expect_used,
-                reason = "u128 leading zeros is at most 128, which fits in usize on all supported platforms"
-            )]
-            let leading_zeros =
-                usize::try_from(self.0.leading_zeros()).expect("leading zeros <= 128 fits in usize");
-            let bits = 128usize.saturating_sub(leading_zeros);
-            let l = bits.div_ceil(6).max(1);
-            2usize.saturating_add(l)
-        }
+        len_utf_8e_128(self.0)
     }
 
     fn encode_buf(self, buf: &mut [u8]) -> usize {
-        encode_utf_8e_128_buf(buf, self.0)
+        encode_dctf_buf(buf, self.0)
     }
 
     fn encode(self) -> Vec<u8> {
-        let mut buf = [0u8; 24];
-        let n = self.encode_buf(&mut buf);
-        #[expect(
-            clippy::expect_used,
-            reason = "encode_buf returns index within the 24-byte stack buffer"
-        )]
-        buf.get(..n)
-            .expect("encode_buf returns valid slice of buffer")
-            .to_vec()
+        encode_dctf(self.0)
     }
 }
 

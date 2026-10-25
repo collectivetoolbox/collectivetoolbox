@@ -196,6 +196,8 @@ fn main() -> Result<()> {
     // itself change, including after scripts/clean-generated removes
     // the table.
     println!("cargo:rerun-if-changed=data/categories");
+    println!("cargo:rerun-if-changed=data/magic/ctoolbox.magic");
+    println!("cargo:rerun-if-changed=data/formats.generated.csv");
     println!("cargo:rerun-if-changed=data/README-named-types.csv");
     println!("cargo:rerun-if-changed=data/README-decompositions.csv");
     println!("cargo:rerun-if-changed=data/README.scripts.csv");

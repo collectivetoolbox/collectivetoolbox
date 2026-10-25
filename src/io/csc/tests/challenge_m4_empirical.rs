@@ -91,8 +91,9 @@ fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage() -> Resul
 
     // 1. Strict validation must reject payload due to dev-era quirks
     let payload = &initial_bytes[8..];
-    let payload_mstr = DcMstr::from_bytes(payload)
-        .context("Payload must be valid DcMstr byte structure")?;
+    let (payload_mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(payload)
+        .context("Payload must be valid DcMixed1 byte structure")?;
+    let payload_mstr = payload_mstring.as_mstr();
     let strict_val = validate_dc_mixed_strict(payload_mstr);
     ensure!(
         strict_val.is_err(),
@@ -161,7 +162,8 @@ fn test_challenge_authentic_dcmm_only_strict_vs_forgiving() -> Result<()> {
     ensure!(dcmm_path.exists(), "v4_dcmixed_only fixture must exist");
 
     let initial_bytes = fs::read(&dcmm_path)?;
-    let mstr = DcMstr::from_bytes(&initial_bytes)?;
+    let (mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(&initial_bytes)?;
+    let mstr = mstring.as_mstr();
 
     // Strict validation must fail
     ensure!(
