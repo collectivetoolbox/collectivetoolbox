@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Database migration transcoding stored `Statements` and `System` node bodies
-//! from legacy `DcUtf` (`f85`) to `DcTF` (`f641`) and recomputing SHA-256
+//! from legacy `DcUtf` (`f89`) to `DcTF` (`f641`) and recomputing SHA-256
 //! checksums.
 
 #[allow(

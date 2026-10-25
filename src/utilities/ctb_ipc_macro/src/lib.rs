@@ -119,9 +119,9 @@ pub fn ipc_client_trait(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Usage:
 /// ```ignore
 /// #[ipc_method]
-/// pub fn encode(codepoint: u128) -> Result<Vec<u8>> { ... }
+/// pub fn encode_dcutf(codepoint: u128) -> Result<Vec<u8>> { ... }
 ///
-/// // Exposed as service="formats", method="utf_8e_128.encode"
+/// // Exposed as service="formats", method="utf_8e_128.encode_dcutf"
 /// ```
 #[proc_macro_attribute]
 pub fn ipc_method(attr: TokenStream, item: TokenStream) -> TokenStream {

@@ -304,17 +304,18 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     dcmm_bytes.extend_from_slice(&header);
     dcmm_bytes.extend_from_slice(&payload);
 
-    let (doc, _) = ctb_formats_dcstring::dcmm_to_dcmstring(&dcmm_bytes)
+    let (doc, mut log) = ctb_formats_dcstring::dcmm_to_dcmstring(&dcmm_bytes)
         .context("Parsing DcMixed stream payload into DcMstring")?;
 
     let export = convert_dcmstring_to_bytes(&doc, format, options)?;
+    log.merge(&export.log);
     writer.write_all(&export.bytes)?;
     let bytes_written = u64::try_from(export.bytes.len())?;
 
     Ok(StreamExportReceipt {
         target_format: format.to_format_id(),
         bytes_written,
-        log: export.log,
+        log,
     })
 }
 

@@ -30,6 +30,8 @@ Next, please consider a way to improve the unicode display to use either inline 
 - [Longer-term projects](projects.md): workspace/graph, collaboration, security
   proposals, and additional tools.
 
+- Unframed .dctf (f641, 2228865 : DcTF [document] {.dctf}) vs .dcutf (f89, 2228313 : DcUtf [document] {.dcutf}) content sniffing: As noted by the reviewer, raw .dctf has no magic header and overlaps UTF-8 and DcUtf on byte prefixes, so format detection relies on extension/explicit format selection rather than magic bytes.
+
 ## Interface and Diagnostics
 
 - [ ] Manually verify the previously marked fixes: consistent Restart/Reload

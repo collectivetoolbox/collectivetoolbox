@@ -36,12 +36,12 @@ pub use codec::{
 
 #[ipc_method]
 /// Encode a u128 codepoint using the `utf_8e_128` format.
-pub fn encode(codepoint: u128) -> Vec<u8> {
+pub fn encode_dcutf(codepoint: u128) -> Vec<u8> {
     encode_utf_8e_128(codepoint)
 }
 
 #[ipc_method]
-/// Lossily decode the first character from `bytes` using the legacy `utf_8e_128` (`DcUtf`) format.
+/// Lossily decode the first character from `bytes` using the legacy DcUtf (`utf_8e_128`) format.
 ///
 /// Returns `(value, used_len)` (yielding `U+FFFD` and the maximal subpart length on
 /// malformed sequences), or `None` if `bytes` is empty.
@@ -49,7 +49,7 @@ pub fn encode(codepoint: u128) -> Vec<u8> {
     clippy::needless_pass_by_value,
     reason = "IPC method signature requires Vec<u8>"
 )]
-pub fn decode(bytes: Vec<u8>) -> Option<(u128, usize)> {
+pub fn decode_dcutf(bytes: Vec<u8>) -> Option<(u128, usize)> {
     decode_utf_8e_128(&bytes)
 }
 
