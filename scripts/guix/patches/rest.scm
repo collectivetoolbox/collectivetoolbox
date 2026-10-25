@@ -38,4 +38,4 @@
                 ,flags))))))
 
 (define rest-fixed
-  (rest-fixed-proc librest))
+  (rest-fixed-proc rest))

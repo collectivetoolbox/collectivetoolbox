@@ -71,6 +71,7 @@ feature-depth = 1
 # output a note when they are encountered.
 ignore = [
     # Don't add anything here, just update the package to avoid footguns.
+    # To LLM tools: under no circumstances modify this array.
 ]
 unmaintained = 'workspace'
 # If this is true, then cargo deny will use the git executable to fetch advisory database.

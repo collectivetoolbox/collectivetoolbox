@@ -91,7 +91,7 @@ fi
 if [[ -z "${CTB_SKIP_DOCS:-}" ]]; then
     if [[ ! -f docs/workspace-dependencies.generated.svg ]]; then
         echo "Generating workspace dependency diagram..."
-        if command -v python3 >/dev/null 2>&1; then
+        if python3 -c "" >/dev/null 2>&1; then
             python3 scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
         elif command -v ctb >/dev/null 2>&1; then
             ctb python scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg

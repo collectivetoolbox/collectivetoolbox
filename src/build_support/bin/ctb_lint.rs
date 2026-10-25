@@ -25,8 +25,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use ctb_build_support::find_repository_root;
 use ctb_build_support::lint::{
-    format_log, headers, helper, patches, runner, test_boilerplate, unwrap_or,
-    vendor_versions,
+    deny_config, format_log, headers, helper, patches, runner, test_boilerplate,
+    unwrap_or, vendor_versions,
 };
 
 fn print_usage() {
@@ -35,6 +35,7 @@ fn print_usage() {
 
 Subcommands:
   all (default)     Run all repository linters in parallel
+  deny-config       Check that deny.toml does not ignore advisories
   format-log        Check for silently discarded FormatLog instances
   headers           Check license headers and module docblocks
   helper            Check test tempdirs and workspace crates
@@ -59,6 +60,7 @@ fn main() -> Result<()> {
 
     let (subcmd, rest_args) = match first_arg {
         Some("all") => ("all", args.get(1..).unwrap_or(&[])),
+        Some("deny-config") => ("deny-config", args.get(1..).unwrap_or(&[])),
         Some("format-log") => ("format-log", args.get(1..).unwrap_or(&[])),
         Some("headers") => ("headers", args.get(1..).unwrap_or(&[])),
         Some("helper") => ("helper", args.get(1..).unwrap_or(&[])),
@@ -107,6 +109,7 @@ fn main() -> Result<()> {
 
     match subcmd {
         "all" => runner::run_all(&root, offline, quick),
+        "deny-config" => deny_config::run(&root),
         "format-log" => format_log::run(&root),
         "headers" => headers::run(&root, add_headers),
         "helper" => helper::run(&root),

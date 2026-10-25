@@ -39,8 +39,8 @@ use anyhow::{Context, Result, bail};
 use rayon::prelude::*;
 
 use super::{
-    format_log, headers, helper, patches, test_boilerplate, unwrap_or,
-    vendor_versions, workspace_crates,
+    deny_config, format_log, headers, helper, patches, test_boilerplate,
+    unwrap_or, vendor_versions, workspace_crates,
 };
 
 #[derive(Default)]
@@ -459,6 +459,22 @@ If you don't understand why that diff is missing the point of this lint, re-read
         );
         for v in &ast_results.format_log_violations {
             eprintln!("  {}:{}: {}", v.file, v.line, v.message);
+        }
+    }
+
+    // --- Section 8: deny.toml Configuration ---
+    println!("\n=== Checking deny.toml configuration ===");
+    let deny_violations = deny_config::check_deny_toml(workspace_root)?;
+    if deny_violations.is_empty() {
+        println!("deny.toml lint passed (advisories.ignore is empty).");
+    } else {
+        any_failure = true;
+        eprintln!(
+            "deny.toml lint failed: found {} violation(s):",
+            deny_violations.len()
+        );
+        for v in &deny_violations {
+            eprintln!("  - {}", v.message);
         }
     }
 
