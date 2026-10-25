@@ -179,7 +179,7 @@ mod tests {
             base_to_base_string("1A", 16, 10, &format_settings),
         );
 
-        let (_result, _log) = assert_string_ok_eq_no_warnings(
+        let _result = assert_string_ok_eq_no_warnings(
             "26 16 4",
             base_to_base_string("0x1A, 0x10, 0x04", 16, 10, &format_settings),
         );

@@ -30,7 +30,7 @@ use anyhow::anyhow;
 use ctb_formats_hexdump::hex2bin;
 use ctb_formats_utilities::FormatLog;
 
-use crate::dce_convert;
+use crate::dce_convert_internal;
 use crate::dce3_01a::dc_map_send_simple;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
@@ -76,7 +76,7 @@ pub fn convert_utf32_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
         bail!("This document is not stored using the specified format.");
     }
 
-    let dc_bytes = dce_convert(&unicode_bytes, "utf8", "dc")?;
+    let dc_bytes = dce_convert_internal(&unicode_bytes, "utf8", "dc", log)?;
     Ok(String::from_utf8(dc_bytes)?)
 }
 
@@ -95,7 +95,7 @@ pub fn convert_utf8_base64_to_dc(
             );
             anyhow!("This document is not stored using the specified format.")
         })?;
-    let dc_bytes = dce_convert(&decoded, "utf8", "dc")?;
+    let dc_bytes = dce_convert_internal(&decoded, "utf8", "dc", log)?;
     Ok(String::from_utf8(dc_bytes)?)
 }
 
@@ -130,7 +130,7 @@ pub fn convert_utf8_dc64_to_dc(
                     "This document is not stored using the specified format."
                 )
             })?;
-        let dc_bytes = dce_convert(&b64_bytes, "utf8", "dc")?;
+        let dc_bytes = dce_convert_internal(&b64_bytes, "utf8", "dc", log)?;
         Ok(String::from_utf8(dc_bytes)?)
     } else {
         log.error("This document is not stored using the specified format.");
@@ -150,7 +150,8 @@ pub fn convert_utf8_dc64_enc_to_dc(
         let inner = data_str
             .get(4..data_str.len().saturating_sub(4))
             .context("substring slice")?;
-        let dc_bytes = dce_convert(inner.as_bytes(), "utf8_dc64", "dc")?;
+        let dc_bytes =
+            dce_convert_internal(inner.as_bytes(), "utf8_dc64", "dc", log)?;
         Ok(String::from_utf8(dc_bytes)?)
     } else {
         log.error("This document is not stored using the specified format.");
@@ -160,7 +161,7 @@ pub fn convert_utf8_dc64_enc_to_dc(
 
 pub fn convert_utf8_dc64_bin_to_dc(
     data: &[u8],
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<String> {
     let hex = bin2hex(data);
     let tables = get_tables();
@@ -179,7 +180,8 @@ pub fn convert_utf8_dc64_bin_to_dc(
         }
         i = i.saturating_add(2);
     }
-    let dc_bytes = dce_convert(dclist.as_bytes(), "utf8_dc64", "dc")?;
+    let dc_bytes =
+        dce_convert_internal(dclist.as_bytes(), "utf8_dc64", "dc", log)?;
     Ok(String::from_utf8(dc_bytes)?)
 }
 
@@ -207,7 +209,8 @@ pub fn convert_utf8_dc64_bin_hex_to_dc(
         }
         i = i.saturating_add(2);
     }
-    let dc_bytes = dce_convert(dclist.as_bytes(), "utf8_dc64", "dc")?;
+    let dc_bytes =
+        dce_convert_internal(dclist.as_bytes(), "utf8_dc64", "dc", log)?;
     Ok(String::from_utf8(dc_bytes)?)
 }
 
@@ -226,7 +229,8 @@ pub fn convert_utf8_dc64_bin_enc_to_dc(
             );
             anyhow!("This document is not stored using the specified format.")
         })?;
-        let dc_bytes = dce_convert(&inner_bytes, "utf8_dc64_bin", "dc")?;
+        let dc_bytes =
+            dce_convert_internal(&inner_bytes, "utf8_dc64_bin", "dc", log)?;
         Ok(String::from_utf8(dc_bytes)?)
     } else {
         log.error("This document is not stored using the specified format.");
@@ -246,8 +250,12 @@ pub fn convert_utf8_dc64_bin_enc_hex_to_dc(
         let inner = data_str
             .get(2..data_str.len().saturating_sub(2))
             .context("substring slice")?;
-        let dc_bytes =
-            dce_convert(inner.as_bytes(), "utf8_dc64_bin_hex", "dc")?;
+        let dc_bytes = dce_convert_internal(
+            inner.as_bytes(),
+            "utf8_dc64_bin_hex",
+            "dc",
+            log,
+        )?;
         Ok(String::from_utf8(dc_bytes)?)
     } else {
         log.error("This document is not stored using the specified format.");
@@ -257,7 +265,7 @@ pub fn convert_utf8_dc64_bin_enc_hex_to_dc(
 
 pub fn convert_dc_to_utf8_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     let dc_array = explode_escaped(',', data);
     let tables = get_tables();
@@ -278,6 +286,9 @@ pub fn convert_dc_to_utf8_output(
     }
 
     let utf32_bytes = hex2bin(&txt).map_err(|e| {
+        log.error(&format!(
+            "Failed to decode hex in UTF-8 output conversion: {e}"
+        ));
         anyhow!("Failed to decode hex in UTF-8 output conversion: {e}")
     })?;
     ctb_formats_encoding::unicode::utf32be_to_utf8(&utf32_bytes)
@@ -285,26 +296,27 @@ pub fn convert_dc_to_utf8_output(
 
 pub fn convert_dc_to_utf32_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let utf8_res = dce_convert(data.as_bytes(), "dc", "utf8")?;
+    let utf8_res = dce_convert_internal(data.as_bytes(), "dc", "utf8", log)?;
     ctb_formats_encoding::unicode::utf8_to_utf32be(&utf8_res)
 }
 
 pub fn convert_dc_to_utf8_base64_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let utf8_res = dce_convert(data.as_bytes(), "dc", "utf8")?;
+    let utf8_res = dce_convert_internal(data.as_bytes(), "dc", "utf8", log)?;
     let b64 = ctb_formats_base64::base64_encode(&utf8_res);
     Ok(b64.into_bytes())
 }
 
 pub fn convert_dc_to_utf8_dc64_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let b64_bytes = dce_convert(data.as_bytes(), "dc", "utf8_base64")?;
+    let b64_bytes =
+        dce_convert_internal(data.as_bytes(), "dc", "utf8_base64", log)?;
     let b64_str = String::from_utf8(b64_bytes)?;
     let tables = get_tables();
     let mut dcb64 = String::new();
@@ -325,18 +337,18 @@ pub fn convert_dc_to_utf8_dc64_output(
 
 pub fn convert_dc_to_utf8_dc64_enc_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let inner = dce_convert(data.as_bytes(), "dc", "utf8_dc64")?;
+    let inner = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let inner_str = String::from_utf8(inner)?;
     Ok(format!("191,{inner_str},192").into_bytes())
 }
 
 pub fn convert_dc_to_utf8_dc64_bin_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let dc64 = dce_convert(data.as_bytes(), "dc", "utf8_dc64")?;
+    let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
     let hex_val = dc_map_send_simple(&dc64_str);
     hex2bin(&hex_val)
@@ -344,9 +356,9 @@ pub fn convert_dc_to_utf8_dc64_bin_output(
 
 pub fn convert_dc_to_utf8_dc64_bin_hex_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let dc64 = dce_convert(data.as_bytes(), "dc", "utf8_dc64")?;
+    let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
     let hex_val = dc_map_send_simple(&dc64_str);
     Ok(hex_val.to_uppercase().into_bytes())
@@ -354,18 +366,20 @@ pub fn convert_dc_to_utf8_dc64_bin_hex_output(
 
 pub fn convert_dc_to_utf8_dc64_bin_enc_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let bin = dce_convert(data.as_bytes(), "dc", "utf8_dc64_bin")?;
+    let bin =
+        dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64_bin", log)?;
     let hex_str = format!("c3{}c4", bin2hex(bin));
     hex2bin(&hex_str)
 }
 
 pub fn convert_dc_to_utf8_dc64_bin_enc_hex_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let bin = dce_convert(data.as_bytes(), "dc", "utf8_dc64_bin")?;
+    let bin =
+        dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64_bin", log)?;
     let hex_str = format!("c3{}c4", bin2hex(bin)).to_uppercase();
     Ok(hex_str.into_bytes())
 }

@@ -30,7 +30,7 @@ use anyhow::anyhow;
 
 use ctb_formats_utilities::FormatLog;
 
-use crate::dce_convert;
+use crate::dce_convert_internal;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
@@ -156,7 +156,7 @@ pub fn convert_legacy_cdce_to_dc(
 
 pub fn convert_dc_to_legacy_cdce_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     let dc_array = explode_escaped(',', data);
     let tables = get_tables();
@@ -166,7 +166,8 @@ pub fn convert_dc_to_legacy_cdce_output(
         if tables.cdce_html_legacy.contains_key(&dc_id) {
             txt.push_str(&format!("@{dc_id}@"));
         } else {
-            let utf8_res = dce_convert(dc_id.as_bytes(), "dc", "utf8")?;
+            let utf8_res =
+                dce_convert_internal(dc_id.as_bytes(), "dc", "utf8", log)?;
             let utf8_str = String::from_utf8(utf8_res)
                 .context("invalid UTF-8 from conversion")?;
             txt.push_str(&utf8_str);

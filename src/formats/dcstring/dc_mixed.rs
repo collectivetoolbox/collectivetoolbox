@@ -2414,11 +2414,12 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<u64> {
-    let (bytes_written, _log) = validate_and_copy_dcmm_stream_with_options(
+    let (bytes_written, log) = validate_and_copy_dcmm_stream_with_options(
         reader,
         writer,
         &DcmmStreamOptions::default(),
     )?;
+    log.auto_log();
     Ok(bytes_written)
 }
 

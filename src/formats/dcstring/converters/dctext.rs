@@ -320,6 +320,7 @@ pub fn dcmstring_to_dctext(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog
 /// Returns an error if the document cannot be parsed into a `DcString`.
 pub fn dctext_to_dctf(document: Vec<u8>) -> Result<Vec<u8>> {
     let out = dctext_to_dcstring(&document)?;
+    out.log.auto_log();
     Ok(out.result.into_bytes())
 }
 
@@ -336,6 +337,7 @@ pub fn dctf_to_dctext(document: Vec<u8>) -> Vec<u8> {
 /// Returns an error if the document cannot be parsed into a `DcString`.
 pub fn dctext_to_dcutf(document: Vec<u8>) -> Result<Vec<u8>> {
     let out = dctext_to_dcstring(&document)?;
+    out.log.auto_log();
     Ok(dclist_to_dcutf(&out.result.to_dclist()))
 }
 

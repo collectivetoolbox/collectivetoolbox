@@ -206,6 +206,7 @@ where
                 allow_binary_encapsulation: false,
             },
         )?;
+        conversion.log.auto_log();
         let dc_string = conversion.document.to_dc_string()?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
@@ -314,6 +315,10 @@ where
         args.to,
         &export_options,
     )?;
+
+    let mut log = conversion.log;
+    log.merge(&export.log);
+    log.auto_log();
 
     args.output_dest().write_or_stdout(export.bytes)
 }

@@ -312,9 +312,15 @@ impl FormatLog {
 
     pub fn auto_log(&self) {
         if self.has_any() {
-            debug!(self.format_errors());
-            debug!(self.format_warnings());
-            debug!(self.format_debug());
+            if self.has_errors() {
+                error_fmt!("{}", self.format_errors().trim_end());
+            }
+            if self.has_warnings() {
+                warn_fmt!("{}", self.format_warnings().trim_end());
+            }
+            if self.has_debug_messages() {
+                debug_fmt!("{}", self.format_debug().trim_end());
+            }
         } else {
             debug!("No errors or warnings during format processing.");
         }
@@ -397,8 +403,10 @@ fn _assert_vec_u32_ok_eq_log(
 pub fn assert_vec_u32_ok_eq_no_warnings(
     expected: &[u32],
     actual: Result<(Vec<u32>, FormatLog)>,
-) -> (Vec<u32>, FormatLog) {
-    _assert_vec_u32_ok_eq_log(expected, actual, true)
+) -> Vec<u32> {
+    let (actual_vec, log) = _assert_vec_u32_ok_eq_log(expected, actual, true);
+    log.auto_log();
+    actual_vec
 }
 
 pub fn assert_vec_u32_ok_eq_no_errors(
@@ -473,7 +481,7 @@ pub fn assert_string_ok_eq(expected: &str, actual: Result<String>) -> String {
 pub fn assert_string_ok_eq_no_warnings(
     expected: &str,
     actual: Result<(String, FormatLog)>,
-) -> (String, FormatLog) {
+) -> String {
     let (actual_string, log) = actual.unwrap();
 
     assert!(
@@ -488,7 +496,7 @@ pub fn assert_string_ok_eq_no_warnings(
         fmt_mismatch_string(expected, &actual_string),
         log.format_all()
     );
-    (actual_string, log)
+    actual_string
 }
 
 #[expect(

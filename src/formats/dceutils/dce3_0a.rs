@@ -31,7 +31,7 @@ use ctb_formats_hexdump::hex2bin;
 
 use ctb_formats_utilities::FormatLog;
 
-use crate::dce_convert;
+use crate::dce_convert_internal;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
@@ -98,13 +98,13 @@ pub fn convert_3_0a_raw_to_dc(
     wrapped.extend_from_slice(data);
     wrapped.extend_from_slice(&[0xFD, 0x03]);
 
-    dce_convert(&wrapped, "3_0a", "dc")
+    dce_convert_internal(&wrapped, "3_0a", "dc", log)
         .map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 pub fn convert_dc_to_3_0a_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     let dc_array = explode_escaped(',', data);
     let tables = get_tables();
@@ -118,6 +118,7 @@ pub fn convert_dc_to_3_0a_output(
     hex_str.push_str("81fd03");
 
     let bytes = hex2bin(&hex_str).map_err(|e| {
+        log.error(&format!("Failed to encode hex in 3_0a serialization: {e}"));
         anyhow!("Failed to encode hex in 3_0a serialization: {e}")
     })?;
     Ok(bytes)
@@ -125,9 +126,9 @@ pub fn convert_dc_to_3_0a_output(
 
 pub fn convert_dc_to_3_0a_raw_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let full = dce_convert(data.as_bytes(), "dc", "3_0a")?;
+    let full = dce_convert_internal(data.as_bytes(), "dc", "3_0a", log)?;
     if full.len() >= 12 {
         let sub = full
             .get(9..full.len().saturating_sub(3))

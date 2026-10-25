@@ -105,7 +105,9 @@ pub use ctb_formats_utilities::FormatLog;
 
 pub fn get_dce_version(data: &[u8]) -> String {
     let mut log = FormatLog::default();
-    get_dce_version_with_log(data, &mut log)
+    let res = get_dce_version_with_log(data, &mut log);
+    log.auto_log();
+    res
 }
 
 pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
@@ -132,7 +134,8 @@ pub fn dce_convert(
     input_format: &str,
     output_format: &str,
 ) -> Result<Vec<u8>> {
-    let (res, _log) = dce_convert_with_log(data, input_format, output_format)?;
+    let (res, log) = dce_convert_with_log(data, input_format, output_format)?;
+    log.auto_log();
     Ok(res)
 }
 
@@ -147,7 +150,7 @@ pub fn dce_convert_with_log(
     Ok((res, log))
 }
 
-fn dce_convert_internal(
+pub(crate) fn dce_convert_internal(
     data: &[u8],
     input_format: &str,
     output_format: &str,

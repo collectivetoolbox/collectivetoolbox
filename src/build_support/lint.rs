@@ -19,6 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Linting and source verification tools for Collective Toolbox.
 
+pub mod format_log;
 pub mod headers;
 pub mod helper;
 pub mod patches;

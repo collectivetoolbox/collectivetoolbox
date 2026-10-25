@@ -31,7 +31,7 @@ use ctb_formats_hexdump::hex2bin;
 
 use ctb_formats_utilities::FormatLog;
 
-use crate::dce_convert;
+use crate::dce_convert_internal;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
@@ -180,7 +180,7 @@ pub fn convert_3_01a_raw_to_dc(
     wrapped.extend_from_slice(data);
     wrapped.extend_from_slice(&[0xFD, 0x03]);
 
-    dce_convert(&wrapped, "3_01a", "dc")
+    dce_convert_internal(&wrapped, "3_01a", "dc", log)
         .map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
@@ -190,12 +190,14 @@ pub fn convert_3_01a_raw_to_dc(
 // We have corrected this to use the passed `data` parameter to correctly encode the output format.
 pub fn convert_dc_to_3_01a_output(
     data: &str,
-    _log: &mut FormatLog,
+    log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     let encoded = dc_map_send_simple(data);
     let hex_str = format!("44434565020102fd{encoded}fd03");
-    let bytes = hex2bin(&hex_str)
-        .map_err(|e| anyhow!("invalid hex string generated: {e}"))?;
+    let bytes = hex2bin(&hex_str).map_err(|e| {
+        log.error(&format!("invalid hex string generated: {e}"));
+        anyhow!("invalid hex string generated: {e}")
+    })?;
     Ok(bytes)
 }
 

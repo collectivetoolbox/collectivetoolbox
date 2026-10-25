@@ -1038,8 +1038,9 @@ pub fn read_entity_payload(
             "Semantic identity is missing from CTBMETA3 preservation record"
         );
         if let Some(identity_dc) = record.identity_dc {
-            let (identity_doc, _) =
+            let (identity_doc, identity_log) =
                 ctb_formats_dcstring::dcmm_to_dcmstring(&identity_dc)?;
+            identity_log.auto_log();
             let identity = identity_doc.decode::<FileIdentity>(policy)?;
             let semantic_path = identity
                 .relative_path

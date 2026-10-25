@@ -280,7 +280,7 @@ host_endian_bytes = "deny"
 
 # Avoid silent failing
 let_underscore_future = "warn"
-let_underscore_must_use = "warn"
+let_underscore_must_use = "deny"
 map_err_ignore = "warn"
 unused_result_ok = "warn"
 assertions_on_result_states = "warn"

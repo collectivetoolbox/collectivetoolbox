@@ -39,8 +39,8 @@ use anyhow::{Context, Result, bail};
 use rayon::prelude::*;
 
 use super::{
-    headers, helper, patches, test_boilerplate, unwrap_or, vendor_versions,
-    workspace_crates,
+    format_log, headers, helper, patches, test_boilerplate, unwrap_or,
+    vendor_versions, workspace_crates,
 };
 
 #[derive(Default)]
@@ -48,6 +48,7 @@ struct AstAnalysisResults {
     header_violations: Vec<headers::Violation>,
     tempdir_violations: Vec<helper::TempdirViolation>,
     boilerplate_violations: Vec<test_boilerplate::BoilerplateViolation>,
+    format_log_violations: Vec<format_log::FormatLogViolation>,
     unwrap_or_total: usize,
     unwrap_or_verified: usize,
     unwrap_or_unverified: Vec<(String, usize, String)>,
@@ -61,6 +62,7 @@ impl AstAnalysisResults {
         self.header_violations.extend(other.header_violations);
         self.tempdir_violations.extend(other.tempdir_violations);
         self.boilerplate_violations.extend(other.boilerplate_violations);
+        self.format_log_violations.extend(other.format_log_violations);
         self.unwrap_or_total = self.unwrap_or_total.saturating_add(other.unwrap_or_total);
         self.unwrap_or_verified = self.unwrap_or_verified.saturating_add(other.unwrap_or_verified);
         self.unwrap_or_unverified.extend(other.unwrap_or_unverified);
@@ -257,6 +259,12 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
                 }
             }
 
+            // AST check 4: FormatLog discard violations
+            if is_in_src && !format_log::should_skip_path(&rel_path) {
+                let format_log_v = format_log::check_file_ast(&rel_path, &syntax);
+                acc.format_log_violations.extend(format_log_v);
+            }
+
             acc
         })
         .reduce(AstAnalysisResults::default, |mut a, b| {
@@ -437,6 +445,21 @@ If you don't understand why that diff is missing the point of this lint, re-read
             "Found {} test boilerplate violations. Run `./scripts/lint-test-boilerplate --fix` to fix them automatically.",
             ast_results.boilerplate_violations.len()
         );
+    }
+
+    // --- Section 7: FormatLog Handling ---
+    println!("\n=== Checking FormatLog handling ===");
+    if ast_results.format_log_violations.is_empty() {
+        println!("FormatLog lint passed.");
+    } else {
+        any_failure = true;
+        eprintln!(
+            "FormatLog lint failed: found {} discarded FormatLog violation(s):",
+            ast_results.format_log_violations.len()
+        );
+        for v in &ast_results.format_log_violations {
+            eprintln!("  {}:{}: {}", v.file, v.line, v.message);
+        }
     }
 
     if !ast_results.io_errors.is_empty() {

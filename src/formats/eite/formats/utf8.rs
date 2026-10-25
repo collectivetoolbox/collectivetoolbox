@@ -854,7 +854,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn dca_roundtrip_simple_utf8_without_basenb() {
-        let (dcs, _log) = assert_vec_u32_ok_eq_no_warnings(
+        let dcs = assert_vec_u32_ok_eq_no_warnings(
             &[],
             dca_from_utf8(&[], &SETTINGS),
         );
@@ -885,7 +885,7 @@ mod tests {
         assert!(log.has_warnings());
 
         // UTF-8 base-64 embedding disabled. Should not crash on unmappable.
-        assert_vec_u8_ok_eq_no_errors(
+        let (_utf8, log) = assert_vec_u8_ok_eq_no_errors(
             &[0xEF, 0xBF, 0xBD],
             dca_to_utf8(
                 &[289],
@@ -918,7 +918,7 @@ mod tests {
             0x41, 0xEF, 0xBF, 0xBD, 0xEF, 0xBF, 0xBD, 0xEF, 0xBF, 0xBD, 0xE2,
             0x80, 0xA9,
         ];
-        assert_vec_u8_ok_eq_no_errors(
+        assert_vec_u8_ok_eq_no_warnings(
             &expected,
             dca_to_utf8(&[50, 207, 207, 206, 295], &SETTINGS),
         );

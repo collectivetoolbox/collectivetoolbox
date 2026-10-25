@@ -136,13 +136,14 @@ pub async fn handle_eite_call(
             let out_fmt =
                 ctb_formats_eite::formats::Format::from_string(out_fmt_str)?;
 
-            let (res, _) = ctb_formats_eite::import_and_export(
+            let (res, log) = ctb_formats_eite::import_and_export(
                 state,
                 &in_fmt,
                 &out_fmt,
                 &content,
                 &ctb_formats_eite::formats::PrefilterSettings::default(),
             )?;
+            log.auto_log();
             Ok(serde_json::to_value(res)?)
         }
         "strFromByteArray" => {
@@ -180,8 +181,9 @@ pub async fn handle_eite_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 1: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
             let fmt = ctb_formats_eite::formats::Format::from_string(fmt_str)?;
-            let (dc_array, _) =
+            let (dc_array, log) =
                 ctb_formats_eite::import_document(state, &fmt, &bytes)?;
+            log.auto_log();
             Ok(serde_json::to_value(dc_array)?)
         }
         "getFormatId" => {
@@ -258,10 +260,11 @@ pub async fn handle_eite_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: dc_array"))?;
             let dc_array: Vec<u32> =
                 serde_json::from_value(dc_arr_val.clone())?;
-            let (bytes, _log) = ctb_formats_eite::formats::dcbasenb::dca_to_dcbnb_fragment_utf8(
+            let (bytes, log) = ctb_formats_eite::formats::dcbasenb::dca_to_dcbnb_fragment_utf8(
                 &dc_array,
                 &ctb_formats_eite::formats::utf8::UTF8FormatSettings::default(),
             )?;
+            log.auto_log();
             Ok(serde_json::to_value(bytes)?)
         }
         "dcaFromDcbnbFragmentUtf8" => {
@@ -269,10 +272,11 @@ pub async fn handle_eite_call(
                 .first()
                 .ok_or_else(|| anyhow::anyhow!("Missing arg 0: bytes"))?;
             let bytes: Vec<u8> = serde_json::from_value(bytes_val.clone())?;
-            let (dc_array, _log) = ctb_formats_eite::formats::dcbasenb::dca_from_dcbnb_fragment_utf8(
+            let (dc_array, log) = ctb_formats_eite::formats::dcbasenb::dca_from_dcbnb_fragment_utf8(
                 &bytes,
                 &ctb_formats_eite::formats::utf8::UTF8FormatSettings::default(),
             )?;
+            log.auto_log();
             Ok(serde_json::to_value(dc_array)?)
         }
         "dcbnbGetFirstChar" => {

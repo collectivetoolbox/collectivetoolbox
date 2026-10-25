@@ -314,8 +314,10 @@ fn _assert_vec_dc_ok_eq_log(
 pub fn assert_vec_dc_ok_eq_no_warnings(
     expected: &[u32],
     actual: Result<(Vec<u32>, FormatLog)>,
-) -> (Vec<u32>, FormatLog) {
-    _assert_vec_dc_ok_eq_log(expected, actual, true)
+) -> Vec<u32> {
+    let (actual_vec, log) = _assert_vec_dc_ok_eq_log(expected, actual, true);
+    log.auto_log();
+    actual_vec
 }
 
 pub fn assert_vec_dc_ok_eq_no_errors(

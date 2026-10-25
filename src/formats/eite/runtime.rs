@@ -198,24 +198,28 @@ pub fn start_document_exec(
             // Frame flush.
             state.set_exec_frame(exec_id, &wip_frame)?;
             // Convert to preferred format and "render".
-            let _ = dca_to_format(
+            if let Ok((_rendered, render_log)) = dca_to_format(
                 state,
                 &out_fmt,
                 &wip_frame,
                 &PrefilterSettings::default(),
-            ); // Ignoring output; side-effect stub.
+            ) {
+                render_log.auto_log();
+            }
             // In original code: renderDrawContents(...)
         }
     }
 
     // Final flush
     state.set_exec_frame(exec_id, &wip_frame)?;
-    let _ = dca_to_format(
+    if let Ok((_rendered, render_log)) = dca_to_format(
         state,
         &out_fmt,
         &wip_frame,
         &PrefilterSettings::default(),
-    ); // Ignoring output; side-effect stub.
+    ) {
+        render_log.auto_log();
+    }
 
     Ok(())
 }

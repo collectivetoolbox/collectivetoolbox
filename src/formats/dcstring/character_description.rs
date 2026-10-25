@@ -215,6 +215,7 @@ pub fn describe_dcal(
     options: DescriptionOptions,
 ) -> Result<String> {
     let conv = dcal_to_dclist(input.as_bytes())?;
+    conv.log.auto_log();
     Ok(describe_dclist(&conv.result, options))
 }
 
