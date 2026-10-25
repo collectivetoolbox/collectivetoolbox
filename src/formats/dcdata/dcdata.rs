@@ -157,7 +157,7 @@ pub use updater::{
 };
 pub use seed_graph::{
     ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, SEED_GRAPH_ASSET_GLOB,
-    SeedGraphIndex,
+    SYSTEM_GRAPH_HISTORY_ASSET_GLOB, SeedGraphIndex,
 };
 pub use validation::{
     parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,

@@ -74,6 +74,10 @@ pub struct PreparedAssets {
     pub v86_asset_pack_uuid: Option<String>,
     /// SHA256 hex for the generated v86 resource bundle.
     pub v86_asset_pack_sha256: Option<String>,
+    /// UUID for the generated system graph history resource bundle.
+    pub system_graph_history_asset_pack_uuid: Option<String>,
+    /// SHA256 hex for the generated system graph history resource bundle.
+    pub system_graph_history_asset_pack_sha256: Option<String>,
 }
 
 /// If `path` is a symlink, checks that it resolves to a location inside `dir`.
@@ -142,6 +146,12 @@ fn copy_dir_recursive(
             let file_name = entry.file_name();
             let dst_path = dst.join(&file_name);
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
+                if src_path.ends_with("data/graph/system") {
+                    if dst_path.is_dir() {
+                        fs::remove_dir_all(&dst_path)?;
+                    }
+                    continue;
+                }
                 copy_dir_recursive(
                     &src_path,
                     &dst_path,
@@ -741,6 +751,8 @@ struct RuntimeAssetsResult {
     asset_pack_sha256: String,
     v86_asset_pack_uuid: Option<String>,
     v86_asset_pack_sha256: Option<String>,
+    system_graph_history_asset_pack_uuid: String,
+    system_graph_history_asset_pack_sha256: String,
 }
 
 fn prepare_runtime_assets(
@@ -807,12 +819,32 @@ fn prepare_runtime_assets(
         framing_dcs,
     )
     .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
+    let runtime_graph_system_dir = runtime_assets.join("data/graph/system");
+    if runtime_graph_system_dir.is_dir() {
+        fs::remove_dir_all(&runtime_graph_system_dir)?;
+    }
     crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
         &input_graph_dir,
         &runtime_assets.join("data/graph"),
         framing_dcs,
     )
     .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
+    let history_stage_dir =
+        project_root.join("built/system_graph_history_assets");
+    crate::ctbnbdl::compile_inactive_ctbnodes_dir_to_ctbnbdl(
+        &input_graph_dir,
+        &history_stage_dir.join("data/graph/system"),
+        framing_dcs,
+    )
+    .context("Failed to stage inactive system graph history .ctbnbdl bundles")?;
+    let (
+        system_graph_history_asset_pack_uuid,
+        system_graph_history_asset_pack_sha256,
+    ) = write_resource_bundle(
+        &history_stage_dir,
+        &project_root.join("built/system_graph_history.rsrc"),
+    )
+    .context("Failed to package built/system_graph_history.rsrc")?;
 
     if options.include_rust_docs {
         let rust_doc_src =
@@ -950,6 +982,8 @@ fn prepare_runtime_assets(
         asset_pack_sha256,
         v86_asset_pack_uuid,
         v86_asset_pack_sha256,
+        system_graph_history_asset_pack_uuid,
+        system_graph_history_asset_pack_sha256,
     })
 }
 
@@ -1130,6 +1164,10 @@ fn prepare_assets_inner(
         prepared.asset_pack_sha256 = Some(result.asset_pack_sha256);
         prepared.v86_asset_pack_uuid = result.v86_asset_pack_uuid;
         prepared.v86_asset_pack_sha256 = result.v86_asset_pack_sha256;
+        prepared.system_graph_history_asset_pack_uuid =
+            Some(result.system_graph_history_asset_pack_uuid);
+        prepared.system_graph_history_asset_pack_sha256 =
+            Some(result.system_graph_history_asset_pack_sha256);
     }
     if options.prepare_minimal_assets {
         prepare_minimal_assets(project_root)?;

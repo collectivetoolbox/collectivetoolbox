@@ -238,6 +238,13 @@ fn get_artifact_config(artifact_path: &Path) -> ArtifactConfig {
                 false,
                 true,
             )
+        } else if filename == "system_graph_history.rsrc" {
+            (
+                "system_graph_history".to_string(),
+                "Global graph history for system nodes".to_string(),
+                false,
+                false,
+            )
         } else if filename == "v86_images.rsrc" || filename.contains("v86") {
             (
                 "v86".to_string(),
@@ -681,6 +688,21 @@ mod tests {
         assert_eq!(
             config.feature_names.get("en"),
             Some(&"v86 Linux Emulation (Guix OS Image)".to_string())
+        );
+        assert!(!config.required);
+        assert!(!config.gzip_after_install);
+    }
+
+    #[crate::ctb_test]
+    fn test_get_artifact_config_system_graph_history() {
+        let temp_dir = TempDir::new().expect("Failed to create temp directory");
+        let artifact = temp_dir.path().join("system_graph_history.rsrc");
+
+        let config = get_artifact_config(&artifact);
+        assert_eq!(config.feature_id, "system_graph_history");
+        assert_eq!(
+            config.feature_names.get("en"),
+            Some(&"Global graph history for system nodes".to_string())
         );
         assert!(!config.required);
         assert!(!config.gzip_after_install);

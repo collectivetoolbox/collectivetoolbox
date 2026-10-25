@@ -640,6 +640,16 @@ for p in "${platforms[@]}"; do
                 ln "built/v86_images.rsrc" "built/$p/v86_images.rsrc" 2>/dev/null || cp "built/v86_images.rsrc" "built/$p/v86_images.rsrc"
             fi
         fi
+        if [[ -f "built/system_graph_history.rsrc" ]]; then
+            if [[ -e "built/$p/system_graph_history.rsrc" || -L "built/$p/system_graph_history.rsrc" ]]; then
+                if [[ ! "built/$p/system_graph_history.rsrc" -ef "built/system_graph_history.rsrc" ]]; then
+                    rm "built/$p/system_graph_history.rsrc"
+                    ln "built/system_graph_history.rsrc" "built/$p/system_graph_history.rsrc" 2>/dev/null || cp "built/system_graph_history.rsrc" "built/$p/system_graph_history.rsrc"
+                fi
+            else
+                ln "built/system_graph_history.rsrc" "built/$p/system_graph_history.rsrc" 2>/dev/null || cp "built/system_graph_history.rsrc" "built/$p/system_graph_history.rsrc"
+            fi
+        fi
 
         # Run CLI compression tests against the built binary if it is runnable by host
         if [[ "$run_tests" == "true" ]]; then

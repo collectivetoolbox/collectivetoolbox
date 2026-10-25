@@ -599,13 +599,13 @@ pub fn generate_role_file(base_dir: &Path) -> Result<bool> {
     write_if_changed(&target_file, &code)
 }
 
-/// Resolves the framing Document Characters for `.ctbnbdl` (`CtbNodeBundle`) encoding/decoding
-/// from the `@ident(...)` annotations in `categories_dir`.
+/// Resolves the framing and relationship Document Characters for `.ctbnbdl` (`CtbNodeBundle`)
+/// encoding, decoding, and active/inactive node partitioning from the `@ident(...)`
+/// annotations in `categories_dir`.
 ///
 /// # Errors
 /// Returns an error if `categories_dir` cannot be read or any of the required `@ident(...)`
-/// definitions (`BeginGraphNodeDefinition`, `EndGraphNodeDefinition`, `Escape`,
-/// `EvaluateValueAsAtom`) is missing.
+/// definitions is missing.
 pub fn resolve_ctbnbdl_framing_dcs(
     categories_dir: &Path,
 ) -> Result<crate::ctbnbdl::CtbnbdlFramingDcs> {
@@ -613,6 +613,18 @@ pub fn resolve_ctbnbdl_framing_dcs(
     let mut end_node = None;
     let mut escape = None;
     let mut evaluate_as_atom = None;
+    let mut has_a = None;
+    let mut has_value = None;
+    let mut preferred = None;
+    let mut supersedes = None;
+    let mut retracts = None;
+    let mut enclosing_document = None;
+    let mut is_instance_of = None;
+    let mut is_subtype_of = None;
+    let mut is_based_on = None;
+    let mut is_deprecated = None;
+    let mut is_closing_delimiter_for = None;
+    let mut is_associated_with = None;
 
     for row in read_dc_category_rows(categories_dir)? {
         let Some(ident) = extract_ident_annotation(&row.aliases) else {
@@ -624,6 +636,18 @@ pub fn resolve_ctbnbdl_framing_dcs(
             "EndGraphNodeDefinition" => end_node = Some(sh),
             "Escape" => escape = Some(sh),
             "EvaluateValueAsAtom" => evaluate_as_atom = Some(sh),
+            "HasA" => has_a = Some(sh),
+            "HasValue" => has_value = Some(sh),
+            "Preferred" => preferred = Some(sh),
+            "Supersedes" => supersedes = Some(sh),
+            "Retracts" => retracts = Some(sh),
+            "EnclosingDocument" => enclosing_document = Some(sh),
+            "IsInstanceOf" => is_instance_of = Some(sh),
+            "IsSubtypeOf" => is_subtype_of = Some(sh),
+            "IsBasedOn" => is_based_on = Some(sh),
+            "IsDeprecated" => is_deprecated = Some(sh),
+            "IsClosingDelimiterFor" => is_closing_delimiter_for = Some(sh),
+            "IsAssociatedWith" => is_associated_with = Some(sh),
             _ => {}
         }
     }
@@ -639,6 +663,35 @@ pub fn resolve_ctbnbdl_framing_dcs(
             .context("Missing @ident(\"Escape\") in Dc category tables")?,
         evaluate_as_atom: evaluate_as_atom.context(
             "Missing @ident(\"EvaluateValueAsAtom\") in Dc category tables",
+        )?,
+        has_a: has_a
+            .context("Missing @ident(\"HasA\") in Dc category tables")?,
+        has_value: has_value
+            .context("Missing @ident(\"HasValue\") in Dc category tables")?,
+        preferred: preferred
+            .context("Missing @ident(\"Preferred\") in Dc category tables")?,
+        supersedes: supersedes
+            .context("Missing @ident(\"Supersedes\") in Dc category tables")?,
+        retracts: retracts
+            .context("Missing @ident(\"Retracts\") in Dc category tables")?,
+        enclosing_document: enclosing_document.context(
+            "Missing @ident(\"EnclosingDocument\") in Dc category tables",
+        )?,
+        is_instance_of: is_instance_of.context(
+            "Missing @ident(\"IsInstanceOf\") in Dc category tables",
+        )?,
+        is_subtype_of: is_subtype_of
+            .context("Missing @ident(\"IsSubtypeOf\") in Dc category tables")?,
+        is_based_on: is_based_on
+            .context("Missing @ident(\"IsBasedOn\") in Dc category tables")?,
+        is_deprecated: is_deprecated.context(
+            "Missing @ident(\"IsDeprecated\") in Dc category tables",
+        )?,
+        is_closing_delimiter_for: is_closing_delimiter_for.context(
+            "Missing @ident(\"IsClosingDelimiterFor\") in Dc category tables",
+        )?,
+        is_associated_with: is_associated_with.context(
+            "Missing @ident(\"IsAssociatedWith\") in Dc category tables",
         )?,
     })
 }

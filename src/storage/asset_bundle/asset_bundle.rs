@@ -532,8 +532,53 @@ impl ResourceBundle {
             entry_by_path.insert(parsed_entry.path, entry_index);
         }
 
-        let mmaps = vec![main_mmap];
+        let mut mmaps = vec![main_mmap];
         let mut chunked_bundles = Vec::new();
+
+        // Try loading optional separate system_graph_history.rsrc if present
+        let history_path =
+            bundle_path.with_file_name("system_graph_history.rsrc");
+        if history_path.is_file() {
+            let load_result = (|| -> Result<()> {
+                let history_file = open_resource_bundle_file(&history_path)?;
+                #[expect(unsafe_code, reason = "Mmap requires unsafe")]
+                // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
+                let history_mmap =
+                    unsafe { Mmap::map(&history_file) }.with_context(|| {
+                        format!("Failed to map {}", history_path.display())
+                    })?;
+                let parsed_history =
+                    asset_bundle_format::parse_asset_bundle(&history_mmap)
+                        .with_context(|| {
+                            format!(
+                                "Failed to parse {}",
+                                history_path.display()
+                            )
+                        })?;
+                let mmap_index = mmaps.len();
+                mmaps.push(history_mmap);
+                for parsed_entry in parsed_history.entries {
+                    let entry_index = entries.len();
+                    entries.push(ResourceBundleEntry {
+                        path: parsed_entry.path.clone(),
+                        flags: parsed_entry.flags,
+                        location: EntryLocation::Direct {
+                            mmap_index,
+                            data_range: parsed_entry.data_range,
+                        },
+                    });
+                    entry_by_path.insert(parsed_entry.path, entry_index);
+                }
+                Ok(())
+            })();
+
+            if let Err(err) = load_result {
+                warn_fmt!(
+                    "system graph history resource bundle at {} could not be loaded: {err:#}",
+                    history_path.display()
+                );
+            }
+        }
 
         // Try loading separate v86_images.rsrc if present
         let v86_path = bundle_path.with_file_name("v86_images.rsrc");

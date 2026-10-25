@@ -62,8 +62,12 @@ use crate::syntax::ast::{
     SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 
-/// Default glob pattern matching bundled system graph `.ctbnbdl` files inside `ctoolbox.rsrc`.
+/// Default glob pattern matching bundled active system graph `.ctbnbdl` files inside `ctoolbox.rsrc`.
 pub const SEED_GRAPH_ASSET_GLOB: &str = "data/graph/*.ctbnbdl";
+
+/// Default glob pattern matching optional historical/inactive system graph `.ctbnbdl` files
+/// inside `system_graph_history.rsrc` (`assets/data/graph/system/*.ctbnbdl`).
+pub const SYSTEM_GRAPH_HISTORY_ASSET_GLOB: &str = "data/graph/system/*.ctbnbdl";
 
 /// Primary seed graph bundle asset key inside `ctoolbox.rsrc`.
 pub const PRIMARY_SEED_GRAPH_ASSET_KEY: &str = "data/graph/85899_34592.ctbnbdl";
@@ -152,25 +156,104 @@ impl SeedGraphIndex {
         }
     }
 
-    /// Loads all `data/graph/*.ctbnbdl` bundle files (beginning with `data/graph/85899_34592.ctbnbdl`)
-    /// from the runtime asset bundle (`ctoolbox.rsrc`) and indexes all active statements,
-    /// supersessions, and retractions.
+    /// Loads all active `data/graph/*.ctbnbdl` bundle files (beginning with
+    /// `data/graph/85899_34592.ctbnbdl`) from the runtime asset bundle (`ctoolbox.rsrc`)
+    /// and indexes all active statements, seed entities, and value nodes.
     pub fn load_from_asset_bundle() -> Result<Self> {
-        let mut asset_paths =
-            ctb_storage_asset_bundle::find_assets(SEED_GRAPH_ASSET_GLOB)
-                .context(
-                    "Failed to query runtime asset bundle for data/graph/*.ctbnbdl",
-                )?;
+        let active_nodes = Self::load_nodes_from_asset_dir(
+            SEED_GRAPH_ASSET_GLOB,
+            "data/graph",
+            Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
+            true,
+        )?;
+        if let Some(first) = active_nodes.first() {
+            ensure!(
+                first.id == SYSTEM_REGION_START,
+                "Expected first active system graph node to start at l{SYSTEM_REGION_START} ('{}'), found l{}",
+                format_chunk_bundle_filename(SYSTEM_REGION_START),
+                first.id
+            );
+        }
+        Ok(Self::from_nodes(active_nodes))
+    }
+
+    /// Loads both active `data/graph/*.ctbnbdl` bundles (from `ctoolbox.rsrc`) and optional
+    /// historical/inactive `data/graph/system/*.ctbnbdl` bundles (from `system_graph_history.rsrc`
+    /// if installed, or `assets/data/graph/system/` in dev mode), merging them in ascending
+    /// node ID order and resolving all `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`) history.
+    pub fn load_with_history_from_asset_bundle() -> Result<Self> {
+        let active_nodes = Self::load_nodes_from_asset_dir(
+            SEED_GRAPH_ASSET_GLOB,
+            "data/graph",
+            Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
+            true,
+        )?;
+        let history_nodes = Self::load_nodes_from_asset_dir(
+            SYSTEM_GRAPH_HISTORY_ASSET_GLOB,
+            "data/graph/system",
+            None,
+            false,
+        )?;
+        if history_nodes.is_empty() {
+            return Ok(Self::from_nodes(active_nodes));
+        }
+
+        let mut merged =
+            Vec::with_capacity(active_nodes.len().saturating_add(history_nodes.len()));
+        let mut a_iter = active_nodes.into_iter().peekable();
+        let mut h_iter = history_nodes.into_iter().peekable();
+        while let (Some(a), Some(h)) = (a_iter.peek(), h_iter.peek()) {
+            ensure!(
+                a.id != h.id,
+                "Duplicate node ID l{} present in both active data/graph/ and historical data/graph/system/ bundles",
+                a.id
+            );
+            if a.id < h.id {
+                if let Some(node) = a_iter.next() {
+                    merged.push(node);
+                }
+            } else if let Some(node) = h_iter.next() {
+                merged.push(node);
+            }
+        }
+        merged.extend(a_iter);
+        merged.extend(h_iter);
+
+        Ok(Self::from_nodes(merged))
+    }
+
+    fn load_nodes_from_asset_dir(
+        glob_pattern: &str,
+        expected_parent_dir: &str,
+        fallback_key: Option<&str>,
+        require_non_empty: bool,
+    ) -> Result<Vec<LedgerNode>> {
+        let raw_paths = ctb_storage_asset_bundle::find_assets(glob_pattern)
+            .with_context(|| {
+                format!(
+                    "Failed to query runtime asset bundle for '{glob_pattern}'"
+                )
+            })?;
+        let expected_parent = Path::new(expected_parent_dir);
+        let mut asset_paths: Vec<String> = raw_paths
+            .into_iter()
+            .filter(|p| Path::new(p).parent() == Some(expected_parent))
+            .collect();
+
         if asset_paths.is_empty() {
-            if ctb_storage_asset_bundle::get_asset(PRIMARY_SEED_GRAPH_ASSET_KEY)
-                .is_some()
-            {
-                asset_paths.push(PRIMARY_SEED_GRAPH_ASSET_KEY.to_string());
-            } else {
+            if let Some(fallback) = fallback_key {
+                if ctb_storage_asset_bundle::get_asset(fallback).is_some() {
+                    asset_paths.push(fallback.to_string());
+                }
+            }
+        }
+        if asset_paths.is_empty() {
+            if require_non_empty {
                 bail!(
-                    "No system graph .ctbnbdl bundles found in runtime asset bundle matching '{SEED_GRAPH_ASSET_GLOB}'"
+                    "No system graph .ctbnbdl bundles found in runtime asset bundle matching '{glob_pattern}'"
                 );
             }
+            return Ok(Vec::new());
         }
 
         let mut keyed_paths: Vec<(u128, String)> =
@@ -194,16 +277,8 @@ impl SeedGraphIndex {
         }
         keyed_paths.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
-        let mut all_nodes = Vec::new();
+        let mut all_nodes: Vec<LedgerNode> = Vec::new();
         for (expected_first_id, asset_path) in keyed_paths {
-            let expected_next_id = SYSTEM_REGION_START.saturating_add(
-                u128::try_from(all_nodes.len()).unwrap_or(0),
-            );
-            ensure!(
-                expected_first_id == expected_next_id,
-                "Expected .ctbnbdl bundle starting at l{expected_next_id} ('{}'), found '{asset_path}' starting at l{expected_first_id}",
-                format_chunk_bundle_filename(expected_next_id)
-            );
             let bytes = ctb_storage_asset_bundle::get_asset(&asset_path)
                 .with_context(|| {
                     format!(
@@ -214,24 +289,33 @@ impl SeedGraphIndex {
                 .with_context(|| {
                     format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
                 })?;
+            let Some(first_node) = bundle_nodes.first() else {
+                bail!("Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes");
+            };
             ensure!(
-                !bundle_nodes.is_empty(),
-                "Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes"
+                first_node.id == expected_first_id,
+                "Bundle '{asset_path}' filename declares start ID l{expected_first_id}, but first decoded node is l{}",
+                first_node.id
             );
             for (idx, node) in bundle_nodes.into_iter().enumerate() {
-                let expected_id = SYSTEM_REGION_START.saturating_add(
-                    u128::try_from(all_nodes.len()).unwrap_or(0),
-                );
                 ensure!(
-                    node.id == expected_id,
-                    "{asset_path} (node index {idx}): expected sequential node ID l{expected_id}, found l{}",
+                    (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node.id),
+                    "{asset_path} (node index {idx}): node ID l{} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})",
                     node.id
                 );
+                if let Some(prev) = all_nodes.last() {
+                    ensure!(
+                        node.id > prev.id,
+                        "{asset_path} (node index {idx}): expected strictly increasing node ID > l{}, found l{}",
+                        prev.id,
+                        node.id
+                    );
+                }
                 all_nodes.push(node);
             }
         }
 
-        Ok(Self::from_nodes(all_nodes))
+        Ok(all_nodes)
     }
 
     /// Decodes a single `.ctbnbdl` byte slice and builds a `SeedGraphIndex`.
@@ -564,6 +648,12 @@ impl SeedGraphIndex {
     pub fn is_node_active(&self, id: u128) -> bool {
         self.node_index_by_id.contains_key(&id)
             && !self.inactive_ids.contains(&id)
+    }
+
+    /// Returns the total number of inactive (superseded or retracted) nodes in the seed graph.
+    #[must_use]
+    pub fn inactive_count(&self) -> usize {
+        self.inactive_ids.len()
     }
 
     /// Returns the number of superseded nodes (`Dc 591`) in the seed graph.
@@ -1305,10 +1395,18 @@ mod tests {
             "Expected at least 14,310 nodes in bundled seed graph, found {}",
             index.node_count()
         );
-        assert!(
-            index.superseded_count() >= 13,
-            "Expected live supersessions in bundled seed graph, found {}",
+        assert_eq!(
+            index.superseded_count(),
+            0,
+            "Active-only bundled seed graph should have 0 superseded nodes, found {}",
             index.superseded_count()
+        );
+        let history_index =
+            SeedGraphIndex::load_with_history_from_asset_bundle()?;
+        assert!(
+            history_index.superseded_count() >= 13,
+            "Expected live supersessions in seed graph with history, found {}",
+            history_index.superseded_count()
         );
 
         // Verify Dc 617 (`Begin graph node definition`) has its superseded description and syntax rule
@@ -1644,6 +1742,44 @@ mod tests {
             let tokens = encode_integer_value_tokens(val);
             assert_eq!(decode_integer_value_tokens(&tokens), Some(val));
         }
+
+        // 4. Verify that the active bundle (`SeedGraphIndex::shared()`) has all inactive/historical
+        // nodes filtered out at build time, while `load_with_history_from_asset_bundle()` loads
+        // both `data/graph/*.ctbnbdl` and `data/graph/system/*.ctbnbdl` (100% of `.ctbnodes`),
+        // and both resolve identical active properties and statements.
+        assert_eq!(
+            index.inactive_count(),
+            0,
+            "Active-only SeedGraphIndex::shared() should contain 0 inactive nodes"
+        );
+        let full_index = SeedGraphIndex::load_with_history_from_asset_bundle()?;
+        let repo_root = crate::updater::find_repository_root()?;
+        let raw_ledger_nodes = crate::graph_ledger::load_ledger_nodes_from_dir(
+            &repo_root.join("assets/data/graph"),
+        )?;
+        assert_eq!(
+            full_index.node_count(),
+            raw_ledger_nodes.len(),
+            "Active + history .ctbnbdl bundles must account for 100% of nodes in assets/data/graph/*.ctbnodes"
+        );
+        assert!(
+            full_index.inactive_count() > 0,
+            "Full index with history should include superseded nodes from data/graph/system/*.ctbnbdl"
+        );
+        assert_eq!(
+            index.active_single_props,
+            full_index.active_single_props
+        );
+        assert_eq!(
+            index.active_multi_props,
+            full_index.active_multi_props
+        );
+        assert_eq!(index.active_preferred, full_index.active_preferred);
+        assert_eq!(
+            index.active_direct_stmts,
+            full_index.active_direct_stmts
+        );
+        assert_eq!(index.seed_entity_ids, full_index.seed_entity_ids);
 
         Ok(())
     }

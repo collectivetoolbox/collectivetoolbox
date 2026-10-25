@@ -48,13 +48,17 @@ pub use crate::ctbnbdl::{
     MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK,
     compile_ctbnodes_dir_to_ctbnbdl,
     compile_ctbnodes_dir_to_ctbnbdl_with_limits,
-    compile_ctbnodes_file_to_ctbnbdl_bytes, consume_atom_dc_with,
+    compile_ctbnodes_file_to_ctbnbdl_bytes,
+    compile_inactive_ctbnodes_dir_to_ctbnbdl,
+    compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits, consume_atom_dc_with,
     decode_nodes_from_ctbnbdl_bytes_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
     encode_nodes_to_ctbnbdl_bytes_with, format_chunk_bundle_filename,
-    format_chunk_filename, list_chunk_files, load_ledger_nodes_from_dir,
-    load_ledger_nodes_from_file, parse_chunk_bundle_filename_start_id,
-    parse_chunk_filename_start_id, push_atom_dc_with, sanitize_comment,
+    format_chunk_filename, is_relationship_verb_with, list_chunk_files,
+    load_ledger_nodes_from_dir, load_ledger_nodes_from_file,
+    parse_chunk_bundle_filename_start_id, parse_chunk_filename_start_id,
+    parse_statement_tokens_with, partition_active_and_inactive_nodes_with,
+    push_atom_dc_with, sanitize_comment,
 };
 
 use crate::dc::{
@@ -102,7 +106,27 @@ pub fn default_ctbnbdl_framing_dcs() -> CtbnbdlFramingDcs {
         end_node: sh(DC_END_GRAPH_NODE_DEFINITION),
         escape: sh(DC_ESCAPE),
         evaluate_as_atom: sh(DC_EVALUATE_VALUE_AS_ATOM),
+        has_a: sh(DC_HAS_A),
+        has_value: sh(DC_HAS_VALUE),
+        preferred: sh(DC_PREFERRED),
+        supersedes: sh(DC_SUPERSEDES),
+        retracts: sh(DC_RETRACTS),
+        enclosing_document: sh(DC_ENCLOSING_DOCUMENT),
+        is_instance_of: sh(DC_IS_INSTANCE_OF),
+        is_subtype_of: sh(DC_IS_SUBTYPE_OF),
+        is_based_on: sh(DC_IS_BASED_ON),
+        is_deprecated: sh(DC_IS_DEPRECATED),
+        is_closing_delimiter_for: sh(DC_IS_CLOSING_DELIMITER_FOR),
+        is_associated_with: sh(DC_IS_ASSOCIATED_WITH),
     }
+}
+
+/// Partitions `nodes` into `(active_nodes, inactive_nodes)` using [`default_ctbnbdl_framing_dcs`].
+#[must_use]
+pub fn partition_active_and_inactive_nodes(
+    nodes: &[LedgerNode],
+) -> (Vec<LedgerNode>, Vec<LedgerNode>) {
+    partition_active_and_inactive_nodes_with(nodes, default_ctbnbdl_framing_dcs())
 }
 
 /// Statistics returned by a ledger update operation.
@@ -1339,19 +1363,6 @@ pub fn single_valued_property_set() -> HashSet<DcShorthand> {
     ])
 }
 
-fn is_relationship_verb(tok: DcShorthand) -> bool {
-    tok == sh(DC_HAS_A)
-        || tok == sh(DC_IS_INSTANCE_OF)
-        || tok == sh(DC_IS_SUBTYPE_OF)
-        || tok == sh(DC_IS_BASED_ON)
-        || tok == sh(DC_IS_DEPRECATED)
-        || tok == sh(DC_IS_CLOSING_DELIMITER_FOR)
-        || tok == sh(DC_SUPERSEDES)
-        || tok == sh(DC_RETRACTS)
-        || tok == sh(DC_IS_ASSOCIATED_WITH)
-        || tok == sh(DC_HAS_VALUE)
-}
-
 fn push_atom_dc(out: &mut Vec<DcShorthand>, tok: DcShorthand) {
     push_atom_dc_with(out, tok, default_ctbnbdl_framing_dcs());
 }
@@ -1371,30 +1382,12 @@ pub fn encode_statement_tokens(
     out
 }
 
-fn consume_atom_dc(
-    tokens: &[DcShorthand],
-    idx: &mut usize,
-) -> Option<DcShorthand> {
-    consume_atom_dc_with(tokens, idx, default_ctbnbdl_framing_dcs())
-}
-
 /// Parses a relationship statement `<verb> [atom_dc] [atom_dc]` back into `(verb, subj, obj)`.
 #[must_use]
 pub fn parse_statement_tokens(
     tokens: &[DcShorthand],
 ) -> Option<(DcShorthand, DcShorthand, DcShorthand)> {
-    let verb = *tokens.first()?;
-    if !is_relationship_verb(verb) {
-        return None;
-    }
-    let mut idx = 1usize;
-    let subj = consume_atom_dc(tokens, &mut idx)?;
-    let obj = consume_atom_dc(tokens, &mut idx)?;
-    if idx == tokens.len() {
-        Some((verb, subj, obj))
-    } else {
-        None
-    }
+    parse_statement_tokens_with(tokens, default_ctbnbdl_framing_dcs())
 }
 
 /// Compiles `dc_defns`, `format_defns`, `scripts`, and `named_types_bytes` into a
@@ -2064,6 +2057,16 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &runtime_graph_dir, framing)
             .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
     }
+    let staged_history_dir =
+        repo_root.join("built/system_graph_history_assets/data/graph/system");
+    if staged_history_dir.is_dir() {
+        compile_inactive_ctbnodes_dir_to_ctbnbdl(
+            &graph_dir,
+            &staged_history_dir,
+            framing,
+        )
+        .context("Failed to compile inactive system graph history .ctbnbdl bundles")?;
+    }
     Ok(stats)
 }
 
@@ -2368,21 +2371,70 @@ mod tests {
             ctb_build_support::dc_codegen::resolve_ctbnbdl_framing_dcs(
                 &categories_dir,
             )?;
+        let def_framing = default_ctbnbdl_framing_dcs();
         assert_eq!(
             resolved_framing.begin_node.to_global_id()?,
-            default_ctbnbdl_framing_dcs().begin_node.to_global_id()?
+            def_framing.begin_node.to_global_id()?
         );
         assert_eq!(
             resolved_framing.end_node.to_global_id()?,
-            default_ctbnbdl_framing_dcs().end_node.to_global_id()?
+            def_framing.end_node.to_global_id()?
         );
         assert_eq!(
             resolved_framing.escape.to_global_id()?,
-            default_ctbnbdl_framing_dcs().escape.to_global_id()?
+            def_framing.escape.to_global_id()?
         );
         assert_eq!(
             resolved_framing.evaluate_as_atom.to_global_id()?,
-            default_ctbnbdl_framing_dcs().evaluate_as_atom.to_global_id()?
+            def_framing.evaluate_as_atom.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.has_a.to_global_id()?,
+            def_framing.has_a.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.has_value.to_global_id()?,
+            def_framing.has_value.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.preferred.to_global_id()?,
+            def_framing.preferred.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.supersedes.to_global_id()?,
+            def_framing.supersedes.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.retracts.to_global_id()?,
+            def_framing.retracts.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.enclosing_document.to_global_id()?,
+            def_framing.enclosing_document.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_instance_of.to_global_id()?,
+            def_framing.is_instance_of.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_subtype_of.to_global_id()?,
+            def_framing.is_subtype_of.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_based_on.to_global_id()?,
+            def_framing.is_based_on.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_deprecated.to_global_id()?,
+            def_framing.is_deprecated.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_closing_delimiter_for.to_global_id()?,
+            def_framing.is_closing_delimiter_for.to_global_id()?
+        );
+        assert_eq!(
+            resolved_framing.is_associated_with.to_global_id()?,
+            def_framing.is_associated_with.to_global_id()?
         );
 
         let tmp = tempfile::tempdir()?;
@@ -2391,9 +2443,16 @@ mod tests {
         std::fs::create_dir_all(&src_dir)?;
         std::fs::create_dir_all(&dst_dir)?;
 
+        let id0 = SYSTEM_REGION_START;
+        let id1 = SYSTEM_REGION_START + 1;
+        let id2 = SYSTEM_REGION_START + 2;
+        let id3 = SYSTEM_REGION_START + 3;
+        let id4 = SYSTEM_REGION_START + 4;
+        let id5 = SYSTEM_REGION_START + 5;
+        let id6 = SYSTEM_REGION_START + 6;
         let nodes = vec![
             LedgerNode {
-                id: SYSTEM_REGION_START,
+                id: id0,
                 tokens: vec![
                     sh(DC_IS_INSTANCE_OF),
                     sh(DC_ENCLOSING_DOCUMENT),
@@ -2402,12 +2461,64 @@ mod tests {
                 comment: "Seed entity".to_string(),
             },
             LedgerNode {
-                id: SYSTEM_REGION_START + 1,
+                id: id1,
+                tokens: encode_string_value_tokens("OldL"),
+                comment: "\"OldL\"".to_string(),
+            },
+            LedgerNode {
+                id: id2,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    DcShorthand::Long(id0),
+                    sh(DC_PROGRAMMATIC_IDENTIFIER),
+                ),
+                comment: "Has a".to_string(),
+            },
+            LedgerNode {
+                id: id3,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(id2),
+                    DcShorthand::Long(id1),
+                ),
+                comment: "Old Has value".to_string(),
+            },
+            LedgerNode {
+                id: id4,
                 tokens: encode_string_value_tokens("L"),
                 comment: "\"L\"".to_string(),
             },
+            LedgerNode {
+                id: id5,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(id2),
+                    DcShorthand::Long(id4),
+                ),
+                comment: "New Has value".to_string(),
+            },
+            LedgerNode {
+                id: id6,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(id5),
+                    DcShorthand::Long(id3),
+                ),
+                comment: "Supersedes".to_string(),
+            },
         ];
         write_ledger_nodes_to_dir(&src_dir, &nodes)?;
+
+        let (expected_active, expected_inactive) =
+            partition_active_and_inactive_nodes(&nodes);
+        assert_eq!(
+            expected_active.iter().map(|n| n.id).collect::<Vec<_>>(),
+            vec![id0, id2, id4, id5]
+        );
+        assert_eq!(
+            expected_inactive.iter().map(|n| n.id).collect::<Vec<_>>(),
+            vec![id1, id3, id6]
+        );
 
         // Seed a stale `.ctbnodes` file in `dst_dir` to ensure it is removed during compilation.
         let stale_ctbnodes =
@@ -2430,8 +2541,8 @@ mod tests {
         assert!(bundle_path.is_file());
         let bundle_bytes = std::fs::read(&bundle_path)?;
         let decoded = decode_nodes_from_ctbnbdl_bytes(&bundle_bytes)?;
-        assert_eq!(decoded.len(), nodes.len());
-        for (orig, dec) in nodes.iter().zip(decoded.iter()) {
+        assert_eq!(decoded.len(), expected_active.len());
+        for (orig, dec) in expected_active.iter().zip(decoded.iter()) {
             assert_eq!(orig.id, dec.id);
             assert_eq!(orig.tokens, dec.tokens);
         }
@@ -2444,8 +2555,9 @@ mod tests {
         )?;
         assert_eq!(compiled_again, 0);
 
-        // Compiling in-place (src_dir == dst_dir) should produce the .ctbnbdl file
-        // without deleting the source .ctbnodes files.
+        // Compiling in-place (src_dir == dst_dir) should produce the active .ctbnbdl file
+        // in `src_dir` and the inactive .ctbnbdl file in `src_dir/system/` without deleting
+        // the source .ctbnodes files.
         let src_chunk_file = src_dir.join(format_chunk_filename(SYSTEM_REGION_START));
         assert!(src_chunk_file.is_file());
         let in_place_compiled = compile_ctbnodes_dir_to_ctbnbdl(
@@ -2461,6 +2573,21 @@ mod tests {
         let in_place_bundle = src_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
         assert!(in_place_bundle.is_file());
         assert_eq!(std::fs::read(&in_place_bundle)?, bundle_bytes);
+
+        let history_bundle = src_dir
+            .join("system")
+            .join(format_chunk_bundle_filename(id1));
+        assert!(
+            history_bundle.is_file(),
+            "Expected inactive history bundle at {}",
+            history_bundle.display()
+        );
+        let decoded_history = decode_nodes_from_ctbnbdl_bytes(&std::fs::read(&history_bundle)?)?;
+        assert_eq!(decoded_history.len(), expected_inactive.len());
+        for (orig, dec) in expected_inactive.iter().zip(decoded_history.iter()) {
+            assert_eq!(orig.id, dec.id);
+            assert_eq!(orig.tokens, dec.tokens);
+        }
 
         // In-place second call should compile 0 files.
         let in_place_again = compile_ctbnodes_dir_to_ctbnbdl(

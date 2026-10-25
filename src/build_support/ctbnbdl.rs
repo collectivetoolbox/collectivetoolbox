@@ -62,7 +62,8 @@ pub const DCMM_HEADER_V1: [u8; 21] = [
     0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
 ];
 
-/// Framing Document Characters used when encoding and decoding `.ctbnbdl` node definitions.
+/// Framing and relationship Document Characters used when encoding, decoding, and partitioning
+/// `.ctbnbdl` node definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CtbnbdlFramingDcs {
     /// `BeginGraphNodeDefinition` (`Dc 617`).
@@ -73,6 +74,30 @@ pub struct CtbnbdlFramingDcs {
     pub escape: DcShorthand,
     /// `EvaluateValueAsAtom` (`Dc 616`).
     pub evaluate_as_atom: DcShorthand,
+    /// `HasA` (`Dc 584`).
+    pub has_a: DcShorthand,
+    /// `HasValue` (`Dc 610`).
+    pub has_value: DcShorthand,
+    /// `Preferred` (`Dc 570`).
+    pub preferred: DcShorthand,
+    /// `Supersedes` (`Dc 591`).
+    pub supersedes: DcShorthand,
+    /// `Retracts` (`Dc 592`).
+    pub retracts: DcShorthand,
+    /// `EnclosingDocument` (`Dc 615`).
+    pub enclosing_document: DcShorthand,
+    /// `IsInstanceOf` (`Dc 586`).
+    pub is_instance_of: DcShorthand,
+    /// `IsSubtypeOf` (`Dc 587`).
+    pub is_subtype_of: DcShorthand,
+    /// `IsBasedOn` (`Dc 588`).
+    pub is_based_on: DcShorthand,
+    /// `IsDeprecated` (`Dc 589`).
+    pub is_deprecated: DcShorthand,
+    /// `IsClosingDelimiterFor` (`Dc 590`).
+    pub is_closing_delimiter_for: DcShorthand,
+    /// `IsAssociatedWith` (`Dc 598`).
+    pub is_associated_with: DcShorthand,
 }
 
 /// Sanitizes a `.ctbnodes` comment string by escaping carriage returns and newlines.
@@ -600,6 +625,209 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
     Ok(bundles)
 }
 
+/// Returns `true` if `tok` is one of the canonical relationship verbs in `framing`.
+#[must_use]
+pub fn is_relationship_verb_with(
+    tok: DcShorthand,
+    framing: CtbnbdlFramingDcs,
+) -> bool {
+    tok == framing.has_a
+        || tok == framing.is_instance_of
+        || tok == framing.is_subtype_of
+        || tok == framing.is_based_on
+        || tok == framing.is_deprecated
+        || tok == framing.is_closing_delimiter_for
+        || tok == framing.supersedes
+        || tok == framing.retracts
+        || tok == framing.is_associated_with
+        || tok == framing.has_value
+}
+
+/// Parses a relationship statement `<verb> [atom_dc] [atom_dc]` back into `(verb, subj, obj)`.
+#[must_use]
+pub fn parse_statement_tokens_with(
+    tokens: &[DcShorthand],
+    framing: CtbnbdlFramingDcs,
+) -> Option<(DcShorthand, DcShorthand, DcShorthand)> {
+    let verb = *tokens.first()?;
+    if !is_relationship_verb_with(verb, framing) {
+        return None;
+    }
+    let mut idx = 1usize;
+    let subj = consume_atom_dc_with(tokens, &mut idx, framing)?;
+    let obj = consume_atom_dc_with(tokens, &mut idx, framing)?;
+    if idx == tokens.len() {
+        Some((verb, subj, obj))
+    } else {
+        None
+    }
+}
+
+/// Partitions an ordered slice of `LedgerNode` entries into `(active_nodes, inactive_nodes)`
+/// preserving ascending node ID order in both output vectors.
+///
+/// Inactive nodes include:
+/// 1. Any node targeted by an active `591 <new_id> l<old_id>` (`Supersedes`) or
+///    `592 615 l<old_id>` (`Retracts`) statement.
+/// 2. All `591` (`Supersedes`) and `592` (`Retracts`) revision/retraction statements themselves.
+/// 3. Any `610 l<has_a_id> <val>` (`Has value`) or `584 l<has_a_id> 570` (`Has a Preferred`)
+///    statement whose subject `has_a_id` is inactive, or any `584 <subj> <prop>` (`prop != 570`)
+///    statement that has no active `610` value statement.
+/// 4. Any non-statement value node that is transitively referenced by an inactive statement
+///    and is not transitively referenced by any active statement.
+#[must_use]
+pub fn partition_active_and_inactive_nodes_with(
+    nodes: &[LedgerNode],
+    framing: CtbnbdlFramingDcs,
+) -> (Vec<LedgerNode>, Vec<LedgerNode>) {
+    use std::collections::{HashMap, HashSet};
+
+    let mut node_by_id: HashMap<u128, &LedgerNode> =
+        HashMap::with_capacity(nodes.len());
+    for node in nodes {
+        node_by_id.insert(node.id, node);
+    }
+
+    // Pass 1: Reverse chronological pass to identify superseded and retracted node IDs,
+    // as well as all `591` (`Supersedes`) and `592` (`Retracts`) revision statement IDs.
+    let mut superseded_or_retracted_ids: HashSet<u128> = HashSet::new();
+    let mut revision_stmt_ids: HashSet<u128> = HashSet::new();
+    for node in nodes.iter().rev() {
+        let Some((verb, subj, obj)) =
+            parse_statement_tokens_with(&node.tokens, framing)
+        else {
+            continue;
+        };
+        if verb == framing.supersedes {
+            revision_stmt_ids.insert(node.id);
+            if !superseded_or_retracted_ids.contains(&node.id) {
+                if let DcShorthand::Long(old_id) = obj {
+                    superseded_or_retracted_ids.insert(old_id);
+                }
+            }
+        } else if verb == framing.retracts && subj == framing.enclosing_document
+        {
+            revision_stmt_ids.insert(node.id);
+            if !superseded_or_retracted_ids.contains(&node.id) {
+                if let DcShorthand::Long(old_id) = obj {
+                    superseded_or_retracted_ids.insert(old_id);
+                }
+            }
+        }
+    }
+
+    // Pass 2: Identify active vs. inactive statement nodes.
+    let mut has_a_with_active_value: HashSet<u128> = HashSet::new();
+    for node in nodes {
+        if superseded_or_retracted_ids.contains(&node.id)
+            || revision_stmt_ids.contains(&node.id)
+        {
+            continue;
+        }
+        if let Some((verb, DcShorthand::Long(has_a_id), _val)) =
+            parse_statement_tokens_with(&node.tokens, framing)
+        {
+            if verb == framing.has_value
+                && !superseded_or_retracted_ids.contains(&has_a_id)
+            {
+                has_a_with_active_value.insert(has_a_id);
+            }
+        }
+    }
+
+    let mut active_stmt_ids: HashSet<u128> = HashSet::new();
+    let mut inactive_stmt_ids: HashSet<u128> = HashSet::new();
+    for node in nodes {
+        let Some((verb, subj, obj)) =
+            parse_statement_tokens_with(&node.tokens, framing)
+        else {
+            continue;
+        };
+        let is_active = if superseded_or_retracted_ids.contains(&node.id)
+            || revision_stmt_ids.contains(&node.id)
+        {
+            false
+        } else if verb == framing.has_value {
+            matches!(
+                subj,
+                DcShorthand::Long(has_a_id)
+                    if !superseded_or_retracted_ids.contains(&has_a_id)
+            )
+        } else if verb == framing.has_a && obj == framing.preferred {
+            matches!(
+                subj,
+                DcShorthand::Long(has_a_id)
+                    if !superseded_or_retracted_ids.contains(&has_a_id)
+                        && has_a_with_active_value.contains(&has_a_id)
+            )
+        } else if verb == framing.has_a {
+            has_a_with_active_value.contains(&node.id)
+        } else {
+            true
+        };
+        if is_active {
+            active_stmt_ids.insert(node.id);
+        } else {
+            inactive_stmt_ids.insert(node.id);
+        }
+    }
+
+    // Pass 3: Compute transitive reachability of `DcShorthand::Long(id)` nodes from
+    // active statements and from inactive statements.
+    let collect_reachable = |seed_stmt_ids: &HashSet<u128>| -> HashSet<u128> {
+        let mut reachable: HashSet<u128> = HashSet::new();
+        let mut worklist: Vec<u128> = Vec::new();
+        for &stmt_id in seed_stmt_ids {
+            if let Some(stmt_node) = node_by_id.get(&stmt_id) {
+                for &tok in &stmt_node.tokens {
+                    if let DcShorthand::Long(ref_id) = tok {
+                        worklist.push(ref_id);
+                    }
+                }
+            }
+        }
+        while let Some(ref_id) = worklist.pop() {
+            if reachable.insert(ref_id) {
+                if let Some(ref_node) = node_by_id.get(&ref_id) {
+                    for &tok in &ref_node.tokens {
+                        if let DcShorthand::Long(inner_id) = tok {
+                            worklist.push(inner_id);
+                        }
+                    }
+                }
+            }
+        }
+        reachable
+    };
+
+    let reachable_from_active = collect_reachable(&active_stmt_ids);
+    let reachable_from_inactive = collect_reachable(&inactive_stmt_ids);
+
+    // Pass 4: Partition `nodes` in ascending ID order.
+    let mut active_nodes = Vec::with_capacity(nodes.len());
+    let mut inactive_nodes = Vec::new();
+    for node in nodes {
+        let is_active = if active_stmt_ids.contains(&node.id) {
+            true
+        } else if inactive_stmt_ids.contains(&node.id)
+            || superseded_or_retracted_ids.contains(&node.id)
+        {
+            false
+        } else if reachable_from_active.contains(&node.id) {
+            true
+        } else {
+            !reachable_from_inactive.contains(&node.id)
+        };
+        if is_active {
+            active_nodes.push(node.clone());
+        } else {
+            inactive_nodes.push(node.clone());
+        }
+    }
+
+    (active_nodes, inactive_nodes)
+}
+
 fn write_bytes_if_changed(path: &Path, bytes: &[u8]) -> Result<bool> {
     if path.is_file() {
         if let Ok(existing) = std::fs::read(path) {
@@ -619,11 +847,66 @@ fn write_bytes_if_changed(path: &Path, bytes: &[u8]) -> Result<bool> {
     Ok(true)
 }
 
-/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped `.ctbnbdl` bundle files
+fn write_ctbnbdl_bundles_to_dir(
+    dst_dir: &Path,
+    bundles: &[(u128, Vec<u8>)],
+    remove_stale_ctbnodes: bool,
+) -> Result<usize> {
+    std::fs::create_dir_all(dst_dir).with_context(|| {
+        format!(
+            "Failed to create destination directory {}",
+            dst_dir.display()
+        )
+    })?;
+
+    let mut expected_bundle_names =
+        std::collections::HashSet::with_capacity(bundles.len());
+    let mut compiled_count = 0usize;
+    for (first_id, bytes) in bundles {
+        let filename = format_chunk_bundle_filename(*first_id);
+        let dst_path = dst_dir.join(&filename);
+        expected_bundle_names.insert(filename);
+        if write_bytes_if_changed(&dst_path, bytes)? {
+            compiled_count = compiled_count.saturating_add(1);
+        }
+    }
+
+    for entry in std::fs::read_dir(dst_dir).with_context(|| {
+        format!(
+            "Failed to read destination directory {}",
+            dst_dir.display()
+        )
+    })? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let ext = path.extension().and_then(|e| e.to_str());
+        if (remove_stale_ctbnodes && ext == Some("ctbnodes"))
+            || (ext == Some("ctbnbdl") && !expected_bundle_names.contains(name))
+        {
+            std::fs::remove_file(&path).with_context(|| {
+                format!("Failed to remove stale file {}", path.display())
+            })?;
+        }
+    }
+
+    Ok(compiled_count)
+}
+
+/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped active `.ctbnbdl` bundle files
 /// in `dst_dir` using custom node-count and byte-size limits, removing any stale `.ctbnodes`
 /// or obsolete `.ctbnbdl` files in `dst_dir`.
 ///
-/// Returns the number of `.ctbnbdl` files written or updated.
+/// When `src_dir == dst_dir` (e.g., `assets/data/graph`), this also compiles all filtered-out
+/// inactive (superseded/retracted) nodes into `dst_dir.join("system")` using the same
+/// node-count and byte-size split limits.
+///
+/// Returns the number of active `.ctbnbdl` files written or updated in `dst_dir`.
 pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
     src_dir: &Path,
     dst_dir: &Path,
@@ -641,65 +924,56 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
         )
     })?;
 
-    let nodes = load_ledger_nodes_from_dir(src_dir)?;
-    let bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
-        &nodes,
-        framing,
-        max_nodes_per_bundle,
-        max_bytes_per_bundle,
-    )?;
-
-    let mut expected_bundle_names = std::collections::HashSet::with_capacity(bundles.len());
-    let mut compiled_count = 0usize;
-    for (first_id, bytes) in bundles {
-        let filename = format_chunk_bundle_filename(first_id);
-        let dst_path = dst_dir.join(&filename);
-        expected_bundle_names.insert(filename);
-        if write_bytes_if_changed(&dst_path, &bytes)? {
-            compiled_count = compiled_count.saturating_add(1);
-        }
-    }
-
-    // Remove any stale `.ctbnodes` files (when destination differs from source)
-    // or obsolete `.ctbnbdl` files in `dst_dir`.
-    let is_same_dir = if let (Ok(c_src), Ok(c_dst)) = (src_dir.canonicalize(), dst_dir.canonicalize()) {
+    let is_same_dir = if let (Ok(c_src), Ok(c_dst)) =
+        (src_dir.canonicalize(), dst_dir.canonicalize())
+    {
         c_src == c_dst
     } else {
         src_dir == dst_dir
     };
 
-    for entry in std::fs::read_dir(dst_dir).with_context(|| {
-        format!(
-            "Failed to read destination directory {}",
-            dst_dir.display()
-        )
-    })? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
-        let ext = path.extension().and_then(|e| e.to_str());
-        if (!is_same_dir && ext == Some("ctbnodes"))
-            || (ext == Some("ctbnbdl") && !expected_bundle_names.contains(name))
-        {
-            std::fs::remove_file(&path).with_context(|| {
-                format!("Failed to remove stale file {}", path.display())
-            })?;
-        }
+    let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let (active_nodes, inactive_nodes) =
+        partition_active_and_inactive_nodes_with(&nodes, framing);
+
+    let active_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+        &active_nodes,
+        framing,
+        max_nodes_per_bundle,
+        max_bytes_per_bundle,
+    )?;
+    let compiled_count = write_ctbnbdl_bundles_to_dir(
+        dst_dir,
+        &active_bundles,
+        !is_same_dir,
+    )?;
+
+    if is_same_dir {
+        let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+            &inactive_nodes,
+            framing,
+            max_nodes_per_bundle,
+            max_bytes_per_bundle,
+        )?;
+        let system_history_dir = dst_dir.join("system");
+        write_ctbnbdl_bundles_to_dir(
+            &system_history_dir,
+            &inactive_bundles,
+            true,
+        )?;
     }
 
     Ok(compiled_count)
 }
 
-/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped `.ctbnbdl` bundle files
+/// Compiles all `.ctbnodes` chunk files in `src_dir` into grouped active `.ctbnbdl` bundle files
 /// in `dst_dir` (up to `MAX_NODES_PER_BUNDLE` = 1,000,000 nodes or `MAX_BYTES_PER_BUNDLE` = 50 MB
 /// per bundle), removing any stale `.ctbnodes` or obsolete `.ctbnbdl` files in `dst_dir`.
 ///
-/// Returns the number of `.ctbnbdl` files written or updated.
+/// When `src_dir == dst_dir` (e.g., `assets/data/graph`), this also compiles all filtered-out
+/// inactive (superseded/retracted) nodes into `dst_dir.join("system")`.
+///
+/// Returns the number of active `.ctbnbdl` files written or updated in `dst_dir`.
 pub fn compile_ctbnodes_dir_to_ctbnbdl(
     src_dir: &Path,
     dst_dir: &Path,
@@ -708,6 +982,52 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl(
     compile_ctbnodes_dir_to_ctbnbdl_with_limits(
         src_dir,
         dst_dir,
+        framing,
+        MAX_NODES_PER_BUNDLE,
+        MAX_BYTES_PER_BUNDLE,
+    )
+}
+
+/// Compiles all filtered-out inactive (superseded/retracted) nodes from `.ctbnodes` chunk files
+/// in `src_dir` into grouped `.ctbnbdl` bundle files in `history_dst_dir` using custom
+/// node-count and byte-size limits.
+///
+/// Returns the number of `.ctbnbdl` files written or updated in `history_dst_dir`.
+pub fn compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits(
+    src_dir: &Path,
+    history_dst_dir: &Path,
+    framing: CtbnbdlFramingDcs,
+    max_nodes_per_bundle: usize,
+    max_bytes_per_bundle: usize,
+) -> Result<usize> {
+    if !src_dir.is_dir() {
+        return Ok(0);
+    }
+    let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let (_active_nodes, inactive_nodes) =
+        partition_active_and_inactive_nodes_with(&nodes, framing);
+    let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+        &inactive_nodes,
+        framing,
+        max_nodes_per_bundle,
+        max_bytes_per_bundle,
+    )?;
+    write_ctbnbdl_bundles_to_dir(history_dst_dir, &inactive_bundles, true)
+}
+
+/// Compiles all filtered-out inactive (superseded/retracted) nodes from `.ctbnodes` chunk files
+/// in `src_dir` into grouped `.ctbnbdl` bundle files in `history_dst_dir` (up to
+/// `MAX_NODES_PER_BUNDLE` = 1,000,000 nodes or `MAX_BYTES_PER_BUNDLE` = 50 MB per bundle).
+///
+/// Returns the number of `.ctbnbdl` files written or updated in `history_dst_dir`.
+pub fn compile_inactive_ctbnodes_dir_to_ctbnbdl(
+    src_dir: &Path,
+    history_dst_dir: &Path,
+    framing: CtbnbdlFramingDcs,
+) -> Result<usize> {
+    compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits(
+        src_dir,
+        history_dst_dir,
         framing,
         MAX_NODES_PER_BUNDLE,
         MAX_BYTES_PER_BUNDLE,
