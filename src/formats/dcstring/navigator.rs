@@ -5174,6 +5174,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.active_span = span;
                 let mut type_ctx = SyntaxEvalContext::new(resolver, None);
                 type_ctx.policy.clone_from(policy);
+                // Reason for fallback: speculative type constructor evaluation failure is treated as non-match (false).
                 if self.eval_type_constructor(&mut type_ctx).unwrap_or(false)
                     && !type_ctx.has_errors
                     && self.cursor > offset
@@ -7019,13 +7020,10 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         }
         let doc_start = match &self.backend {
-            NavBackend::MemoryMstr(_) => {
-                // Reason for fallback: DCMM_HEADER_LEN fits in u64.
-                u64::try_from(DCMM_HEADER_LEN).unwrap_or(0)
-            }
+            NavBackend::MemoryMstr(_) => u64::try_from(DCMM_HEADER_LEN)?,
             NavBackend::MemoryText(_) => 0,
             NavBackend::SeekableFile { base_offset, .. } => {
-                base_offset.saturating_add(u64::try_from(DCMM_HEADER_LEN).unwrap_or(0))
+                base_offset.saturating_add(u64::try_from(DCMM_HEADER_LEN)?)
             }
         };
         if before_offset <= doc_start {
@@ -7080,6 +7078,7 @@ impl<'a> DcDocumentNavigator<'a> {
             subtype: None,
             capture_var: None,
         };
+        // Reason for fallback: term evaluation errors or mismatches evaluate to non-match (false).
         let ok = self.eval_term_single(&term, &mut sub_ctx).unwrap_or(false)
             && !sub_ctx.has_errors
             && self.cursor == val_span.end;

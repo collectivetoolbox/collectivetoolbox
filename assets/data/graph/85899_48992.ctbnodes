@@ -76,3 +76,6 @@ l8589949066: 588 f647 f632 # Is based on (Collective Toolbox csc journal, versio
 l8589949067: 588 f647 f643 # Is based on (Collective Toolbox csc journal, version 5, Dc mixed mode, version 2 (DcTF))
 l8589949068: 588 f648 f634 # Is based on (Collective Toolbox csc archive, version 2, Collective Toolbox csc archive, version 1)
 l8589949069: 588 f648 f643 # Is based on (Collective Toolbox csc archive, version 2, Dc mixed mode, version 2 (DcTF))
+l8589949070: u44 u63 u54 u46 u20 u28 u44 u63 u20 u54 u72 u61 u6e u73 u66 u6f u72 u6d u61 u74 u69 u6f u6e u20 u46 u6f u72 u6d u61 u74 u29 # "DcTF (Dc Transformation Format)"
+l8589949071: 610 l8589948928 l8589949070 # Has value (l8589948928, "DcTF (Dc Transformation Format)")
+l8589949072: 591 l8589949071 l8589948929 # Supersedes (l8589949071, l8589948929)

@@ -14,5 +14,8 @@ proc-macro2 = { version = "1.0.105", default-features = false }
 quote = { version = "1.0" }
 syn = { version = "2.0", default-features = false, features = ["full", "parsing", "printing", "proc-macro", "clone-impls", "derive"] }
 
+[dev-dependencies]
+ctb-utilities = { path = "../../../utilities" }
+
 [lints]
 workspace = true

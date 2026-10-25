@@ -700,6 +700,7 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
 #[must_use]
 pub fn is_extension_regex(entry: &str) -> bool {
     let trimmed = entry.trim();
+    // Reason for fallback: when optional "case:" prefix is not present, use the already-trimmed entry directly.
     let trimmed = trimmed
         .strip_prefix("case:")
         .map_or(trimmed, str::trim);
@@ -713,6 +714,7 @@ pub fn is_extension_regex(entry: &str) -> bool {
 /// or more times); unanchored end (no trailing unescaped `$`) appends `600*`.
 pub fn parse_extension_regex(entry: &str) -> Result<DcSyntaxRule> {
     let raw_trimmed = entry.trim();
+    // Reason for fallback: when optional "case:" prefix is not present, use the already-trimmed entry directly.
     let body_trimmed = raw_trimmed
         .strip_prefix("case:")
         .map_or(raw_trimmed, str::trim);

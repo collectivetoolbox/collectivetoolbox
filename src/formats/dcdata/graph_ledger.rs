@@ -750,7 +750,7 @@ impl LedgerBuilder {
 
     fn append_raw_node(&mut self, tokens: Vec<DcShorthand>) -> Result<u128> {
         let next_id = SYSTEM_REGION_START
-            .saturating_add(u128::try_from(self.nodes.len()).unwrap_or(0));
+            .saturating_add(u128::try_from(self.nodes.len())?);
         ensure!(
             next_id <= SYSTEM_REGION_END,
             "System graph region exhausted at node ID l{next_id}"
@@ -1078,6 +1078,7 @@ impl LedgerBuilder {
                         )?;
                         shorthands.push(DcShorthand::Long(int_id));
                     } else {
+                        // Reason for fallback: unquoted literal names are used as-is; quoted strings unescape interior quotes.
                         let clean = name
                             .strip_prefix('"')
                             .and_then(|s| s.strip_suffix('"'))
@@ -1271,11 +1272,13 @@ impl LedgerBuilder {
         all_multi_subj_props.extend(added_by_subj_prop.keys().copied());
 
         for (subj, prop) in all_multi_subj_props {
+            // Reason for fallback: (subj, prop) may exist only in added_by_subj_prop, defaulting removed list to empty.
             let mut removed = removed_by_subj_prop
                 .remove(&(subj, prop))
                 .unwrap_or_default();
             // Sort by `has_a_id` so superseding preserves original statement order
             removed.sort_by_key(|&(_, has_a_id, _)| has_a_id);
+            // Reason for fallback: (subj, prop) may exist only in removed_by_subj_prop, defaulting added list to empty.
             let mut added = added_by_subj_prop
                 .remove(&(subj, prop))
                 .unwrap_or_default();
@@ -1563,7 +1566,9 @@ fn compile_desired_dataset_state(
             if row.iter().all(|c| c.trim().is_empty()) {
                 continue;
             }
+            // Reason for fallback: missing first column defaults to empty string and triggers ensure! error below.
             let name = row.first().map_or("", |s| s.trim());
+            // Reason for fallback: missing second column defaults to empty string and triggers ensure! error below.
             let raw_syntax = row.get(1).map_or("", |s| s.trim());
             ensure!(
                 !name.is_empty(),
@@ -1860,6 +1865,7 @@ fn compile_defn_statements(
 
     // Cross-references (`593`)
     for xref in &defn.cross_references {
+        // Reason for fallback: cross-reference without leading '>' prefix is used directly.
         let clean = xref.strip_prefix('>').unwrap_or(xref).trim();
         if clean.is_empty() {
             continue;

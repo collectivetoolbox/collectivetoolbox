@@ -1576,6 +1576,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     /// Returns `Ok(None)` for absent, `Ok(Some(inner_id))` for present.
     pub fn unwrap_optional_node(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
         self.decode_equivalent(node_id, |ctx, cand_id| {
+            // Reason for fallback: when candidate node is not an expression/reference or cannot be resolved, candidate node itself is used directly.
             let cand_id = ctx.resolve_expression_node(cand_id)?.unwrap_or(cand_id);
             let node = ctx.node(cand_id)?;
             match &node.kind {

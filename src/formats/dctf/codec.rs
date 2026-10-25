@@ -339,10 +339,8 @@ pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
     if let Some(x) = decode_utf_8e_128_buf(bytes) {
         Some(x)
     } else {
-        // Reason for fallback: determine_utf_8e_128_error_len returns None when
-        // `bytes` is a truncated valid canonical prefix at a chunk boundary; in
-        // one-shot lossy decoding (`decode_utf_8e_128`), the end of `bytes` is
-        // actual EOF, so the entire truncated prefix is consumed as one U+FFFD.
+        // Reason for fallback: truncated prefix at EOF consumes remaining bytes as one U+FFFD
+        // when determine_utf_8e_128_error_len returns None for lossy decoding.
         let err_len = determine_utf_8e_128_error_len(bytes).unwrap_or(bytes.len());
         Some((0xFFFD, err_len))
     }
@@ -765,10 +763,8 @@ pub fn decode_dctf(bytes: &[u8]) -> Option<(u128, usize)> {
     if let Some(x) = decode_dctf_buf(bytes) {
         Some(x)
     } else {
-        // Reason for fallback: determine_dctf_error_len returns None when `bytes`
-        // is a truncated valid canonical prefix at a chunk boundary; in one-shot
-        // lossy decoding (`decode_dctf`), the end of `bytes` is actual EOF, so
-        // the entire truncated prefix is consumed as one U+FFFD.
+        // Reason for fallback: truncated prefix at EOF consumes remaining bytes as one U+FFFD
+        // when determine_dctf_error_len returns None for lossy decoding.
         let err_len = determine_dctf_error_len(bytes).unwrap_or(bytes.len());
         Some((0xFFFD, err_len))
     }

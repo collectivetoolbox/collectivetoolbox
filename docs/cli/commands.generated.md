@@ -323,7 +323,7 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
+          Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii, cscjournal]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
@@ -412,8 +412,8 @@ Arguments:
   [INPUT]  Input data string. If not provided, reads from stdin or --file
 
 Options:
-      --from <FROM>                 Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
-  -t, --to <TO>                     Output format [default: utf8] [possible values: dcil, html, htmlfragment, elad, eitecolorcoded, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii]
+      --from <FROM>                 Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii, cscjournal]
+  -t, --to <TO>                     Output format [default: utf8] [possible values: dcil, html, htmlfragment, elad, eitecolorcoded, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii]
   -f, --file <FILE>                 Input file path (or - for stdin)
   -o, --output <OUTPUT>             Output file path (or - for stdout)
   -F, --force                       Overwrite existing output file without prompt

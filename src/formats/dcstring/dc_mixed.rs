@@ -3165,6 +3165,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         };
 
                         if is_v1 {
+                            // Reason for fallback: when section metadata is absent (meta_owned is None), metadata payload defaults to an empty byte slice.
                             let meta_dctf_bytes = meta_owned
                                 .as_deref()
                                 .map_or(&[][..], DcStr::as_bytes);
@@ -3312,6 +3313,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         buffer.drain(..pos);
                         pos = 0;
                     }
+                    // Reason for fallback: when error length cannot be determined from truncated sequence, consume remaining buffer in best-effort recovery.
                     let step = err_len.unwrap_or(buffer.len()).max(1).min(buffer.len());
                     log.warn(&format!(
                         "Invalid DcTF sequence at offset {stream_offset}: substituting replacement character"

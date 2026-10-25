@@ -119,7 +119,7 @@ use syn::{
 };
 
 use ctb_storage_minimal::global_graph_layout::{
-    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START, UNICODE_REGION_START,
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START,
 };
 use ctb_storage_minimal::shorthand::DcShorthand;
 
@@ -4407,6 +4407,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 }
 
 #[cfg(test)]
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
+
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -4420,7 +4424,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 mod tests {
     use super::*;
 
-    #[test]
+    #[crate::ctb_test]
     fn test_rejects_duplicate_and_ambiguous_derive_mappings() {
         // 1. Duplicate primary tag in compound struct
         let dup_tag: DeriveInput = syn::parse_quote! {

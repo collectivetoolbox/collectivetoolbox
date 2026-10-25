@@ -463,6 +463,7 @@ fn process_format_category_files(
             }
             if let Some(short_str) = row.get(1) {
                 let trimmed = short_str.trim();
+                // Reason for fallback: format identifiers may omit the leading 'f' prefix.
                 let cleaned = trimmed.strip_prefix('f').unwrap_or(trimmed);
                 if let Ok(id) = cleaned.parse::<usize>() {
                     if id > max_short_id {

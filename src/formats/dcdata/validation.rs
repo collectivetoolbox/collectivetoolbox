@@ -788,7 +788,7 @@ pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
     );
     let params_raw = trimmed
         .get(open_idx.saturating_add(1)..close_idx)
-        .unwrap_or("")
+        .context("Invalid parameter slice bounds")?
         .trim();
     if params_raw.is_empty() {
         return Ok(Some(parse_dc_syntax(":~")?));
@@ -893,7 +893,7 @@ pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
                 .trim();
             let param_name = b
                 .get(end_bracket.saturating_add(1)..)
-                .unwrap_or("")
+                .context("Invalid parameter name slice bounds")?
                 .trim();
             ensure!(
                 !type_content.is_empty(),
@@ -2272,6 +2272,7 @@ where
                 continue;
             };
 
+            // Reason for fallback: when optional known_named_types set is None, start with empty set.
             let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
             if !combined_named_types.is_empty() {
                 for r in &all_rows {
@@ -2303,7 +2304,8 @@ where
             if trimmed.starts_with('[') && trimmed.ends_with(']') {
                 if let (Some(short_id), Ok(imp_rule)) = (row.short_id, parse_dc_syntax(&format!(":{trimmed}"))) {
                     if let Ok(short_id_u32) = u32::try_from(short_id) {
-                        let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
+                        // Reason for fallback: when optional known_named_types set is None, start with empty set.
+            let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
                         if !combined_named_types.is_empty() {
                             for r in &all_rows {
                                 if r.script == ".EL Types" {
