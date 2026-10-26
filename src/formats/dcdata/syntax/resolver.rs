@@ -179,6 +179,16 @@ pub trait SyntaxRuleResolver {
     fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
         self.is_equivalent_to(sub_token, super_token)
     }
+    /// Returns true if `token` is an assignment construct (`DcRole::LangAssign`, an infix assignment
+    /// operator, or a syntax rule whose action is `lang.assign`).
+    fn is_assignment_construct(&self, token: u128) -> bool {
+        self.token_fills_role(token, DcRole::LangAssign)
+            || self.resolve_infix_rule(token).is_some()
+            || CharTarget::from_u128(token)
+                .and_then(|t| self.resolve_rule(&t))
+                .and_then(|r| r.action.as_ref())
+                .is_some_and(|a| a.method == "lang.assign")
+    }
     /// Checks whether a single type/format token `tok` satisfies the type requirement `(req_name, req_subtype)`.
     fn token_satisfies_type(&self, tok: u128, req_name: &str, req_subtype: Option<&str>) -> bool {
         if self.token_fills_role(tok, DcRole::TypeAny) {

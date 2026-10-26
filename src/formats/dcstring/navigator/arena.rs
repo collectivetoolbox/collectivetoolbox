@@ -889,13 +889,6 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    pub(crate) fn normalize_field_nodes(
-        nodes: Vec<NodeId>,
-        arena: &mut DcSyntaxArena<'a>,
-    ) -> Vec<NodeId> {
-        Self::normalize_field_nodes_with_resolver(nodes, arena, default_syntax_resolver().as_ref())
-    }
-
     pub(crate) fn normalize_field_nodes_with_resolver(
         nodes: Vec<NodeId>,
         arena: &mut DcSyntaxArena<'a>,
@@ -999,20 +992,6 @@ impl<'a> DcDocumentNavigator<'a> {
         Self::parse_document_arena_with_resolver(bytes, arena, policy, default_syntax_resolver().as_ref())
     }
 
-    pub(super) fn build_arena_node_from_stub(
-        &mut self,
-        root_stub: &DcFrameStub,
-        arena: &mut DcSyntaxArena<'a>,
-        policy: &DcProjectionPolicy,
-    ) -> Result<NodeId> {
-        self.build_arena_node_from_stub_with_resolver(
-            root_stub,
-            arena,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
-    }
-
     pub(super) fn build_arena_node_from_stub_with_resolver(
         &mut self,
         root_stub: &DcFrameStub,
@@ -1046,6 +1025,33 @@ impl<'a> DcDocumentNavigator<'a> {
         }
 
         let base_level_depth = self.level_stack.len();
+
+        let check_depth_exceeded_leaf = |nav: &mut Self,
+                                         stub: &DcFrameStub,
+                                         current_depth: usize,
+                                         arena: &mut DcSyntaxArena<'a>|
+         -> Result<Option<StubStep>> {
+            if current_depth < policy.max_depth {
+                return Ok(None);
+            }
+            let msg = format!(
+                "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                policy.max_depth, stub.outer_span.start
+            );
+            nav.record_diagnostic(
+                policy,
+                policy.depth_limit_exceeded,
+                stub.outer_span.start,
+                msg.clone(),
+            )?;
+            Ok(Some(StubStep::Leaf(arena.alloc(
+                stub.outer_span,
+                DcSyntaxKind::Malformed {
+                    raw_tokens: Vec::new(),
+                    message: msg,
+                },
+            ))))
+        };
 
         let classify_stub = |nav: &mut Self,
                              stub: &DcFrameStub,
@@ -1108,24 +1114,8 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if resolver.resolve_infix_rule(head.to_u128()).is_some() {
                 if let Some(inner) = stub.inner_span {
-                    if current_depth >= policy.max_depth {
-                        let msg = format!(
-                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
-                            policy.max_depth, stub.outer_span.start
-                        );
-                        nav.record_diagnostic(
-                            policy,
-                            policy.depth_limit_exceeded,
-                            stub.outer_span.start,
-                            msg.clone(),
-                        )?;
-                        return Ok(StubStep::Leaf(arena.alloc(
-                            stub.outer_span,
-                            DcSyntaxKind::Malformed {
-                                raw_tokens: Vec::new(),
-                                message: msg,
-                            },
-                        )));
+                    if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                        return Ok(step);
                     }
                     let ident_span = DcByteSpan::new(
                         stub.outer_span.start,
@@ -1143,24 +1133,8 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(closer) = stub.closer_dc {
                 let unclosed = stub.is_unclosed();
                 if stub.inner_span.is_some() && !resolver.is_opaque_container(head.to_u128()) {
-                    if current_depth >= policy.max_depth {
-                        let msg = format!(
-                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
-                            policy.max_depth, stub.outer_span.start
-                        );
-                        nav.record_diagnostic(
-                            policy,
-                            policy.depth_limit_exceeded,
-                            stub.outer_span.start,
-                            msg.clone(),
-                        )?;
-                        return Ok(StubStep::Leaf(arena.alloc(
-                            stub.outer_span,
-                            DcSyntaxKind::Malformed {
-                                raw_tokens: Vec::new(),
-                                message: msg,
-                            },
-                        )));
+                    if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                        return Ok(step);
                     }
                     nav.enter_frame(stub)?;
                     return Ok(StubStep::Push(ArenaBuildFrame::Container {
@@ -1184,24 +1158,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 )));
             }
             if stub.inner_span.is_some() {
-                if current_depth >= policy.max_depth {
-                    let msg = format!(
-                        "Document nesting depth exceeds maximum limit ({}) at offset {}",
-                        policy.max_depth, stub.outer_span.start
-                    );
-                    nav.record_diagnostic(
-                        policy,
-                        policy.depth_limit_exceeded,
-                        stub.outer_span.start,
-                        msg.clone(),
-                    )?;
-                    return Ok(StubStep::Leaf(arena.alloc(
-                        stub.outer_span,
-                        DcSyntaxKind::Malformed {
-                            raw_tokens: Vec::new(),
-                            message: msg,
-                        },
-                    )));
+                if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                    return Ok(step);
                 }
                 nav.enter_frame(stub)?;
                 return Ok(StubStep::Push(ArenaBuildFrame::Tagged {
@@ -1336,7 +1294,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                     id
                                 }
                             };
-                            if tag.fills_role_with(DcRole::LangAssign, resolver)
+                            if resolver.is_assignment_construct(tag.to_u128())
                                 && let [raw_ident_id, raw_val_id] = normalized_args.as_slice()
                             {
                                 let ident_id = unwrap_param(*raw_ident_id, arena);

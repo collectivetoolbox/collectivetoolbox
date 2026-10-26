@@ -1,9 +1,18 @@
-**Overall Status**: `In Progress` (Phase 1 implemented; Phases 2–4 pending)
+**Overall Status**: `Partially Implemented` (Phases 1–3 implemented; Phase 4 partially implemented)
 
 #### Remaining Gaps / Pending Work
-* **Phase 2 (Pending)**: Build-time `.ctbnodes` chunk reader and `SeedGraph` index (`src/formats/dcdata/syntax/seed_graph.rs`), replacing `DatasetRuleResolver::load_from_dataset`.
-* **Phase 3 (Pending)**: Simplify `src/formats/dcstring/navigator.rs` to evaluate grammar rules directly from the `SeedGraph` pattern nodes instead of special-cased procedural helpers.
-* **Phase 4 (Pending)**: Migrate remaining CSV-coupled consumers (`lookup.rs`, `format_spec/validator.rs`) to read from `SeedGraph`.
+* **Phase 2 (`SeedGraphIndex` — Partially Implemented in `src/formats/dcdata/seed_graph.rs`)**:
+  * Runtime loading and indexing of `assets/data/graph/85899_34592.ctbnbdl` (`.ctbnodes` and `.ctbnbdl` bundles), active statement resolution across `591` (`Supersedes`) and `592` (`Retracts`), `.Semantic:Pattern` decoding (`599`–`607`), and `DatasetRuleResolver::from_seed_graph` + `lookup.rs` population are implemented.
+  * **Remaining Gap**: `DatasetRuleResolver` still decodes `.Semantic:Pattern` value nodes back into `SyntaxPattern` AST structures at load time rather than evaluating raw graph pattern node IDs directly without an intermediate AST, and `src/formats/dcdata/dcdata.rs` still embeds `data/` via `include_dir!` for CSV validation/merging tests (`format_spec/validator.rs`, `updater.rs`).
+* **Phase 3 (`syntax_table.generated.rs` & `codegen.rs` Retirement — Implemented)**:
+  * `syntax_table.generated.rs` and `src/formats/dcdata/syntax/resolver/codegen.rs` have been removed; `DatasetRuleResolver::load()` and `lookup.rs` load from `SeedGraphIndex::shared()`.
+* **Phase 4 (`DcDocumentNavigator` Simplification — Partially Implemented in `src/formats/dcstring/navigator/` and `src/formats/dcdata/syntax/resolver.rs`)**:
+  * Split the monolithic 9,848-line `src/formats/dcstring/navigator.rs` into focused submodules (`navigator.rs`, `navigator/policy.rs`, `navigator/resolver.rs`, `navigator/arena.rs`, `navigator/scan.rs`, `navigator/eval.rs`, `navigator/tests.rs`).
+  * Unified `spliced_tokens` and byte-backed token scanning across `scan_sibling_stub_with_resolver`, `eval_literal_frame`, `eval_identifier_frame`, `eval_number_frame`, and `eval_term_single`, and collapsed `eval_type_constructor` into the iterative `eval_pattern` frame machine.
+  * Added `: [number:...]` and `@implies(...)` rules for numeric format types (`Natural0`, `Positive`, `Negative`, `U8`..`I128`, `Natural1`) to `src/formats/dcdata/data/categories/formats/number.csv` and the system graph ledger (`85899_34592.ctbnbdl`), indexed `587` (`Is a subtype of`) in `DatasetRuleResolver`, and deleted `eval_format_number_bounds`, `check_type_compatibility`, and `type_statically_satisfies_subtype` in favor of `SyntaxRuleResolver` subtype/pattern queries.
+  * **Remaining Gaps**:
+    * `scan_sibling_stub_with_resolver` still dispatches on `DcRole` categories (`BeginLiteral`, `BeginIdentifier`, `BeginNumber`, `BeginList`, `OptionalPresent`, `EquivalentRepresentations`) rather than purely generic `590` (`IsClosingDelimiterFor`) + `594` (`SyntaxRule`) pattern scanning.
+    * `eval_list_constraints`, `check_declared_list_length_with_resolver`, `check_equivalent_list_grammar_with_resolver`, `eval_data_construct`, and `eval_typed_data_construct` remain bespoke evaluators for `$length`, `$keyType`, `$valType`, and `[data:...]` / `[typed_data:...]` constraints rather than general `606` (`PatternCapture`) and `607` (`PatternReplacement`) graph execution.
 
 ### Phase 1: System-Block Node Format & 100-Node Chunk Ledger (`assets/data/graph/`) — Implemented in `src/formats/dcdata/graph_ledger.rs`
 
