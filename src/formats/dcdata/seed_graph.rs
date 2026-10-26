@@ -270,7 +270,9 @@ impl SeedGraphIndex {
             let filename = Path::new(&asset_path)
                 .file_name()
                 .and_then(|s| s.to_str())
-                .unwrap_or(asset_path.as_str());
+                .with_context(|| {
+                    format!("Asset path '{asset_path}' has no valid filename")
+                })?;
             let start_id = parse_chunk_bundle_filename_start_id(filename)
                 .with_context(|| {
                     format!(
@@ -1237,7 +1239,9 @@ impl SeedGraphIndex {
         let Some(start) = open_idx else {
             bail!("Unbalanced EndAssociativityGroup (299) in pattern token stream");
         };
-        let group_slice = tokens.get(start..).unwrap_or_default();
+        let group_slice = tokens
+            .get(start..)
+            .context("Invalid syntax action group token start index")?;
         if group_slice.get(1) != Some(&sh_repl) {
             return Ok((tokens, None));
         }
@@ -1293,7 +1297,9 @@ impl SeedGraphIndex {
             }
         }
 
-        let pattern_slice = tokens.get(..start).unwrap_or_default();
+        let pattern_slice = tokens
+            .get(..start)
+            .context("Invalid token slice preceding syntax action")?;
         Ok((pattern_slice, Some(SyntaxAction { method, args })))
     }
 
@@ -1309,7 +1315,9 @@ impl SeedGraphIndex {
         if tokens.first() == Some(&sh_open) && tokens.get(1) == Some(&sh_alt) {
             if let Some(close_idx) = find_matching_group_close(tokens, 0)? {
                 if close_idx.saturating_add(1) == tokens.len() {
-                    let inner = tokens.get(2..close_idx).unwrap_or_default();
+                    let inner = tokens
+                        .get(2..close_idx)
+                        .context("Invalid alternation group bounds")?;
                     if inner.first() == Some(&sh_open) {
                         let mut branches = Vec::new();
                         let mut idx = 0usize;
@@ -1325,7 +1333,9 @@ impl SeedGraphIndex {
                                     )?;
                             let branch_tokens = inner
                                 .get(idx.saturating_add(1)..branch_close)
-                                .unwrap_or_default();
+                                .context(
+                                    "Invalid alternation branch slice bounds",
+                                )?;
                             branches.push(
                                 self.decode_syntax_pattern_tokens(
                                     branch_tokens,
@@ -1394,7 +1404,7 @@ impl SeedGraphIndex {
                 .context("Unclosed BeginAssociativityGroup (298) in pattern")?;
             let inner = tokens
                 .get(idx.saturating_add(1)..close_idx)
-                .unwrap_or_default();
+                .context("Invalid group token range")?;
             let next_idx = close_idx.saturating_add(1);
 
             let Some(&first_inner) = inner.first() else {
@@ -1407,7 +1417,10 @@ impl SeedGraphIndex {
             if first_inner == sh_neg {
                 let mut members =
                     Vec::with_capacity(inner.len().saturating_sub(1));
-                for &m in inner.get(1..).unwrap_or_default() {
+                let members_slice = inner
+                    .get(1..)
+                    .context("Invalid negated character set members range")?;
+                for &m in members_slice {
                     members.push(shorthand_to_char_target(m)?);
                 }
                 return Ok((
@@ -1422,7 +1435,10 @@ impl SeedGraphIndex {
             if first_inner == sh_alt && inner.get(1) != Some(&sh_open) {
                 let mut members =
                     Vec::with_capacity(inner.len().saturating_sub(1));
-                for &m in inner.get(1..).unwrap_or_default() {
+                let members_slice = inner
+                    .get(1..)
+                    .context("Invalid character set members range")?;
+                for &m in members_slice {
                     members.push(shorthand_to_char_target(m)?);
                 }
                 return Ok((
@@ -1532,7 +1548,7 @@ impl SeedGraphIndex {
             .context("Unclosed PatternRepetition (603) group")?;
         let inner = tokens
             .get(idx.saturating_add(1)..close_idx)
-            .unwrap_or_default();
+            .context("Invalid token slice for PatternRepetition (603) group")?;
         ensure!(
             inner.get(1) == Some(&sh_range),
             "Expected Range (Dc 4) after PatternRepetition (603)"

@@ -241,7 +241,7 @@ deny = [
 
     # Prefer Rust versions
     "brotli-sys",
-    "brotlic-sys"
+    "brotlic-sys",
 ]
 
 # List of features to allow/deny
