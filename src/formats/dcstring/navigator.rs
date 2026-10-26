@@ -632,221 +632,234 @@ impl<'a> DcDocumentNavigator<'a> {
         self.scan_sibling_stub_with_resolver(policy, default_syntax_resolver().as_ref())
     }
 
+    pub(super) fn spliced_has_unescaped_closer(
+        &self,
+        closer: DcChar,
+        escaped: bool,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        let mut iter = self.spliced_tokens.iter().skip(1);
+        while let Some(&t) = iter.next() {
+            if escaped && t.fills_role_with(DcRole::Escape, resolver) {
+                let _ = iter.next();
+            } else if t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn pop_spliced_escaped_until(
+        &mut self,
+        closer: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> DcMstring {
+        let mut out = DcMstring::new();
+        while let Some(tok) = self.spliced_tokens.pop_front() {
+            if tok.fills_role_with(DcRole::Escape, resolver) {
+                if let Some(escaped) = self.spliced_tokens.pop_front() {
+                    out.push_char(escaped);
+                }
+            } else if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                break;
+            } else {
+                out.push_char(tok);
+            }
+        }
+        out
+    }
+
+    pub(super) fn scan_spliced_sibling_stub(
+        &mut self,
+        head_dc: DcChar,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<DcFrameStub>> {
+        let zero_span = DcByteSpan::new(self.cursor, self.cursor);
+        if head_dc.fills_role_with(DcRole::Escape, resolver) {
+            self.spliced_tokens.pop_front();
+            let Some(escaped_dc) = self.spliced_tokens.pop_front() else {
+                self.syntax_issue(
+                    policy,
+                    self.cursor,
+                    format!("Dangling escape Dc 255 in spliced stream at offset {}", self.cursor),
+                )?;
+                return Ok(Some(DcFrameStub {
+                    head_dc,
+                    closer_dc: None,
+                    outer_span: zero_span,
+                    inner_span: None,
+                    header_info: DcFrameHeaderInfo::None,
+                }));
+            };
+            return Ok(Some(DcFrameStub {
+                head_dc: escaped_dc,
+                closer_dc: None,
+                outer_span: zero_span,
+                inner_span: None,
+                header_info: DcFrameHeaderInfo::Escaped,
+            }));
+        }
+
+        if let Some((_, _, Some(expected_closer))) = self.level_stack.last()
+            && (*expected_closer == head_dc
+                || resolver.is_equivalent_to(head_dc.to_u128(), expected_closer.to_u128()))
+        {
+            self.spliced_tokens.pop_front();
+            return Ok(None);
+        }
+
+        if head_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
+            // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
+            let closer = resolver
+                .closer_for_opener(
+                    &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)),
+                )
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+            if self.spliced_has_unescaped_closer(closer, true, resolver) {
+                self.spliced_tokens.pop_front();
+                let mut type_header = Vec::new();
+                if self
+                    .spliced_tokens
+                    .front()
+                    .is_some_and(|t| t.fills_role_with(DcRole::BeginTypeDef, resolver))
+                {
+                    self.spliced_tokens.pop_front();
+                    while let Some(tok) = self.spliced_tokens.pop_front() {
+                        if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
+                            break;
+                        }
+                        type_header.push(tok);
+                    }
+                }
+                let decoded = self.pop_spliced_escaped_until(closer, resolver);
+                return Ok(Some(DcFrameStub {
+                    head_dc,
+                    closer_dc: Some(closer),
+                    outer_span: zero_span,
+                    inner_span: None,
+                    header_info: DcFrameHeaderInfo::SplicedLiteral {
+                        type_header,
+                        decoded,
+                    },
+                }));
+            }
+        }
+
+        if head_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
+            // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+            let closer = resolver
+                .closer_for_opener(
+                    &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)),
+                )
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+            if self.spliced_has_unescaped_closer(closer, true, resolver) {
+                self.spliced_tokens.pop_front();
+                if let Some(&first_inner) = self.spliced_tokens.front()
+                    && !first_inner.fills_role_with(DcRole::Escape, resolver)
+                    && first_inner != closer
+                    && !resolver.is_equivalent_to(first_inner.to_u128(), closer.to_u128())
+                {
+                    if first_inner.fills_role_with(DcRole::BeginTypeDef, resolver)
+                        || first_inner.fills_role_with(DcRole::TypeIntersection, resolver)
+                        || first_inner.fills_role_with(DcRole::TypeUnion, resolver)
+                    {
+                        let mut type_ctx = SyntaxEvalContext::new(resolver, None);
+                        type_ctx.policy.clone_from(policy);
+                        let _ = self.eval_type_constructor(&mut type_ctx);
+                    } else if is_single_type_token(first_inner, resolver) {
+                        let _ = self.spliced_tokens.pop_front();
+                    }
+                }
+                let name = self.pop_spliced_escaped_until(closer, resolver);
+                return Ok(Some(DcFrameStub {
+                    head_dc,
+                    closer_dc: Some(closer),
+                    outer_span: zero_span,
+                    inner_span: None,
+                    header_info: DcFrameHeaderInfo::SplicedIdentifier(name),
+                }));
+            }
+        }
+
+        if head_dc.fills_role_with(DcRole::BeginNumber, resolver) {
+            // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
+            let closer = resolver
+                .closer_for_opener(
+                    &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(6)),
+                )
+                .map(DcChar::from_u128)
+                .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+            if self.spliced_has_unescaped_closer(closer, false, resolver) {
+                self.spliced_tokens.pop_front();
+                let format = match self.spliced_tokens.front() {
+                    Some(&tok)
+                        if tok == closer
+                            || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) =>
+                    {
+                        DC_INTEGER
+                    }
+                    // Reason for fallback: popped number format token defaults to DC_INTEGER.
+                    Some(_) => self.spliced_tokens.pop_front().unwrap_or(DC_INTEGER),
+                    None => DC_INTEGER,
+                };
+                let mut digits = Vec::new();
+                while let Some(tok) = self.spliced_tokens.pop_front() {
+                    if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
+                        break;
+                    }
+                    digits.push(tok);
+                }
+                return Ok(Some(DcFrameStub {
+                    head_dc,
+                    closer_dc: Some(closer),
+                    outer_span: zero_span,
+                    inner_span: None,
+                    header_info: DcFrameHeaderInfo::SplicedNumber { format, digits },
+                }));
+            }
+        }
+
+        let closer_opt = CharTarget::from_u128(head_dc.to_u128())
+            .and_then(|t| resolver.closer_for_opener(&t))
+            .map(DcChar::from_u128)
+            .or_else(|| {
+                head_dc
+                    .fills_role_with(DcRole::BeginList, resolver)
+                    .then_some(ctb_formats_dcdata::dc::DC_END_LIST)
+            });
+        if let Some(closer) = closer_opt
+            && self.spliced_has_unescaped_closer(closer, false, resolver)
+        {
+            self.spliced_tokens.pop_front();
+            return Ok(Some(DcFrameStub {
+                head_dc,
+                closer_dc: Some(closer),
+                outer_span: zero_span,
+                inner_span: Some(zero_span),
+                header_info: DcFrameHeaderInfo::None,
+            }));
+        }
+
+        self.spliced_tokens.pop_front();
+        Ok(Some(DcFrameStub {
+            head_dc,
+            closer_dc: None,
+            outer_span: zero_span,
+            inner_span: None,
+            header_info: DcFrameHeaderInfo::None,
+        }))
+    }
+
     pub(super) fn scan_sibling_stub_with_resolver(
         &mut self,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcFrameStub>> {
         if let Some(&head_dc) = self.spliced_tokens.front() {
-            if head_dc.fills_role_with(DcRole::Escape, resolver) {
-                self.spliced_tokens.pop_front();
-                let Some(escaped_dc) = self.spliced_tokens.pop_front() else {
-                    self.syntax_issue(
-                        policy,
-                        self.cursor,
-                        format!("Dangling escape Dc 255 in spliced stream at offset {}", self.cursor),
-                    )?;
-                    return Ok(Some(DcFrameStub {
-                        head_dc,
-                        closer_dc: None,
-                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                        inner_span: None,
-                        header_info: DcFrameHeaderInfo::None,
-                    }));
-                };
-                return Ok(Some(DcFrameStub {
-                    head_dc: escaped_dc,
-                    closer_dc: None,
-                    outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                    inner_span: None,
-                    header_info: DcFrameHeaderInfo::Escaped,
-                }));
-            }
-
-            if let Some((_, _, Some(expected_closer))) = self.level_stack.last() {
-                if *expected_closer == head_dc || resolver.is_equivalent_to(head_dc.to_u128(), expected_closer.to_u128()) {
-                    self.spliced_tokens.pop_front();
-                    return Ok(None);
-                }
-            }
-
-            if head_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
-                let closer = resolver
-                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
-                let mut has_unescaped_closer = false;
-                let mut check_iter = self.spliced_tokens.iter().skip(1);
-                while let Some(&t) = check_iter.next() {
-                    if t.fills_role_with(DcRole::Escape, resolver) {
-                        let _ = check_iter.next();
-                    } else if t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128()) {
-                        has_unescaped_closer = true;
-                        break;
-                    }
-                }
-                if has_unescaped_closer {
-                    self.spliced_tokens.pop_front();
-                    let mut type_header = Vec::new();
-                    if let Some(&hdr_open) = self.spliced_tokens.front() {
-                        if hdr_open.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                            self.spliced_tokens.pop_front();
-                            while let Some(tok) = self.spliced_tokens.pop_front() {
-                                if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
-                                    break;
-                                }
-                                type_header.push(tok);
-                            }
-                        }
-                    }
-                    let mut decoded = DcMstring::new();
-                    while let Some(tok) = self.spliced_tokens.pop_front() {
-                        if tok.fills_role_with(DcRole::Escape, resolver) {
-                            if let Some(escaped) = self.spliced_tokens.pop_front() {
-                                decoded.push_char(escaped);
-                            }
-                        } else if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
-                            break;
-                        } else {
-                            decoded.push_char(tok);
-                        }
-                    }
-                    return Ok(Some(DcFrameStub {
-                        head_dc,
-                        closer_dc: Some(closer),
-                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                        inner_span: None,
-                        header_info: DcFrameHeaderInfo::SplicedLiteral { type_header, decoded },
-                    }));
-                }
-            }
-
-            if head_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-                let closer = resolver
-                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
-                let mut has_unescaped_closer = false;
-                let mut check_iter = self.spliced_tokens.iter().skip(1);
-                while let Some(&t) = check_iter.next() {
-                    if t.fills_role_with(DcRole::Escape, resolver) {
-                        let _ = check_iter.next();
-                    } else if t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128()) {
-                        has_unescaped_closer = true;
-                        break;
-                    }
-                }
-                if has_unescaped_closer {
-                    self.spliced_tokens.pop_front();
-                    if let Some(&first_inner) = self.spliced_tokens.front()
-                        && !first_inner.fills_role_with(DcRole::Escape, resolver)
-                        && first_inner != closer
-                        && !resolver.is_equivalent_to(first_inner.to_u128(), closer.to_u128())
-                    {
-                        if first_inner.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                            if self
-                                .spliced_tokens
-                                .get(1)
-                                .is_some_and(|t| is_single_type_token(*t, resolver))
-                                && self
-                                    .spliced_tokens
-                                    .get(2)
-                                    .is_some_and(|t| t.fills_role_with(DcRole::EndTypeDef, resolver))
-                            {
-                                let _ = self.spliced_tokens.pop_front();
-                                let _ = self.spliced_tokens.pop_front();
-                                let _ = self.spliced_tokens.pop_front();
-                            }
-                        } else if is_single_type_token(first_inner, resolver) {
-                            let _ = self.spliced_tokens.pop_front();
-                        }
-                    }
-                    let mut name = DcMstring::new();
-                    while let Some(tok) = self.spliced_tokens.pop_front() {
-                        if tok.fills_role_with(DcRole::Escape, resolver) {
-                            if let Some(escaped) = self.spliced_tokens.pop_front() {
-                                name.push_char(escaped);
-                            }
-                        } else if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
-                            break;
-                        } else {
-                            name.push_char(tok);
-                        }
-                    }
-                    return Ok(Some(DcFrameStub {
-                        head_dc,
-                        closer_dc: Some(closer),
-                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                        inner_span: None,
-                        header_info: DcFrameHeaderInfo::SplicedIdentifier(name),
-                    }));
-                }
-            }
-
-            if head_dc.fills_role_with(DcRole::BeginNumber, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
-                let closer = resolver
-                    .closer_for_opener(&CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(6)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
-                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
-                    self.spliced_tokens.pop_front();
-                    let format = match self.spliced_tokens.front() {
-                        Some(&tok) if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) => DC_INTEGER,
-                        // Reason for fallback: popped number format token defaults to DC_INTEGER.
-                        Some(_) => self.spliced_tokens.pop_front().unwrap_or(DC_INTEGER),
-                        None => DC_INTEGER,
-                    };
-                    let mut digits = Vec::new();
-                    while let Some(tok) = self.spliced_tokens.pop_front() {
-                        if tok == closer || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128()) {
-                            break;
-                        }
-                        digits.push(tok);
-                    }
-                    return Ok(Some(DcFrameStub {
-                        head_dc,
-                        closer_dc: Some(closer),
-                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                        inner_span: None,
-                        header_info: DcFrameHeaderInfo::SplicedNumber { format, digits },
-                    }));
-                }
-            }
-
-            let closer_opt = CharTarget::from_u128(head_dc.to_u128())
-                .and_then(|t| resolver.closer_for_opener(&t))
-                .map(DcChar::from_u128)
-                .or_else(|| {
-                    if head_dc.fills_role_with(DcRole::BeginList, resolver) {
-                        Some(ctb_formats_dcdata::dc::DC_END_LIST)
-                    } else {
-                        None
-                    }
-                });
-            if let Some(closer) = closer_opt {
-                if self.spliced_tokens.iter().skip(1).any(|&t| t == closer || resolver.is_equivalent_to(t.to_u128(), closer.to_u128())) {
-                    self.spliced_tokens.pop_front();
-                    return Ok(Some(DcFrameStub {
-                        head_dc,
-                        closer_dc: Some(closer),
-                        outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                        inner_span: Some(DcByteSpan::new(self.cursor, self.cursor)),
-                        header_info: DcFrameHeaderInfo::None,
-                    }));
-                }
-            }
-
-            self.spliced_tokens.pop_front();
-            return Ok(Some(DcFrameStub {
-                head_dc,
-                closer_dc: None,
-                outer_span: DcByteSpan::new(self.cursor, self.cursor),
-                inner_span: None,
-                header_info: DcFrameHeaderInfo::None,
-            }));
+            return self.scan_spliced_sibling_stub(head_dc, policy, resolver);
         }
 
         if self.cursor >= self.active_span.end {

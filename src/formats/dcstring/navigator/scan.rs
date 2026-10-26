@@ -1233,6 +1233,46 @@ impl<'a> DcDocumentNavigator<'a> {
         self.active_span = saved_span;
         Ok(tokens)
     }
+
+    /// Peeks the next token from `spliced_tokens` (if non-empty) or from the
+    /// byte-backed stream at `self.cursor`.
+    pub(super) fn peek_next_token(&mut self) -> Result<Option<DcChar>> {
+        if let Some(&ch) = self.spliced_tokens.front() {
+            return Ok(Some(ch));
+        }
+        Ok(self.read_token_or_binary_at(self.cursor)?.map(|(ch, _)| ch))
+    }
+
+    /// Consumes and returns the next token from `spliced_tokens` (if non-empty)
+    /// or from the byte-backed stream at `self.cursor`, advancing `self.cursor`.
+    pub(super) fn pop_next_token(&mut self) -> Result<Option<DcChar>> {
+        if let Some(ch) = self.spliced_tokens.pop_front() {
+            return Ok(Some(ch));
+        }
+        let Some((ch, next_off)) = self.read_token_or_binary_at(self.cursor)? else {
+            return Ok(None);
+        };
+        self.cursor = next_off;
+        Ok(Some(ch))
+    }
+
+    /// Returns all tokens consumed between `checkpoint` and the navigator's current state.
+    pub(super) fn consumed_tokens_since(
+        &mut self,
+        checkpoint: &NavigatorCheckpoint,
+    ) -> Result<Vec<DcChar>> {
+        let mut out = Vec::new();
+        let spliced_consumed = checkpoint
+            .spliced_tokens
+            .len()
+            .saturating_sub(self.spliced_tokens.len());
+        out.extend(checkpoint.spliced_tokens.iter().take(spliced_consumed).copied());
+        if self.cursor > checkpoint.cursor {
+            let raw = self.read_tokens_in_span(DcByteSpan::new(checkpoint.cursor, self.cursor))?;
+            out.extend(raw.into_iter().map(DcChar::from_u128));
+        }
+        Ok(out)
+    }
 }
 
 #[expect(
