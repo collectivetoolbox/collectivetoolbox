@@ -618,7 +618,7 @@ impl<'a> DcDocumentNavigator<'a> {
         // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
         let term_targets_opt_present = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
                 ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
             }
@@ -645,7 +645,7 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         let term_targets_opt_absent = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
                 ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
             }
@@ -667,7 +667,7 @@ impl<'a> DcDocumentNavigator<'a> {
             !ctx.unescaped_literal_payload && ctx.resolver.is_representation_set(first);
         let term_targets_equiv = match term {
             SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pattern_starts_with_self_or_charset(pat),
+            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
             SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
                 ctx.resolver.is_representation_set(t.to_u128())
             }
@@ -1283,7 +1283,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 continue;
             }
             self.cursor = elem_start;
-            if let Some(unconstrained) = unconstrained_term(term) {
+            if let Some(unconstrained) = term.unconstrained() {
                 self.active_span = saved_span;
                 let mut trial_ctx = sub_ctx.clone();
                 let trial_ok = self.eval_term_single(&unconstrained, &mut trial_ctx)?;
@@ -1592,8 +1592,8 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.restore_checkpoint(term_checkpoint);
                         return Ok(false);
                     }
-                    let sub_rule = match parse_dc_syntax(sub_str) {
-                        Ok(r) => r,
+                    let sub_pattern = match ctx.resolver.resolve_subtype_pattern(sub_str) {
+                        Ok(p) => p,
                         Err(err) => {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
@@ -1613,7 +1613,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     sub_ctx.max_depth = ctx.max_depth;
                     sub_ctx.call_stack.clone_from(&ctx.call_stack);
                     sub_ctx.unescaped_literal_payload = true;
-                    let sub_ok = sub_nav.eval_pattern(&sub_rule.pattern, &mut sub_ctx)?;
+                    let sub_ok = sub_nav.eval_pattern(&sub_pattern, &mut sub_ctx)?;
                     ctx.has_errors |= sub_ctx.has_errors;
                     ctx.diagnostics.extend(sub_ctx.diagnostics);
                     if !sub_ok
@@ -1968,94 +1968,8 @@ impl<'a> DcDocumentNavigator<'a> {
             None
         };
 
-        let elem_term = if let Some(sub) = subtype {
-            let trimmed = sub.trim();
-            if trimmed.starts_with('(') {
-                let Ok(rule) = parse_dc_syntax(&format!(":{trimmed}")) else {
-                    return Ok(false);
-                };
-                SyntaxTerm::Group(rule.pattern)
-            } else if let Some((base, inner_sub)) = trimmed.split_once(':') {
-                if ctx.resolver.resolve_named_type(base).is_some()
-                    || matches!(
-                        base,
-                        "data"
-                            | "typed_data"
-                            | "script"
-                            | "format"
-                            | "formats"
-                            | "type"
-                            | "string"
-                            | "identifier"
-                            | "number"
-                            | "list"
-                    )
-                    || base.starts_with("list(")
-                {
-                    SyntaxTerm::NamedConstruct {
-                        name: base.to_owned(),
-                        subtype: Some(inner_sub.to_owned()),
-                        capture_var: None,
-                    }
-                } else if ctx.resolver.has_script(trimmed) {
-                    SyntaxTerm::NamedConstruct {
-                        name: "script".to_owned(),
-                        subtype: Some(trimmed.to_owned()),
-                        capture_var: None,
-                    }
-                } else {
-                    return Ok(false);
-                }
-            } else if ctx.resolver.resolve_named_type(trimmed).is_some()
-                || matches!(
-                    trimmed,
-                    "data"
-                        | "typed_data"
-                        | "script"
-                        | "format"
-                        | "formats"
-                        | "type"
-                        | "string"
-                        | "identifier"
-                        | "number"
-                        | "list"
-                )
-                || trimmed.starts_with("list(")
-            {
-                SyntaxTerm::NamedConstruct {
-                    name: trimmed.to_owned(),
-                    subtype: None,
-                    capture_var: None,
-                }
-            } else if ctx.resolver.has_script(trimmed) {
-                SyntaxTerm::NamedConstruct {
-                    name: "script".to_owned(),
-                    subtype: Some(trimmed.to_owned()),
-                    capture_var: None,
-                }
-            } else if FormatId::from_shorthand(trimmed).is_some()
-                || FormatId::from_ident(trimmed).is_some()
-                || matches!(trimmed, "NonNegative" | "Natural")
-                || trimmed.starts_with("<=")
-                || trimmed.starts_with('<')
-                || trimmed.starts_with(">=")
-                || trimmed.starts_with('>')
-                || trimmed.contains('&')
-            {
-                SyntaxTerm::NamedConstruct {
-                    name: "number".to_owned(),
-                    subtype: Some(trimmed.to_owned()),
-                    capture_var: None,
-                }
-            } else {
-                return Ok(false);
-            }
-        } else {
-            SyntaxTerm::NamedConstruct {
-                name: "value".to_owned(),
-                subtype: None,
-                capture_var: None,
-            }
+        let Some(elem_term) = ctx.resolver.resolve_list_element_term(subtype) else {
+            return Ok(false);
         };
 
         let saved_span = self.active_span;
@@ -2313,7 +2227,10 @@ pub(super) fn check_single_number_subtype(
                 return ok;
             }
         }
-        eval_format_number_bounds(fmt, val, resolver)
+        fmt.dc_id().is_some_and(|dc_id| {
+            resolver.matches_script("Formats:number", dc_id)
+                || resolver.matches_script("Formats:number_abstract", dc_id)
+        })
     } else if let Some(rule) = resolver.resolve_named_type(part) {
         // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
         check_pattern_number_constraint(rule, val, resolver).unwrap_or(false)
@@ -2390,119 +2307,6 @@ pub(super) fn check_term_number_constraint(
     }
 }
 
-pub(super) fn eval_format_number_bounds(
-    fmt: FormatId,
-    val: &malachite::Integer,
-    resolver: &dyn SyntaxRuleResolver,
-) -> bool {
-    let zero = malachite::Integer::from(0);
-    match fmt {
-        FormatId::Natural0 => val >= &zero,
-        FormatId::Natural1 | FormatId::Positive => val > &zero,
-        FormatId::Negative => val < &zero,
-        FormatId::Integer | FormatId::AbstractNumber => true,
-        FormatId::U8 => val >= &zero && val <= &malachite::Integer::from(u8::MAX),
-        FormatId::I8 => {
-            val >= &malachite::Integer::from(i8::MIN)
-                && val <= &malachite::Integer::from(i8::MAX)
-        }
-        FormatId::U16 => val >= &zero && val <= &malachite::Integer::from(u16::MAX),
-        FormatId::I16 => {
-            val >= &malachite::Integer::from(i16::MIN)
-                && val <= &malachite::Integer::from(i16::MAX)
-        }
-        FormatId::U32 => val >= &zero && val <= &malachite::Integer::from(u32::MAX),
-        FormatId::I32 => {
-            val >= &malachite::Integer::from(i32::MIN)
-                && val <= &malachite::Integer::from(i32::MAX)
-        }
-        FormatId::U64 => val >= &zero && val <= &malachite::Integer::from(u64::MAX),
-        FormatId::I64 => {
-            val >= &malachite::Integer::from(i64::MIN)
-                && val <= &malachite::Integer::from(i64::MAX)
-        }
-        FormatId::U128 => val >= &zero && val <= &malachite::Integer::from(u128::MAX),
-        FormatId::I128 => {
-            val >= &malachite::Integer::from(i128::MIN)
-                && val <= &malachite::Integer::from(i128::MAX)
-        }
-        _ => fmt.dc_id().is_some_and(|dc_id| {
-            resolver.matches_script("Formats:number", dc_id)
-                || resolver.matches_script("Formats:number_abstract", dc_id)
-        }),
-    }
-}
-
-pub(super) fn pattern_starts_with_self_or_charset(pattern: &SyntaxPattern) -> bool {
-    match pattern {
-        SyntaxPattern::Sequence(elems) => elems.first().is_some_and(|e| match &e.term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(sub) => pattern_starts_with_self_or_charset(sub),
-            _ => false,
-        }),
-        SyntaxPattern::Alternation(branches) => {
-            branches.iter().any(pattern_starts_with_self_or_charset)
-        }
-    }
-}
-
-pub(super) fn unconstrained_term(term: &SyntaxTerm) -> Option<SyntaxTerm> {
-    match term {
-        SyntaxTerm::NamedConstruct {
-            name,
-            subtype,
-            ..
-        } if name != "script" && (subtype.is_some() || name.starts_with("list(")) => {
-            let base_name = if name.starts_with("list(") {
-                "list".to_owned()
-            } else {
-                name.clone()
-            };
-            Some(SyntaxTerm::NamedConstruct {
-                name: base_name,
-                subtype: None,
-                capture_var: None,
-            })
-        }
-        SyntaxTerm::Group(pattern) => unconstrained_pattern(pattern).map(SyntaxTerm::Group),
-        _ => None,
-    }
-}
-
-pub(super) fn unconstrained_pattern(pattern: &SyntaxPattern) -> Option<SyntaxPattern> {
-    match pattern {
-        SyntaxPattern::Sequence(elements) => {
-            let mut changed = false;
-            let mut out = Vec::with_capacity(elements.len());
-            for elem in elements {
-                if let Some(u_term) = unconstrained_term(&elem.term) {
-                    changed = true;
-                    out.push(SyntaxElement {
-                        term: u_term,
-                        quantifier: elem.quantifier,
-                    });
-                } else {
-                    out.push(elem.clone());
-                }
-            }
-            changed.then_some(SyntaxPattern::Sequence(out))
-        }
-        SyntaxPattern::Alternation(branches) => {
-            let mut changed = false;
-            let mut out = Vec::with_capacity(branches.len());
-            for branch in branches {
-                if let Some(u_branch) = unconstrained_pattern(branch) {
-                    changed = true;
-                    out.push(u_branch);
-                } else {
-                    out.push(branch.clone());
-                }
-            }
-            changed.then_some(SyntaxPattern::Alternation(out))
-        }
-    }
-}
-
 pub(crate) fn is_single_type_token(tok: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
     let first = tok.to_u128();
     let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
@@ -2541,192 +2345,25 @@ pub(super) fn check_type_compatibility(
         type_tokens
     };
 
-    if tokens.is_empty() {
-        return false;
-    }
-
-    if tokens.len() == 1 {
-        let Some(&tok) = tokens.first() else {
-            return false;
-        };
-        let tok_u128 = tok.to_u128();
-
-        if tok.fills_role_with(DcRole::TypeAny, resolver)
-            || tok == ctb_formats_dcdata::dc::DC_TYPE_ANY
-        {
-            return true;
-        }
-
-        match req_name {
-            "string" | "String" => {
-                let is_string_fmt = tok.fills_role_with(DcRole::TypeString, resolver)
-                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_STRING.to_u128())
-                    || resolver.matches_script("Formats:string", tok_u128)
-                    || resolver.matches_script("string", tok_u128);
-                if !is_string_fmt {
-                    return false;
-                }
-                if let Some(sub) = req_subtype {
-                    if let Some(fmt_id) =
-                        FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub))
-                    {
-                        if let Some(expected_id) = fmt_id.dc_id() {
-                            resolver.is_equivalent_to(tok_u128, expected_id)
-                        } else {
-                            false
-                        }
-                    } else {
-                        resolver.matches_script(sub, tok_u128)
-                    }
-                } else {
-                    true
-                }
-            }
-            "number" | "Number" => {
-                let is_number_fmt = tok.fills_role_with(DcRole::TypeNumber, resolver)
-                    || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
-                    || resolver.is_equivalent_to(tok_u128, DC_INTEGER.to_u128())
-                    || resolver.matches_script("Formats:number", tok_u128)
-                    || resolver.matches_script("number", tok_u128);
-                if !is_number_fmt {
-                    return false;
-                }
-                if let Some(sub) = req_subtype {
-                    if resolver.matches_script(sub, tok_u128) {
-                        return true;
-                    }
-                    if let Some(fmt_id) =
-                        FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub))
-                    {
-                        if let Some(expected_id) = fmt_id.dc_id() {
-                            resolver.is_equivalent_to(tok_u128, expected_id)
-                        } else {
-                            false
-                        }
-                    } else {
-                        tok.fills_role_with(DcRole::TypeNumber, resolver)
-                            || resolver.is_equivalent_to(tok_u128, ctb_formats_dcdata::dc::DC_TYPE_NUMBER.to_u128())
-                            || resolver.is_equivalent_to(tok_u128, DC_INTEGER.to_u128())
-                    }
-                } else {
-                    true
-                }
-            }
-            "data" | "typed_data" => {
-                let is_format = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                    .contains(&tok_u128)
-                    || resolver.matches_script("Formats", tok_u128);
-                if let Some(sub) = req_subtype {
-                    if let Ok((expected_fmt, _)) = parse_data_constraint(sub) {
-                        if let Some(efmt) = expected_fmt {
-                            let expected_id = FormatId::from_shorthand(efmt)
-                                .or_else(|| FormatId::from_ident(efmt))
-                                .and_then(|f| f.dc_id());
-                            if let Some(exp) = expected_id {
-                                resolver.is_equivalent_to(tok_u128, exp)
-                            } else {
-                                false
-                            }
-                        } else {
-                            is_format
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    is_format
-                }
-            }
-            "type" => {
-                let is_type = resolver.token_fills_role(tok_u128, DcRole::TypeToken)
-                    || (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                        ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                        .contains(&tok_u128)
-                    || resolver.matches_script(".EL Types", tok_u128)
-                    || resolver.matches_script("Formats", tok_u128);
-                if !is_type {
-                    return false;
-                }
-                if let Some(sub) = req_subtype {
-                    let script_name = format!("Formats:{sub}");
-                    resolver.matches_script(&script_name, tok_u128)
-                        || resolver.matches_script(sub, tok_u128)
-                        || FormatId::from_shorthand(sub)
-                            .or_else(|| FormatId::from_ident(sub))
-                            .and_then(|f| f.dc_id())
-                            .is_some_and(|exp| resolver.is_equivalent_to(tok_u128, exp))
-                } else {
-                    true
-                }
-            }
-            "format" | "formats" => {
-                let is_fmt = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                    .contains(&tok_u128)
-                    || resolver.matches_script("Formats", tok_u128);
-                if !is_fmt {
-                    return false;
-                }
-                if let Some(sub) = req_subtype {
-                    let script_name = format!("Formats:{sub}");
-                    resolver.matches_script(&script_name, tok_u128)
-                        || resolver.matches_script(sub, tok_u128)
-                        || FormatId::from_shorthand(sub)
-                            .or_else(|| FormatId::from_ident(sub))
-                            .and_then(|f| f.dc_id())
-                            .is_some_and(|exp| resolver.is_equivalent_to(tok_u128, exp))
-                } else {
-                    true
-                }
-            }
-            "Routine" => {
-                tok.fills_role_with(DcRole::TypeRoutine, resolver)
-                    || resolver.is_equivalent_to(
-                        tok_u128,
-                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE.to_u128(),
-                    )
-            }
-            "Routine name" | "RoutineName" => {
-                tok.fills_role_with(DcRole::TypeRoutineName, resolver)
-                    || resolver.is_equivalent_to(
-                        tok_u128,
-                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE_NAME.to_u128(),
-                    )
-                    || tok.fills_role_with(DcRole::TypeRoutine, resolver)
-                    || resolver.is_equivalent_to(
-                        tok_u128,
-                        ctb_formats_dcdata::dc::DC_TYPE_ROUTINE.to_u128(),
-                    )
-            }
-            "identifier" => {
-                if let Some(sub) = req_subtype {
-                    check_type_compatibility(tokens, sub, None, resolver)
-                } else {
-                    true
-                }
-            }
-            _ => resolver.matches_script(req_name, tok_u128),
-        }
-    } else {
+    if let [tok] = tokens {
+        resolver.token_satisfies_type(tok.to_u128(), req_name, req_subtype)
+    } else if !tokens.is_empty() && req_name == "type" {
         let mut mstr = DcMstring::new();
         for &t in tokens {
             mstr.push_char(t);
         }
         let mut nav = DcDocumentNavigator::from_mstr(&mstr);
         let mut ctx = SyntaxEvalContext::new(resolver, None);
-        if req_name == "type" {
-            let type_term = SyntaxTerm::NamedConstruct {
-                name: "type".to_owned(),
-                subtype: req_subtype.map(str::to_owned),
-                capture_var: None,
-            };
-            // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).
-            nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
-                && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
-        } else {
-            false
-        }
+        let type_term = SyntaxTerm::NamedConstruct {
+            name: "type".to_owned(),
+            subtype: req_subtype.map(str::to_owned),
+            capture_var: None,
+        };
+        // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).
+        nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
+            && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
+    } else {
+        false
     }
 }
 
@@ -2735,45 +2372,7 @@ pub(super) fn type_statically_satisfies_subtype(
     subtype: Option<&str>,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    let Some(sub) = subtype else {
-        return true;
-    };
-    let tokens = if type_tokens.len() >= 2
-        && type_tokens.first().is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
-        && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
-    {
-        let end_idx = type_tokens.len().saturating_sub(1);
-        // Reason for fallback: slice range out of bounds defaults to empty slice.
-        type_tokens.get(1..end_idx).unwrap_or(&[])
-    } else {
-        type_tokens
-    };
-    if tokens.len() == 1 {
-        let Some(&tok_char) = tokens.first() else {
-            return false;
-        };
-        let tok = tok_char.to_u128();
-        if tok_char.fills_role_with(DcRole::TypeAny, resolver)
-            || tok_char == ctb_formats_dcdata::dc::DC_TYPE_ANY
-        {
-            return true;
-        }
-        if check_type_compatibility(tokens, sub, None, resolver) {
-            return true;
-        }
-        if let Some(fmt_id) = FormatId::from_shorthand(sub).or_else(|| FormatId::from_ident(sub)) {
-            if let Some(exp) = fmt_id.dc_id() {
-                if resolver.is_equivalent_to(tok, exp) {
-                    return true;
-                }
-            }
-        }
-        let script_name = format!("Formats:{sub}");
-        if resolver.matches_script(&script_name, tok) || resolver.matches_script(sub, tok) {
-            return true;
-        }
-    }
-    false
+    subtype.is_none_or(|sub| check_type_compatibility(type_tokens, sub, None, resolver))
 }
 
 pub(super) fn encapsulated_byte_length(stream: &[u128], resolver: &dyn SyntaxRuleResolver) -> Result<usize> {

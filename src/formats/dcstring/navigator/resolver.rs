@@ -461,6 +461,14 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         }
         self.base.is_opaque_container(canon) || self.base.is_opaque_container(opener_token)
     }
+
+    fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
+        if self.is_equivalent_to(sub_token, super_token) {
+            return true;
+        }
+        self.base
+            .is_subtype_of(self.canonical_token(sub_token), self.canonical_token(super_token))
+    }
 }
 
 /// Global runtime registry for Document Character syntax rules and resolvers.

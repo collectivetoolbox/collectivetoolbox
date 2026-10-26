@@ -34,13 +34,16 @@ use super::ast::{
     CharTarget, DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern,
     SyntaxTerm,
 };
+use super::data_constraint::parse_data_constraint;
 use super::parser::parse_dc_syntax;
 use super::role::DcRole;
 use crate::dc::{
-    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_OPTIONAL_ABSENT,
-    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_IS_SUBTYPE_OF,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
 };
 use crate::dc_def::DcDefn;
+use ctb_utilities::format_id::FormatId;
 use std::collections::{HashMap, HashSet};
 
 /// Precomputed starter token set for a named syntactic construct, derived
@@ -171,6 +174,165 @@ pub trait SyntaxRuleResolver {
     /// or identifiers) whose interior tokens are not recursively parsed as child statements.
     fn is_opaque_container(&self, _opener_token: u128) -> bool {
         false
+    }
+    /// Returns true if `sub_token` is equivalent to or a transitive subtype (`Dc 587`) of `super_token`.
+    fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
+        self.is_equivalent_to(sub_token, super_token)
+    }
+    /// Checks whether a single type/format token `tok` satisfies the type requirement `(req_name, req_subtype)`.
+    fn token_satisfies_type(&self, tok: u128, req_name: &str, req_subtype: Option<&str>) -> bool {
+        if self.token_fills_role(tok, DcRole::TypeAny) {
+            return true;
+        }
+        let is_format = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+            ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+            .contains(&tok)
+            || self.matches_script("Formats", tok);
+        let matches_format_sub = |sub: &str| -> bool {
+            let script_name = format!("Formats:{sub}");
+            self.matches_script(&script_name, tok)
+                || self.matches_script(sub, tok)
+                || FormatId::from_shorthand(sub)
+                    .or_else(|| FormatId::from_ident(sub))
+                    .and_then(|f| f.dc_id())
+                    .is_some_and(|exp| self.is_subtype_of(tok, exp))
+        };
+        match req_name {
+            "string" | "String" => {
+                let is_str = self.token_fills_role(tok, DcRole::TypeString)
+                    || self.matches_script("Formats:string", tok)
+                    || self.matches_script("string", tok);
+                is_str && req_subtype.is_none_or(matches_format_sub)
+            }
+            "number" | "Number" => {
+                let is_num = self.token_fills_role(tok, DcRole::TypeNumber)
+                    || self.is_subtype_of(tok, DC_INTEGER.to_u128())
+                    || self.matches_script("Formats:number", tok)
+                    || self.matches_script("number", tok);
+                if !is_num {
+                    return false;
+                }
+                if let Some(sub) = req_subtype {
+                    matches_format_sub(sub)
+                        || self.token_fills_role(tok, DcRole::TypeNumber)
+                        || self.is_subtype_of(tok, DC_INTEGER.to_u128())
+                } else {
+                    true
+                }
+            }
+            "data" | "typed_data" => {
+                if let Some(sub) = req_subtype {
+                    if let Ok((expected_fmt, _)) = parse_data_constraint(sub) {
+                        if let Some(efmt) = expected_fmt {
+                            FormatId::from_shorthand(efmt)
+                                .or_else(|| FormatId::from_ident(efmt))
+                                .and_then(|f| f.dc_id())
+                                .is_some_and(|exp| self.is_subtype_of(tok, exp))
+                        } else {
+                            is_format
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    is_format
+                }
+            }
+            "type" => {
+                let is_type = self.token_fills_role(tok, DcRole::TypeToken)
+                    || is_format
+                    || self.matches_script(".EL Types", tok);
+                is_type && req_subtype.is_none_or(matches_format_sub)
+            }
+            "format" | "formats" => is_format && req_subtype.is_none_or(matches_format_sub),
+            "Routine" => self.token_fills_role(tok, DcRole::TypeRoutine),
+            "Routine name" | "RoutineName" => {
+                self.token_fills_role(tok, DcRole::TypeRoutineName)
+                    || self.token_fills_role(tok, DcRole::TypeRoutine)
+            }
+            "identifier" => req_subtype.is_none_or(|sub| self.token_satisfies_type(tok, sub, None)),
+            _ => matches_format_sub(req_name),
+        }
+    }
+    /// Resolves a `[string:<subtype>]` pattern constraint into its [`SyntaxPattern`].
+    fn resolve_subtype_pattern(&self, subtype: &str) -> Result<SyntaxPattern> {
+        Ok(parse_dc_syntax(subtype)?.pattern)
+    }
+    /// Resolves the element [`SyntaxTerm`] for a `[list:<subtype>]` constraint.
+    fn resolve_list_element_term(&self, subtype: Option<&str>) -> Option<SyntaxTerm> {
+        let Some(sub) = subtype else {
+            return Some(SyntaxTerm::NamedConstruct {
+                name: "value".to_owned(),
+                subtype: None,
+                capture_var: None,
+            });
+        };
+        let trimmed = sub.trim();
+        let is_known_construct = |name: &str| -> bool {
+            self.resolve_named_type(name).is_some()
+                || matches!(
+                    name,
+                    "data"
+                        | "typed_data"
+                        | "script"
+                        | "format"
+                        | "formats"
+                        | "type"
+                        | "string"
+                        | "identifier"
+                        | "number"
+                        | "list"
+                )
+                || name.starts_with("list(")
+        };
+        if trimmed.starts_with('(') {
+            let rule = parse_dc_syntax(&format!(":{trimmed}")).ok()?;
+            Some(SyntaxTerm::Group(rule.pattern))
+        } else if let Some((base, inner_sub)) = trimmed.split_once(':') {
+            if is_known_construct(base) {
+                Some(SyntaxTerm::NamedConstruct {
+                    name: base.to_owned(),
+                    subtype: Some(inner_sub.to_owned()),
+                    capture_var: None,
+                })
+            } else if self.has_script(trimmed) {
+                Some(SyntaxTerm::NamedConstruct {
+                    name: "script".to_owned(),
+                    subtype: Some(trimmed.to_owned()),
+                    capture_var: None,
+                })
+            } else {
+                None
+            }
+        } else if is_known_construct(trimmed) {
+            Some(SyntaxTerm::NamedConstruct {
+                name: trimmed.to_owned(),
+                subtype: None,
+                capture_var: None,
+            })
+        } else if self.has_script(trimmed) {
+            Some(SyntaxTerm::NamedConstruct {
+                name: "script".to_owned(),
+                subtype: Some(trimmed.to_owned()),
+                capture_var: None,
+            })
+        } else if FormatId::from_shorthand(trimmed).is_some()
+            || FormatId::from_ident(trimmed).is_some()
+            || matches!(trimmed, "NonNegative" | "Natural")
+            || trimmed.starts_with("<=")
+            || trimmed.starts_with('<')
+            || trimmed.starts_with(">=")
+            || trimmed.starts_with('>')
+            || trimmed.contains('&')
+        {
+            Some(SyntaxTerm::NamedConstruct {
+                name: "number".to_owned(),
+                subtype: Some(trimmed.to_owned()),
+                capture_var: None,
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -483,6 +645,7 @@ pub struct DatasetRuleResolver {
     pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
     pub(super) opaque_containers: HashSet<u128>,
     pub(super) canonical_map: HashMap<u128, u128>,
+    pub(super) subtypes: HashMap<u128, HashSet<u128>>,
 }
 
 impl DatasetRuleResolver {
@@ -490,6 +653,14 @@ impl DatasetRuleResolver {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Registers a direct subtype relationship (`sub_token` is a subtype of `super_token`).
+    pub fn add_subtype(&mut self, sub_token: u128, super_token: u128) {
+        self.subtypes
+            .entry(sub_token)
+            .or_default()
+            .insert(super_token);
     }
 
     /// Registers a syntax rule for a character target.
@@ -949,6 +1120,19 @@ impl DatasetRuleResolver {
             }
         }
 
+        for defn in dc_defns.iter().chain(format_defns.iter()) {
+            for imp in &defn.implies {
+                for raw_part in imp.split('&') {
+                    let trimmed = raw_part.trim();
+                    if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+                        if let Ok(super_gid) = sh.to_global_id() {
+                            resolver.add_subtype(defn.dc_id, super_gid);
+                        }
+                    }
+                }
+            }
+        }
+
         let equivalents: Vec<_> = dc_defns
             .iter()
             .flat_map(|defn| {
@@ -1005,6 +1189,8 @@ impl DatasetRuleResolver {
             DcShorthand::from_global_id(DC_IS_CLOSING_DELIMITER_FOR.to_u128());
         let sh_equiv =
             DcShorthand::from_global_id(DC_CANONICAL_DECOMPOSITION.to_u128());
+        let sh_subtype =
+            DcShorthand::from_global_id(DC_IS_SUBTYPE_OF.to_u128());
 
         let mut resolver = Self::new();
         let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
@@ -1202,6 +1388,11 @@ impl DatasetRuleResolver {
             {
                 closes_by_id.insert(dc_id, closes);
             }
+            for &super_obj in index.get_direct_objects(sh_subtype, subj) {
+                if let Ok(super_gid) = super_obj.to_global_id() {
+                    resolver.add_subtype(dc_id, super_gid);
+                }
+            }
         }
 
         // 2. Index named constructs from the seed graph in ascending `seed_id` order
@@ -1283,6 +1474,11 @@ impl DatasetRuleResolver {
 
         let mut equivalents: Vec<(u128, CharTarget)> = Vec::new();
         for (source_gid, subj) in all_char_subjects {
+            for &super_obj in index.get_direct_objects(sh_subtype, subj) {
+                if let Ok(super_gid) = super_obj.to_global_id() {
+                    resolver.add_subtype(source_gid, super_gid);
+                }
+            }
             for entry in index.get_multi_properties(subj, sh_equiv) {
                 if matches!(
                     entry.value,
@@ -1666,11 +1862,64 @@ impl DatasetRuleResolver {
                 }
             }
         }
+
+        // Canonicalize and close `subtypes` transitively
+        let raw_subtypes: Vec<(u128, HashSet<u128>)> =
+            std::mem::take(&mut self.subtypes).into_iter().collect();
+        for (sub_tok, supers) in raw_subtypes {
+            let canon_sub = self.canonical_token(sub_tok);
+            for super_tok in supers {
+                let canon_super = self.canonical_token(super_tok);
+                if canon_sub != canon_super {
+                    self.subtypes
+                        .entry(canon_sub)
+                        .or_default()
+                        .insert(canon_super);
+                }
+            }
+        }
+        loop {
+            let mut changed = false;
+            let snapshot: Vec<(u128, Vec<u128>)> = self
+                .subtypes
+                .iter()
+                .map(|(&k, v)| (k, v.iter().copied().collect()))
+                .collect();
+            for (sub_tok, direct_supers) in snapshot {
+                let mut transitive = Vec::new();
+                for sup in &direct_supers {
+                    if let Some(grand_supers) = self.subtypes.get(sup) {
+                        transitive.extend(grand_supers.iter().copied());
+                    }
+                }
+                if let Some(set) = self.subtypes.get_mut(&sub_tok) {
+                    for g in transitive {
+                        if g != sub_tok {
+                            changed |= set.insert(g);
+                        }
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
         Ok(())
     }
 }
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
+    fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
+        if self.is_equivalent_to(sub_token, super_token) {
+            return true;
+        }
+        let canon_sub = self.canonical_token(sub_token);
+        let canon_super = self.canonical_token(super_token);
+        self.subtypes
+            .get(&canon_sub)
+            .is_some_and(|supers| supers.contains(&canon_super))
+    }
+
     fn canonical_token(&self, token: u128) -> u128 {
         // Reason for fallback: tokens not present in canonical_map are self-canonical.
         self.canonical_map.get(&token).copied().unwrap_or(token)

@@ -222,6 +222,30 @@ pub enum SyntaxTerm {
 }
 
 impl SyntaxTerm {
+    /// Returns a copy of this term with any subtype or list-length constraints removed,
+    /// or `None` if this term is already unconstrained.
+    #[must_use]
+    pub fn unconstrained(&self) -> Option<Self> {
+        match self {
+            Self::NamedConstruct { name, subtype, .. }
+                if name != "script" && (subtype.is_some() || name.starts_with("list(")) =>
+            {
+                let base_name = if name.starts_with("list(") {
+                    "list".to_owned()
+                } else {
+                    name.clone()
+                };
+                Some(Self::NamedConstruct {
+                    name: base_name,
+                    subtype: None,
+                    capture_var: None,
+                })
+            }
+            Self::Group(pattern) => pattern.unconstrained().map(Self::Group),
+            _ => None,
+        }
+    }
+
     /// Formats this term into canonical Dc syntax DSL notation.
     #[must_use]
     pub fn format_dsl(&self) -> String {
@@ -320,6 +344,59 @@ impl SyntaxPattern {
             }
             Self::Alternation(branches) => {
                 !branches.is_empty() && branches.iter().all(Self::starts_with_self)
+            }
+        }
+    }
+
+    /// Returns true if any leading branch of this pattern begins with `SyntaxTerm::SelfChar` (`~`)
+    /// or `SyntaxTerm::CharSet`.
+    #[must_use]
+    pub fn starts_with_self_or_charset(&self) -> bool {
+        match self {
+            Self::Sequence(elems) => elems.first().is_some_and(|e| match &e.term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(sub) => sub.starts_with_self_or_charset(),
+                _ => false,
+            }),
+            Self::Alternation(branches) => {
+                branches.iter().any(Self::starts_with_self_or_charset)
+            }
+        }
+    }
+
+    /// Returns a copy of this pattern with any subtype or list-length constraints removed,
+    /// or `None` if no nested term is constrained.
+    #[must_use]
+    pub fn unconstrained(&self) -> Option<Self> {
+        match self {
+            Self::Sequence(elements) => {
+                let mut changed = false;
+                let mut out = Vec::with_capacity(elements.len());
+                for elem in elements {
+                    if let Some(u_term) = elem.term.unconstrained() {
+                        changed = true;
+                        out.push(SyntaxElement {
+                            term: u_term,
+                            quantifier: elem.quantifier,
+                        });
+                    } else {
+                        out.push(elem.clone());
+                    }
+                }
+                changed.then_some(Self::Sequence(out))
+            }
+            Self::Alternation(branches) => {
+                let mut changed = false;
+                let mut out = Vec::with_capacity(branches.len());
+                for branch in branches {
+                    if let Some(u_branch) = branch.unconstrained() {
+                        changed = true;
+                        out.push(u_branch);
+                    } else {
+                        out.push(branch.clone());
+                    }
+                }
+                changed.then_some(Self::Alternation(out))
             }
         }
     }
