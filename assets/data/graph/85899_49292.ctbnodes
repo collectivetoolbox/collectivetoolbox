@@ -13,3 +13,23 @@ l8589949303: 587 f209 f200 # Is a subtype of (64-bit unsigned integer, Natural n
 l8589949304: 587 f210 f199 # Is a subtype of (64-bit signed integer, Integer number)
 l8589949305: 587 f211 f200 # Is a subtype of (128-bit unsigned integer, Natural number, including 0)
 l8589949306: 587 f212 f199 # Is a subtype of (128-bit signed integer, Integer number)
+l8589949307: u3e u3d u28 u2d u32 u5e u37 u29 u20 u26 u20 u3c u28 u32 u5e u37 u29 # ">=(-2^7) & <(2^7)"
+l8589949308: 298 605 l8589934713 584 l8589949307 299 # Begin associativity group, Subpattern match, Named syntax construct number, Has a, ">=(-2^7) & <(2^7)", End associativity group
+l8589949309: u3e u3d u28 u2d u32 u5e u31 u35 u29 u20 u26 u20 u3c u28 u32 u5e u31 u35 u29 # ">=(-2^15) & <(2^15)"
+l8589949310: 298 605 l8589934713 584 l8589949309 299 # Begin associativity group, Subpattern match, Named syntax construct number, Has a, ">=(-2^15) & <(2^15)", End associativity group
+l8589949311: u3e u3d u28 u2d u32 u5e u33 u31 u29 u20 u26 u20 u3c u28 u32 u5e u33 u31 u29 # ">=(-2^31) & <(2^31)"
+l8589949312: 298 605 l8589934713 584 l8589949311 299 # Begin associativity group, Subpattern match, Named syntax construct number, Has a, ">=(-2^31) & <(2^31)", End associativity group
+l8589949313: u3e u3d u28 u2d u32 u5e u36 u33 u29 u20 u26 u20 u3c u28 u32 u5e u36 u33 u29 # ">=(-2^63) & <(2^63)"
+l8589949314: 298 605 l8589934713 584 l8589949313 299 # Begin associativity group, Subpattern match, Named syntax construct number, Has a, ">=(-2^63) & <(2^63)", End associativity group
+l8589949315: u3e u3d u28 u2d u32 u5e u31 u32 u37 u29 u20 u26 u20 u3c u28 u32 u5e u31 u32 u37 u29 # ">=(-2^127) & <(2^127)"
+l8589949316: 298 605 l8589934713 584 l8589949315 299 # Begin associativity group, Subpattern match, Named syntax construct number, Has a, ">=(-2^127) & <(2^127)", End associativity group
+l8589949317: 610 l8589949277 l8589949308 # Has value (l8589949277, f204 :[number:>=(-2^7) & <(2^7)])
+l8589949318: 591 l8589949317 l8589949278 # Supersedes (l8589949317, l8589949278)
+l8589949319: 610 l8589949281 l8589949310 # Has value (l8589949281, f206 :[number:>=(-2^15) & <(2^15)])
+l8589949320: 591 l8589949319 l8589949282 # Supersedes (l8589949319, l8589949282)
+l8589949321: 610 l8589949285 l8589949312 # Has value (l8589949285, f208 :[number:>=(-2^31) & <(2^31)])
+l8589949322: 591 l8589949321 l8589949286 # Supersedes (l8589949321, l8589949286)
+l8589949323: 610 l8589949289 l8589949314 # Has value (l8589949289, f210 :[number:>=(-2^63) & <(2^63)])
+l8589949324: 591 l8589949323 l8589949290 # Supersedes (l8589949323, l8589949290)
+l8589949325: 610 l8589949293 l8589949316 # Has value (l8589949293, f212 :[number:>=(-2^127) & <(2^127)])
+l8589949326: 591 l8589949325 l8589949294 # Supersedes (l8589949325, l8589949294)

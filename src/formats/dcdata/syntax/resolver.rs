@@ -191,7 +191,10 @@ pub trait SyntaxRuleResolver {
     }
     /// Checks whether a single type/format token `tok` satisfies the type requirement `(req_name, req_subtype)`.
     fn token_satisfies_type(&self, tok: u128, req_name: &str, req_subtype: Option<&str>) -> bool {
-        if self.token_fills_role(tok, DcRole::TypeAny) {
+        if !matches!(req_name, "format" | "formats" | "script")
+            && !(req_name == "type" && req_subtype.is_some())
+            && self.token_fills_role(tok, DcRole::TypeAny)
+        {
             return true;
         }
         let is_format = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
@@ -208,6 +211,7 @@ pub trait SyntaxRuleResolver {
                     .is_some_and(|exp| self.is_subtype_of(tok, exp))
         };
         match req_name {
+            "script" => req_subtype.is_some_and(|sub| self.matches_script(sub, tok)),
             "string" | "String" => {
                 let is_str = self.token_fills_role(tok, DcRole::TypeString)
                     || self.matches_script("Formats:string", tok)

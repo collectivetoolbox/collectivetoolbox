@@ -1689,3 +1689,59 @@ use crate::utilities::*;
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_parse_bound_expressions_and_scientific_notation() {
+        use std::str::FromStr;
+
+        assert_eq!(
+            parse_bound("(-2^7)"),
+            Some(malachite::Integer::from(-128))
+        );
+        assert_eq!(
+            parse_bound("-2^7"),
+            Some(malachite::Integer::from(-128))
+        );
+        assert_eq!(
+            parse_bound("-(2^15)"),
+            Some(malachite::Integer::from(-32768))
+        );
+        assert_eq!(
+            parse_bound("(-2)^8"),
+            Some(malachite::Integer::from(256))
+        );
+        assert_eq!(
+            parse_bound("-2^8"),
+            Some(malachite::Integer::from(-256))
+        );
+        assert_eq!(
+            parse_bound("(-2^127)"),
+            malachite::Integer::from_str("-170141183460469231731687303715884105728").ok()
+        );
+        assert_eq!(
+            parse_bound("(2^8 - 1)"),
+            Some(malachite::Integer::from(255))
+        );
+        assert_eq!(
+            parse_bound("1e5"),
+            Some(malachite::Integer::from(100_000))
+        );
+        assert_eq!(
+            parse_bound("-1e5"),
+            Some(malachite::Integer::from(-100_000))
+        );
+        assert_eq!(
+            parse_bound("(-1.5e3)"),
+            Some(malachite::Integer::from(-1_500))
+        );
+        assert_eq!(
+            parse_bound("1E+6"),
+            Some(malachite::Integer::from(1_000_000))
+        );
+        assert_eq!(
+            parse_bound("-1000e-2"),
+            Some(malachite::Integer::from(-10))
+        );
+        assert_eq!(parse_bound("1.5e0"), None);
+        assert_eq!(parse_bound("15e-1"), None);
+    }

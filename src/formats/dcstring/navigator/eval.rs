@@ -856,86 +856,40 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.eval_data_construct(subtype.as_deref(), ctx)?
                 } else if name == "typed_data" {
                     self.eval_typed_data_construct(subtype.as_deref(), ctx)?
-                } else if name == "script" {
-                    if let Some(sub) = subtype {
-                        if ctx.resolver.matches_script(sub, first) {
-                            let _ = self.pop_next_token()?;
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                } else if (name == "format" || name == "formats" || name == "type") && subtype.is_some() {
-                    let mut matched = false;
-                    if let Some(sub) = subtype {
-                        let script_name = format!("Formats:{sub}");
-                        if ctx.resolver.matches_script(&script_name, first)
-                            || ctx.resolver.matches_script(sub, first)
-                        {
-                            let _ = self.pop_next_token()?;
-                            matched = true;
-                        } else if let Some(fmt_id) = FormatId::from_shorthand(sub)
-                            .or_else(|| FormatId::from_ident(sub))
-                        {
-                            if fmt_id.dc_id().is_some_and(|exp| ctx.resolver.is_equivalent_to(first, exp)) {
-                                let _ = self.pop_next_token()?;
-                                matched = true;
-                            }
-                        } else if name == "type" && first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
+                } else if matches!(name.as_str(), "script" | "format" | "formats" | "type") {
+                    let is_type_constructor = name == "type"
+                        && (first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
+                            || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
+                            || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver));
+                    if is_type_constructor {
+                        if subtype.is_none() {
+                            self.eval_type_constructor(ctx)?
+                        } else if first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
                             let type_cp = self.save_checkpoint();
                             let _ = self.pop_next_token()?;
-                            if let Some(inner_dc) = self.pop_next_token()?
+                            let matched = if let Some(inner_dc) = self.pop_next_token()?
                                 && let Some(close_dc) = self.pop_next_token()?
                                 && close_dc.fills_role_with(DcRole::EndTypeDef, ctx.resolver)
                             {
-                                let inner_u128 = inner_dc.to_u128();
-                                let fmt_match = FormatId::from_shorthand(sub)
-                                    .or_else(|| FormatId::from_ident(sub))
-                                    .and_then(|f| f.dc_id())
-                                    .is_some_and(|exp| ctx.resolver.is_equivalent_to(inner_u128, exp));
-                                if fmt_match
-                                    || ctx.resolver.matches_script(&script_name, inner_u128)
-                                    || ctx.resolver.matches_script(sub, inner_u128)
-                                {
-                                    matched = true;
-                                }
-                            }
+                                ctx.resolver.token_satisfies_type(
+                                    inner_dc.to_u128(),
+                                    "type",
+                                    subtype.as_deref(),
+                                )
+                            } else {
+                                false
+                            };
                             if !matched {
                                 self.restore_checkpoint(type_cp);
                             }
-                        }
-                    }
-                    matched
-                } else if name == "type" && subtype.is_none() {
-                    let is_constructor = first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
-                        || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
-                        || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver);
-                    if is_constructor {
-                        self.eval_type_constructor(ctx)?
-                    } else {
-                        let is_format_token =
-                            (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                                ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                                .contains(&first);
-                        if ctx.resolver.token_fills_role(first, DcRole::TypeToken)
-                            || is_format_token
-                            || ctx.resolver.matches_script(".EL Types", first)
-                            || ctx.resolver.matches_script("Formats", first)
-                        {
-                            let _ = self.pop_next_token()?;
-                            true
+                            matched
                         } else {
                             false
                         }
-                    }
-                } else if (name == "format" || name == "formats") && subtype.is_none() {
-                    let is_format_token =
-                        (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                            ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                            .contains(&first);
-                    if is_format_token || ctx.resolver.matches_script("Formats", first) {
+                    } else if ctx
+                        .resolver
+                        .token_satisfies_type(first, name, subtype.as_deref())
+                    {
                         let _ = self.pop_next_token()?;
                         true
                     } else {
@@ -1234,26 +1188,13 @@ impl<'a> DcDocumentNavigator<'a> {
 
         let mut sub_ctx = ctx.clone();
         sub_ctx.depth = sub_ctx.depth.saturating_add(1);
-
-        // Consume optional [number] and required [type] header of 310..311
-        let num_term = SyntaxTerm::NamedConstruct {
-            name: "number".to_owned(),
-            subtype: None,
-            capture_var: None,
-        };
-        let num_pos = self.cursor;
-        let mut num_ctx = sub_ctx.clone();
-        if self.eval_term_single(&num_term, &mut num_ctx)? && !num_ctx.has_errors {
-            sub_ctx = num_ctx;
-        } else {
-            self.cursor = num_pos;
-        }
-        let type_term = SyntaxTerm::NamedConstruct {
-            name: "type".to_owned(),
-            subtype: None,
-            capture_var: None,
-        };
-        if !self.eval_term_single(&type_term, &mut sub_ctx)? || sub_ctx.has_errors {
+        let list_target = CharTarget::from_u128(list_open.to_u128())
+            .context("Missing list target")?;
+        if !self.eval_pattern(
+            &SyntaxPattern::Sequence(ctx.resolver.container_header_elements(&list_target).to_vec()),
+            &mut sub_ctx,
+        )? || sub_ctx.has_errors
+        {
             self.active_span = saved_span;
             return Ok(false);
         }
@@ -1965,32 +1906,18 @@ impl<'a> DcDocumentNavigator<'a> {
         self.cursor = after_list_open;
 
         let mut sub_ctx = ctx.clone();
-
-        // 1. Optional [number] count header in 310..311
-        let mut header_count: Option<malachite::Integer> = None;
-        let num_pos = self.cursor;
-        let num_term = SyntaxTerm::NamedConstruct {
-            name: "number".to_owned(),
-            subtype: Some("NonNegative".to_owned()),
-            capture_var: Some("__list_header_len".to_owned()),
-        };
-        if self.eval_term_single(&num_term, &mut sub_ctx)? && !sub_ctx.has_errors {
-            header_count = sub_ctx.captured_numbers.remove("__list_header_len");
-        } else {
-            self.cursor = num_pos;
-            sub_ctx.has_errors = false;
-        }
-
-        // 2. Required [type] header in 310..311
-        let type_term = SyntaxTerm::NamedConstruct {
-            name: "type".to_owned(),
-            subtype: None,
-            capture_var: None,
-        };
-        if !self.eval_term_single(&type_term, &mut sub_ctx)? || sub_ctx.has_errors {
+        sub_ctx.captured_numbers.remove("length");
+        let list_target = CharTarget::from_u128(list_open.to_u128())
+            .context("Missing list target")?;
+        if !self.eval_pattern(
+            &SyntaxPattern::Sequence(ctx.resolver.container_header_elements(&list_target).to_vec()),
+            &mut sub_ctx,
+        )? || sub_ctx.has_errors
+        {
             self.active_span = saved_span;
             return Ok(false);
         }
+        let header_count = sub_ctx.captured_numbers.remove("length");
 
         // 3. Elements separated by Dc 312
         let mut elem_count: usize = 0;
@@ -2091,6 +2018,7 @@ impl<'a> DcDocumentNavigator<'a> {
             self.cursor = inner.start;
             self.spliced_tokens.clear();
             let header = resolver.container_header_elements(target);
+            let mut declared_list_len = None;
             if !header.is_empty() {
                 let mut ctx = SyntaxEvalContext::new(resolver, Some(target.to_u128()));
                 ctx.policy.clone_from(policy);
@@ -2103,10 +2031,20 @@ impl<'a> DcDocumentNavigator<'a> {
                         format!("Container header mismatch inside {target} at offset {}", inner.start),
                     )?;
                 }
+                declared_list_len = ctx.captured_numbers.remove("length");
             }
-            if resolver.token_fills_role(target.to_u128(), DcRole::BeginList) {
+            if let Some(length) = declared_list_len
+                && resolver.token_fills_role(target.to_u128(), DcRole::BeginList)
+            {
                 let body_start = self.cursor;
-                self.check_declared_list_length_with_resolver(target, inner, body_start, policy, resolver)?;
+                self.check_declared_list_length_with_resolver(
+                    target,
+                    inner,
+                    body_start,
+                    &length,
+                    policy,
+                    resolver,
+                )?;
             }
             if resolver.token_fills_role(target.to_u128(), DcRole::BeginFormatRepresentation) {
                 if let Some((format, _)) = self.read_token_or_binary_at(inner.start)? {
@@ -2142,26 +2080,15 @@ impl<'a> DcDocumentNavigator<'a> {
         list_target: &CharTarget,
         inner: DcByteSpan,
         body_start: u64,
+        length: &malachite::Integer,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
-        let Some((first_tok, _)) = self.read_token_or_binary_at(inner.start)? else {
-            return Ok(());
-        };
-        if !resolver.token_fills_role(first_tok.to_u128(), DcRole::BeginNumber) {
-            return Ok(());
-        }
-        let mut ctx = SyntaxEvalContext::new(resolver, Some(list_target.to_u128()));
-        ctx.policy.clone_from(policy);
-        self.cursor = inner.start;
-        if !self.eval_number_frame(None, None, &mut ctx)? {
-            return Ok(());
-        }
-        let (_, digits) = self.decode_number_span_with_resolver(DcByteSpan::new(inner.start, self.cursor), resolver)?;
-        let length = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, resolver)?;
-        let Ok(expected) = usize::try_from(&length) else {
+        let Ok(expected) = usize::try_from(length) else {
             return self.syntax_issue(policy, inner.start, "Invalid declared list length".to_owned());
         };
+        let mut ctx = SyntaxEvalContext::new(resolver, Some(list_target.to_u128()));
+        ctx.policy.clone_from(policy);
         // Reason for fallback: ListElementSeparator role defaults to Dc 312.
         let sep_u128 = DcRole::ListElementSeparator
             .defining_short()
@@ -2367,18 +2294,211 @@ impl<'a> DcDocumentNavigator<'a> {
 
 pub(super) fn parse_bound(expr: &str) -> Option<malachite::Integer> {
     use malachite::base::num::arithmetic::traits::Pow;
-    let expr = expr.trim().trim_matches(|c| c == '(' || c == ')').trim();
-    if let Some((base_s, exp_s)) = expr.split_once('^') {
-        let base = base_s.trim().parse::<u64>().ok()?;
-        let exp = exp_s.trim().parse::<u32>().ok()?;
-        if exp > 1024 {
-            return None;
+    use std::ops::{Add, Mul, Neg, Sub};
+    use std::str::FromStr;
+
+    struct BoundParser<'a> {
+        bytes: &'a [u8],
+        pos: usize,
+    }
+
+    impl BoundParser<'_> {
+        fn skip_ws(&mut self) {
+            while self
+                .bytes
+                .get(self.pos)
+                .is_some_and(u8::is_ascii_whitespace)
+            {
+                self.pos = self.pos.saturating_add(1);
+            }
         }
-        let result = malachite::Natural::from(base).pow(u64::from(exp));
-        Some(malachite::Integer::from(result))
+
+        fn peek(&mut self) -> Option<u8> {
+            self.skip_ws();
+            self.bytes.get(self.pos).copied()
+        }
+
+        fn eat(&mut self, expected: u8) -> bool {
+            if self.peek() == Some(expected) {
+                self.pos = self.pos.saturating_add(1);
+                true
+            } else {
+                false
+            }
+        }
+
+        fn parse_expr(&mut self) -> Option<malachite::Integer> {
+            let mut acc = self.parse_mul()?;
+            loop {
+                if self.eat(b'+') {
+                    let rhs = self.parse_mul()?;
+                    acc = acc.add(rhs);
+                } else if self.eat(b'-') {
+                    let rhs = self.parse_mul()?;
+                    acc = acc.sub(rhs);
+                } else {
+                    break;
+                }
+            }
+            Some(acc)
+        }
+
+        fn parse_mul(&mut self) -> Option<malachite::Integer> {
+            let mut acc = self.parse_unary()?;
+            while self.eat(b'*') {
+                let rhs = self.parse_unary()?;
+                acc = acc.mul(rhs);
+            }
+            Some(acc)
+        }
+
+        fn parse_unary(&mut self) -> Option<malachite::Integer> {
+            if self.eat(b'-') {
+                self.parse_unary().map(Neg::neg)
+            } else if self.eat(b'+') {
+                self.parse_unary()
+            } else {
+                self.parse_power()
+            }
+        }
+
+        fn parse_power(&mut self) -> Option<malachite::Integer> {
+            let base = self.parse_primary()?;
+            if self.eat(b'^') {
+                let exp_int = self.parse_unary()?;
+                let exp = u32::try_from(&exp_int).ok()?;
+                if exp > 1024 {
+                    return None;
+                }
+                let abs_pow = base.unsigned_abs_ref().pow(u64::from(exp));
+                let int_pow = malachite::Integer::from(abs_pow);
+                if base < 0u32 && !exp.is_multiple_of(2) {
+                    Some(int_pow.neg())
+                } else {
+                    Some(int_pow)
+                }
+            } else {
+                Some(base)
+            }
+        }
+
+        fn parse_primary(&mut self) -> Option<malachite::Integer> {
+            if self.eat(b'(') {
+                let val = self.parse_expr()?;
+                if !self.eat(b')') {
+                    return None;
+                }
+                return Some(val);
+            }
+            self.parse_number_literal()
+        }
+
+        fn parse_number_literal(&mut self) -> Option<malachite::Integer> {
+            self.skip_ws();
+            let int_start = self.pos;
+            while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
+                self.pos = self.pos.saturating_add(1);
+            }
+            let int_end = self.pos;
+            if int_end == int_start {
+                return None;
+            }
+            let int_slice = self.bytes.get(int_start..int_end)?;
+
+            let frac_slice = if self.bytes.get(self.pos) == Some(&b'.')
+                && self
+                    .bytes
+                    .get(self.pos.saturating_add(1))
+                    .is_some_and(u8::is_ascii_digit)
+            {
+                self.pos = self.pos.saturating_add(1);
+                let frac_start = self.pos;
+                while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
+                    self.pos = self.pos.saturating_add(1);
+                }
+                let frac_raw = self.bytes.get(frac_start..self.pos)?;
+                let mut trimmed_len = frac_raw.len();
+                while trimmed_len > 0
+                    && frac_raw.get(trimmed_len.saturating_sub(1)) == Some(&b'0')
+                {
+                    trimmed_len = trimmed_len.saturating_sub(1);
+                }
+                frac_raw.get(..trimmed_len)?
+            } else {
+                &[]
+            };
+
+            if matches!(self.bytes.get(self.pos), Some(b'e' | b'E')) {
+                self.pos = self.pos.saturating_add(1);
+                let exp_neg = if self.bytes.get(self.pos) == Some(&b'-') {
+                    self.pos = self.pos.saturating_add(1);
+                    true
+                } else if self.bytes.get(self.pos) == Some(&b'+') {
+                    self.pos = self.pos.saturating_add(1);
+                    false
+                } else {
+                    false
+                };
+                let exp_start = self.pos;
+                while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
+                    self.pos = self.pos.saturating_add(1);
+                }
+                if self.pos == exp_start {
+                    return None;
+                }
+                let exp_str = std::str::from_utf8(self.bytes.get(exp_start..self.pos)?).ok()?;
+                let exp = exp_str.parse::<u32>().ok()?;
+                if exp > 1024 {
+                    return None;
+                }
+                if exp_neg {
+                    if !frac_slice.is_empty() {
+                        return None;
+                    }
+                    let int_str = std::str::from_utf8(int_slice).ok()?;
+                    let nat = malachite::Natural::from_str(int_str).ok()?;
+                    if nat == 0u32 {
+                        return Some(malachite::Integer::from(0));
+                    }
+                    let exp_usize = usize::try_from(exp).ok()?;
+                    if int_slice.len() <= exp_usize {
+                        return None;
+                    }
+                    let split_at = int_slice.len().checked_sub(exp_usize)?;
+                    if !int_slice.get(split_at..)?.iter().all(|&b| b == b'0') {
+                        return None;
+                    }
+                    let prefix_str = std::str::from_utf8(int_slice.get(..split_at)?).ok()?;
+                    return malachite::Integer::from_str(prefix_str).ok();
+                }
+                let frac_len = u32::try_from(frac_slice.len()).ok()?;
+                let trailing_zeros = exp.checked_sub(frac_len)?;
+                let int_str = std::str::from_utf8(int_slice).ok()?;
+                let frac_str = std::str::from_utf8(frac_slice).ok()?;
+                let mantissa =
+                    malachite::Natural::from_str(&format!("{int_str}{frac_str}")).ok()?;
+                let scale = malachite::Natural::from(10u64).pow(u64::from(trailing_zeros));
+                Some(malachite::Integer::from(mantissa.mul(scale)))
+            } else {
+                if !frac_slice.is_empty() {
+                    return None;
+                }
+                let int_str = std::str::from_utf8(int_slice).ok()?;
+                malachite::Integer::from_str(int_str).ok()
+            }
+        }
+    }
+
+    let mut parser = BoundParser {
+        bytes: expr.as_bytes(),
+        pos: 0,
+    };
+    let val = parser.parse_expr()?;
+    parser.skip_ws();
+    if parser.pos == parser.bytes.len() {
+        Some(val)
     } else {
-        use std::str::FromStr;
-        malachite::Integer::from_str(expr).ok()
+        None
     }
 }
 
