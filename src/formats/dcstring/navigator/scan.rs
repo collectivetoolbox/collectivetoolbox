@@ -1,0 +1,1271 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+//! Low-level token, binary encapsulation, and primitive frame scanners.
+
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+
+use super::*;
+
+impl<'a> DcDocumentNavigator<'a> {
+    pub(super) fn read_token_or_binary_at(&mut self, offset: u64) -> Result<Option<(DcChar, u64)>> {
+        if offset >= self.active_span.end {
+            return Ok(None);
+        }
+        match &mut self.backend {
+            NavBackend::MemoryMstr(mstr) => {
+                let pos = usize::try_from(offset)?;
+                let Some(rem) = mstr.as_bytes().get(pos..) else {
+                    return Ok(None);
+                };
+                if rem.is_empty() {
+                    return Ok(None);
+                }
+                let Some((val, len)) = decode_dctf_buf(rem) else {
+                    bail!("Invalid DcTF character at byte offset {offset}");
+                };
+                let next_offset = offset.saturating_add(u64::try_from(len)?);
+                if next_offset > self.active_span.end {
+                    return Ok(None);
+                }
+                Ok(Some((DcChar::from_u128(val), next_offset)))
+            }
+            NavBackend::MemoryText(text) => {
+                let pos = usize::try_from(offset)?;
+                let Some(rem) = text.as_bytes().get(pos..) else {
+                    return Ok(None);
+                };
+                if rem.is_empty() {
+                    return Ok(None);
+                }
+                let Some((val, len)) = decode_dctf_buf(rem) else {
+                    bail!("Invalid DcTF character at byte offset {offset}");
+                };
+                let next_offset = offset.saturating_add(u64::try_from(len)?);
+                if next_offset > self.active_span.end {
+                    return Ok(None);
+                }
+                Ok(Some((DcChar::from_u128(val), next_offset)))
+            }
+            NavBackend::SeekableFile { reader, is_v1, .. } => {
+                reader.seek(SeekFrom::Start(offset))?;
+                let mut first = [0_u8; 1];
+                if reader.read(&mut first)? == 0 {
+                    return Ok(None);
+                }
+                let mut buf = [0_u8; 32];
+                buf[0] = first[0];
+                if *is_v1 {
+                    let seq_len = if first[0] < 0x80 {
+                        1usize
+                    } else if (first[0] & 0xE0) == 0xC0 {
+                        2usize
+                    } else if (first[0] & 0xF0) == 0xE0 {
+                        3usize
+                    } else if (first[0] & 0xF8) == 0xF0 {
+                        4usize
+                    } else if first[0] == 0xFF {
+                        let mut second = [0_u8; 1];
+                        reader
+                            .read_exact(&mut second)
+                            .with_context(|| format!("Truncated UTF-8e128 header at offset {offset}"))?;
+                        buf[1] = second[0];
+                        ensure!(
+                            (second[0] & 0xC0) == 0x80,
+                            "Invalid UTF-8e128 length byte 0x{:02x} at offset {offset}",
+                            second[0]
+                        );
+                        let l = usize::from(second[0] & 0x3F);
+                        ensure!(
+                            (4..=22).contains(&l),
+                            "Invalid UTF-8e128 continuation count {l} at offset {offset}"
+                        );
+                        let total = l.saturating_add(2);
+                        let tail = buf
+                            .get_mut(2..total)
+                            .context("UTF-8e128 sequence length exceeds buffer")?;
+                        reader
+                            .read_exact(tail)
+                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        total
+                    } else {
+                        bail!(
+                            "Invalid UTF-8e128 lead byte 0x{:02x} at offset {offset}",
+                            first[0]
+                        );
+                    };
+                    if seq_len > 1 && first[0] != 0xFF {
+                        let tail = buf
+                            .get_mut(1..seq_len)
+                            .context("UTF-8e128 sequence length exceeds buffer")?;
+                        reader
+                            .read_exact(tail)
+                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                    }
+                    let slice = buf.get(..seq_len).context("UTF-8e128 slice bounds")?;
+                    let Some((val, _)) = decode_utf_8e_128_buf(slice) else {
+                        bail!("Invalid UTF-8e128 sequence at offset {offset}");
+                    };
+                    let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
+                    if next_offset > self.active_span.end {
+                        return Ok(None);
+                    }
+                    return Ok(Some((DcChar::from_u128(val), next_offset)));
+                }
+                let seq_len = if first[0] < 0x80 {
+                    1usize
+                } else if (first[0] & 0xE0) == 0xC0 {
+                    2usize
+                } else if (first[0] & 0xF0) == 0xE0 {
+                    3usize
+                } else if (first[0] & 0xF8) == 0xF0 {
+                    4usize
+                } else if (first[0] & 0xFC) == 0xF8 {
+                    5usize
+                } else if (first[0] & 0xFE) == 0xFC {
+                    6usize
+                } else if first[0] == 0xFE {
+                    7usize
+                } else if first[0] == 0xFF {
+                    let mut second = [0_u8; 1];
+                    reader
+                        .read_exact(&mut second)
+                        .with_context(|| format!("Truncated DcTF header at offset {offset}"))?;
+                    buf[1] = second[0];
+                    ensure!(
+                        (second[0] & 0xC0) == 0x80,
+                        "Invalid DcTF tier byte 0x{:02x} at offset {offset}",
+                        second[0]
+                    );
+                    let tier = usize::from((second[0] >> 2) & 0x0F);
+                    let total = tier.saturating_add(8);
+                    let tail = buf
+                        .get_mut(2..total)
+                        .context("DcTF sequence length exceeds buffer")?;
+                    reader
+                        .read_exact(tail)
+                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
+                    total
+                } else {
+                    bail!(
+                        "Invalid DcTF lead byte 0x{:02x} at offset {offset}",
+                        first[0]
+                    );
+                };
+                if seq_len > 1 && first[0] != 0xFF {
+                    let tail = buf
+                        .get_mut(1..seq_len)
+                        .context("DcTF sequence length exceeds buffer")?;
+                    reader
+                        .read_exact(tail)
+                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
+                }
+                let slice = buf.get(..seq_len).context("DcTF slice bounds")?;
+                let Some((val, _)) = decode_dctf_buf(slice) else {
+                    bail!("Invalid DcTF sequence at offset {offset}");
+                };
+                let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
+                if next_offset > self.active_span.end {
+                    return Ok(None);
+                }
+                Ok(Some((DcChar::from_u128(val), next_offset)))
+            }
+        }
+    }
+
+    pub(super) fn try_scan_raw_binary_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<(u64, DcFrameHeaderInfo)>> {
+        match &mut self.backend {
+            NavBackend::MemoryMstr(mstr) => {
+                let start_usize = usize::try_from(start_offset)?;
+                let rem = mstr
+                    .as_bytes()
+                    .get(start_usize..)
+                    .context("Binary encapsulation start out of bounds")?;
+                let mut chunks = crate::dc_mixed::DcMixedChunks { slice: rem };
+                let Some(chunk) = chunks.next() else {
+                    return Ok(None);
+                };
+                let consumed = rem.len().saturating_sub(chunks.slice.len());
+                let end_offset = start_offset.saturating_add(u64::try_from(consumed)?);
+                ensure!(
+                    end_offset <= self.active_span.end,
+                    "Binary encapsulation extends past active container span"
+                );
+                match chunk {
+                    crate::DcMixedChunk::Binary { data, .. } => {
+                        let data_len = u64::try_from(data.len())?;
+                        let abs_data_start = end_offset.saturating_sub(data_len);
+                        Ok(Some((
+                            end_offset,
+                            DcFrameHeaderInfo::Binary {
+                                data_type: None,
+                                payload_span: Some(DcByteSpan::new(abs_data_start, end_offset)),
+                                payload_len: data_len,
+                                checksum: None,
+                            },
+                        )))
+                    }
+                    crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
+                        let data_len = u64::try_from(data.len())?;
+                        let abs_data_start = end_offset.saturating_sub(data_len);
+                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(metadata, policy, resolver)?;
+                        let data_type = parsed.data_type.map(DcStr::to_owned);
+                        Ok(Some((
+                            end_offset,
+                            DcFrameHeaderInfo::Binary {
+                                data_type,
+                                payload_span: Some(DcByteSpan::new(abs_data_start, end_offset)),
+                                payload_len: data_len,
+                                checksum: parsed.checksum_spec,
+                            },
+                        )))
+                    }
+                    crate::DcMixedChunk::Text(_) => Ok(None),
+                }
+            }
+            NavBackend::MemoryText(_) => Ok(None),
+            NavBackend::SeekableFile {
+                reader,
+                base_offset,
+                end_offset,
+                is_v1,
+            } => {
+                let dc203_len = if *is_v1 {
+                    crate::dc_mixed::DC_203_BYTES_V1.len()
+                } else {
+                    crate::dc_mixed::DC_203_BYTES.len()
+                };
+                let after_dc203 = start_offset
+                    .checked_add(u64::try_from(dc203_len)?)
+                    .context("Binary encapsulation offset overflow")?;
+                let source_end = self.active_span.end.min(*end_offset);
+                ensure!(
+                    after_dc203.checked_add(17).context("Binary header offset overflow")? <= source_end,
+                    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm binary header")
+                );
+                reader.seek(SeekFrom::Start(after_dc203))?;
+                let mut type_byte = [0_u8; 1];
+                reader
+                    .read_exact(&mut type_byte)
+                    .context("Truncated .dcmm binary encapsulation type")?;
+                let encap_type = type_byte[0];
+                let rel_offset = usize::try_from(after_dc203.saturating_sub(*base_offset))?;
+                if matches!(encap_type, 1 | 4) {
+                    return Err(crate::DcMixedError::UnsupportedLegacyType {
+                        offset: rel_offset,
+                        type_byte: encap_type,
+                    }
+                    .into());
+                }
+                let mut len_buf = [0_u8; 16];
+                reader
+                    .read_exact(&mut len_buf)
+                    .context("Truncated .dcmm binary data length")?;
+                let data_len = u64::try_from(u128::from_be_bytes(len_buf))
+                    .context("Binary data length exceeds u64")?;
+                let mut data_type = None;
+                let mut checksum = None;
+                match encap_type {
+                    crate::dc_mixed::TYPE_BINARY => {}
+                    crate::dc_mixed::TYPE_BINARY_METADATA => {
+                        ensure!(
+                            reader.stream_position()?.checked_add(16)
+                                .context("Metadata header offset overflow")? <= source_end,
+                            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm metadata length")
+                        );
+                        let mut meta_len_buf = [0_u8; 16];
+                        reader
+                            .read_exact(&mut meta_len_buf)
+                            .context("Truncated .dcmm metadata length")?;
+                        let meta_len = u64::try_from(u128::from_be_bytes(meta_len_buf))
+                            .context("Metadata length exceeds u64")?;
+                        let metadata_end = reader.stream_position()?.checked_add(meta_len)
+                            .context("Metadata end offset overflow")?;
+                        let payload_end = metadata_end.checked_add(data_len)
+                            .context("Binary payload offset overflow")?;
+                        ensure!(payload_end <= source_end, std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm metadata or binary payload",
+                        ));
+                        ensure!(
+                            meta_len <= policy.max_binary_metadata_bytes,
+                            "Binary metadata exceeds resource limit ({} bytes)",
+                            policy.max_binary_metadata_bytes
+                        );
+                        let meta_len_usize = usize::try_from(meta_len)?;
+                        let mut meta_bytes = Vec::new();
+                        meta_bytes.try_reserve_exact(meta_len_usize)?;
+                        meta_bytes.resize(meta_len_usize, 0);
+                        reader
+                            .read_exact(&mut meta_bytes)
+                            .context("Truncated .dcmm metadata payload")?;
+                        if *is_v1 {
+                            let meta_owned = crate::DcString::from_dcutf(meta_bytes)?;
+                            let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(&meta_owned, policy, resolver)?;
+                            data_type = parsed.data_type.map(DcStr::to_owned);
+                            checksum = parsed.checksum_spec;
+                        } else {
+                            let meta_str = DcStr::from_bytes(&meta_bytes)?;
+                            let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(meta_str, policy, resolver)?;
+                            data_type = parsed.data_type.map(DcStr::to_owned);
+                            checksum = parsed.checksum_spec;
+                        }
+                    }
+                    crate::dc_mixed::TYPE_BINARY_SHA256 => {
+                        let payload_end = reader.stream_position()?.checked_add(32)
+                            .and_then(|start| start.checked_add(data_len))
+                            .context("Binary payload offset overflow")?;
+                        ensure!(payload_end <= source_end, std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm SHA256 encapsulation",
+                        ));
+                        let mut digest = vec![0_u8; 32];
+                        reader.read_exact(&mut digest).context("Truncated .dcmm SHA256 digest")?;
+                        checksum = Some(BinaryChecksum {
+                            algorithm: SupportedHashFormat::Sha256,
+                            expected_digest: digest,
+                        });
+                    }
+                    _ => {
+                        return Err(crate::DcMixedError::InvalidEncapsulationType {
+                            offset: rel_offset,
+                            type_byte: encap_type,
+                        }
+                        .into());
+                    }
+                }
+                let payload_start = reader.stream_position()?;
+                let payload_end = payload_start
+                    .checked_add(data_len)
+                    .context("Binary payload offset overflow")?;
+                ensure!(
+                    payload_end <= source_end,
+                    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, format!(
+                        "Truncated .dcmm binary encapsulation at offset {start_offset} (needs {payload_end}, end is {})",
+                        self.active_span.end,
+                    ))
+                );
+                reader.seek(SeekFrom::Start(payload_end))?;
+                Ok(Some((
+                    payload_end,
+                    DcFrameHeaderInfo::Binary {
+                        data_type,
+                        payload_span: Some(DcByteSpan::new(payload_start, payload_end)),
+                        payload_len: data_len,
+                        checksum,
+                    },
+                )))
+            }
+        }
+    }
+
+    pub(super) fn scan_binary_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, DcFrameHeaderInfo)> {
+        if let Some(res) = self.try_scan_raw_binary_at(start_offset, policy, resolver)? {
+            return Ok(res);
+        }
+        self.scan_textual_binary_at(start_offset, resolver)
+    }
+
+    pub(super) fn scan_textual_binary_at(
+        &mut self,
+        start_offset: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, DcFrameHeaderInfo)> {
+        let mut offset = start_offset;
+        let mut depth = 0usize;
+        while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
+            offset = next_offset;
+            if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+                depth = depth.saturating_add(1);
+            } else if ch.fills_role_with(DcRole::EndEncapsulationBinary, resolver) {
+                depth = depth.checked_sub(1).context("Unexpected binary encapsulation closer (Dc 204)")?;
+                if depth == 0 {
+                    return Ok((
+                        offset,
+                        DcFrameHeaderInfo::Binary {
+                            data_type: None,
+                            payload_span: None,
+                            payload_len: 0,
+                            checksum: None,
+                        },
+                    ));
+                }
+            }
+        }
+        bail!("Unclosed textual binary encapsulation (Dc 203) starting at offset {start_offset}");
+    }
+
+    pub(super) fn scan_escaped_text_frame(
+        &mut self,
+        after_opener: u64,
+        closer: DcChar,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        let mut offset = after_opener;
+        if closer.fills_role_with(DcRole::EndLiteral, resolver) {
+            if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
+                if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                    offset = self.scan_until_token(next_off, ctb_formats_dcdata::dc::DC_END_TYPE_DEF, policy, resolver)?;
+                } else {
+                    self.record_diagnostic(
+                        policy,
+                        policy.syntax_error,
+                        after_opener,
+                        format!("Literal at offset {after_opener} is missing Dc 262..263 type header"),
+                    )?;
+                }
+            } else {
+                self.record_diagnostic(
+                    policy,
+                    policy.syntax_error,
+                    after_opener,
+                    format!("Unclosed literal at offset {after_opener}: missing Dc 262..263 type header"),
+                )?;
+                return Ok(offset);
+            }
+        }
+        while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
+            offset = next_offset;
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                if let Some((_, after_escaped)) = self.read_token_or_binary_at(offset)? {
+                    offset = after_escaped;
+                } else {
+                    self.record_diagnostic(
+                        policy,
+                        policy.syntax_error,
+                        offset,
+                        format!("Dangling escape Dc 255 at offset {offset}"),
+                    )?;
+                    return Ok(offset);
+                }
+            } else if ch == closer || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128()) {
+                return Ok(offset);
+            }
+        }
+        self.record_diagnostic(
+            policy,
+            policy.syntax_error,
+            after_opener,
+            format!("Unclosed text frame: missing closer {closer:?}"),
+        )?;
+        Ok(offset)
+    }
+
+    pub(super) fn scan_until_token(
+        &mut self,
+        start: u64,
+        closer: DcChar,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        let mut offset = start;
+        while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
+            offset = next_offset;
+            if ch == closer || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128()) {
+                return Ok(offset);
+            }
+        }
+        self.record_diagnostic(
+            policy,
+            policy.syntax_error,
+            start,
+            format!("Unclosed frame starting at {start}: missing closer {closer:?}"),
+        )?;
+        Ok(offset)
+    }
+
+    pub(super) fn scan_say_frame_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        let Some((say_dc, after_say)) = self.read_token_or_binary_at(start_offset)? else {
+            bail!("Unexpected end of stream at say invocation");
+        };
+        ensure!(
+            say_dc.fills_role_with(DcRole::LangSay, resolver),
+            "Expected LangSay (Dc 256), found {say_dc}"
+        );
+        let Some((param_open, after_open)) = self.read_token_or_binary_at(after_say)? else {
+            bail!("Unexpected end of stream after Dc 256: expected parameter opener");
+        };
+        ensure!(
+            param_open.fills_role_with(DcRole::BeginParameter, resolver),
+            "Expected parameter opener (Dc 258) after Dc 256, found {param_open}"
+        );
+        let Some((lit_open, after_lit_open)) = self.read_token_or_binary_at(after_open)? else {
+            bail!("Unexpected end of stream: expected literal opener after parameter opener");
+        };
+        ensure!(
+            lit_open.fills_role_with(DcRole::BeginLiteral, resolver),
+            "Expected literal opener (Dc 260), found {lit_open}"
+        );
+        let Some((hdr_open, after_262)) = self.read_token_or_binary_at(after_lit_open)? else {
+            bail!("Unexpected end of stream: expected Dc 262 after Dc 260");
+        };
+        ensure!(
+            hdr_open.fills_role_with(DcRole::BeginTypeDef, resolver),
+            "Expected Dc 262 after Dc 260 in lang.say"
+        );
+        let Some((type_dc, after_type)) = self.read_token_or_binary_at(after_262)? else {
+            bail!("Unexpected end of stream: expected type after Dc 262");
+        };
+        ensure!(
+            type_dc.fills_role_with(DcRole::TypeString, resolver)
+                || type_dc.fills_role_with(DcRole::TypeAny, resolver),
+            "Expected String type (Dc 264) in lang.say literal, found {type_dc}"
+        );
+        let Some((hdr_close, _)) = self.read_token_or_binary_at(after_type)? else {
+            bail!("Unexpected end of stream: expected Dc 263 after type");
+        };
+        ensure!(
+            hdr_close.fills_role_with(DcRole::EndTypeDef, resolver),
+            "Expected Dc 263 after type in lang.say"
+        );
+        let lit_end = self.scan_escaped_text_frame(
+            after_lit_open,
+            ctb_formats_dcdata::dc::DC_END_LITERAL,
+            policy,
+            resolver,
+        )?;
+        let Some((param_close, after_param_close)) = self.read_token_or_binary_at(lit_end)? else {
+            bail!("Unexpected end of stream: expected parameter closer after literal");
+        };
+        ensure!(
+            param_close.fills_role_with(DcRole::EndParameter, resolver),
+            "Expected parameter closer (Dc 259), found {param_close}"
+        );
+
+        Ok(after_param_close)
+    }
+
+    pub(super) fn scan_balanced_container(
+        &mut self,
+        after_opener: u64,
+        opener: DcChar,
+        closer: DcChar,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, u64, bool)> {
+        if self.depth() >= policy.max_depth {
+            self.record_diagnostic(
+                policy,
+                policy.depth_limit_exceeded,
+                after_opener,
+                format!(
+                    "Container depth limit reached ({}) at offset {after_opener}",
+                    policy.max_depth,
+                ),
+            )?;
+        }
+        let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
+        let mut offset = after_opener;
+
+        while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
+            let token_start = offset;
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                if let Some((_, after_escaped)) = self.read_token_or_binary_at(next_offset)? {
+                    offset = after_escaped;
+                    continue;
+                }
+                self.record_diagnostic(
+                    policy,
+                    policy.syntax_error,
+                    token_start,
+                    format!("Dangling escape Dc 255 at offset {token_start}"),
+                )?;
+                return Ok((next_offset, next_offset, false));
+            }
+            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
+                if closer_stack.last().is_some_and(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
+                    closer_stack.pop();
+                    if closer_stack.is_empty() {
+                        return Ok((token_start, next_offset, false));
+                    }
+                }
+                offset = next_offset;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::LangSay, resolver) {
+                if let Ok(after_say) = self.scan_say_frame_at(token_start, policy, resolver) {
+                    let call_tokens = self.read_tokens_in_span(DcByteSpan::new(token_start, after_say))?;
+                    let call_dcs: Vec<DcChar> = call_tokens.into_iter().map(DcChar::from_u128).collect();
+                    let evaluator = DefaultDcExpressionEvaluator;
+                    if let Ok(Some(spliced)) = evaluator.eval_stream_splice(&call_dcs, resolver) {
+                        let mut spliced_iter = spliced.into_iter();
+                        while let Some(tok) = spliced_iter.next() {
+                            if tok.fills_role_with(DcRole::Escape, resolver) {
+                                let _ = spliced_iter.next();
+                                continue;
+                            }
+                            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
+                                if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
+                                    closer_stack.pop();
+                                    if closer_stack.is_empty() {
+                                        return Ok((after_say, after_say, true));
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
+                                let lit_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(260)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                                while let Some(inner_tok) = spliced_iter.next() {
+                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
+                                        let _ = spliced_iter.next();
+                                    } else if inner_tok == lit_closer || resolver.is_equivalent_to(inner_tok.to_u128(), lit_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+                                let id_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(270)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                                while let Some(inner_tok) = spliced_iter.next() {
+                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
+                                        let _ = spliced_iter.next();
+                                    } else if inner_tok == id_closer || resolver.is_equivalent_to(inner_tok.to_u128(), id_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            if tok.fills_role_with(DcRole::BeginNumber, resolver) {
+                                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
+                                let num_closer = resolver
+                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(6)))
+                                    .map(DcChar::from_u128)
+                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                                for inner_tok in spliced_iter.by_ref() {
+                                    if inner_tok == num_closer || resolver.is_equivalent_to(inner_tok.to_u128(), num_closer.to_u128()) {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
+                                closer_stack.pop();
+                                if closer_stack.is_empty() {
+                                    return Ok((after_say, after_say, true));
+                                }
+                            } else if let Some(target) = CharTarget::from_u128(tok.to_u128()) {
+                                if let Some(inner_closer) = resolver.closer_for_opener(&target) {
+                                    closer_stack.push((DcChar::from_u128(inner_closer), resolver.is_opaque_container(tok.to_u128())));
+                                }
+                            }
+                        }
+                    }
+                    offset = after_say;
+                    continue;
+                }
+            }
+            if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+                let (after_bin, _) = self.scan_binary_at(token_start, policy, resolver)?;
+                offset = after_bin;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::BeginLiteral, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
+                let lit_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(260)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                offset = self.scan_escaped_text_frame(next_offset, lit_closer, policy, resolver)?;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+                let id_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(270)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                offset = self.scan_escaped_text_frame(next_offset, id_closer, policy, resolver)?;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::BeginNumber, resolver) {
+                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
+                let num_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(6)))
+                    .map(DcChar::from_u128)
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                offset = self.scan_until_token(next_offset, num_closer, policy, resolver)?;
+                continue;
+            }
+            if closer_stack.last().is_some_and(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
+                closer_stack.pop();
+                if closer_stack.is_empty() {
+                    return Ok((token_start, next_offset, false));
+                }
+                offset = next_offset;
+                continue;
+            }
+            // Sacred opener/closer framing: if an inner container was left unclosed
+            // before an outer closer on the stack, synchronize at the outer closer.
+            if let Some(stack_pos) = closer_stack.iter().rposition(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
+                self.record_diagnostic(
+                    policy,
+                    policy.syntax_error,
+                    token_start,
+                    format!(
+                        "Unclosed inner container before closer {ch:?} at offset {token_start}"
+                    ),
+                )?;
+                closer_stack.truncate(stack_pos);
+                if closer_stack.is_empty() {
+                    return Ok((token_start, next_offset, false));
+                }
+                offset = next_offset;
+                continue;
+            }
+            if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
+                if let Some(inner_closer) = resolver.closer_for_opener(&target) {
+                    if self.depth().saturating_add(closer_stack.len()) >= policy.max_depth {
+                        self.record_diagnostic(
+                            policy,
+                            policy.depth_limit_exceeded,
+                            token_start,
+                            format!(
+                                "Container depth limit reached ({}) at offset {token_start}",
+                                policy.max_depth,
+                            ),
+                        )?;
+                    }
+                    closer_stack.try_reserve(1)?;
+                    closer_stack.push((
+                        DcChar::from_u128(inner_closer),
+                        resolver.is_opaque_container(ch.to_u128()),
+                    ));
+                }
+            }
+            offset = next_offset;
+        }
+
+        self.record_diagnostic(
+            policy,
+            policy.syntax_error,
+            after_opener,
+            format!("Unclosed container {opener:?}..{closer:?} starting at offset {after_opener}"),
+        )?;
+        Ok((offset, offset, false))
+    }
+
+    pub(super) fn verify_checksummed_section(
+        &mut self,
+        body_span: DcByteSpan,
+        after_closer: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(u64, Option<u64>, bool)> {
+        // Parse optional leading 546 SequenceIdentifier inside body_span
+        let mut sequence_id = None;
+        if let Ok(Some((first_in_body, after_tag))) = self.read_token_or_binary_at(body_span.start) {
+            if first_in_body.fills_role_with(DcRole::SequenceIdentifier, resolver) {
+                if let Ok(Some((num_open, after_num_open))) = self.read_token_or_binary_at(after_tag) {
+                    if num_open.fills_role_with(DcRole::BeginNumber, resolver) {
+                        if let Ok(num_end) = self.scan_until_token(after_num_open, ctb_formats_dcdata::dc::DC_END_NUMBER, policy, resolver) {
+                            if let Ok((_, digits)) = self.decode_number_span_with_resolver(DcByteSpan::new(after_tag, num_end), resolver) {
+                                if let Ok(int_val) = crate::dc_number::parse_dc_number_digits_with_resolver(&digits, resolver) {
+                                    sequence_id = u64::try_from(&int_val).ok();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Expect trailing 545 SectionDigest + [checksum] (203..204)
+        let Some((digest_tag, after_digest_tag)) = self.read_token_or_binary_at(after_closer)? else {
+            self.record_diagnostic(
+                policy,
+                policy.syntax_error,
+                after_closer,
+                "Missing Dc 545 (SectionDigest) after Dc 544 (EndChecksummedSection)".to_owned(),
+            )?;
+            return Ok((after_closer, sequence_id, false));
+        };
+        if !digest_tag.fills_role_with(DcRole::SectionDigest, resolver) {
+            self.record_diagnostic(
+                policy,
+                policy.syntax_error,
+                after_closer,
+                format!("Expected Dc 545 (SectionDigest) after Dc 544, found {digest_tag:?}"),
+            )?;
+            return Ok((after_closer, sequence_id, false));
+        }
+        self.cursor = after_digest_tag;
+        let mut ctx = SyntaxEvalContext::new(resolver, None);
+        ctx.policy.clone_from(policy);
+        let checksum_term = SyntaxTerm::NamedConstruct {
+            name: "checksum".to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        let checksum_ok = self.eval_term_single(&checksum_term, &mut ctx)?;
+        if !checksum_ok {
+            self.record_diagnostic(
+                policy,
+                policy.syntax_error,
+                after_digest_tag,
+                format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
+            )?;
+        }
+        let (final_end, bin_header) = self.scan_binary_at(after_digest_tag, policy, resolver)?;
+        if !checksum_ok {
+            return Ok((final_end, sequence_id, false));
+        }
+        let checksum = match bin_header {
+            DcFrameHeaderInfo::Binary {
+                data_type: Some(data_type),
+                payload_span: Some(pspan),
+                ..
+            } => {
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, pspan.len(), policy, resolver)? else {
+                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                    return Ok((final_end, sequence_id, false));
+                };
+                BinaryChecksum {
+                    algorithm,
+                    expected_digest: self.read_span_bytes(pspan)?.into_owned(),
+                }
+            }
+            _ => {
+                let DcSyntaxKind::Binary {
+                    data_type: Some(data_type),
+                    payload,
+                    ..
+                } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy, resolver)? else {
+                    bail!("Section digest requires a typed checksum payload");
+                };
+                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, payload.len(), policy, resolver)? else {
+                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                    return Ok((final_end, sequence_id, false));
+                };
+                BinaryChecksum { algorithm, expected_digest: payload.materialize_bytes()?.into_owned() }
+            }
+        };
+        let matches = match &mut self.backend {
+            NavBackend::MemoryMstr(mstr) => {
+                let mut body = mstr.as_bytes().get(body_span.to_usize_range()?)
+                    .context("Section body span out of bounds")?;
+                checksum.matches_reader(&mut body, body_span.len())?
+            }
+            NavBackend::MemoryText(text) => {
+                let mut body = text.as_bytes().get(body_span.to_usize_range()?)
+                    .context("Section body span out of bounds")?;
+                checksum.matches_reader(&mut body, body_span.len())?
+            }
+            NavBackend::SeekableFile { reader, .. } => {
+                let saved_position = reader.stream_position()?;
+                let result = (|| -> Result<bool> {
+                    reader.seek(SeekFrom::Start(body_span.start))?;
+                    checksum.matches_reader(reader, body_span.len())
+                })();
+                reader.seek(SeekFrom::Start(saved_position))?;
+                result?
+            }
+        };
+        let valid = checksum_ok && matches;
+        if !valid {
+            self.syntax_issue(policy, body_span.start, "Section checksum mismatch".to_owned())?;
+        }
+        Ok((final_end, sequence_id, valid))
+    }
+
+    pub(super) fn parse_binary_arena_node(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcSyntaxKind<'a>> {
+        match &mut self.backend {
+            NavBackend::MemoryMstr(mstr) => {
+                let range = span.to_usize_range()?;
+                let slice = mstr
+                    .as_bytes()
+                    .get(range)
+                    .context("Binary node span out of bounds")?;
+                let mut chunks = crate::dc_mixed::DcMixedChunks { slice };
+                let Some(chunk) = chunks.next() else {
+                    let sub = DcStr::from_bytes(slice)?;
+                    let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(sub, policy, resolver)?;
+                    let cf = header.chars().next();
+                    return Ok(DcSyntaxKind::Binary {
+                        data_type: if header.is_empty() { None } else { Some(header) },
+                        checksum_format: cf,
+                        payload: BinaryPayloadRef::Inline(data),
+                    });
+                };
+                match chunk {
+                    crate::DcMixedChunk::Binary { data, .. } => {
+                        Ok(DcSyntaxKind::Binary {
+                            data_type: None,
+                            checksum_format: None,
+                            payload: BinaryPayloadRef::Borrowed(data),
+                        })
+                    }
+                    crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
+                        let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(metadata, policy, resolver)?;
+                        let dt = parsed.data_type.map(DcStr::to_owned);
+                        let cf = parsed.data_type.and_then(|d| d.chars().next());
+                        Ok(DcSyntaxKind::Binary {
+                            data_type: dt,
+                            checksum_format: cf,
+                            payload: BinaryPayloadRef::Borrowed(data),
+                        })
+                    }
+                    crate::DcMixedChunk::Text(txt) => {
+                        let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(txt, policy, resolver)?;
+                        let cf = header.chars().next();
+                        Ok(DcSyntaxKind::Binary {
+                            data_type: if header.is_empty() { None } else { Some(header) },
+                            checksum_format: cf,
+                            payload: BinaryPayloadRef::Inline(data),
+                        })
+                    }
+                }
+            }
+            NavBackend::MemoryText(text) => {
+                let range = span.to_usize_range()?;
+                let sub = text
+                    .get(range)
+                    .context("Binary node span out of bounds in DcStr")?;
+                let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(sub, policy, resolver)?;
+                let cf = header.chars().next();
+                Ok(DcSyntaxKind::Binary {
+                    data_type: if header.is_empty() { None } else { Some(header) },
+                    checksum_format: cf,
+                    payload: BinaryPayloadRef::Inline(data),
+                })
+            }
+            NavBackend::SeekableFile { .. } => {
+                let (_, info) = self.scan_binary_at(span.start, policy, resolver)?;
+                let DcFrameHeaderInfo::Binary {
+                    data_type,
+                    payload_span: Some(pspan),
+                    payload_len,
+                    checksum,
+                } = info
+                else {
+                    bail!("Expected binary header info at span {:?}", span);
+                };
+                let checksum_format = data_type.as_ref().and_then(|d| d.chars().next());
+                if let Some(checksum) = &checksum {
+                    let NavBackend::SeekableFile { reader, .. } = &mut self.backend else {
+                        bail!("Expected seekable binary source");
+                    };
+                    let saved_pos = reader.stream_position()?;
+                    let result = (|| -> Result<bool> {
+                        reader.seek(SeekFrom::Start(pspan.start))?;
+                        checksum.matches_reader(reader, payload_len)
+                    })();
+                    reader.seek(SeekFrom::Start(saved_pos))
+                        .context("Failed to restore checksum reader position")?;
+                    if !result? {
+                        self.syntax_issue(policy, span.start, "Encapsulation checksum mismatch".to_owned())?;
+                    }
+                }
+                let payload = if payload_len <= INLINE_BINARY_THRESHOLD {
+                    let bytes = self.read_span_bytes(pspan)?.into_owned();
+                    BinaryPayloadRef::Inline(bytes)
+                } else {
+                    BinaryPayloadRef::FileSpan {
+                        file_offset: pspan.start,
+                        len: payload_len,
+                        checksum,
+                        checksum_action: policy.syntax_error,
+                    }
+                };
+                Ok(DcSyntaxKind::Binary {
+                    data_type,
+                    checksum_format,
+                    payload,
+                })
+            }
+        }
+    }
+
+    pub(super) fn decode_literal_span(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
+        self.decode_literal_span_with_resolver(
+            span,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
+    }
+
+    pub(super) fn decode_literal_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
+        let mut offset = span.start;
+        let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
+            bail!("Empty literal span");
+        };
+        ensure!(first.fills_role_with(DcRole::BeginLiteral, resolver), "Expected literal opener (Dc 260), found {first}");
+        offset = after_first;
+        let mut type_header = Vec::new();
+        if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
+            if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                offset = next_off;
+                while offset < span.end {
+                    let Some((tch, after_tch)) = self.read_token_or_binary_at(offset)? else {
+                        break;
+                    };
+                    offset = after_tch;
+                    if tch.fills_role_with(DcRole::EndTypeDef, resolver) {
+                        break;
+                    }
+                    type_header.push(tch);
+                }
+            }
+        }
+        let mut decoded = DcMstring::new();
+        while offset < span.end {
+            let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {
+                break;
+            };
+            offset = next_off;
+            if ch.fills_role_with(DcRole::EndLiteral, resolver) {
+                break;
+            }
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                if offset < span.end {
+                    if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
+                        ch = escaped;
+                        offset = after_esc;
+                    } else {
+                        self.syntax_issue(
+                            policy,
+                            offset,
+                            format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                        )?;
+                        break;
+                    }
+                } else {
+                    self.syntax_issue(
+                        policy,
+                        offset,
+                        format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                    )?;
+                    break;
+                }
+            }
+            decoded.push_char(ch);
+        }
+        Ok((type_header, decoded))
+    }
+
+    pub(super) fn decode_identifier_span(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+    ) -> Result<DcMstring> {
+        self.decode_identifier_span_with_resolver(
+            span,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
+    }
+
+    pub(super) fn decode_identifier_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcMstring> {
+        let mut offset = span.start;
+        let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
+            bail!("Empty identifier span");
+        };
+        ensure!(first.fills_role_with(DcRole::BeginIdentifier, resolver), "Expected identifier opener (Dc 270), found {first}");
+        offset = after_first;
+        if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)?
+            && !ch.fills_role_with(DcRole::Escape, resolver)
+            && !ch.fills_role_with(DcRole::EndIdentifier, resolver)
+        {
+            if ch.fills_role_with(DcRole::BeginTypeDef, resolver)
+                || ch.fills_role_with(DcRole::TypeIntersection, resolver)
+                || ch.fills_role_with(DcRole::TypeUnion, resolver)
+            {
+                let saved_cursor = self.cursor;
+                let saved_span = self.active_span;
+                self.cursor = offset;
+                self.active_span = span;
+                let mut type_ctx = SyntaxEvalContext::new(resolver, None);
+                type_ctx.policy.clone_from(policy);
+                // Reason for fallback: speculative type constructor evaluation failure is treated as non-match (false).
+                if self.eval_type_constructor(&mut type_ctx).unwrap_or(false)
+                    && !type_ctx.has_errors
+                    && self.cursor > offset
+                    && self.cursor < span.end
+                {
+                    offset = self.cursor;
+                }
+                self.cursor = saved_cursor;
+                self.active_span = saved_span;
+            } else if is_single_type_token(ch, resolver) {
+                offset = next_off;
+            }
+        }
+        let mut name = DcMstring::new();
+        while offset < span.end {
+            let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {
+                break;
+            };
+            offset = next_off;
+            if ch.fills_role_with(DcRole::EndIdentifier, resolver) {
+                break;
+            }
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                if offset < span.end {
+                    if let Some((escaped, after_esc)) = self.read_token_or_binary_at(offset)? {
+                        ch = escaped;
+                        offset = after_esc;
+                    } else {
+                        self.syntax_issue(
+                            policy,
+                            offset,
+                            format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                        )?;
+                        break;
+                    }
+                } else {
+                    self.syntax_issue(
+                        policy,
+                        offset,
+                        format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                    )?;
+                    break;
+                }
+            }
+            name.push_char(ch);
+        }
+        Ok(name)
+    }
+
+    pub(super) fn decode_number_span(&mut self, span: DcByteSpan) -> Result<(DcChar, Vec<DcChar>)> {
+        self.decode_number_span_with_resolver(span, default_syntax_resolver().as_ref())
+    }
+
+    pub(super) fn decode_number_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(DcChar, Vec<DcChar>)> {
+        let mut offset = span.start;
+        let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
+            bail!("Empty number span");
+        };
+        ensure!(first.fills_role_with(DcRole::BeginNumber, resolver), "Expected number opener (Dc 6), found {first}");
+        offset = after_first;
+        let Some((format, after_fmt)) = self.read_token_or_binary_at(offset)? else {
+            bail!("Truncated number format");
+        };
+        offset = after_fmt;
+        let mut digits = Vec::new();
+        while offset < span.end {
+            let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? else {
+                break;
+            };
+            offset = next_off;
+            if ch.fills_role_with(DcRole::EndNumber, resolver) {
+                break;
+            }
+            digits.push(ch);
+        }
+        Ok((format, digits))
+    }
+
+    pub(super) fn read_tokens_in_span(&mut self, span: DcByteSpan) -> Result<Vec<u128>> {
+        let saved_span = self.active_span;
+        self.active_span = span;
+        let mut offset = span.start;
+        let mut tokens = Vec::new();
+        while offset < span.end {
+            let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? else {
+                break;
+            };
+            tokens.push(ch.to_u128());
+            offset = next_off;
+        }
+        self.active_span = saved_span;
+        Ok(tokens)
+    }
+}
+
+#[expect(
+    clippy::expect_used,
+    reason = "encode_dctf_buf returns 1..=23, which is provably within u64::MAX"
+)]
+pub(super) fn dc_char_dctf_len(ch: DcChar) -> u64 {
+    let mut buf = [0_u8; 32];
+    let len = encode_dctf_buf(&mut buf, ch.to_u128());
+    u64::try_from(len).expect("DcTF encoded length fits in u64")
+}
+
+impl DcDocumentNavigator<'_> {
+    /// Returns true if the navigator is backed by a `DcMixed1` (`DcUtf`) file.
+    #[must_use]
+    pub const fn is_v1_encoding(&self) -> bool {
+        matches!(self.backend, NavBackend::SeekableFile { is_v1: true, .. })
+    }
+
+    /// Returns the encoded byte length of `ch` in the underlying stream's Dc encoding
+    /// (`DcUtf` for `DcMixed1`, `DcTF` for `DcMixed2` and in-memory buffers).
+    #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "encoded DcChar length is 1..=24, which is provably within u64::MAX"
+    )]
+    pub fn char_encoded_len(&self, ch: DcChar) -> u64 {
+        let mut buf = [0_u8; 32];
+        let len = if self.is_v1_encoding() {
+            ctb_formats_dctf::encode_utf_8e_128_buf(&mut buf, ch.to_u128())
+        } else {
+            encode_dctf_buf(&mut buf, ch.to_u128())
+        };
+        u64::try_from(len).expect("encoded DcChar length fits in u64")
+    }
+}

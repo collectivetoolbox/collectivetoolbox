@@ -1,0 +1,383 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+//! Projection policies, diagnostic actions, and forgiving defaults.
+
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
+use crate::utilities::*;
+
+use super::*;
+
+/// Maximum binary payload size (in bytes) eagerly loaded into memory when
+/// navigating or expanding frames from a seekable on-disk `.dcmm` file.
+/// Larger binary regions are represented as [`BinaryPayloadRef::FileSpan`].
+pub const INLINE_BINARY_THRESHOLD: u64 = 4096;
+
+/// Default maximum eagerly parsed metadata size for a seekable encapsulation.
+pub const MAX_BINARY_METADATA_BYTES: u64 = 1_048_576;
+
+/// Default maximum checksum-metadata nesting depth allowed when parsing
+/// textual binary encapsulation metadata.
+pub const DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH: usize = 32;
+
+/// Default maximum decoded payload size allowed when parsing a textual binary
+/// encapsulation into memory.
+pub const DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES: u64 = 67_108_864;
+
+/// Action to take when a syntax or projection anomaly is encountered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticAction {
+    /// Immediately abort parsing or projection and return an `Err`.
+    Error,
+    /// Emit a warning via `warn_fmt!` and continue with recovery/fallback.
+    Warn,
+    /// Emit an informational log via `log_fmt!` and continue with recovery/fallback.
+    Log,
+    /// Continue silently with recovery/fallback (diagnostics are still recorded in the arena/inspector).
+    Ignore,
+}
+
+/// Unified caller-specified policy governing how syntax errors, unknown tags,
+/// deprecated constructs, malformed or missing fields, and resource budgets
+/// are handled across Dc document parsing, validation, inspection, and typed
+/// projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DcProjectionPolicy {
+    /// Framing or syntax rule violation in Stage 1 (e.g. unclosed frame, bad literal header).
+    /// Unsupported checksum algorithms follow this action; recovery retains
+    /// payload bytes without verifying those checksums.
+    pub syntax_error: DiagnosticAction,
+    /// Unknown Dc tag encountered inside a container (e.g. forward-compatible field or statement).
+    pub unknown_field: DiagnosticAction,
+    /// Deprecated syntax or legacy representation (e.g. `<prefer>` replacement).
+    pub deprecated_syntax: DiagnosticAction,
+    /// Type mismatch or domain error when projecting a known field onto its Rust type.
+    pub malformed_field: DiagnosticAction,
+    /// Missing required field when projecting a struct (uses [`DcForgivingDefault`] if non-`Error`).
+    pub missing_required_field: DiagnosticAction,
+    /// Maximum container or wrapper nesting depth allowed during arena construction and projection.
+    pub max_depth: usize,
+    /// Action taken when container or wrapper nesting exceeds [`Self::max_depth`].
+    pub depth_limit_exceeded: DiagnosticAction,
+    /// Maximum eagerly allocated metadata bytes per seekable binary header.
+    /// Exceeding this resource budget is an error under every diagnostic policy.
+    pub max_binary_metadata_bytes: u64,
+    /// Maximum nested checksum-metadata levels allowed when parsing textual
+    /// binary encapsulation metadata. Exceeding this resource budget is an
+    /// error under every diagnostic policy.
+    pub max_encapsulation_metadata_depth: usize,
+    /// Maximum decoded payload bytes allowed when parsing a textual binary
+    /// encapsulation into memory. Exceeding this resource budget is an error
+    /// under every diagnostic policy.
+    pub max_encapsulation_payload_bytes: u64,
+}
+
+impl DcProjectionPolicy {
+    /// Strict policy: errors on any syntax violation, unknown field tag,
+    /// malformed field, missing required field, or exceeded nesting depth;
+    /// warns on deprecated syntax.
+    #[must_use]
+    pub const fn strict() -> Self {
+        Self {
+            syntax_error: DiagnosticAction::Error,
+            unknown_field: DiagnosticAction::Error,
+            deprecated_syntax: DiagnosticAction::Warn,
+            malformed_field: DiagnosticAction::Error,
+            missing_required_field: DiagnosticAction::Error,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Error,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+        }
+    }
+
+    /// Forgiving / best-effort policy: logs warnings and recovers at frame or
+    /// field boundaries, projecting all valid fields and substituting fallback
+    /// values for missing or damaged fields.
+    #[must_use]
+    pub const fn forgiving() -> Self {
+        Self {
+            syntax_error: DiagnosticAction::Warn,
+            unknown_field: DiagnosticAction::Warn,
+            deprecated_syntax: DiagnosticAction::Warn,
+            malformed_field: DiagnosticAction::Warn,
+            missing_required_field: DiagnosticAction::Warn,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Warn,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+        }
+    }
+
+    /// Quiet forgiving policy for interactive source inspection (`DcSource::inspect`),
+    /// recording diagnostics without emitting warning logs.
+    #[must_use]
+    pub const fn forgiving_quiet() -> Self {
+        Self {
+            syntax_error: DiagnosticAction::Ignore,
+            unknown_field: DiagnosticAction::Ignore,
+            deprecated_syntax: DiagnosticAction::Ignore,
+            malformed_field: DiagnosticAction::Ignore,
+            missing_required_field: DiagnosticAction::Ignore,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Ignore,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+        }
+    }
+
+    /// Returns a copy of this policy with a custom maximum nesting depth and action.
+    #[must_use]
+    pub const fn with_max_depth(
+        mut self,
+        max_depth: usize,
+        action: DiagnosticAction,
+    ) -> Self {
+        self.max_depth = max_depth;
+        self.depth_limit_exceeded = action;
+        self
+    }
+
+    /// Sets the eager metadata allocation budget for each seekable binary header.
+    #[must_use]
+    pub const fn with_max_binary_metadata_bytes(mut self, max_bytes: u64) -> Self {
+        self.max_binary_metadata_bytes = max_bytes;
+        self
+    }
+
+    /// Sets the checksum-metadata nesting budget for textual binary
+    /// encapsulation metadata.
+    #[must_use]
+    pub const fn with_max_encapsulation_metadata_depth(
+        mut self,
+        max_depth: usize,
+    ) -> Self {
+        self.max_encapsulation_metadata_depth = max_depth;
+        self
+    }
+
+    /// Sets the decoded payload allocation budget for textual binary
+    /// encapsulations.
+    #[must_use]
+    pub const fn with_max_encapsulation_payload_bytes(
+        mut self,
+        max_bytes: u64,
+    ) -> Self {
+        self.max_encapsulation_payload_bytes = max_bytes;
+        self
+    }
+
+    /// Returns true if all structural and projection anomalies are set to `Error`.
+    #[must_use]
+    pub const fn is_strict(&self) -> bool {
+        matches!(self.syntax_error, DiagnosticAction::Error)
+            && matches!(self.unknown_field, DiagnosticAction::Error)
+            && matches!(self.malformed_field, DiagnosticAction::Error)
+            && matches!(self.missing_required_field, DiagnosticAction::Error)
+            && matches!(self.depth_limit_exceeded, DiagnosticAction::Error)
+    }
+
+    /// Returns true if any structural or projection anomaly is configured to recover/warn/ignore.
+    #[must_use]
+    pub const fn is_forgiving(&self) -> bool {
+        !self.is_strict()
+    }
+
+    /// Applies the configured [`DiagnosticAction`] for an anomaly message.
+    ///
+    /// # Errors
+    /// Returns an error if `action` is [`DiagnosticAction::Error`].
+    pub fn handle(
+        &self,
+        action: DiagnosticAction,
+        message: impl Into<String>,
+    ) -> Result<()> {
+        let msg = message.into();
+        match action {
+            DiagnosticAction::Error => bail!("{msg}"),
+            DiagnosticAction::Warn => {
+                warn_fmt!("{msg}");
+                Ok(())
+            }
+            DiagnosticAction::Log => {
+                log_fmt!("{msg}");
+                Ok(())
+            }
+            DiagnosticAction::Ignore => Ok(()),
+        }
+    }
+}
+
+/// Fallback value provider used when projecting structs or fields under a
+/// non-`Error` [`DcProjectionPolicy`] (`forgiving()`).
+pub trait DcForgivingDefault: Sized {
+    /// Produces a placeholder value when a required field or element is missing
+    /// or malformed in forgiving mode.
+    fn dc_forgiving_default() -> Self;
+}
+
+macro_rules! impl_forgiving_default_via_default {
+    ($($t:ty),*) => {
+        $(
+            impl DcForgivingDefault for $t {
+                fn dc_forgiving_default() -> Self {
+                    Self::default()
+                }
+            }
+        )*
+    };
+}
+
+impl_forgiving_default_via_default!(
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    usize,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    isize,
+    bool,
+    String,
+    PathBuf,
+    Natural,
+    Integer,
+    BinaryPayload,
+    DcMstring,
+    DcString
+);
+
+impl DcForgivingDefault for Ipv4Addr {
+    fn dc_forgiving_default() -> Self {
+        Self::UNSPECIFIED
+    }
+}
+
+impl DcForgivingDefault for Ipv6Addr {
+    fn dc_forgiving_default() -> Self {
+        Self::UNSPECIFIED
+    }
+}
+
+impl DcForgivingDefault for IpAddr {
+    fn dc_forgiving_default() -> Self {
+        Self::V4(Ipv4Addr::UNSPECIFIED)
+    }
+}
+
+impl DcForgivingDefault for SystemTime {
+    fn dc_forgiving_default() -> Self {
+        UNIX_EPOCH
+    }
+}
+
+impl DcForgivingDefault for Duration {
+    fn dc_forgiving_default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl DcForgivingDefault for FormatId {
+    fn dc_forgiving_default() -> Self {
+        Self::Utf8
+    }
+}
+
+impl<T> DcForgivingDefault for Option<T> {
+    fn dc_forgiving_default() -> Self {
+        None
+    }
+}
+
+impl<T> DcForgivingDefault for Vec<T> {
+    fn dc_forgiving_default() -> Self {
+        Self::new()
+    }
+}
+
+impl<K: Ord, V> DcForgivingDefault for BTreeMap<K, V> {
+    fn dc_forgiving_default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: DcForgivingDefault> DcForgivingDefault for Box<T> {
+    fn dc_forgiving_default() -> Self {
+        Self::new(T::dc_forgiving_default())
+    }
+}
+
+impl<T: DcForgivingDefault> DcForgivingDefault for Arc<T> {
+    fn dc_forgiving_default() -> Self {
+        Self::new(T::dc_forgiving_default())
+    }
+}
+
+impl<T: DcForgivingDefault, const N: usize> DcForgivingDefault for [T; N] {
+    fn dc_forgiving_default() -> Self {
+        std::array::from_fn(|_| T::dc_forgiving_default())
+    }
+}
+
+impl<A: DcForgivingDefault, B: DcForgivingDefault> DcForgivingDefault for (A, B) {
+    fn dc_forgiving_default() -> Self {
+        (A::dc_forgiving_default(), B::dc_forgiving_default())
+    }
+}
+
+impl<A: DcForgivingDefault, B: DcForgivingDefault, C: DcForgivingDefault> DcForgivingDefault
+    for (A, B, C)
+{
+    fn dc_forgiving_default() -> Self {
+        (
+            A::dc_forgiving_default(),
+            B::dc_forgiving_default(),
+            C::dc_forgiving_default(),
+        )
+    }
+}
+
+impl<
+    A: DcForgivingDefault,
+    B: DcForgivingDefault,
+    C: DcForgivingDefault,
+    D: DcForgivingDefault,
+> DcForgivingDefault for (A, B, C, D) {
+    fn dc_forgiving_default() -> Self {
+        (
+            A::dc_forgiving_default(),
+            B::dc_forgiving_default(),
+            C::dc_forgiving_default(),
+            D::dc_forgiving_default(),
+        )
+    }
+}
+
