@@ -238,6 +238,10 @@ deny = [
     "sctk-adwaita",
     "x11",
     "x11-dl",
+
+    # Prefer Rust versions
+    "brotli-sys",
+    "brotlic-sys"
 ]
 
 # List of features to allow/deny
