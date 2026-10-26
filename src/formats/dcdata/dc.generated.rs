@@ -336,6 +336,36 @@ pub const DC_EVALUATE_VALUE_AS_ATOM: DcChar = DcChar::from_short(616);
 pub const DC_BEGIN_GRAPH_NODE_DEFINITION: DcChar = DcChar::from_short(617);
 /// Terminates a graph node definition begun by Dc 617. (Dc 618).
 pub const DC_END_GRAPH_NODE_DEFINITION: DcChar = DcChar::from_short(618);
+/// Capability of an application or environment to read, parse, decode, decompress, or execute data in a format or forward transformation in general. (Dc 619).
+pub const DC_GENERAL_FORMAT_IMPORT_SUPPORT: DcChar = DcChar::from_short(619);
+/// Capability of an application or environment to import or convert data from a format into a Dc document representation. (Dc 620).
+pub const DC_DC_FORMAT_IMPORT_SUPPORT: DcChar = DcChar::from_short(620);
+/// Capability of an application or environment to write, serialize, encode, compress, or reverse data in a format or transformation in general. (Dc 621).
+pub const DC_GENERAL_FORMAT_EXPORT_SUPPORT: DcChar = DcChar::from_short(621);
+/// Capability of an application or environment to export or convert a Dc document representation into a format. (Dc 622).
+pub const DC_DC_FORMAT_EXPORT_SUPPORT: DcChar = DcChar::from_short(622);
+/// Automated test coverage in an application or environment for general handling of a format or transformation. (Dc 623).
+pub const DC_GENERAL_FORMAT_TEST_COVERAGE: DcChar = DcChar::from_short(623);
+/// Automated test coverage in an application or environment for converting a format to or from Dc documents. (Dc 624).
+pub const DC_DC_FORMAT_TEST_COVERAGE: DcChar = DcChar::from_short(624);
+/// The maturity, completeness, or fidelity level of an implementation or test suite for a capability. (Dc 625).
+pub const DC_IMPLEMENTATION_SUPPORT_LEVEL: DcChar = DcChar::from_short(625);
+/// Indicates that a capability or conversion direction is not applicable to the format. (Dc 626).
+pub const DC_SUPPORT_NOT_APPLICABLE: DcChar = DcChar::from_short(626);
+/// Indicates experimental or work-in-progress implementation or test coverage. (Dc 627).
+pub const DC_SUPPORT_WORK_IN_PROGRESS: DcChar = DcChar::from_short(627);
+/// Indicates support for a subset, basic dialect, or stream-level operation of a format, or partial test coverage. (Dc 628).
+pub const DC_SUPPORT_PARTIAL: DcChar = DcChar::from_short(628);
+/// Indicates complete implementation of a format or complete semantic conversion to or from Dc syntax. (Dc 629).
+pub const DC_SUPPORT_COMPLETE: DcChar = DcChar::from_short(629);
+/// Indicates that conversion preserves all information required for unambiguous bit-for-bit reconstruction. (Dc 630).
+pub const DC_SUPPORT_LOSSLESS_ROUNDTRIP: DcChar = DcChar::from_short(630);
+/// Indicates lossless roundtripping with optional strict structural and semantic validation. (Dc 631).
+pub const DC_SUPPORT_LOSSLESS_STRICT_VALIDATION: DcChar = DcChar::from_short(631);
+/// Property indicating a format variant or format category along which a format varies. (Dc 632).
+pub const DC_FORMAT_VARIATION_ASPECT: DcChar = DcChar::from_short(632);
+/// Property specifying the default variant format used by a format when none is explicitly specified. (Dc 633).
+pub const DC_DEFAULT_FORMAT_VARIANT: DcChar = DcChar::from_short(633);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

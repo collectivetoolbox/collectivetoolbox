@@ -77,3 +77,4 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228811,587,GnuUtilities,GNU utilities,userspace_utilities,,,,,,,,,,,,
 2228812,588,BionicUserspace,Bionic userspace,userspace,@implies(f585),,,,,,,,,,,
 2228852,628,Wine,Wine compatibility layer,userspace,"@title(""Wine""), @implies(f586)",,,,,,,,,,,
+2228873,649,CollectiveToolbox,Collective Toolbox,userspace,,,,,,,,,,,,

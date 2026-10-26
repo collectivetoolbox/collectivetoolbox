@@ -1379,6 +1379,8 @@ pub enum FormatId {
     CscJournal5,
     /// Collective Toolbox csc archive, version 2 (Short 648, Category: database)
     CscArchive2,
+    /// Collective Toolbox (Short 649, Category: userspace)
+    CollectiveToolbox,
 }
 
 impl FormatId {
@@ -2023,7 +2025,8 @@ impl FormatId {
             | Self::Ucsur => FormatCategory::UnicodePua,
             Self::GnuStep
             | Self::BionicUserspace
-            | Self::Wine => FormatCategory::Userspace,
+            | Self::Wine
+            | Self::CollectiveToolbox => FormatCategory::Userspace,
             Self::Win32Subsystem => FormatCategory::UserspaceLibraries,
             Self::BusyBoxUtilities
             | Self::GnuUtilities => FormatCategory::UserspaceUtilities,
@@ -2693,6 +2696,7 @@ impl FormatId {
             "ctbnodev3" | "ctb_node_v3" => Some(Self::CtbNodeV3),
             "cscjournal5" | "csc_journal5" => Some(Self::CscJournal5),
             "cscarchive2" | "csc_archive2" => Some(Self::CscArchive2),
+            "collectivetoolbox" | "collective_toolbox" => Some(Self::CollectiveToolbox),
             _ => None,
         }
     }
@@ -3350,6 +3354,7 @@ impl FormatId {
             Self::CtbNodeV3 => "CtbNodeV3",
             Self::CscJournal5 => "CscJournal5",
             Self::CscArchive2 => "CscArchive2",
+            Self::CollectiveToolbox => "CollectiveToolbox",
         }
     }
 
@@ -4212,6 +4217,7 @@ impl FormatId {
             Self::CtbNodeV3 => "f646",
             Self::CscJournal5 => "f647",
             Self::CscArchive2 => "f648",
+            Self::CollectiveToolbox => "f649",
         }
     }
 
@@ -4869,6 +4875,7 @@ impl FormatId {
             "f646" => Some(Self::CtbNodeV3),
             "f647" => Some(Self::CscJournal5),
             "f648" => Some(Self::CscArchive2),
+            "f649" => Some(Self::CollectiveToolbox),
             _ => None,
         }
     }
@@ -5526,6 +5533,7 @@ impl FormatId {
             Self::CtbNodeV3 => Some(2228870_u128),
             Self::CscJournal5 => Some(2228871_u128),
             Self::CscArchive2 => Some(2228872_u128),
+            Self::CollectiveToolbox => Some(2228873_u128),
         }
     }
 
@@ -6195,6 +6203,7 @@ impl FormatId {
             2228870_u128 => Some(Self::CtbNodeV3),
             2228871_u128 => Some(Self::CscJournal5),
             2228872_u128 => Some(Self::CscArchive2),
+            2228873_u128 => Some(Self::CollectiveToolbox),
             _ => None,
         }
     }
@@ -7498,3 +7507,5 @@ pub const DC_CTB_NODE_V3: DcChar = DcChar::from_format(646);
 pub const DC_CSC_JOURNAL5: DcChar = DcChar::from_format(647);
 /// DcChar constant for Format `CscArchive2` (Short f648, Category: database): Collective Toolbox csc archive, version 2
 pub const DC_CSC_ARCHIVE2: DcChar = DcChar::from_format(648);
+/// DcChar constant for Format `CollectiveToolbox` (Short f649, Category: userspace): Collective Toolbox
+pub const DC_COLLECTIVE_TOOLBOX: DcChar = DcChar::from_format(649);

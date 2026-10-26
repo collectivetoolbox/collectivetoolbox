@@ -63,6 +63,8 @@ pub struct FormatDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_line_ending: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vary_as: Option<String>,
     #[serde(
         default,

@@ -47,8 +47,8 @@ pub use ast::{
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{
-    is_extension_regex, parse_dc_syntax, parse_extension_regex,
-    parse_target_token,
+    format_extension_regex_pattern, is_extension_regex, parse_dc_syntax,
+    parse_extension_regex, parse_target_token,
 };
 pub use resolver::{
     DatasetRuleResolver, StarterSet, SyntaxRuleResolver,

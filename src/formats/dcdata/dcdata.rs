@@ -125,8 +125,8 @@ pub use layout::{
     validate_layout_table,
 };
 pub use lookup::{
-    get_all_dc_defns, get_dc_count, get_dc_defn, get_dc_name,
-    get_eite_dc_data_rows, get_short_dc_defn, get_short_dc_name,
+    get_all_dc_defns, get_all_format_defns, get_dc_count, get_dc_defn,
+    get_dc_name, get_eite_dc_data_rows, get_short_dc_defn, get_short_dc_name,
     maximum_known_short_dc,
 };
 pub use ctb_formats_unicode::describe_general_category;
@@ -170,7 +170,6 @@ pub use validation::{
 use include_dir::{Dir, include_dir};
 
 const _: &[u8] = include_bytes!("data/magic/ctoolbox.magic");
-const _: &[u8] = include_bytes!("data/formats.generated.csv");
 
 static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
@@ -190,7 +189,7 @@ pub(crate) fn get_dc_categories_dir() -> Option<&'static Dir<'static>> {
     DC_DATA_DIR.get_dir("categories")
 }
 
-pub static FORMATS_CATEGORIES_DIR: Dir =
+pub(crate) static FORMATS_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/data/categories/formats");
 
 /// Returns the embedded Magdir directory containing upstream libmagic rule files.

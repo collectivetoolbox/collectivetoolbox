@@ -752,232 +752,190 @@ impl FormatCatalog {
     pub fn build() -> Self {
         let mut catalog = Self::default();
 
-        // Populate from CSV files embedded in ctb_formats_dcdata
-        for file in ctb_formats_dcdata::FORMATS_CATEGORIES_DIR.files() {
-            let is_csv = file.path().extension().and_then(|ext| ext.to_str())
-                == Some("csv");
-            if !is_csv {
+        // Populate from the canonical seed graph format definitions in ctb_formats_dcdata
+        for defn in ctb_formats_dcdata::get_all_format_defns() {
+            let dc_id = defn.dc_id;
+            let Some(short_id) = defn.short_id else {
                 continue;
-            }
-
-            let vec_bytes = file.contents().to_vec();
-            let Ok(table) = csv_tools::parse_csv_reader(
-                &vec_bytes,
-                csv_tools::CsvParseOptions {
-                    has_header: true,
-                    flexible: true,
-                    ..Default::default()
-                },
-            ) else {
+            };
+            let Some(fmt) = &defn.format else {
                 continue;
             };
 
-            for i in 0..table.row_count() {
-                let get_cell = |col: usize| -> String {
-                    match table.cell(i, col) {
-                        Some(s) => s.trim().to_string(),
-                        None => String::new(),
+            // Reason for fallback: formats without a Rust identifier have an empty ident string in FormatMapping.
+            let ident = defn.ident.clone().unwrap_or_default();
+            let label = defn.name.clone();
+            // Reason for fallback: script strings without the ".Formats:" prefix are already bare category names.
+            let category = defn
+                .script
+                .strip_prefix(".Formats:")
+                .unwrap_or(&defn.script)
+                .to_string();
+            // Reason for fallback: formats without extensions have an empty extension list.
+            let ext_field = fmt.extensions.as_deref().unwrap_or("");
+            // Reason for fallback: formats without MIME types have an empty MIME list.
+            let mime_field = fmt.mime.as_deref().unwrap_or("");
+
+            let extensions: Vec<String> = ext_field
+                .split(',')
+                .map(|s| {
+                    let trimmed = s.trim().trim_matches('"');
+                    // Reason for fallback: extensions without a leading dot are already bare extensions
+                    trimmed.strip_prefix('.').unwrap_or(trimmed).to_string()
+                })
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            let mime_types: Vec<String> = mime_field
+                .split(',')
+                .map(|s| {
+                    s.trim()
+                        .trim_matches('"')
+                        .to_ascii_lowercase()
+                })
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            let mut os_associations = Vec::new();
+            for os_shorthand in &defn.os_associations {
+                if let Some(fid) = FormatId::from_shorthand(os_shorthand) {
+                    if !os_associations.contains(&fid) {
+                        os_associations.push(fid);
                     }
-                };
+                }
+            }
 
-                let dc_str = get_cell(0);
-                let Ok(dc_id) = dc_str.parse::<u128>() else {
-                    continue;
-                };
-
-                let short_str = get_cell(1);
-                let Ok(short_id) =
-                    ctb_formats_dcdata::parse_format_shorthand(&short_str)
-                else {
-                    continue;
-                };
-
-                let ident = get_cell(2);
-                let raw_label = get_cell(3);
-                let label = if let Some(stripped) = raw_label.strip_prefix('!')
-                {
-                    stripped.trim().to_string()
-                } else {
-                    raw_label
-                };
-
-                let category = get_cell(4);
-                let aliases_base_field = get_cell(5);
-                let ext_field = get_cell(6);
-                let mime_field = get_cell(7);
-
-                let extensions: Vec<String> = ext_field
-                    .split(',')
-                    .map(|s| {
-                        let trimmed = s.trim().trim_matches('"');
-                        // Reason for fallback: extensions without a leading dot are already bare extensions
-                        trimmed.strip_prefix('.').unwrap_or(trimmed).to_string()
-                    })
-                    .filter(|s| !s.is_empty())
-                    .collect();
-
-                let mime_types: Vec<String> = mime_field
-                    .split(',')
-                    .map(|s| {
-                        s.trim()
-                            .trim_matches('"')
-                            .to_ascii_lowercase()
-                    })
-                    .filter(|s| !s.is_empty())
-                    .collect();
-
-                let mut os_associations = Vec::new();
-                let mut parent_formats = Vec::new();
-                let mut parent_idents = Vec::new();
-                let mut magic_names = Vec::new();
-                if !aliases_base_field.is_empty() {
-                    let mut report =
-                        ctb_formats_dcdata::report::ValidationReport::default();
-                    let parsed = ctb_formats_dcdata::parse_aliases_or_base_column(
-                        &aliases_base_field,
-                        "format_table.csv",
-                        0,
-                        &mut report,
-                        true,
-                    );
-                    magic_names = parsed.magic_names;
-                    for os_shorthand in parsed.os_associations {
-                        if let Some(fid) = FormatId::from_shorthand(&os_shorthand)
-                        {
-                            if !os_associations.contains(&fid) {
-                                os_associations.push(fid);
-                            }
-                        }
+            let mut parent_formats = Vec::new();
+            let mut parent_idents = Vec::new();
+            for parent_expr in defn.implies.iter().chain(defn.based_on.iter()) {
+                for token in parent_expr.split(['&', '|', ',', ' ']) {
+                    let trimmed = token.trim();
+                    if trimmed.is_empty() {
+                        continue;
                     }
-                    for parent_expr in parsed.implies.iter().chain(parsed.based_on.iter()) {
-                        for token in parent_expr.split(['&', '|', ',', ' ']) {
-                            let trimmed = token.trim();
-                            if trimmed.is_empty() {
-                                continue;
-                            }
-                            if !parent_idents.contains(&trimmed.to_string()) {
-                                parent_idents.push(trimmed.to_string());
-                            }
-                            if let Some(parent_fid) = FormatId::from_shorthand(trimmed) {
-                                if !parent_formats.contains(&parent_fid) {
-                                    parent_formats.push(parent_fid);
-                                }
-                            }
+                    if !parent_idents.contains(&trimmed.to_string()) {
+                        parent_idents.push(trimmed.to_string());
+                    }
+                    if let Some(parent_fid) = FormatId::from_shorthand(trimmed)
+                    {
+                        if !parent_formats.contains(&parent_fid) {
+                            parent_formats.push(parent_fid);
                         }
                     }
                 }
+            }
+            let magic_names = defn.magic_names.clone();
 
-                let uti_field = get_cell(8);
-                let apple_type_field = get_cell(9);
+            // Reason for fallback: formats without Apple UTIs have an empty UTI list.
+            let uti_field = fmt.uti.as_deref().unwrap_or("");
+            // Reason for fallback: formats without Apple OSType codes have an empty code list.
+            let apple_type_field = fmt.apple_type.as_deref().unwrap_or("");
 
-                let apple_utis: Vec<String> = uti_field
-                    .split(',')
-                    .map(|s| s.trim().trim_matches('"').to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
+            let apple_utis: Vec<String> = uti_field
+                .split(',')
+                .map(|s| s.trim().trim_matches('"').to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
 
-                let apple_type_codes: Vec<[u8; 4]> = apple_type_field
-                    .split(',')
-                    .filter_map(|s| {
-                        let trimmed = s.trim().trim_matches('"').trim_matches('\'');
-                        let bytes = trimmed.as_bytes();
-                        if bytes.len() == 4 {
-                            let mut arr = [0u8; 4];
-                            arr.copy_from_slice(bytes);
+            let apple_type_codes: Vec<[u8; 4]> = apple_type_field
+                .split(',')
+                .filter_map(|s| {
+                    let trimmed =
+                        s.trim().trim_matches('"').trim_matches('\'');
+                    let bytes = trimmed.as_bytes();
+                    if bytes.len() == 4 {
+                        let mut arr = [0u8; 4];
+                        arr.copy_from_slice(bytes);
+                        Some(arr)
+                    } else if !bytes.is_empty() && bytes.len() < 4 {
+                        let mut arr = [b' '; 4];
+                        if let Some(target) = arr.get_mut(..bytes.len()) {
+                            target.copy_from_slice(bytes);
                             Some(arr)
-                        } else if !bytes.is_empty() && bytes.len() < 4 {
-                            let mut arr = [b' '; 4];
-                            if let Some(target) = arr.get_mut(..bytes.len()) {
-                                target.copy_from_slice(bytes);
-                                Some(arr)
-                            } else {
-                                None
-                            }
                         } else {
                             None
                         }
-                    })
-                    .collect();
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-                let nicknames_field = get_cell(10);
-                let nicknames: Vec<String> = nicknames_field
-                    .split(',')
-                    .map(|s| {
-                        s.trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .filter(|s| !s.is_empty())
-                    .collect();
+            // Reason for fallback: formats without nicknames have an empty nickname list.
+            let nicknames_field = fmt.nicknames.as_deref().unwrap_or("");
+            let nicknames: Vec<String> = nicknames_field
+                .split(',')
+                .map(|s| s.trim().trim_matches('"').to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
 
-                let format_id = FormatId::from_ident(&ident);
+            let format_id = FormatId::from_ident(&ident);
 
-                let mapping = FormatMapping {
-                    format_id,
-                    dc_id,
-                    short_id,
-                    ident: ident.clone(),
-                    label,
-                    category,
-                    extensions: extensions.clone(),
-                    mime_types: mime_types.clone(),
-                    os_associations,
-                    apple_utis: apple_utis.clone(),
-                    apple_type_codes: apple_type_codes.clone(),
-                    parent_formats,
-                    parent_idents,
-                    magic_names: magic_names.clone(),
-                };
+            let mapping = FormatMapping {
+                format_id,
+                dc_id,
+                short_id,
+                ident: ident.clone(),
+                label,
+                category,
+                extensions: extensions.clone(),
+                mime_types: mime_types.clone(),
+                os_associations,
+                apple_utis: apple_utis.clone(),
+                apple_type_codes: apple_type_codes.clone(),
+                parent_formats,
+                parent_idents,
+                magic_names: magic_names.clone(),
+            };
 
-                if !ident.is_empty() {
-                    catalog
-                        .by_ident
-                        .insert(ident.to_ascii_lowercase(), mapping.clone());
-                }
+            if !ident.is_empty() {
+                catalog
+                    .by_ident
+                    .insert(ident.to_ascii_lowercase(), mapping.clone());
+            }
 
-                for nick in nicknames {
-                    catalog
-                        .by_ident
-                        .entry(nick.to_ascii_lowercase())
-                        .or_insert_with(|| mapping.clone());
-                }
+            for nick in nicknames {
+                catalog
+                    .by_ident
+                    .entry(nick.to_ascii_lowercase())
+                    .or_insert_with(|| mapping.clone());
+            }
 
-                for mn in magic_names {
-                    catalog
-                        .by_magic_name
-                        .entry(mn.trim().to_ascii_lowercase())
-                        .or_insert_with(|| mapping.clone());
-                }
+            for mn in magic_names {
+                catalog
+                    .by_magic_name
+                    .entry(mn.trim().to_ascii_lowercase())
+                    .or_insert_with(|| mapping.clone());
+            }
 
-                for mime in mime_types {
-                    catalog.by_mime.entry(mime).or_insert_with(|| mapping.clone());
-                }
+            for mime in mime_types {
+                catalog.by_mime.entry(mime).or_insert_with(|| mapping.clone());
+            }
 
-                for ext in extensions {
-                    catalog
-                        .by_extension
-                        .entry(ext.to_ascii_lowercase())
-                        .or_default()
-                        .push(mapping.clone());
-                }
+            for ext in extensions {
+                catalog
+                    .by_extension
+                    .entry(ext.to_ascii_lowercase())
+                    .or_default()
+                    .push(mapping.clone());
+            }
 
-                for &type_code in &apple_type_codes {
-                    catalog
-                        .by_apple_type
-                        .entry(type_code)
-                        .or_insert_with(|| mapping.clone());
-                }
+            for &type_code in &apple_type_codes {
+                catalog
+                    .by_apple_type
+                    .entry(type_code)
+                    .or_insert_with(|| mapping.clone());
+            }
 
-                for uti in &apple_utis {
-                    catalog
-                        .by_apple_uti
-                        .entry(uti.to_ascii_lowercase())
-                        .or_insert_with(|| mapping.clone());
-                }
+            for uti in &apple_utis {
+                catalog
+                    .by_apple_uti
+                    .entry(uti.to_ascii_lowercase())
+                    .or_insert_with(|| mapping.clone());
+            }
 
-                if let Some(fid) = format_id {
-                    catalog.by_format_id.insert(fid, mapping.clone());
-                }
+            if let Some(fid) = format_id {
+                catalog.by_format_id.insert(fid, mapping.clone());
             }
         }
 

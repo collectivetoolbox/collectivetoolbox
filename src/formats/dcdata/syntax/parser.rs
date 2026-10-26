@@ -1077,3 +1077,138 @@ fn parse_regex_char_class(chars: &[char]) -> Result<SyntaxTerm> {
 
     Ok(SyntaxTerm::CharSet { negated, members })
 }
+
+/// Formats a `.Semantic:Pattern` [`SyntaxPattern`] compiled by [`parse_extension_regex`]
+/// back into its canonical `~...~` regex extension notation.
+#[must_use]
+pub fn format_extension_regex_pattern(pattern: &SyntaxPattern) -> Option<String> {
+    let wildcard_short = crate::dc::DC_WILDCARD_PATTERN.to_short().ok()?;
+    let is_wildcard_star = |elem: &SyntaxElement| -> bool {
+        elem.quantifier == Quantifier::ZeroOrMore
+            && elem.term == SyntaxTerm::CharRef(CharTarget::Dc(wildcard_short))
+    };
+
+    let (anchored_start, anchored_end, core_slice) = match pattern {
+        SyntaxPattern::Sequence(elems) => {
+            if elems.is_empty() {
+                return None;
+            }
+            let unanchored_start = elems.first().is_some_and(is_wildcard_star);
+            let start = usize::from(unanchored_start);
+            let unanchored_end = elems.len() > start
+                && elems.last().is_some_and(is_wildcard_star);
+            let end = if unanchored_end {
+                elems.len().saturating_sub(1)
+            } else {
+                elems.len()
+            };
+            let slice = elems.get(start..end)?;
+            (!unanchored_start, !unanchored_end, slice)
+        }
+        SyntaxPattern::Alternation(_) => {
+            let mut body = String::from("~^");
+            body.push_str(&format_regex_inner_pattern(pattern, wildcard_short)?);
+            body.push_str("$~");
+            return Some(body);
+        }
+    };
+
+    let mut out = String::from("~");
+    if anchored_start {
+        out.push('^');
+    }
+    for elem in core_slice {
+        out.push_str(&format_regex_element(elem, wildcard_short)?);
+    }
+    if anchored_end {
+        out.push('$');
+    }
+    out.push('~');
+    Some(out)
+}
+
+fn format_regex_inner_pattern(
+    pattern: &SyntaxPattern,
+    wildcard_short: u32,
+) -> Option<String> {
+    match pattern {
+        SyntaxPattern::Sequence(elems) => {
+            let mut out = String::new();
+            for elem in elems {
+                out.push_str(&format_regex_element(elem, wildcard_short)?);
+            }
+            Some(out)
+        }
+        SyntaxPattern::Alternation(branches) => {
+            let mut parts = Vec::with_capacity(branches.len());
+            for b in branches {
+                parts.push(format_regex_inner_pattern(b, wildcard_short)?);
+            }
+            Some(parts.join("|"))
+        }
+    }
+}
+
+fn format_regex_element(
+    elem: &SyntaxElement,
+    wildcard_short: u32,
+) -> Option<String> {
+    let mut s = match &elem.term {
+        SyntaxTerm::CharRef(CharTarget::Dc(dc)) if *dc == wildcard_short => {
+            ".".to_string()
+        }
+        SyntaxTerm::CharRef(CharTarget::Unicode(cp)) => {
+            let ch = char::from_u32(*cp)?;
+            match ch {
+                '\t' => "\\t".to_string(),
+                '\n' => "\\n".to_string(),
+                '\r' => "\\r".to_string(),
+                '.' | '\\' | '^' | '$' | '*' | '+' | '?' | '(' | ')' | '['
+                | ']' | '{' | '}' | '|' | '~' => format!("\\{ch}"),
+                other => other.to_string(),
+            }
+        }
+        SyntaxTerm::Group(inner) => {
+            format!("({})", format_regex_inner_pattern(inner, wildcard_short)?)
+        }
+        SyntaxTerm::CharRange {
+            start: CharTarget::Unicode(s_cp),
+            end: CharTarget::Unicode(e_cp),
+        } => {
+            let s_ch = char::from_u32(*s_cp)?;
+            let e_ch = char::from_u32(*e_cp)?;
+            format!("[{s_ch}-{e_ch}]")
+        }
+        SyntaxTerm::CharSet { negated, members } => {
+            let mut set_str = String::from("[");
+            if *negated {
+                set_str.push('^');
+            }
+            for m in members {
+                let CharTarget::Unicode(cp) = m else {
+                    return None;
+                };
+                let ch = char::from_u32(*cp)?;
+                if matches!(ch, '\\' | ']' | '^' | '-') {
+                    set_str.push('\\');
+                }
+                set_str.push(ch);
+            }
+            set_str.push(']');
+            set_str
+        }
+        _ => return None,
+    };
+    match elem.quantifier {
+        Quantifier::ExactOne => {}
+        Quantifier::Optional => s.push('?'),
+        Quantifier::ZeroOrMore => s.push('*'),
+        Quantifier::OneOrMore => s.push('+'),
+        Quantifier::Range { min, max } => match max {
+            Some(m) if m == min => s.push_str(&format!("{{{min}}}")),
+            Some(m) => s.push_str(&format!("{{{min},{m}}}")),
+            None => s.push_str(&format!("{{{min},}}")),
+        },
+    }
+    Some(s)
+}

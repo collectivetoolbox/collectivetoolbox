@@ -1360,6 +1360,7 @@ pub fn validate_dc_category_file(
                     tests: None,
                     variant_types: None,
                     title: parsed_col.title.clone(),
+                    default_line_ending: parsed_col.default_line_ending.clone(),
                     vary_as: parsed_col.vary_as.clone(),
                     varies: parsed_col.varies.clone(),
                 }),

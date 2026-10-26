@@ -54,228 +54,70 @@ pub struct FormatInfo {
     pub references: String,
 }
 
-fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
-    let vec_bytes = bytes.to_vec();
-    let table = match csv_tools::parse_csv_reader(
-        &vec_bytes,
-        csv_tools::CsvParseOptions {
-            has_header: true,
-            ..Default::default()
-        },
-    ) {
-        Ok(t) => t,
-        Err(_) => return,
-    };
-
-    let (
-        dc_col,
-        id_col,
-        ident_col,
-        label_col,
-        category_col,
-        script_col,
-        base_col,
-        ext_col,
-        mime_col,
-        uti_col,
-        apple_type_col,
-        nicknames_col,
-        import_col,
-        export_col,
-        tests_col,
-        variant_col,
-        comments_col,
-        references_col,
-    ) = if let Some(hdr) = table.header() {
-        let find_col_opt = |prefixes: &[&str]| -> Option<usize> {
-            hdr.iter().position(|name| {
-                let trimmed = name.trim();
-                prefixes.iter().any(|p| trimmed.starts_with(p))
-            })
-        };
-        let find_col = |prefixes: &[&str], default: usize| -> usize {
-            if let Some(pos) = find_col_opt(prefixes) {
-                pos
-            } else {
-                default
-            }
-        };
-
-        (
-            find_col(&["Dc"], 0),
-            find_col(&["Short"], 1),
-            find_col_opt(&["Ident"]),
-            find_col(&["Label", "Name"], 2),
-            find_col_opt(&["Category"]),
-            find_col_opt(&["Script"]),
-            find_col_opt(&["Base", "Aliases"]),
-            find_col_opt(&["Extensions"]),
-            find_col_opt(&["MIME"]),
-            find_col_opt(&["Apple Uniform", "Apple UTI"]),
-            find_col_opt(&["Apple Type"]),
-            find_col_opt(&["Nicknames"]),
-            find_col_opt(&["Import"]),
-            find_col_opt(&["Export"]),
-            find_col_opt(&["Tests"]),
-            find_col_opt(&["Variant"]),
-            find_col_opt(&["Comments", "Description"]),
-            find_col_opt(&["References"]),
-        )
-    } else {
-        (
-            0,
-            1,
-            Some(2),
-            3,
-            Some(4),
-            None,
-            Some(5),
-            Some(6),
-            Some(7),
-            Some(8),
-            Some(9),
-            Some(10),
-            Some(11),
-            Some(12),
-            Some(13),
-            Some(14),
-            Some(15),
-            Some(16),
-        )
-    };
-
-    for i in 0..table.row_count() {
-        let get_str = |col: usize| -> String {
-            match table.cell(i, col) {
-                Some(s) => s.trim().to_string(),
-                None => String::new(),
-            }
-        };
-        let get_opt = |col_opt: Option<usize>| -> String {
-            if let Some(col) = col_opt {
-                get_str(col)
-            } else {
-                String::new()
-            }
-        };
-
-        let dc_str = get_str(dc_col);
-        let Ok(dc_id) = dc_str.parse::<u128>() else {
-            continue;
-        };
-
-        let id_str = get_str(id_col);
-        let Ok(id) = ctb_formats_dcdata::parse_format_shorthand(&id_str) else {
-            continue;
-        };
-
-        let mut ident = get_opt(ident_col);
-        let raw_label = get_str(label_col);
-        let label = if let Some(s) = raw_label.strip_prefix('!') {
-            s.trim().to_string()
-        } else {
-            raw_label
-        };
-
-        let raw_cat = get_opt(category_col);
-        let category = if !raw_cat.is_empty() {
-            raw_cat
-        } else {
-            let sc = get_opt(script_col);
-            if let Some(stripped) = sc.strip_prefix(".Formats:") {
-                stripped.to_string()
-            } else {
-                sc
-            }
-        };
-
-        let base_or_aliases = get_opt(base_col);
-        let mut nicknames = get_opt(nicknames_col);
-        let mut implies = String::new();
-        let mut based_on = String::new();
-
-        if !base_or_aliases.is_empty() {
-            let mut report = ctb_formats_dcdata::report::ValidationReport::new();
-            let parsed = ctb_formats_dcdata::column_spec::parse_aliases_or_base_column(
-                &base_or_aliases,
-                "",
-                0,
-                &mut report,
-                false,
-            );
-            if ident.is_empty() {
-                if let Some(id_str) = parsed.rust_ident {
-                    ident = id_str;
-                }
-            }
-            if nicknames.is_empty() && !parsed.nicknames.is_empty() {
-                nicknames = parsed.nicknames.join(", ");
-            }
-            if !parsed.implies.is_empty() {
-                implies = parsed.implies.join(", ");
-            }
-            if !parsed.based_on.is_empty() {
-                based_on = parsed.based_on.join(", ");
-            }
-        }
-
-        let extensions = get_opt(ext_col);
-        let mime = get_opt(mime_col);
-        let uti = get_opt(uti_col);
-        let apple_type = get_opt(apple_type_col);
-        let import_support = get_opt(import_col);
-        let export_support = get_opt(export_col);
-        let tests = get_opt(tests_col);
-        let variant_types = get_opt(variant_col);
-        let comments = get_opt(comments_col);
-        let references = get_opt(references_col);
-
-        map.insert(
-            id,
-            FormatInfo {
-                dc_id,
-                id,
-                ident,
-                label,
-                category,
-                implies,
-                based_on,
-                extensions,
-                mime,
-                uti,
-                apple_type,
-                nicknames,
-                import_support,
-                export_support,
-                tests,
-                variant_types,
-                comments,
-                references,
-            },
-        );
-    }
-}
-
 static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> =
     LazyLock::new(|| {
         let mut map = HashMap::new();
-        if let Some(bytes) =
-            ctb_formats_dcdata::get_dc_data_file("formats.generated.csv")
-        {
-            parse_format_csv_data(&bytes, &mut map);
-        } else if let Some(bytes) =
-            ctb_formats_dcdata::get_dc_data_file("formats.csv")
-        {
-            parse_format_csv_data(&bytes, &mut map);
-        }
-        if map.is_empty() {
-            for file in ctb_formats_dcdata::FORMATS_CATEGORIES_DIR.files() {
-                if file.path().extension().and_then(|ext| ext.to_str())
-                    == Some("csv")
-                {
-                    parse_format_csv_data(file.contents(), &mut map);
-                }
-            }
+        for defn in ctb_formats_dcdata::get_all_format_defns() {
+            let Some(id) = defn.short_id else {
+                continue;
+            };
+            let Some(fmt) = &defn.format else {
+                continue;
+            };
+            // Reason for fallback: script strings without the ".Formats:" prefix are already bare category names.
+            let category = defn
+                .script
+                .strip_prefix(".Formats:")
+                .unwrap_or(&defn.script)
+                .to_string();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let ident = defn.ident.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let implies = fmt.implies.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let based_on = fmt.based_on.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let extensions = fmt.extensions.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let mime = fmt.mime.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let uti = fmt.uti.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let apple_type = fmt.apple_type.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let nicknames = fmt.nicknames.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let import_support = fmt.import_support.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let export_support = fmt.export_support.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let tests = fmt.tests.clone().unwrap_or_default();
+            // Reason for fallback: optional format metadata fields are represented as empty strings in FormatInfo when absent.
+            let variant_types = fmt.variant_types.clone().unwrap_or_default();
+
+            map.insert(
+                id,
+                FormatInfo {
+                    dc_id: defn.dc_id,
+                    id,
+                    ident,
+                    label: defn.name.clone(),
+                    category,
+                    implies,
+                    based_on,
+                    extensions,
+                    mime,
+                    uti,
+                    apple_type,
+                    nicknames,
+                    import_support,
+                    export_support,
+                    tests,
+                    variant_types,
+                    comments: defn.description.clone(),
+                    references: defn.cross_references.join(", "),
+                },
+            );
         }
         map
     });

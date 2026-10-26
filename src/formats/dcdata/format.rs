@@ -398,6 +398,22 @@ pub fn validate_formats_category_file(
             format!("format_{category}")
         };
 
+        let mut all_nicknames = if nicknames.is_empty() {
+            Vec::new()
+        } else {
+            split_comma_separated_items(&nicknames)
+        };
+        for nick in &parsed.nicknames {
+            if !nick.is_empty() && !all_nicknames.contains(nick) {
+                all_nicknames.push(nick.clone());
+            }
+        }
+        let merged_nicknames = if all_nicknames.is_empty() {
+            None
+        } else {
+            Some(all_nicknames.join(", "))
+        };
+
         let format_details = FormatDetails {
             implies,
             based_on,
@@ -415,11 +431,7 @@ pub fn validate_formats_category_file(
             } else {
                 Some(apple_type)
             },
-            nicknames: if nicknames.is_empty() {
-                None
-            } else {
-                Some(nicknames.clone())
-            },
+            nicknames: merged_nicknames,
             import_support: if import_support.is_empty() {
                 None
             } else {
@@ -437,15 +449,12 @@ pub fn validate_formats_category_file(
                 Some(variant_types)
             },
             title: parsed.title.clone(),
+            default_line_ending: parsed.default_line_ending,
             vary_as: parsed.vary_as,
             varies: parsed.varies,
         };
 
-        let aliases: Vec<String> = if nicknames.is_empty() {
-            Vec::new()
-        } else {
-            split_comma_separated_items(&nicknames)
-        };
+        let aliases = all_nicknames;
         let cross_references: Vec<String> = if references.is_empty() {
             Vec::new()
         } else {

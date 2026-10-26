@@ -39,7 +39,9 @@ use ctb_storage_minimal::global_graph_layout::{
 };
 use ctb_storage_minimal::shorthand::DcShorthand;
 use ctb_utilities::format_id::{
-    DC_APPLE_OS_TYPE, DC_FILE_EXTENSION, DC_INTEGER, DC_MEDIA_TYPE,
+    DC_APPLE_OS_TYPE, DC_COLLECTIVE_TOOLBOX, DC_FILE_EXTENSION, DC_INTEGER,
+    DC_LINE_ENDING_CR, DC_LINE_ENDING_CR_LF, DC_LINE_ENDING_LF,
+    DC_LINE_ENDING_LF_CR, DC_LINE_ENDING_NL, DC_LINE_ENDING_RS, DC_MEDIA_TYPE,
     DC_UNIFORM_TYPE_IDENTIFIER,
 };
 
@@ -67,25 +69,32 @@ use crate::dc::{
     DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
     DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
-    DC_DATA_FORMAT_DESCRIPTION, DC_DC_GENERAL_CATEGORY, DC_DESCRIPTION,
+    DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
+    DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
+    DC_DC_GENERAL_CATEGORY, DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
     DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
     DC_END_GRAPH_NODE_DEFINITION, DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE,
-    DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS, DC_HAS_A, DC_HAS_VALUE,
-    DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON,
-    DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
-    DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE, DC_NEGATED_PATTERN,
-    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT,
-    DC_PATTERN_REPETITION, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS, DC_FORMAT_VARIATION_ASPECT,
+    DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
+    DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
+    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
+    DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
+    DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
+    DC_NEGATED_PATTERN, DC_NICKNAME, DC_PATTERN_ALTERNATION,
+    DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION,
+    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
     DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
-    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_UNICODE_SCRIPT,
-    DcChar,
+    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
+    DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
+    DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
+    DC_SYNTAX_RULE, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
 use crate::format_spec::{DcToken, FormatExpr, encode_dc_stream, parse_format_expr};
 use crate::report::ValidationReport;
-use crate::shared::{BidiClass, GeneralCategory};
+use crate::shared::{BidiClass, GeneralCategory, SupportLevel};
 use crate::syntax::ast::{
     ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxElement, SyntaxPattern, SyntaxTerm,
@@ -220,6 +229,15 @@ struct DesiredDatasetState {
     single_properties: BTreeMap<(DcShorthand, DcShorthand), (ValueSpec, String)>,
     /// Multi-valued properties: `(subject, prop_token, value_spec) -> comment`.
     multi_properties: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
+    /// Multi-valued property entries qualified with `Dc 570` (`Preferred`) as the primary choice:
+    /// `(subject, prop_token, value_spec)`.
+    preferred_multi_properties: BTreeSet<(DcShorthand, DcShorthand, ValueSpec)>,
+    /// Single-valued property qualifiers attached to a multi-valued property's `584` (`Has a`) statement node:
+    /// `((subject, prop_token, value_spec), qual_prop_token) -> (qual_value_spec, comment)`.
+    multi_property_single_qualifiers: BTreeMap<
+        ((DcShorthand, DcShorthand, ValueSpec), DcShorthand),
+        (ValueSpec, String),
+    >,
     /// Preferred replacements (`<prefer>`): `(subject, value_spec) -> comment`.
     preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
     /// Direct 3-token binary statements: `(verb, subject, object_spec) -> comment`.
@@ -416,6 +434,7 @@ fn build_initial_token_labels(
         (DC_CANONICAL_NAME, "Canonical name"),
         (DC_DESCRIPTION, "Description"),
         (DC_PROGRAMMATIC_IDENTIFIER, "Programmatic identifier"),
+        (DC_NICKNAME, "Nickname"),
         (DC_INFORMAL_ALIAS, "Informal alias"),
         (DC_FORMAL_ALIAS, "Formal alias"),
         (DC_ANNOTATION, "Annotation"),
@@ -471,10 +490,56 @@ fn build_initial_token_labels(
         ),
         (DC_END_GRAPH_NODE_DEFINITION, "End graph node definition"),
         (DC_ESCAPE, "Ignore following Dc"),
+        (
+            DC_GENERAL_FORMAT_IMPORT_SUPPORT,
+            "General import support for a format",
+        ),
+        (
+            DC_DC_FORMAT_IMPORT_SUPPORT,
+            "Import support to Dc documents for a format",
+        ),
+        (
+            DC_GENERAL_FORMAT_EXPORT_SUPPORT,
+            "General export support for a format",
+        ),
+        (
+            DC_DC_FORMAT_EXPORT_SUPPORT,
+            "Export support from Dc documents for a format",
+        ),
+        (
+            DC_GENERAL_FORMAT_TEST_COVERAGE,
+            "General test coverage for a format",
+        ),
+        (
+            DC_DC_FORMAT_TEST_COVERAGE,
+            "Test coverage of Dc document conversion for a format",
+        ),
+        (
+            DC_IMPLEMENTATION_SUPPORT_LEVEL,
+            "Implementation support level",
+        ),
+        (DC_SUPPORT_NOT_APPLICABLE, "Support not applicable"),
+        (DC_SUPPORT_WORK_IN_PROGRESS, "Work-in-progress support"),
+        (DC_SUPPORT_PARTIAL, "Partial or basic dialect support"),
+        (DC_SUPPORT_COMPLETE, "Complete implementation"),
+        (DC_SUPPORT_LOSSLESS_ROUNDTRIP, "Can be losslessly roundtripped"),
+        (
+            DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
+            "Lossless roundtripping with strict validation",
+        ),
+        (DC_FORMAT_VARIATION_ASPECT, "Format variation aspect"),
+        (DC_DEFAULT_FORMAT_VARIANT, "Default format variant"),
         (DC_FILE_EXTENSION, "File extension"),
         (DC_MEDIA_TYPE, "IANA Media Type"),
         (DC_UNIFORM_TYPE_IDENTIFIER, "Uniform Type Identifier"),
         (DC_APPLE_OS_TYPE, "Apple OSType"),
+        (DC_COLLECTIVE_TOOLBOX, "Collective Toolbox"),
+        (DC_LINE_ENDING_LF, "Lines terminated by LF"),
+        (DC_LINE_ENDING_CR, "Lines terminated by CR"),
+        (DC_LINE_ENDING_CR_LF, "Lines terminated by CRLF"),
+        (DC_LINE_ENDING_LF_CR, "Lines terminated by LFCR"),
+        (DC_LINE_ENDING_RS, "Lines terminated by RS"),
+        (DC_LINE_ENDING_NL, "Lines terminated by NL (NEL)"),
     ];
     for &(dc, label) in builtins {
         map.entry(sh(dc)).or_insert_with(|| label.to_string());
@@ -548,6 +613,10 @@ struct LedgerBuilder {
     /// Active multi-valued properties: `(subject, prop_token, val_token) -> (has_a_id, has_val_id)`.
     active_multi_props:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), (u128, u128)>,
+    /// Active `584 l<has_a_id> 570` (`Preferred`) qualifiers on multi-valued properties:
+    /// `(subject, prop_token, val_token) -> pref_qual_id`.
+    active_multi_preferred:
+        BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
     /// Active `<prefer>` replacements: `(subject, val_token) -> (has_a_id, has_val_id, pref_qual_id)`.
     active_preferred: BTreeMap<(DcShorthand, DcShorthand), (u128, u128, u128)>,
     /// Active direct binary statements: `(verb, subject, object) -> stmt_id`.
@@ -592,6 +661,7 @@ impl LedgerBuilder {
             seed_entity_ids: index.seed_entity_ids,
             active_single_props: index.active_single_props,
             active_multi_props: index.active_multi_props,
+            active_multi_preferred: index.active_multi_preferred,
             active_preferred: index.active_preferred,
             active_direct_stmts: index.active_direct_stmts,
         }
@@ -1044,6 +1114,9 @@ impl LedgerBuilder {
             );
         }
 
+        let seed_entity_id_set: HashSet<u128> =
+            self.seed_entity_ids.values().copied().collect();
+
         // 2. Resolve all desired single-valued properties and diff against active single-valued properties.
         let mut resolved_single: BTreeMap<
             (DcShorthand, DcShorthand),
@@ -1054,10 +1127,15 @@ impl LedgerBuilder {
             resolved_single.insert((*subj, *prop), (val_tok, comment.clone()));
         }
 
-        // Retract removed single-valued properties
+        // Retract removed single-valued properties on top-level/seed subjects (qualifiers on
+        // multi-valued property statement nodes are reconciled in Step 3 / Step 3c).
         let existing_single_keys: Vec<(DcShorthand, DcShorthand)> =
             self.active_single_props.keys().copied().collect();
         for key in existing_single_keys {
+            if matches!(key.0, DcShorthand::Long(id) if !seed_entity_id_set.contains(&id))
+            {
+                continue;
+            }
             if !resolved_single.contains_key(&key) {
                 if let Some((has_a_id, has_val_id, _)) =
                     self.active_single_props.remove(&key)
@@ -1171,8 +1249,9 @@ impl LedgerBuilder {
                 .remove(&(subj, prop))
                 .unwrap_or_default();
 
-            let mut superseded_pairs: Vec<((u128, u128), DcShorthand)> =
-                Vec::new();
+            let mut superseded_pairs: Vec<
+                ((u128, u128), (DcShorthand, DcShorthand)),
+            > = Vec::new();
 
             // First pass: pair removed string value nodes whose text matches a new pattern's raw source
             let mut rem_idx = 0usize;
@@ -1201,8 +1280,10 @@ impl LedgerBuilder {
                 if let Some(add_idx) = matched_add_idx {
                     let (new_val_tok, _) = added.remove(add_idx);
                     removed.remove(rem_idx);
-                    superseded_pairs
-                        .push(((has_a_id, old_has_val_id), new_val_tok));
+                    superseded_pairs.push((
+                        (has_a_id, old_has_val_id),
+                        (old_val_tok, new_val_tok),
+                    ));
                 } else {
                     rem_idx = rem_idx.saturating_add(1);
                 }
@@ -1210,14 +1291,18 @@ impl LedgerBuilder {
 
             // Second pass: pair any remaining removed and added values on the same `(subj, prop)`
             while !removed.is_empty() && !added.is_empty() {
-                let (_, has_a_id, old_has_val_id) = removed.remove(0);
+                let (old_val_tok, has_a_id, old_has_val_id) = removed.remove(0);
                 let (new_val_tok, _) = added.remove(0);
-                superseded_pairs
-                    .push(((has_a_id, old_has_val_id), new_val_tok));
+                superseded_pairs.push((
+                    (has_a_id, old_has_val_id),
+                    (old_val_tok, new_val_tok),
+                ));
             }
 
             superseded_pairs.sort_by_key(|&((has_a_id, _), _)| has_a_id);
-            for ((has_a_id, old_has_val_id), new_val_tok) in superseded_pairs {
+            for ((has_a_id, old_has_val_id), (old_val_tok, new_val_tok)) in
+                superseded_pairs
+            {
                 let new_has_val_id = self.append_statement_node(
                     sh(DC_HAS_VALUE),
                     DcShorthand::Long(has_a_id),
@@ -1230,14 +1315,39 @@ impl LedgerBuilder {
                 )?;
                 self.superseded_count =
                     self.superseded_count.saturating_add(1);
+                if let Some(pref_id) =
+                    self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
+                {
+                    self.active_multi_preferred
+                        .insert((subj, prop, new_val_tok), pref_id);
+                }
                 self.active_multi_props.insert(
                     (subj, prop, new_val_tok),
                     (has_a_id, new_has_val_id),
                 );
             }
 
-            // Retract any leftover unpaired removed values
-            for (_, has_a_id, old_has_val_id) in removed {
+            // Retract any leftover unpaired removed values (and any qualifiers on their `has_a_id`)
+            for (old_val_tok, has_a_id, old_has_val_id) in removed {
+                if let Some(pref_id) =
+                    self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
+                {
+                    self.retract_node(pref_id)?;
+                }
+                let qual_keys: Vec<(DcShorthand, DcShorthand)> = self
+                    .active_single_props
+                    .keys()
+                    .filter(|&&(s, _)| s == DcShorthand::Long(has_a_id))
+                    .copied()
+                    .collect();
+                for qk in qual_keys {
+                    if let Some((q_has_a_id, q_has_val_id, _)) =
+                        self.active_single_props.remove(&qk)
+                    {
+                        self.retract_node(q_has_val_id)?;
+                        self.retract_node(q_has_a_id)?;
+                    }
+                }
                 self.retract_node(old_has_val_id)?;
                 self.retract_node(has_a_id)?;
             }
@@ -1253,6 +1363,131 @@ impl LedgerBuilder {
                 )?;
                 self.active_multi_props
                     .insert((subj, prop, new_val_tok), (has_a_id, has_val_id));
+            }
+        }
+
+        // 3b. Resolve and diff `Dc 570` (`Preferred`) qualifiers on multi-valued properties.
+        let mut resolved_multi_pref: BTreeSet<(
+            DcShorthand,
+            DcShorthand,
+            DcShorthand,
+        )> = BTreeSet::new();
+        for (subj, prop, val_spec) in &desired.preferred_multi_properties {
+            let val_tok = self.resolve_value_spec(val_spec)?;
+            resolved_multi_pref.insert((*subj, *prop, val_tok));
+        }
+
+        let existing_multi_pref_keys: Vec<(
+            DcShorthand,
+            DcShorthand,
+            DcShorthand,
+        )> = self.active_multi_preferred.keys().copied().collect();
+        for key in existing_multi_pref_keys {
+            if !resolved_multi_pref.contains(&key) {
+                if let Some(pref_id) = self.active_multi_preferred.remove(&key)
+                {
+                    self.retract_node(pref_id)?;
+                }
+            }
+        }
+
+        for (subj, prop, val_tok) in resolved_multi_pref {
+            if !self
+                .active_multi_preferred
+                .contains_key(&(subj, prop, val_tok))
+            {
+                if let Some(&(has_a_id, _)) =
+                    self.active_multi_props.get(&(subj, prop, val_tok))
+                {
+                    let pref_id = self.append_statement_node(
+                        sh(DC_HAS_A),
+                        DcShorthand::Long(has_a_id),
+                        sh(DC_PREFERRED),
+                    )?;
+                    self.active_multi_preferred
+                        .insert((subj, prop, val_tok), pref_id);
+                }
+            }
+        }
+
+        // 3c. Resolve and diff single-valued qualifiers attached to multi-valued property statements.
+        let mut resolved_qual_single: BTreeMap<
+            (DcShorthand, DcShorthand),
+            (DcShorthand, String),
+        > = BTreeMap::new();
+        for (((subj, prop, val_spec), qual_prop), (qual_val_spec, comment)) in
+            &desired.multi_property_single_qualifiers
+        {
+            let val_tok = self.resolve_value_spec(val_spec)?;
+            let qual_val_tok = self.resolve_value_spec(qual_val_spec)?;
+            if let Some(&(has_a_id, _)) =
+                self.active_multi_props.get(&(*subj, *prop, val_tok))
+            {
+                resolved_qual_single.insert(
+                    (DcShorthand::Long(has_a_id), *qual_prop),
+                    (qual_val_tok, comment.clone()),
+                );
+            }
+        }
+
+        let existing_qual_single_keys: Vec<(DcShorthand, DcShorthand)> = self
+            .active_single_props
+            .keys()
+            .filter(|&&(s, _)| {
+                matches!(s, DcShorthand::Long(id) if !seed_entity_id_set.contains(&id))
+            })
+            .copied()
+            .collect();
+        for key in existing_qual_single_keys {
+            if !resolved_qual_single.contains_key(&key) {
+                if let Some((has_a_id, has_val_id, _)) =
+                    self.active_single_props.remove(&key)
+                {
+                    self.retract_node(has_val_id)?;
+                    self.retract_node(has_a_id)?;
+                }
+            }
+        }
+
+        for ((qual_subj, qual_prop), (qual_val_tok, _comment)) in
+            resolved_qual_single
+        {
+            if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
+                self.active_single_props.get(&(qual_subj, qual_prop))
+            {
+                if old_val_tok != qual_val_tok {
+                    let new_has_val_id = self.append_statement_node(
+                        sh(DC_HAS_VALUE),
+                        DcShorthand::Long(has_a_id),
+                        qual_val_tok,
+                    )?;
+                    self.append_statement_node(
+                        sh(DC_SUPERSEDES),
+                        DcShorthand::Long(new_has_val_id),
+                        DcShorthand::Long(old_has_val_id),
+                    )?;
+                    self.superseded_count =
+                        self.superseded_count.saturating_add(1);
+                    self.active_single_props.insert(
+                        (qual_subj, qual_prop),
+                        (has_a_id, new_has_val_id, qual_val_tok),
+                    );
+                }
+            } else {
+                let has_a_id = self.append_statement_node(
+                    sh(DC_HAS_A),
+                    qual_subj,
+                    qual_prop,
+                )?;
+                let has_val_id = self.append_statement_node(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(has_a_id),
+                    qual_val_tok,
+                )?;
+                self.active_single_props.insert(
+                    (qual_subj, qual_prop),
+                    (has_a_id, has_val_id, qual_val_tok),
+                );
             }
         }
 
@@ -1360,6 +1595,8 @@ pub fn single_valued_property_set() -> HashSet<DcShorthand> {
         sh(DC_CASE_MAPPING_PARTNER),
         sh(DC_SYNTAX_RULE),
         sh(DC_DATA_FORMAT_DESCRIPTION),
+        sh(DC_IMPLEMENTATION_SUPPORT_LEVEL),
+        sh(DC_DEFAULT_FORMAT_VARIANT),
     ])
 }
 
@@ -1713,14 +1950,29 @@ fn compile_defn_statements(
         }
     }
 
-    // Informal aliases (`576`)
-    for alias in &defn.aliases {
-        if !alias.is_empty() {
-            state.multi_properties.insert(
-                (subj, sh(DC_INFORMAL_ALIAS), make_string_value_spec(alias)),
-                format!("{subj} alias {alias:?}"),
-            );
+    // Informal aliases (`576`) for Document Characters, or Nicknames (`575`) for Formats
+    let alias_prop = if defn.format.is_some() {
+        sh(DC_NICKNAME)
+    } else {
+        sh(DC_INFORMAL_ALIAS)
+    };
+    let non_empty_aliases: Vec<&str> = defn
+        .aliases
+        .iter()
+        .map(String::as_str)
+        .filter(|s| !s.is_empty())
+        .collect();
+    for (idx, &alias) in non_empty_aliases.iter().enumerate() {
+        let spec = make_string_value_spec(alias);
+        if defn.format.is_some() && non_empty_aliases.len() > 1 && idx == 0 {
+            state
+                .preferred_multi_properties
+                .insert((subj, alias_prop, spec.clone()));
         }
+        state.multi_properties.insert(
+            (subj, alias_prop, spec),
+            format!("{subj} alias {alias:?}"),
+        );
     }
 
     // Formal aliases (`577`) + `@title(...)`
@@ -1862,8 +2114,12 @@ fn compile_defn_statements(
             );
         }
         if let Some(exts) = &fmt.extensions {
-            for ext in exts.split(',').map(str::trim).filter(|s| !s.is_empty())
-            {
+            let ext_list: Vec<&str> = exts
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            for (idx, ext) in ext_list.iter().copied().enumerate() {
                 let ext_spec = if crate::syntax::is_extension_regex(ext) {
                     let rule = crate::syntax::parse_extension_regex(ext)?;
                     ValueSpec::PatternNode {
@@ -1873,6 +2129,13 @@ fn compile_defn_statements(
                 } else {
                     make_string_value_spec(ext)
                 };
+                if ext_list.len() > 1 && idx == 0 {
+                    state.preferred_multi_properties.insert((
+                        subj,
+                        sh(DC_FILE_EXTENSION),
+                        ext_spec.clone(),
+                    ));
+                }
                 state.multi_properties.insert(
                     (subj, sh(DC_FILE_EXTENSION), ext_spec),
                     format!("{subj} ext {ext:?}"),
@@ -1880,24 +2143,43 @@ fn compile_defn_statements(
             }
         }
         if let Some(mimes) = &fmt.mime {
-            for mime in
-                mimes.split(',').map(str::trim).filter(|s| !s.is_empty())
-            {
+            let mime_list: Vec<&str> = mimes
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            for (idx, mime) in mime_list.iter().copied().enumerate() {
+                let spec = make_string_value_spec(mime);
+                if mime_list.len() > 1 && idx == 0 {
+                    state.preferred_multi_properties.insert((
+                        subj,
+                        sh(DC_MEDIA_TYPE),
+                        spec.clone(),
+                    ));
+                }
                 state.multi_properties.insert(
-                    (subj, sh(DC_MEDIA_TYPE), make_string_value_spec(mime)),
+                    (subj, sh(DC_MEDIA_TYPE), spec),
                     format!("{subj} mime {mime:?}"),
                 );
             }
         }
         if let Some(utis) = &fmt.uti {
-            for uti in utis.split(',').map(str::trim).filter(|s| !s.is_empty())
-            {
-                state.multi_properties.insert(
-                    (
+            let uti_list: Vec<&str> = utis
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            for (idx, uti) in uti_list.iter().copied().enumerate() {
+                let spec = make_string_value_spec(uti);
+                if uti_list.len() > 1 && idx == 0 {
+                    state.preferred_multi_properties.insert((
                         subj,
                         sh(DC_UNIFORM_TYPE_IDENTIFIER),
-                        make_string_value_spec(uti),
-                    ),
+                        spec.clone(),
+                    ));
+                }
+                state.multi_properties.insert(
+                    (subj, sh(DC_UNIFORM_TYPE_IDENTIFIER), spec),
                     format!("{subj} uti {uti:?}"),
                 );
             }
@@ -1915,9 +2197,141 @@ fn compile_defn_statements(
                 );
             }
         }
+
+        // Format support & test coverage on `f649` (`Collective Toolbox`)
+        for (raw_opt, gen_cap_dc, dc_cap_dc) in [
+            (
+                fmt.import_support.as_deref(),
+                DC_GENERAL_FORMAT_IMPORT_SUPPORT,
+                DC_DC_FORMAT_IMPORT_SUPPORT,
+            ),
+            (
+                fmt.export_support.as_deref(),
+                DC_GENERAL_FORMAT_EXPORT_SUPPORT,
+                DC_DC_FORMAT_EXPORT_SUPPORT,
+            ),
+            (
+                fmt.tests.as_deref(),
+                DC_GENERAL_FORMAT_TEST_COVERAGE,
+                DC_DC_FORMAT_TEST_COVERAGE,
+            ),
+        ] {
+            if let Some(raw) = raw_opt {
+                let parsed = SupportLevel::parse(raw)?;
+                for (cap_dc, lvl) in
+                    [(gen_cap_dc, parsed.general), (dc_cap_dc, parsed.dc)]
+                {
+                        if let Some(lvl_dc) = support_level_to_dc(lvl) {
+                            let ctb_subj = sh(DC_COLLECTIVE_TOOLBOX);
+                            let cap_sh = sh(cap_dc);
+                            let fmt_val = ValueSpec::Direct(subj);
+                            state.multi_properties.insert(
+                                (ctb_subj, cap_sh, fmt_val.clone()),
+                                format!("{ctb_subj} {cap_sh} {subj}"),
+                            );
+                            state.multi_property_single_qualifiers.insert(
+                                (
+                                    (ctb_subj, cap_sh, fmt_val),
+                                    sh(DC_IMPLEMENTATION_SUPPORT_LEVEL),
+                                ),
+                                (
+                                    ValueSpec::Direct(sh(lvl_dc)),
+                                    format!(
+                                        "{ctb_subj} {cap_sh} {subj} support level {}",
+                                        sh(lvl_dc)
+                                    ),
+                                ),
+                            );
+                        }
+                    }
+                }
+        }
+
+        // Format variation aspects (`Dc 632`): `@vary_as`, `@varies`, and `Variant Types`
+        if let Some(vary_as) = &fmt.vary_as {
+            if !vary_as.is_empty() {
+                state.multi_properties.insert(
+                    (
+                        subj,
+                        sh(DC_FORMAT_VARIATION_ASPECT),
+                        make_string_value_spec(vary_as),
+                    ),
+                    format!("{subj} vary_as {vary_as:?}"),
+                );
+            }
+        }
+        for &target_sh in &fmt.varies {
+            state.multi_properties.insert(
+                (
+                    subj,
+                    sh(DC_FORMAT_VARIATION_ASPECT),
+                    ValueSpec::Direct(target_sh),
+                ),
+                format!("{subj} varies {target_sh}"),
+            );
+        }
+        if let Some(vtypes) = &fmt.variant_types {
+            for vtype in
+                vtypes.split(',').map(str::trim).filter(|s| !s.is_empty())
+            {
+                let script_name = if vtype == "encoding" {
+                    ".Formats:encoding".to_string()
+                } else {
+                    format!(".Formats:v:{vtype}")
+                };
+                insert_script_and_parents(
+                    &mut state.seed_entities,
+                    &script_name,
+                );
+                state.multi_properties.insert(
+                    (
+                        subj,
+                        sh(DC_FORMAT_VARIATION_ASPECT),
+                        ValueSpec::SeedEntity(SeedEntityKey::Script(
+                            script_name.clone(),
+                        )),
+                    ),
+                    format!("{subj} variant_type {vtype}"),
+                );
+            }
+        }
+
+        // Default format variant (`Dc 633`): `@default_line_ending`
+        if let Some(dle) = &fmt.default_line_ending {
+            let dle_sh = match dle.as_str() {
+                "lf" => sh(DC_LINE_ENDING_LF),
+                "cr" => sh(DC_LINE_ENDING_CR),
+                "crlf" => sh(DC_LINE_ENDING_CR_LF),
+                "lfcr" => sh(DC_LINE_ENDING_LF_CR),
+                "rs" => sh(DC_LINE_ENDING_RS),
+                "nl" => sh(DC_LINE_ENDING_NL),
+                other => {
+                    bail!("Unknown @default_line_ending({other:?}) on {subj}")
+                }
+            };
+            state.single_properties.insert(
+                (subj, sh(DC_DEFAULT_FORMAT_VARIANT)),
+                (
+                    ValueSpec::Direct(dle_sh),
+                    format!("{subj} default variant {dle_sh}"),
+                ),
+            );
+        }
     }
 
     Ok(())
+}
+
+fn support_level_to_dc(level: i32) -> Option<DcChar> {
+    match level {
+        -1 => Some(DC_SUPPORT_NOT_APPLICABLE),
+        1 => Some(DC_SUPPORT_WORK_IN_PROGRESS),
+        2 => Some(DC_SUPPORT_PARTIAL),
+        3 => Some(DC_SUPPORT_COMPLETE),
+        4 => Some(DC_SUPPORT_LOSSLESS_ROUNDTRIP),
+        5 => Some(DC_SUPPORT_LOSSLESS_STRICT_VALIDATION),
+        _ => None,
+    }
 }
 
 fn collect_named_constructs_from_pattern(
