@@ -91,3 +91,10 @@ l8589951181: 586 9 l8589934603 # Is an instance of (Gregorian calendar identifie
 l8589951182: 586 634 l8589934603 # Is an instance of (Dc format variation nickname, General category !Cx)
 l8589951183: 586 634 l8589934681 # Is an instance of (Dc format variation nickname, Script .Semantic)
 l8589951184: 586 f650 l8589934652 # Is an instance of (Character encoding format variation, Script .Formats:format_variant)
+l8589951185: u76 u3a u62 u61 u73 u65 u5f u61 u6c u70 u68 u61 u62 u65 u74 # "v:base_alphabet"
+l8589951186: 599 298 605 l8589934706 584 l8589951185 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:base_alphabet", End associativity group
+l8589951187: u76 u3a u65 u6e u63 u6f u64 u69 u6e u67 # "v:encoding"
+l8589951188: 599 298 605 l8589934706 584 l8589951187 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:encoding", End associativity group
+l8589951189: 610 l8589951126 l8589951186 # Has value (l8589951126, f613 :~ [format:v:base_alphabet])
+l8589951190: 591 l8589951189 l8589951127 # Supersedes (l8589951189, l8589951127)
+l8589951191: 610 l8589951134 l8589951188 # Has value (l8589951134, f650 :~ [format:v:encoding])

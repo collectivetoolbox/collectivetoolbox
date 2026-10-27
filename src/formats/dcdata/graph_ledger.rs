@@ -89,7 +89,7 @@ use crate::dc::{
     DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
     DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
     DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_UNICODE_SCRIPT, DcChar,
+    DC_SYNTAX_RULE, DC_UNICODE_SCRIPT, DC_WILDCARD_PATTERN, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
@@ -388,6 +388,15 @@ pub fn decode_integer_value_tokens(tokens: &[DcShorthand]) -> Option<u128> {
     Some(val)
 }
 
+fn as_printable_ascii(tok: DcShorthand) -> Option<char> {
+    if let DcShorthand::Unicode(cp) = tok {
+        if (0x20..=0x7E).contains(&cp) {
+            return char::from_u32(cp);
+        }
+    }
+    None
+}
+
 fn format_string_summary(text: &str) -> String {
     format!("{text:?}")
 }
@@ -652,6 +661,12 @@ impl LedgerBuilder {
                 format_string_summary(decoded),
             );
         }
+        for (&node_id, val) in &index.integer_by_node_id {
+            token_labels.insert(
+                DcShorthand::Long(node_id),
+                val.to_string(),
+            );
+        }
         for (seed_key, &seed_id) in &index.seed_entity_ids {
             token_labels.insert(
                 DcShorthand::Long(seed_id),
@@ -694,7 +709,13 @@ impl LedgerBuilder {
             return label.clone();
         }
         match tok {
-            DcShorthand::Unicode(cp) => format!("U+{cp:04X}"),
+            DcShorthand::Unicode(cp) => {
+                if let Some(name) = ctb_formats_unicode::get_unicode_name(cp) {
+                    name
+                } else {
+                    format!("U+{cp:04X}")
+                }
+            }
             _ => tok.to_string(),
         }
     }
@@ -723,8 +744,45 @@ impl LedgerBuilder {
         if let Some(decoded) = decode_string_value_tokens(tokens) {
             return format_string_summary(&decoded);
         }
-        let parts: Vec<String> =
-            tokens.iter().map(|t| self.describe_token(*t)).collect();
+        let mut parts: Vec<String> = Vec::new();
+        let mut i = 0usize;
+        while i < tokens.len() {
+            let Some(&tok) = tokens.get(i) else {
+                break;
+            };
+            if tok == sh(DC_RANGE) {
+                parts.push(self.describe_token(tok));
+                i = i.saturating_add(1);
+                for _ in 0..2 {
+                    if let Some(&bound) = tokens.get(i) {
+                        if matches!(bound, DcShorthand::Unicode(_)) {
+                            parts.push(self.describe_token(bound));
+                            i = i.saturating_add(1);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                continue;
+            }
+            if let Some(ch) = as_printable_ascii(tok) {
+                let mut text = String::new();
+                text.push(ch);
+                i = i.saturating_add(1);
+                while let Some(&next_tok) = tokens.get(i) {
+                    if let Some(next_ch) = as_printable_ascii(next_tok) {
+                        text.push(next_ch);
+                        i = i.saturating_add(1);
+                    } else {
+                        break;
+                    }
+                }
+                parts.push(format_string_summary(&text));
+                continue;
+            }
+            parts.push(self.describe_token(tok));
+            i = i.saturating_add(1);
+        }
         parts.join(", ")
     }
 
@@ -3240,6 +3298,75 @@ mod tests {
             nodes2.last().unwrap().tokens.first(),
             Some(&sh(DC_SUPERSEDES))
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_format_tokens_comment_unicode_display() -> Result<()> {
+        let single_props = single_valued_property_set();
+        let mut labels = HashMap::new();
+        labels.insert(sh(DC_WILDCARD_PATTERN), "Wildcard pattern".to_string());
+        labels.insert(sh(DC_BEGIN_ASSOCIATIVITY_GROUP), "Begin associativity group".to_string());
+        labels.insert(sh(DC_PATTERN_REPETITION), "Pattern repetition".to_string());
+        labels.insert(sh(DC_RANGE), "Range".to_string());
+        labels.insert(sh(DC_END_ASSOCIATIVITY_GROUP), "End associativity group".to_string());
+        labels.insert(sh(DC_HAS_VALUE), "Has value".to_string());
+        labels.insert(DcShorthand::Long(8589934942), "0".to_string());
+
+        let builder = LedgerBuilder::from_existing(Vec::new(), &single_props, labels);
+
+        // 1. Literal string in a pattern rule
+        let pattern_tokens = vec![
+            sh(DC_WILDCARD_PATTERN),
+            sh(DC_BEGIN_ASSOCIATIVITY_GROUP),
+            sh(DC_PATTERN_REPETITION),
+            sh(DC_RANGE),
+            DcShorthand::Long(8589934942),
+            sh(DC_END_ASSOCIATIVITY_GROUP),
+            DcShorthand::Unicode(0x5f), // _
+            DcShorthand::Unicode(0x61), // a
+            DcShorthand::Unicode(0x72), // r
+            DcShorthand::Unicode(0x63), // c
+            DcShorthand::Unicode(0x68), // h
+            DcShorthand::Unicode(0x69), // i
+            DcShorthand::Unicode(0x76), // v
+            DcShorthand::Unicode(0x65), // e
+            DcShorthand::Unicode(0x2e), // .
+            DcShorthand::Unicode(0x74), // t
+            DcShorthand::Unicode(0x6f), // o
+            DcShorthand::Unicode(0x72), // r
+            DcShorthand::Unicode(0x72), // r
+            DcShorthand::Unicode(0x65), // e
+            DcShorthand::Unicode(0x6e), // n
+            DcShorthand::Unicode(0x74), // t
+        ];
+        let comment = builder.format_tokens_comment(&pattern_tokens);
+        assert_eq!(
+            comment,
+            "Wildcard pattern, Begin associativity group, Pattern repetition, Range, 0, End associativity group, \"_archive.torrent\""
+        );
+
+        // 2. Range endpoints with printable ASCII characters must remain individual character names
+        let range_tokens = vec![
+            sh(DC_RANGE),
+            DcShorthand::Unicode(0x41), // A
+            DcShorthand::Unicode(0x5a), // Z
+        ];
+        let range_comment = builder.format_tokens_comment(&range_tokens);
+        assert_eq!(
+            range_comment,
+            "Range, LATIN CAPITAL LETTER A, LATIN CAPITAL LETTER Z"
+        );
+
+        // 3. Isolated statement object with Unicode character name
+        let stmt_tokens = encode_statement_tokens(
+            sh(DC_HAS_VALUE),
+            DcShorthand::Long(8589945042),
+            DcShorthand::Unicode(0x25), // %
+        );
+        let stmt_comment = builder.format_tokens_comment(&stmt_tokens);
+        assert_eq!(stmt_comment, "Has value (l8589945042, PERCENT SIGN)");
+
         Ok(())
     }
 
