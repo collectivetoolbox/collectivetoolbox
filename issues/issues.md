@@ -24,6 +24,8 @@ assuming the current code still has the reported fault.
 - [Longer-term projects](projects.md): workspace/graph, collaboration, security
   proposals, and additional tools.
 
+- if best effort mode has to edit names, log them (e.g. if they have to be truncated or adapted for Windows). ditto for other issues best-effort mode has to work around.
+
 - Unframed .dctf (f641, 2228865 : DcTF [document] {.dctf}) vs .dcutf (f89, 2228313 : DcUtf [document] {.dcutf}) content sniffing: As noted by the reviewer, raw .dctf has no magic header and overlaps UTF-8 and DcUtf on byte prefixes, so format detection relies on extension/explicit format selection rather than magic bytes.
 
 ## Interface and Diagnostics
