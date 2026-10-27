@@ -20,5 +20,5 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228834,610,UnicodePuaVariant,Unicode Private Use Area format variation,format_variant,"@vary_as(""unicodePua""), :~ [format:v:unicodePua]",,,,,,,,,,,
 2228835,611,CaseVariant,Letter casing format variation,format_variant,"@vary_as(""case""), :~ [format:v:case]",,,,,,,,,,,
 2228836,612,PaddingVariant,Padding convention format variation,format_variant,"@vary_as(""padding""), :~ [format:v:padding]",,,,,,,,,,,
-2228837,613,BaseAlphabetVariant,Base alphabet format variation,format_variant,"@vary_as(""alphabet""), :~ [format:base_alphabet]",,,,,,,,,,,
-2228874,650,EncodingVariant,Character encoding format variation,format_variant,"@vary_as(""encoding""), :~ [format:encoding]",,,,,,,,,,,
+2228837,613,BaseAlphabetVariant,Base alphabet format variation,format_variant,"@vary_as(""alphabet""), :~ [format:v:base_alphabet]",,,,,,,,,,,
+2228874,650,EncodingVariant,Character encoding format variation,format_variant,"@vary_as(""encoding""), :~ [format:v:encoding]",,,,,,,,,,,
