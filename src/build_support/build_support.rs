@@ -40,6 +40,7 @@ pub mod extension_codegen;
 pub mod fnv;
 pub mod format_id_codegen;
 pub mod format_support_codegen;
+pub mod graph_index;
 pub mod ipc_codegen;
 pub mod license_consts;
 pub mod lint;

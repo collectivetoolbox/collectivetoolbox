@@ -2959,11 +2959,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_compile_ctbnodes_dir_to_ctbnbdl_and_framing_resolution() -> Result<()> {
         let repo_root = crate::updater::find_repository_root()?;
-        let categories_dir =
-            repo_root.join("src/formats/dcdata/data/categories");
+        let graph_dir = repo_root.join("assets/data/graph");
         let resolved_framing =
             ctb_build_support::dc_codegen::resolve_ctbnbdl_framing_dcs(
-                &categories_dir,
+                &graph_dir,
             )?;
         let def_framing = default_ctbnbdl_framing_dcs();
         assert_eq!(

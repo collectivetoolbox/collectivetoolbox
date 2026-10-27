@@ -2050,7 +2050,7 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
-            "utf8" | "utf-8" | "txt" => Some(Self::Utf8),
+            "utf8" | "txt" | "utf-8" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
             "asciisafesubset" | "ascii_safe_subset" => Some(Self::AsciiSafeSubset),
@@ -2087,16 +2087,16 @@ impl FormatId {
             "brotli" | "br" => Some(Self::Brotli),
             "gzip" | "gz" => Some(Self::Gzip),
             "deflate" | "raw-deflate" => Some(Self::Deflate),
-            "zlib" | "zz" | "zl" | "zlib-deflate" => Some(Self::Zlib),
+            "zlib" | "zl" | "zlib-deflate" | "zz" => Some(Self::Zlib),
             "bzip2" | "bz2" => Some(Self::Bzip2),
             "bzip" | "bz" => Some(Self::Bzip),
             "zstd" | "zst" => Some(Self::Zstd),
             "lzip" | "lz" => Some(Self::Lzip),
             "xz" => Some(Self::Xz),
-            "scocompress" | "sco_compress" | "sco-compress" | "compress-sco" | "compress-h" => Some(Self::ScoCompress),
+            "scocompress" | "sco_compress" | "sco-compress" | "compress-h" | "compress-sco" => Some(Self::ScoCompress),
             "compresslzw" | "compress_lzw" | "compress" => Some(Self::CompressLzw),
             "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1" => Some(Self::CompressLzw1),
-            "compresslzw16" | "compress_lzw16" | "compress16" | "compress1.6" | "compress-1.6" => Some(Self::CompressLzw16),
+            "compresslzw16" | "compress_lzw16" | "compress16" | "compress-1.6" | "compress1.6" => Some(Self::CompressLzw16),
             "compresslzw2" | "compress_lzw2" | "compress2" | "compress-2" => Some(Self::CompressLzw2),
             "pack" => Some(Self::Pack),
             "oldpack" | "old_pack" | "old-pack" | "early-pack" => Some(Self::OldPack),

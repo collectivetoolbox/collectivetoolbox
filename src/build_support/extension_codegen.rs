@@ -17,171 +17,170 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Codegen for file extension mappings and `extension_data.generated.rs` from
-//! format category CSV data tables.
+//! Build-time code generator for `src/formats/utilities/extension_data.generated.rs`
+//! from the system graph in `assets/data/graph/`.
 
+use crate::graph_index::BuildGraphIndex;
+use crate::license_consts::DEFAULT_AGPL_HEADER;
+use crate::shorthand::DcShorthand;
 use anyhow::{Context, Result, ensure};
-use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use crate::find_repository_root_from;
-use crate::license_consts::DEFAULT_AGPL_HEADER;
-
-fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
-    if path.is_file() {
-        if let Ok(existing) = fs::read_to_string(path) {
-            if existing == content {
-                return Ok(false);
-            }
-        }
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
-    Ok(true)
-}
-
-/// A parsed file extension mapping record.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ExtensionRecord {
+#[derive(Debug, Clone)]
+struct ParsedExtension {
     format_ident: String,
     extension: String,
     case_sensitive: bool,
 }
 
-/// Generates the contents of `extension_data.generated.rs` from formats category CSV files.
+fn parse_single_extension(
+    format_ident: &str,
+    part: &str,
+) -> Option<ParsedExtension> {
+    let trimmed = part.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let (case_sensitive, ext_raw) =
+        if let Some(rest) = trimmed.strip_prefix("case:") {
+            (true, rest.trim())
+        } else {
+            (false, trimmed)
+        };
+    let clean_ext = ext_raw.strip_prefix('.').unwrap_or(ext_raw).trim();
+    if clean_ext.is_empty() {
+        return None;
+    }
+    Some(ParsedExtension {
+        format_ident: format_ident.to_string(),
+        extension: clean_ext.to_string(),
+        case_sensitive,
+    })
+}
+
+/// Generates the contents of `extension_data.generated.rs` from a [`BuildGraphIndex`].
 ///
 /// # Errors
-/// Returns an error if reading directory or CSV parsing fails.
-pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
-    let mut records: Vec<ExtensionRecord> = Vec::new();
-    let mut seen: HashSet<(String, String)> = HashSet::new();
+/// Returns an error if required ontology identifiers are missing from `index`.
+pub fn generate_extension_data_code_from_index(
+    index: &BuildGraphIndex,
+) -> Result<String> {
+    let sh_file_ext = index.require_ident("FileExtension")?;
 
-    if formats_dir.is_dir() {
-        let mut entries = Vec::new();
-        for entry in fs::read_dir(formats_dir)? {
-            entries.push(entry?);
+    let mut format_subjects: Vec<(String, u32, DcShorthand, String)> =
+        Vec::new();
+    for short_id in index.all_format_short_ids()? {
+        let fid_usize = usize::try_from(short_id).with_context(|| {
+            format!("Format short ID {short_id} exceeds usize::MAX")
+        })?;
+        let subj = DcShorthand::Format(fid_usize);
+        if index.property_entries(subj, sh_file_ext).is_empty() {
+            continue;
         }
-        entries.sort_by_key(|e| e.file_name());
+        let Some(ident) = index.ident_for_shorthand(subj) else {
+            continue;
+        };
+        // Reason for fallback: formats without an explicit script default to "other".
+        let script = index.subject_script(subj).unwrap_or_default();
+        let category_stem = script
+            .strip_prefix(".Formats:")
+            .or_else(|| script.strip_prefix("Formats:"))
+            .unwrap_or("other")
+            .replace(':', ".");
+        format_subjects.push((
+            category_stem,
+            short_id,
+            subj,
+            ident.trim().to_string(),
+        ));
+    }
 
-        for entry in entries {
-            let path = entry.path();
-            if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                    continue;
-                };
-                if file_name.ends_with(".csv")
-                    && file_name != "schema.csv"
-                    && !file_name.ends_with(".generated.csv")
-                {
-                    let mut rdr = csv::ReaderBuilder::new()
-                        .has_headers(true)
-                        .flexible(true)
-                        .from_path(&path)
-                        .with_context(|| {
-                            format!("Failed to open CSV file {}", path.display())
-                        })?;
+    format_subjects
+        .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
-                    for result in rdr.records() {
-                        let record = result.with_context(|| {
-                            format!("Failed to read record in {}", path.display())
-                        })?;
-                        let format_ident = record.get(2).unwrap_or("").trim().to_string();
-                        if format_ident.is_empty() {
-                            continue;
-                        }
-                        let raw_extensions = record.get(6).unwrap_or("").trim();
-                        if raw_extensions.is_empty() {
-                            continue;
-                        }
-
-                        for part in raw_extensions.split(',') {
-                            let trimmed = part.trim();
-                            if trimmed.is_empty() {
-                                continue;
-                            }
-                            let (ext_str, case_sensitive) = if let Some(rest) =
-                                trimmed.strip_prefix("case:")
-                            {
-                                (rest.trim(), true)
-                            } else {
-                                (trimmed, false)
-                            };
-
-                            if ext_str.starts_with('~') && ext_str.ends_with('~') {
-                                continue;
-                            }
-                            let clean = ext_str.trim_start_matches('.');
-                            if clean.is_empty() {
-                                continue;
-                            }
-
-                            if seen.insert((format_ident.clone(), clean.to_string())) {
-                                records.push(ExtensionRecord {
-                                    format_ident: format_ident.clone(),
-                                    extension: clean.to_string(),
-                                    case_sensitive,
-                                });
-                            }
-                        }
-                    }
-                }
+    let mut entries = Vec::new();
+    for (_category_stem, _short_id, subj, ident) in format_subjects {
+        for ext_str in
+            index.multi_property_strings_preferred_first(subj, sh_file_ext)
+        {
+            if let Some(parsed) = parse_single_extension(&ident, &ext_str) {
+                entries.push(parsed);
             }
         }
     }
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
-    out.push_str("\n\n");
-    out.push_str("//! Centralized registry of file extension rules across format types.\n");
-    out.push_str("//! @generated by ctb-build-support::extension_codegen from format category data tables.\n");
+    out.push_str(
+        "\n\n//! Centralized registry of file extension rules across format types.\n",
+    );
+    out.push_str(
+        "//! @generated by ctb-build-support::extension_codegen from format category data tables.\n",
+    );
     out.push_str("//! Do not edit by hand.\n\n");
     out.push_str("use crate::detection::extension::ExtensionRule;\n");
     out.push_str("use crate::format_id::FormatId;\n");
-    out.push_str("#[expect(\n");
-    out.push_str("    unused_imports,\n");
-    out.push_str("    clippy::wildcard_imports,\n");
-    out.push_str("    reason = \"Standard workspace module prelude\"\n");
-    out.push_str(")]\n");
+    out.push_str(
+        "#[expect(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\n",
+    );
     out.push_str("use ctb_utilities::*;\n\n");
 
-    out.push_str("/// An entry associating a `FormatId` with an `ExtensionRule`.\n");
+    out.push_str(
+        "/// An entry associating a `FormatId` with an `ExtensionRule`.\n",
+    );
     out.push_str("#[derive(Debug, Clone, Copy)]\n");
     out.push_str("pub struct ExtensionEntry {\n");
     out.push_str("    pub format_id: FormatId,\n");
     out.push_str("    pub rule: ExtensionRule,\n");
     out.push_str("}\n\n");
 
-    out.push_str("/// Global static registry of single file extension mappings.\n");
+    out.push_str(
+        "/// Global static registry of single file extension mappings.\n",
+    );
     out.push_str("pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[\n");
-    for r in &records {
-        let rule_ctor = if r.case_sensitive {
-            format!("ExtensionRule::sensitive(\"{}\")", r.extension)
+    for entry in &entries {
+        let constructor = if entry.case_sensitive {
+            "sensitive"
         } else {
-            format!("ExtensionRule::insensitive(\"{}\")", r.extension)
+            "insensitive"
         };
         out.push_str("    ExtensionEntry {\n");
-        out.push_str(&format!("        format_id: FormatId::{},\n", r.format_ident));
-        out.push_str(&format!("        rule: {rule_ctor},\n"));
+        out.push_str(&format!(
+            "        format_id: FormatId::{},\n",
+            entry.format_ident
+        ));
+        out.push_str(&format!(
+            "        rule: ExtensionRule::{}({:?}),\n",
+            constructor, entry.extension
+        ));
         out.push_str("    },\n");
     }
     out.push_str("];\n\n");
 
-    out.push_str("/// Helper to lookup `FormatId` from a single extension string.\n");
-    out.push_str("pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {\n");
+    out.push_str(
+        "/// Helper to lookup `FormatId` from a single extension string.\n",
+    );
+    out.push_str(
+        "pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {\n",
+    );
     out.push_str("    let mut matches = Vec::new();\n");
     out.push_str("    for entry in EXTENSION_REGISTRY {\n");
-    out.push_str("        if entry.rule.matches_extension(ext) && !matches.contains(&entry.format_id) {\n");
+    out.push_str(
+        "        if entry.rule.matches_extension(ext) && !matches.contains(&entry.format_id) {\n",
+    );
     out.push_str("            matches.push(entry.format_id);\n");
     out.push_str("        }\n");
     out.push_str("    }\n");
     out.push_str("    matches\n");
     out.push_str("}\n\n");
 
-    out.push_str("/// Returns all extension rules associated with the given `FormatId`.\n");
-    out.push_str("pub fn extension_rules_for_format(format_id: FormatId) -> Vec<ExtensionRule> {\n");
+    out.push_str(
+        "/// Returns all extension rules associated with the given `FormatId`.\n",
+    );
+    out.push_str(
+        "pub fn extension_rules_for_format(format_id: FormatId) -> Vec<ExtensionRule> {\n",
+    );
     out.push_str("    EXTENSION_REGISTRY\n");
     out.push_str("        .iter()\n");
     out.push_str("        .filter(|entry| entry.format_id == format_id)\n");
@@ -189,8 +188,12 @@ pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        .collect()\n");
     out.push_str("}\n\n");
 
-    out.push_str("/// Returns the primary (first registered) extension for the given `FormatId`.\n");
-    out.push_str("pub fn primary_extension_for_format(format_id: FormatId) -> Option<&'static str> {\n");
+    out.push_str(
+        "/// Returns the primary (first registered) extension for the given `FormatId`.\n",
+    );
+    out.push_str(
+        "pub fn primary_extension_for_format(format_id: FormatId) -> Option<&'static str> {\n",
+    );
     out.push_str("    EXTENSION_REGISTRY\n");
     out.push_str("        .iter()\n");
     out.push_str("        .find(|entry| entry.format_id == format_id)\n");
@@ -200,31 +203,44 @@ pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
     Ok(out)
 }
 
-/// Generates or updates `src/formats/utilities/extension_data.generated.rs` if contents changed.
+/// Generates the contents of `extension_data.generated.rs` from the system graph in `graph_dir`.
 ///
 /// # Errors
-/// Returns an error if directory resolution, generation, or writing fails.
-pub fn generate_extension_data_file(base_dir: &Path) -> Result<bool> {
-    let repo_root = find_repository_root_from(base_dir)?;
-    let formats_dir = repo_root
-        .join("src")
-        .join("formats")
-        .join("dcdata")
-        .join("data")
-        .join("categories")
-        .join("formats");
-    ensure!(
-        formats_dir.is_dir(),
-        "Could not locate formats directory at {}",
-        formats_dir.display()
-    );
+/// Returns an error if `graph_dir` cannot be read or contains invalid data.
+pub fn generate_extension_data_code(graph_dir: &Path) -> Result<String> {
+    let index = BuildGraphIndex::from_graph_dir(graph_dir)?;
+    generate_extension_data_code_from_index(&index)
+}
 
-    let target_file = repo_root
+/// Generates `src/formats/utilities/extension_data.generated.rs` if its contents have changed.
+///
+/// # Errors
+/// Returns an error if reading the system graph or writing the generated file fails.
+pub fn generate_extension_data_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = crate::find_repository_root_from(base_dir)?;
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let out_file = repo_root
         .join("src")
         .join("formats")
         .join("utilities")
         .join("extension_data.generated.rs");
 
-    let code = generate_extension_data_code(&formats_dir)?;
-    write_if_changed(&target_file, &code)
+    ensure!(
+        graph_dir.is_dir(),
+        "Could not locate system graph directory at {}",
+        graph_dir.display()
+    );
+
+    let code = generate_extension_data_code(&graph_dir)?;
+
+    if let Ok(existing) = fs::read_to_string(&out_file) {
+        if existing == code {
+            return Ok(false);
+        }
+    }
+
+    fs::write(&out_file, code).with_context(|| {
+        format!("Failed to write {}", out_file.display())
+    })?;
+    Ok(true)
 }

@@ -63,10 +63,6 @@ pub enum SupportedDecompressionFormat {
     OldPack,
     /// compact (McMaster Adaptive Huffman)
     Compact,
-    /// freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
-    Freeze2,
-    /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
-    Freeze1,
     /// rzip: rzip format (long range chunk matching + bzip2)
     Rzip,
     /// LZ4
@@ -77,6 +73,10 @@ pub enum SupportedDecompressionFormat {
     Lzma,
     /// LZMA container format
     Lzma2,
+    /// freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+    Freeze2,
+    /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+    Freeze1,
     /// szip (Michael Schindler)
     Szip,
     /// szip (Michael Schindler) version 1.11+
@@ -103,13 +103,13 @@ impl SupportedDecompressionFormat {
         Self::Pack,
         Self::OldPack,
         Self::Compact,
-        Self::Freeze2,
-        Self::Freeze1,
         Self::Rzip,
         Self::Lz4,
         Self::Lzo,
         Self::Lzma,
         Self::Lzma2,
+        Self::Freeze2,
+        Self::Freeze1,
         Self::Szip,
         Self::Szip111,
     ];
@@ -133,13 +133,13 @@ impl SupportedDecompressionFormat {
         FormatId::Pack,
         FormatId::OldPack,
         FormatId::Compact,
-        FormatId::Freeze2,
-        FormatId::Freeze1,
         FormatId::Rzip,
         FormatId::Lz4,
         FormatId::Lzo,
         FormatId::Lzma,
         FormatId::Lzma2,
+        FormatId::Freeze2,
+        FormatId::Freeze1,
         FormatId::Szip,
         FormatId::Szip111,
     ];
@@ -165,13 +165,13 @@ impl SupportedDecompressionFormat {
             Self::Pack => FormatId::Pack,
             Self::OldPack => FormatId::OldPack,
             Self::Compact => FormatId::Compact,
-            Self::Freeze2 => FormatId::Freeze2,
-            Self::Freeze1 => FormatId::Freeze1,
             Self::Rzip => FormatId::Rzip,
             Self::Lz4 => FormatId::Lz4,
             Self::Lzo => FormatId::Lzo,
             Self::Lzma => FormatId::Lzma,
             Self::Lzma2 => FormatId::Lzma2,
+            Self::Freeze2 => FormatId::Freeze2,
+            Self::Freeze1 => FormatId::Freeze1,
             Self::Szip => FormatId::Szip,
             Self::Szip111 => FormatId::Szip111,
         }
@@ -198,13 +198,13 @@ impl SupportedDecompressionFormat {
             FormatId::Pack => Some(Self::Pack),
             FormatId::OldPack => Some(Self::OldPack),
             FormatId::Compact => Some(Self::Compact),
-            FormatId::Freeze2 => Some(Self::Freeze2),
-            FormatId::Freeze1 => Some(Self::Freeze1),
             FormatId::Rzip => Some(Self::Rzip),
             FormatId::Lz4 => Some(Self::Lz4),
             FormatId::Lzo => Some(Self::Lzo),
             FormatId::Lzma => Some(Self::Lzma),
             FormatId::Lzma2 => Some(Self::Lzma2),
+            FormatId::Freeze2 => Some(Self::Freeze2),
+            FormatId::Freeze1 => Some(Self::Freeze1),
             FormatId::Szip => Some(Self::Szip),
             FormatId::Szip111 => Some(Self::Szip111),
             _ => None,
@@ -303,10 +303,6 @@ pub enum SupportedCompressionFormat {
     OldPack,
     /// compact (McMaster Adaptive Huffman)
     Compact,
-    /// freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
-    Freeze2,
-    /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
-    Freeze1,
     /// rzip: rzip format (long range chunk matching + bzip2)
     Rzip,
     /// LZ4
@@ -317,6 +313,10 @@ pub enum SupportedCompressionFormat {
     Lzma,
     /// LZMA container format
     Lzma2,
+    /// freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+    Freeze2,
+    /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+    Freeze1,
     /// szip (Michael Schindler)
     Szip,
     /// szip (Michael Schindler) version 1.11+
@@ -343,13 +343,13 @@ impl SupportedCompressionFormat {
         Self::Pack,
         Self::OldPack,
         Self::Compact,
-        Self::Freeze2,
-        Self::Freeze1,
         Self::Rzip,
         Self::Lz4,
         Self::Lzo,
         Self::Lzma,
         Self::Lzma2,
+        Self::Freeze2,
+        Self::Freeze1,
         Self::Szip,
         Self::Szip111,
     ];
@@ -373,13 +373,13 @@ impl SupportedCompressionFormat {
         FormatId::Pack,
         FormatId::OldPack,
         FormatId::Compact,
-        FormatId::Freeze2,
-        FormatId::Freeze1,
         FormatId::Rzip,
         FormatId::Lz4,
         FormatId::Lzo,
         FormatId::Lzma,
         FormatId::Lzma2,
+        FormatId::Freeze2,
+        FormatId::Freeze1,
         FormatId::Szip,
         FormatId::Szip111,
     ];
@@ -405,13 +405,13 @@ impl SupportedCompressionFormat {
             Self::Pack => FormatId::Pack,
             Self::OldPack => FormatId::OldPack,
             Self::Compact => FormatId::Compact,
-            Self::Freeze2 => FormatId::Freeze2,
-            Self::Freeze1 => FormatId::Freeze1,
             Self::Rzip => FormatId::Rzip,
             Self::Lz4 => FormatId::Lz4,
             Self::Lzo => FormatId::Lzo,
             Self::Lzma => FormatId::Lzma,
             Self::Lzma2 => FormatId::Lzma2,
+            Self::Freeze2 => FormatId::Freeze2,
+            Self::Freeze1 => FormatId::Freeze1,
             Self::Szip => FormatId::Szip,
             Self::Szip111 => FormatId::Szip111,
         }
@@ -438,13 +438,13 @@ impl SupportedCompressionFormat {
             FormatId::Pack => Some(Self::Pack),
             FormatId::OldPack => Some(Self::OldPack),
             FormatId::Compact => Some(Self::Compact),
-            FormatId::Freeze2 => Some(Self::Freeze2),
-            FormatId::Freeze1 => Some(Self::Freeze1),
             FormatId::Rzip => Some(Self::Rzip),
             FormatId::Lz4 => Some(Self::Lz4),
             FormatId::Lzo => Some(Self::Lzo),
             FormatId::Lzma => Some(Self::Lzma),
             FormatId::Lzma2 => Some(Self::Lzma2),
+            FormatId::Freeze2 => Some(Self::Freeze2),
+            FormatId::Freeze1 => Some(Self::Freeze1),
             FormatId::Szip => Some(Self::Szip),
             FormatId::Szip111 => Some(Self::Szip111),
             _ => None,
@@ -767,7 +767,7 @@ pub enum SupportedDcInputFormat {
     DcMixed2,
     /// UTF-8
     #[default]
-    #[value(name = "utf8", alias = "utf-8", alias = "txt")]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8")]
     Utf8,
     /// Printable ASCII
     #[value(name = "asciisafesubset", alias = "ascii")]
@@ -969,7 +969,7 @@ pub enum SupportedDcOutputFormat {
     DcMixed2,
     /// UTF-8
     #[default]
-    #[value(name = "utf8", alias = "utf-8", alias = "txt")]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8")]
     Utf8,
     /// Printable ASCII
     #[value(name = "asciisafesubset", alias = "ascii")]

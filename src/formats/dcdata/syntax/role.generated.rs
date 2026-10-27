@@ -36,6 +36,8 @@ use serde::{Deserialize, Serialize};
 /// Characters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DcRole {
+    /// The DCE range character. Used to represent ranges in DCE. See the wiki for more information. (`4`).
+    Range,
     /// Begin a DCE number. (`6`).
     BeginNumber,
     /// End a DCE number. (`7`).
@@ -44,6 +46,10 @@ pub enum DcRole {
     Positive,
     /// Negative (syntactical representation — This is not the − character) (`11`).
     Negative,
+    /// Base 64 encapsulation digit 0 (`127`).
+    Base64Start,
+    /// Base 64 encapsulation digit 63 (`190`).
+    Base64End,
     /// Begin Base 64 encapsulated UTF-8 (`191`).
     StartEncapsulationUtf8,
     /// End Base 64 encapsulated UTF-8 (`192`).
@@ -54,12 +60,20 @@ pub enum DcRole {
     StartEncapsulationBinary,
     /// See description for 203 (`204`).
     EndEncapsulationBinary,
+    /// Used to replace an incoming character whose value is unknown or unrepresentable in Unicode (`206`).
+    ReplacementUnavailUnicode,
+    /// Used to replace an incoming character whose value is not mapped to a Dc (document component) (`207`).
+    ReplacementUnavailDc,
     /// Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment. (`246`).
     BeginSingleLineComment,
+    /// As with 247, but starting on a new line in the source form. (`247`).
+    BeginSingleLineCommentNewLine,
     /// Terminates a comment region begun by 246 or 247. (`248`).
     EndSingleLineComment,
     /// As with 248, but creating a “/*  */”-style block comment. (`249`).
     BeginBlockComment,
+    /// As with 250, but starting on a new line in the source form. (`250`).
+    BeginBlockCommentNewLine,
     /// Terminates a comment region begun by 249 or 250. (`251`).
     EndBlockComment,
     /// Indicates that the next character should be ignored. (`255`).
@@ -82,6 +96,8 @@ pub enum DcRole {
     TypeString,
     /// void lang.assign([identifier] identifier, [value] value) (`268`).
     LangAssign,
+    /// Assignment operator (`269`).
+    Assign,
     /// Begins a nonempty name. Dc 255 protects exactly the following Dc from syntactic interpretation. Only an unescaped 271 terminates the name. The name is data; reference or invocation syntax determines how it is used. (`270`).
     BeginIdentifier,
     /// Terminates an identifier begun by 270 unless protected by Dc 255 within its payload. (`271`).
@@ -128,6 +144,14 @@ pub enum DcRole {
     OptionalPresent,
     /// Indicates an optional value is absent. (`316`).
     OptionalAbsent,
+    /// Begins an execution environment snapshot. (`340`).
+    BeginEnvironmentDescription,
+    /// Terminates an execution environment snapshot. (`341`).
+    EndEnvironmentDescription,
+    /// Begins a collection of semantic file flags attached to a file. (`388`).
+    BeginFileFlagsDescription,
+    /// Terminates a collection of semantic file flags attached to a file. (`389`).
+    EndFileFlagsDescription,
     /// Begins a time moment description. (`390`).
     BeginTimeMoment,
     /// Terminates a time moment description. (`391`).
@@ -160,6 +184,8 @@ pub enum DcRole {
     BooleanFalse,
     /// Applies typed parameter bindings to a format in a format specification expression. (`535`).
     FormatParamApplication,
+    /// Raw file flag bitmask with an unparsed-bits indicator. (`539`).
+    RawFileFlags,
     /// References a value declared by Dc 269 in the current or nearest enclosing identifier scope. The identifier is name data; evaluating the reference resolves its value. Quoting the reference does not perform lookup. (`540`).
     ReferenceBoundValue,
     /// Enters a lexical identifier scope. Inner Dc 269 declarations shadow outer declarations of the same name and may produce warnings. Declarations last only until scope exit and never cross document boundaries by default. (`541`).
@@ -174,26 +200,189 @@ pub enum DcRole {
     SectionDigest,
     /// Monotonically increasing sequence or batch counter. (`546`).
     SequenceIdentifier,
+    /// Begins a record describing the parameters source destination and execution of an operation task or session. (`547`).
+    BeginOperationSession,
+    /// Terminates an operation session record. (`548`).
+    EndOperationSession,
+    /// Path designating a source directory file or origin root of an operation. (`549`).
+    SourcePath,
+    /// Path designating a target or destination directory file or storage root. (`550`).
+    DestinationPath,
+    /// Indicates that an operation or session completed its primary intended task. (`551`).
+    OperationCompleted,
+    /// Begins a structured error incident record. (`552`).
+    BeginErrorRecord,
+    /// Terminates a structured error record. (`553`).
+    EndErrorRecord,
+    /// Begins a structured warning incident record. (`554`).
+    BeginWarningRecord,
+    /// Terminates a structured warning record. (`555`).
+    EndWarningRecord,
+    /// Human-readable explanatory or diagnostic log message. (`556`).
+    LogMessage,
+    /// Identifier correlating related operations log entries or distributed traces. (`557`).
+    TraceIdentifier,
+    /// Numeric status or return code associated with an operation. (`558`).
+    OperationStatusCode,
     /// Begins an ordered key-value associative map of adjacent explicitly closed Dc 514 pairs. No Dc 312 occurs between pairs. The optional length counts pairs. The declared key and value types apply to each pair; inherited declarations must accompany independently extracted fragments. Invalid pair framing must not be reinterpreted as the legacy Dc 313 form. (`559`).
     BeginKvMap,
     /// Terminates an ordered key-value associative map begun by Dc 559. (`560`).
     EndKvMap,
     /// Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others. (`561`).
     PartiallyEquivalentRepresentations,
-    // Composite semantic roles
-/// Integer format indicator (`FormatId::Integer` `f199`).
+    /// Ontological root concept representing a type class or category of entities. (`565`).
+    EntityType,
+    /// Ontological concept representing a directed relationship or predicate type. (`566`).
+    RelationshipType,
+    /// Ontological concept representing a reified relationship or statement instance. (`567`).
+    Relationship,
+    /// Ontological concept representing an individual thing or entity. (`568`).
+    Entity,
+    /// A thing that replaces or supersedes another thing. (`569`).
+    Replacement,
+    /// Qualifier indicating that an option or representation is preferred over alternatives. (`570`).
+    Preferred,
+    /// A sequence of simpler or constituent elements into which something decomposes. (`571`).
+    Decomposition,
+    /// The authoritative human-readable name of something. (`572`).
+    CanonicalName,
+    /// A human-readable explanation of the meaning or purpose of something. (`573`).
+    Description,
+    /// An identifier string used to reference something in source code. (`574`).
+    ProgrammaticIdentifier,
+    /// A short informal name or command-line alias for something. (`575`).
+    Nickname,
+    /// An alternative informal name or synonym for something. (`576`).
+    InformalAlias,
+    /// A normative formal name alias for a character. (`577`).
+    FormalAlias,
+    /// An explanatory note or usage commentary attached to something. (`578`).
+    Annotation,
+    /// A signature description or pattern used to identify a data format. (`579`).
+    MagicSignature,
+    /// The Unicode Canonical Combining Class value of a character. (`580`).
+    CanonicalCombiningClass,
+    /// The Unicode Bidirectional Class code of a character. (`581`).
+    BidirectionalClass,
+    /// The casing partner character of a character. (`582`).
+    CaseMappingPartner,
+    /// The General Category classification of a character. (`583`).
+    CharacterGeneralCategory,
+    /// Asserts that the subject possesses the specified attribute component or property noun. (`584`).
+    HasA,
+    /// Asserts that a property attribute or expression has the specified value. (`585`).
+    IsEqualTo,
+    /// Asserts that the subject is an instance of the object type. (`586`).
+    IsInstanceOf,
+    /// Asserts that the subject type or format is a subtype of or logically entails the object type or format. (`587`).
+    IsSubtypeOf,
+    /// Asserts that the subject is derived from or historically based on the object. (`588`).
+    IsBasedOn,
+    /// Asserts whether the subject is deprecated. (`589`).
+    IsDeprecated,
+    /// Asserts that the subject closing delimiter character terminates a syntactic block opened by the object character. (`590`).
+    IsClosingDelimiterFor,
+    /// Asserts that the subject statement or revision node supersedes and replaces the object statement or revision node. (`591`).
+    Supersedes,
+    /// Asserts that the subject statement node withdraws and retracts the object statement node. (`592`).
+    Retracts,
+    /// A reference directing attention to another related entity or entry. (`593`).
+    CrossReference,
+    /// A pattern or grammar rule defining the valid syntactic structure of something. (`594`).
+    SyntaxRule,
+    /// A specification or expression describing the format, type, or composition pipeline of data. (`595`).
+    DataFormatDescription,
+    /// A Dc script classification, as in Unicode, extended for Dc (`596`).
+    CharacterScript,
+    /// An operating system environment or platform family. (`597`).
+    OperatingSystem,
+    /// Asserts that the subject is associated or affiliated with the object. (`598`).
+    IsAssociatedWith,
+    /// Placeholder referring to the character or pattern rule currently being defined or matched. (`599`).
+    SelfReference,
+    /// Matches any single Dc token or balanced syntactic frame. (`600`).
+    WildcardPattern,
+    /// Matches a Dc sequence only if all of the specified component patterns match. (`601`).
+    PatternConjunction,
+    /// Matches a Dc sequence if any of the specified alternative patterns match. (`602`).
+    PatternAlternation,
+    /// Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range. (`603`).
+    PatternRepetition,
+    /// Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set. (`604`).
+    NegatedPattern,
+    /// Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally. (`605`).
+    SubpatternMatch,
+    /// Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution. (`606`).
+    PatternCapture,
+    /// Pairs a match pattern with a replacement or target Dc expression instantiated from its captured bindings. (`607`).
+    PatternReplacement,
+    /// General category as in Unicode, extended for Dc (`608`).
+    DcGeneralCategory,
+    /// The Unicode Script classification of a character. (`609`).
+    UnicodeScript,
+    /// Asserts that the subject property, attribute statement, or parameter has the specified value. (`610`).
+    HasValue,
+    /// A canonically equivalent decomposition of a character or sequence into a sequence with the same canonical meaning. (`611`).
+    CanonicalDecomposition,
+    /// A compatibility decomposition of a character into a sequence with equivalent compatibility content. (`612`).
+    CompatibilityDecomposition,
+    /// An approximate, non-executable decomposition of a character or type into a roughly corresponding sequence. (`613`).
+    ApproximateDecomposition,
+    /// A decomposition of a character into a sequence that approximates it while carrying additional semantic meaning. (`614`).
+    SemanticDecomposition,
+    /// Refers to the enclosing document or graph node currently being defined. (`615`).
+    EnclosingDocument,
+    /// Evaluates or substitutes the following [value] expression in place of itself in an [atom_dc] operand position. (`616`).
+    EvaluateValueAsAtom,
+    /// Begins a definition of the global graph node identified by the [atom_dc] header token. This creates a document scope, similar to 235 "Begin document": within the node body, Dc 615 (Enclosing document) refers to this node ID. (`617`).
+    BeginGraphNodeDefinition,
+    /// Terminates a graph node definition begun by Dc 617. (`618`).
+    EndGraphNodeDefinition,
+    /// Capability of an application or environment to read, parse, decode, decompress, or execute data in a format or forward transformation in general. (`619`).
+    GeneralFormatImportSupport,
+    /// Capability of an application or environment to import or convert data from a format into a Dc document representation. (`620`).
+    DcFormatImportSupport,
+    /// Capability of an application or environment to write, serialize, encode, compress, or reverse data in a format or transformation in general. (`621`).
+    GeneralFormatExportSupport,
+    /// Capability of an application or environment to export or convert a Dc document representation into a format. (`622`).
+    DcFormatExportSupport,
+    /// Automated test coverage in an application or environment for general handling of a format or transformation. (`623`).
+    GeneralFormatTestCoverage,
+    /// Automated test coverage in an application or environment for converting a format to or from Dc documents. (`624`).
+    DcFormatTestCoverage,
+    /// The maturity, completeness, or fidelity level of an implementation or test suite for a capability. (`625`).
+    ImplementationSupportLevel,
+    /// Indicates that a capability or conversion direction is not applicable to the format. (`626`).
+    SupportNotApplicable,
+    /// Indicates experimental or work-in-progress implementation or test coverage. (`627`).
+    SupportWorkInProgress,
+    /// Indicates support for a subset, basic dialect, or stream-level operation of a format, or partial test coverage. (`628`).
+    SupportPartial,
+    /// Indicates complete implementation of a format or complete semantic conversion to or from Dc syntax. (`629`).
+    SupportComplete,
+    /// Indicates that conversion preserves all information required for unambiguous bit-for-bit reconstruction. (`630`).
+    SupportLosslessRoundtrip,
+    /// Indicates lossless roundtripping with optional strict structural and semantic validation. (`631`).
+    SupportLosslessStrictValidation,
+    /// Property indicating a format variation (.Formats:format_variant) along which a format varies. (`632`).
+    FormatVariationAspect,
+    /// Property specifying the default variant format used by a format when none is explicitly specified. (`633`).
+    DefaultFormatVariant,
+    /// Short parameter nickname (such as in '@vary_as("...")') used to identify a format variation aspect in parametric format expressions. (`634`).
+    DcFormatVariationNickname,
+    /// Format indicator for an integer in a number header (`FormatId::Integer`).
 IntegerFormatIndicator,
-/// Base64 encapsulation digit (`127..=190`).
+/// Base64 encapsulation digit character (0..=63).
 Base64Digit,
-/// General type token (script `.EL Types` or `.Formats`).
+/// Built-in type token, format token, or type operator.
 TypeToken,
-/// Primitive value atom (absent optional or boolean literal).
+/// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).
 PrimitiveValueAtom,
-/// Domain-specific value atom.
+/// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).
 DomainValueAtom,
-/// Starter token for an evaluable Dc expression.
+/// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
 EvaluableExpressionStarter,
-/// Structural separator (list element separator or whitespace delimiter).
+/// Structural separator (newlines, paragraph separators, list element separators).
 StructuralSeparator,
 }
 
@@ -202,18 +391,25 @@ impl DcRole {
 #[must_use]
 pub fn defining_short(self) -> Option<u32> {
 match self {
+            Self::Range => Some(4),
             Self::BeginNumber => Some(6),
             Self::EndNumber => Some(7),
             Self::Positive => Some(10),
             Self::Negative => Some(11),
+            Self::Base64Start => Some(127),
+            Self::Base64End => Some(190),
             Self::StartEncapsulationUtf8 => Some(191),
             Self::EndEncapsulationUtf8 => Some(192),
             Self::Base64Padding => Some(195),
             Self::StartEncapsulationBinary => Some(203),
             Self::EndEncapsulationBinary => Some(204),
+            Self::ReplacementUnavailUnicode => Some(206),
+            Self::ReplacementUnavailDc => Some(207),
             Self::BeginSingleLineComment => Some(246),
+            Self::BeginSingleLineCommentNewLine => Some(247),
             Self::EndSingleLineComment => Some(248),
             Self::BeginBlockComment => Some(249),
+            Self::BeginBlockCommentNewLine => Some(250),
             Self::EndBlockComment => Some(251),
             Self::Escape => Some(255),
             Self::LangSay => Some(256),
@@ -225,6 +421,7 @@ match self {
             Self::EndTypeDef => Some(263),
             Self::TypeString => Some(264),
             Self::LangAssign => Some(268),
+            Self::Assign => Some(269),
             Self::BeginIdentifier => Some(270),
             Self::EndIdentifier => Some(271),
             Self::TypeAny => Some(275),
@@ -248,6 +445,10 @@ match self {
             Self::EndLegacyKvMap => Some(314),
             Self::OptionalPresent => Some(315),
             Self::OptionalAbsent => Some(316),
+            Self::BeginEnvironmentDescription => Some(340),
+            Self::EndEnvironmentDescription => Some(341),
+            Self::BeginFileFlagsDescription => Some(388),
+            Self::EndFileFlagsDescription => Some(389),
             Self::BeginTimeMoment => Some(390),
             Self::EndTimeMoment => Some(391),
             Self::BeginDateMagnitude => Some(393),
@@ -264,6 +465,7 @@ match self {
             Self::BooleanTrue => Some(517),
             Self::BooleanFalse => Some(518),
             Self::FormatParamApplication => Some(535),
+            Self::RawFileFlags => Some(539),
             Self::ReferenceBoundValue => Some(540),
             Self::EnterIdentifierScope => Some(541),
             Self::ExitIdentifierScope => Some(542),
@@ -271,37 +473,126 @@ match self {
             Self::EndChecksummedSection => Some(544),
             Self::SectionDigest => Some(545),
             Self::SequenceIdentifier => Some(546),
+            Self::BeginOperationSession => Some(547),
+            Self::EndOperationSession => Some(548),
+            Self::SourcePath => Some(549),
+            Self::DestinationPath => Some(550),
+            Self::OperationCompleted => Some(551),
+            Self::BeginErrorRecord => Some(552),
+            Self::EndErrorRecord => Some(553),
+            Self::BeginWarningRecord => Some(554),
+            Self::EndWarningRecord => Some(555),
+            Self::LogMessage => Some(556),
+            Self::TraceIdentifier => Some(557),
+            Self::OperationStatusCode => Some(558),
             Self::BeginKvMap => Some(559),
             Self::EndKvMap => Some(560),
             Self::PartiallyEquivalentRepresentations => Some(561),
+            Self::EntityType => Some(565),
+            Self::RelationshipType => Some(566),
+            Self::Relationship => Some(567),
+            Self::Entity => Some(568),
+            Self::Replacement => Some(569),
+            Self::Preferred => Some(570),
+            Self::Decomposition => Some(571),
+            Self::CanonicalName => Some(572),
+            Self::Description => Some(573),
+            Self::ProgrammaticIdentifier => Some(574),
+            Self::Nickname => Some(575),
+            Self::InformalAlias => Some(576),
+            Self::FormalAlias => Some(577),
+            Self::Annotation => Some(578),
+            Self::MagicSignature => Some(579),
+            Self::CanonicalCombiningClass => Some(580),
+            Self::BidirectionalClass => Some(581),
+            Self::CaseMappingPartner => Some(582),
+            Self::CharacterGeneralCategory => Some(583),
+            Self::HasA => Some(584),
+            Self::IsEqualTo => Some(585),
+            Self::IsInstanceOf => Some(586),
+            Self::IsSubtypeOf => Some(587),
+            Self::IsBasedOn => Some(588),
+            Self::IsDeprecated => Some(589),
+            Self::IsClosingDelimiterFor => Some(590),
+            Self::Supersedes => Some(591),
+            Self::Retracts => Some(592),
+            Self::CrossReference => Some(593),
+            Self::SyntaxRule => Some(594),
+            Self::DataFormatDescription => Some(595),
+            Self::CharacterScript => Some(596),
+            Self::OperatingSystem => Some(597),
+            Self::IsAssociatedWith => Some(598),
+            Self::SelfReference => Some(599),
+            Self::WildcardPattern => Some(600),
+            Self::PatternConjunction => Some(601),
+            Self::PatternAlternation => Some(602),
+            Self::PatternRepetition => Some(603),
+            Self::NegatedPattern => Some(604),
+            Self::SubpatternMatch => Some(605),
+            Self::PatternCapture => Some(606),
+            Self::PatternReplacement => Some(607),
+            Self::DcGeneralCategory => Some(608),
+            Self::UnicodeScript => Some(609),
+            Self::HasValue => Some(610),
+            Self::CanonicalDecomposition => Some(611),
+            Self::CompatibilityDecomposition => Some(612),
+            Self::ApproximateDecomposition => Some(613),
+            Self::SemanticDecomposition => Some(614),
+            Self::EnclosingDocument => Some(615),
+            Self::EvaluateValueAsAtom => Some(616),
+            Self::BeginGraphNodeDefinition => Some(617),
+            Self::EndGraphNodeDefinition => Some(618),
+            Self::GeneralFormatImportSupport => Some(619),
+            Self::DcFormatImportSupport => Some(620),
+            Self::GeneralFormatExportSupport => Some(621),
+            Self::DcFormatExportSupport => Some(622),
+            Self::GeneralFormatTestCoverage => Some(623),
+            Self::DcFormatTestCoverage => Some(624),
+            Self::ImplementationSupportLevel => Some(625),
+            Self::SupportNotApplicable => Some(626),
+            Self::SupportWorkInProgress => Some(627),
+            Self::SupportPartial => Some(628),
+            Self::SupportComplete => Some(629),
+            Self::SupportLosslessRoundtrip => Some(630),
+            Self::SupportLosslessStrictValidation => Some(631),
+            Self::FormatVariationAspect => Some(632),
+            Self::DefaultFormatVariant => Some(633),
+            Self::DcFormatVariationNickname => Some(634),
             _ => None,
 }
 }
 
-    /// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.
+/// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.
 #[must_use]
 pub fn defining_dc(self) -> Option<DcChar> {
 self.defining_short().map(DcChar::from_short)
 }
 
-    /// Returns true if the given canonical token (in global graph `u128` layout)
+/// Returns true if the given canonical token (in global graph `u128` layout)
 /// directly matches this role.
 #[must_use]
 pub fn matches_canonical(self, token: u128) -> bool {
 let short = DcChar::from_u128(token).to_short().ok();
 match self {
+            Self::Range => short == Some(4),
             Self::BeginNumber => short == Some(6),
             Self::EndNumber => short == Some(7),
             Self::Positive => short == Some(10),
             Self::Negative => short == Some(11),
+            Self::Base64Start => short == Some(127),
+            Self::Base64End => short == Some(190),
             Self::StartEncapsulationUtf8 => short == Some(191),
             Self::EndEncapsulationUtf8 => short == Some(192),
             Self::Base64Padding => short == Some(195),
             Self::StartEncapsulationBinary => short == Some(203),
             Self::EndEncapsulationBinary => short == Some(204),
+            Self::ReplacementUnavailUnicode => short == Some(206),
+            Self::ReplacementUnavailDc => short == Some(207),
             Self::BeginSingleLineComment => short == Some(246),
+            Self::BeginSingleLineCommentNewLine => short == Some(247),
             Self::EndSingleLineComment => short == Some(248),
             Self::BeginBlockComment => short == Some(249),
+            Self::BeginBlockCommentNewLine => short == Some(250),
             Self::EndBlockComment => short == Some(251),
             Self::Escape => short == Some(255),
             Self::LangSay => short == Some(256),
@@ -313,6 +604,7 @@ match self {
             Self::EndTypeDef => short == Some(263),
             Self::TypeString => short == Some(264),
             Self::LangAssign => short == Some(268),
+            Self::Assign => short == Some(269),
             Self::BeginIdentifier => short == Some(270),
             Self::EndIdentifier => short == Some(271),
             Self::TypeAny => short == Some(275),
@@ -336,6 +628,10 @@ match self {
             Self::EndLegacyKvMap => short == Some(314),
             Self::OptionalPresent => short == Some(315),
             Self::OptionalAbsent => short == Some(316),
+            Self::BeginEnvironmentDescription => short == Some(340),
+            Self::EndEnvironmentDescription => short == Some(341),
+            Self::BeginFileFlagsDescription => short == Some(388),
+            Self::EndFileFlagsDescription => short == Some(389),
             Self::BeginTimeMoment => short == Some(390),
             Self::EndTimeMoment => short == Some(391),
             Self::BeginDateMagnitude => short == Some(393),
@@ -352,6 +648,7 @@ match self {
             Self::BooleanTrue => short == Some(517),
             Self::BooleanFalse => short == Some(518),
             Self::FormatParamApplication => short == Some(535),
+            Self::RawFileFlags => short == Some(539),
             Self::ReferenceBoundValue => short == Some(540),
             Self::EnterIdentifierScope => short == Some(541),
             Self::ExitIdentifierScope => short == Some(542),
@@ -359,9 +656,91 @@ match self {
             Self::EndChecksummedSection => short == Some(544),
             Self::SectionDigest => short == Some(545),
             Self::SequenceIdentifier => short == Some(546),
+            Self::BeginOperationSession => short == Some(547),
+            Self::EndOperationSession => short == Some(548),
+            Self::SourcePath => short == Some(549),
+            Self::DestinationPath => short == Some(550),
+            Self::OperationCompleted => short == Some(551),
+            Self::BeginErrorRecord => short == Some(552),
+            Self::EndErrorRecord => short == Some(553),
+            Self::BeginWarningRecord => short == Some(554),
+            Self::EndWarningRecord => short == Some(555),
+            Self::LogMessage => short == Some(556),
+            Self::TraceIdentifier => short == Some(557),
+            Self::OperationStatusCode => short == Some(558),
             Self::BeginKvMap => short == Some(559),
             Self::EndKvMap => short == Some(560),
             Self::PartiallyEquivalentRepresentations => short == Some(561),
+            Self::EntityType => short == Some(565),
+            Self::RelationshipType => short == Some(566),
+            Self::Relationship => short == Some(567),
+            Self::Entity => short == Some(568),
+            Self::Replacement => short == Some(569),
+            Self::Preferred => short == Some(570),
+            Self::Decomposition => short == Some(571),
+            Self::CanonicalName => short == Some(572),
+            Self::Description => short == Some(573),
+            Self::ProgrammaticIdentifier => short == Some(574),
+            Self::Nickname => short == Some(575),
+            Self::InformalAlias => short == Some(576),
+            Self::FormalAlias => short == Some(577),
+            Self::Annotation => short == Some(578),
+            Self::MagicSignature => short == Some(579),
+            Self::CanonicalCombiningClass => short == Some(580),
+            Self::BidirectionalClass => short == Some(581),
+            Self::CaseMappingPartner => short == Some(582),
+            Self::CharacterGeneralCategory => short == Some(583),
+            Self::HasA => short == Some(584),
+            Self::IsEqualTo => short == Some(585),
+            Self::IsInstanceOf => short == Some(586),
+            Self::IsSubtypeOf => short == Some(587),
+            Self::IsBasedOn => short == Some(588),
+            Self::IsDeprecated => short == Some(589),
+            Self::IsClosingDelimiterFor => short == Some(590),
+            Self::Supersedes => short == Some(591),
+            Self::Retracts => short == Some(592),
+            Self::CrossReference => short == Some(593),
+            Self::SyntaxRule => short == Some(594),
+            Self::DataFormatDescription => short == Some(595),
+            Self::CharacterScript => short == Some(596),
+            Self::OperatingSystem => short == Some(597),
+            Self::IsAssociatedWith => short == Some(598),
+            Self::SelfReference => short == Some(599),
+            Self::WildcardPattern => short == Some(600),
+            Self::PatternConjunction => short == Some(601),
+            Self::PatternAlternation => short == Some(602),
+            Self::PatternRepetition => short == Some(603),
+            Self::NegatedPattern => short == Some(604),
+            Self::SubpatternMatch => short == Some(605),
+            Self::PatternCapture => short == Some(606),
+            Self::PatternReplacement => short == Some(607),
+            Self::DcGeneralCategory => short == Some(608),
+            Self::UnicodeScript => short == Some(609),
+            Self::HasValue => short == Some(610),
+            Self::CanonicalDecomposition => short == Some(611),
+            Self::CompatibilityDecomposition => short == Some(612),
+            Self::ApproximateDecomposition => short == Some(613),
+            Self::SemanticDecomposition => short == Some(614),
+            Self::EnclosingDocument => short == Some(615),
+            Self::EvaluateValueAsAtom => short == Some(616),
+            Self::BeginGraphNodeDefinition => short == Some(617),
+            Self::EndGraphNodeDefinition => short == Some(618),
+            Self::GeneralFormatImportSupport => short == Some(619),
+            Self::DcFormatImportSupport => short == Some(620),
+            Self::GeneralFormatExportSupport => short == Some(621),
+            Self::DcFormatExportSupport => short == Some(622),
+            Self::GeneralFormatTestCoverage => short == Some(623),
+            Self::DcFormatTestCoverage => short == Some(624),
+            Self::ImplementationSupportLevel => short == Some(625),
+            Self::SupportNotApplicable => short == Some(626),
+            Self::SupportWorkInProgress => short == Some(627),
+            Self::SupportPartial => short == Some(628),
+            Self::SupportComplete => short == Some(629),
+            Self::SupportLosslessRoundtrip => short == Some(630),
+            Self::SupportLosslessStrictValidation => short == Some(631),
+            Self::FormatVariationAspect => short == Some(632),
+            Self::DefaultFormatVariant => short == Some(633),
+            Self::DcFormatVariationNickname => short == Some(634),
             Self::IntegerFormatIndicator => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)
@@ -383,7 +762,7 @@ matches!(short, Some(119..=121 | 294 | 295 | 312))
 }
 }
 
-    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel
+/// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel
 /// (`64`) if `token` represents a Base64 encapsulation character.
 #[must_use]
 pub fn base64_digit_value(token: u128) -> Option<u8> {

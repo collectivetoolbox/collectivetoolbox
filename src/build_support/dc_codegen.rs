@@ -17,681 +17,723 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Codegen for Document Character (Dc) constants and `dc.generated.rs` from
-//! category CSV data tables.
+//! Build-time code generator for `src/formats/dcdata/dc.generated.rs` and
+//! `src/formats/dcdata/syntax/role.generated.rs` from the system graph in
+//! `assets/data/graph/`.
 
-use anyhow::{Context, Result, ensure};
+use crate::ctbnbdl::CtbnbdlFramingDcs;
+use crate::graph_index::{
+    BuildGraphIndex, BuildSeedEntity,
+    resolve_ctbnbdl_framing_dcs_from_graph_dir,
+};
+use crate::license_consts::DEFAULT_AGPL_HEADER;
+use crate::shorthand::DcShorthand;
+use anyhow::{Context, Result, bail, ensure};
 use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::Path;
 
-use crate::license_consts::DEFAULT_AGPL_HEADER;
-use crate::{find_repository_root_from, is_unassigned_id};
-
-fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
-    if path.is_file() {
-        if let Ok(existing) = fs::read_to_string(path) {
-            if existing == content {
-                return Ok(false);
-            }
-        }
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
-    Ok(true)
-}
-
-fn to_snake_case(s: &str) -> String {
-    let mut res = String::new();
-    let mut prev_is_upper = false;
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 && !prev_is_upper {
-                res.push('_');
-            }
-            res.push(c.to_ascii_lowercase());
-            prev_is_upper = true;
-        } else {
-            res.push(c);
-            prev_is_upper = false;
-        }
-    }
-    res
-}
-
-fn to_screaming_snake_case(s: &str) -> String {
-    to_snake_case(s).to_ascii_uppercase()
-}
-
-/// Extracts the ident annotation from an aliases / annotations string, if present.
-fn extract_ident_annotation(s: &str) -> Option<String> {
-    if let Some(pos) = s.find("@ident(") {
-        let rest = s.get(pos.saturating_add(7)..)?;
-        if let Some(end) = rest.find(')') {
-            let inner = rest.get(..end).unwrap_or("").trim().trim_matches('"');
-            if !inner.is_empty() {
-                return Some(inner.to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Extracts all `@roleDef("...")` composite role names from an aliases / annotations string.
-fn extract_composite_role_defs(s: &str) -> Vec<String> {
-    let mut roles = Vec::new();
-    let mut rest = s;
-    while let Some(pos) = rest.find("@roleDef(") {
-        let after = rest.get(pos.saturating_add(9)..).unwrap_or("");
-        if let Some(end) = after.find(')') {
-            let inner = after.get(..end).unwrap_or("").trim().trim_matches('"');
-            if !inner.is_empty() {
-                roles.push(inner.to_string());
-            }
-            rest = after.get(end.saturating_add(1)..).unwrap_or("");
-        } else {
-            break;
-        }
-    }
-    roles
-}
-
-struct ParsedDcCategoryRow {
+#[derive(Debug, Clone)]
+struct DcConstRecord {
     short_id: u32,
+    ident: String,
     name: String,
-    script: String,
-    aliases: String,
     description: String,
 }
 
-/// Reads all non-Unicode Dc category CSV rows across `categories_dir`, assigning
-/// `max_short_id + 1` in-memory to any row whose Short ID column is unassigned.
-fn read_dc_category_rows(categories_dir: &Path) -> Result<Vec<ParsedDcCategoryRow>> {
-    let mut parsed_rows = Vec::new();
-    if !categories_dir.is_dir() {
-        return Ok(parsed_rows);
+/// Validates that an identifier is a valid non-empty Rust identifier.
+fn is_valid_rust_ident(ident: &str) -> bool {
+    if ident.is_empty() {
+        return false;
     }
-
-    let mut csv_paths = Vec::new();
-    for entry in fs::read_dir(categories_dir)? {
-        let path = entry?.path();
-        if path.is_file() {
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                continue;
-            };
-            if file_name.ends_with(".csv")
-                && file_name != "schema.csv"
-                && !file_name.ends_with(".generated.csv")
-                && file_name != "unicode-clarifications.csv"
-            {
-                csv_paths.push(path);
-            }
-        }
+    let mut chars = ident.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return false;
     }
-    csv_paths.sort();
-
-    // Pass 1: Find maximum assigned short ID across all Dc category files
-    let mut max_short_id = 0u32;
-    let mut files_records = Vec::new();
-    for path in csv_paths {
-        let mut rdr = csv::ReaderBuilder::new()
-            .has_headers(true)
-            .flexible(true)
-            .from_path(&path)
-            .with_context(|| format!("Failed to open CSV file {}", path.display()))?;
-        let mut records = Vec::new();
-        for result in rdr.records() {
-            let record = result.with_context(|| {
-                format!("Failed to read record in {}", path.display())
-            })?;
-            if record.iter().all(|c| c.trim().is_empty()) {
-                continue;
-            }
-            let dc_str = record.get(0).unwrap_or("").trim();
-            if dc_str.starts_with('u') || dc_str.starts_with('U') {
-                continue;
-            }
-            if let Ok(s_id) = record.get(1).unwrap_or("").trim().parse::<u32>() {
-                if s_id > max_short_id {
-                    max_short_id = s_id;
-                }
-            }
-            records.push(record);
-        }
-        files_records.push(records);
-    }
-
-    // Pass 2: Extract rows, assigning max_short_id + 1 in-memory to unassigned rows
-    for records in files_records {
-        for record in records {
-            let get = |idx: usize| -> String {
-                record.get(idx).unwrap_or("").trim().to_string()
-            };
-            let short_raw = get(1);
-            let short_id = if let Ok(s_id) = short_raw.parse::<u32>() {
-                s_id
-            } else if is_unassigned_id(&short_raw) {
-                let next_id = max_short_id.saturating_add(1);
-                max_short_id = next_id;
-                next_id
-            } else {
-                continue;
-            };
-            parsed_rows.push(ParsedDcCategoryRow {
-                short_id,
-                name: get(2).trim_start_matches('!').trim().to_string(),
-                script: get(7),
-                aliases: get(8),
-                description: get(9),
-            });
-        }
-    }
-
-    Ok(parsed_rows)
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// Generates the contents of `dc.generated.rs` from category CSV files.
-///
-/// # Errors
-/// Returns an error if reading directory or CSV parsing fails.
-pub fn generate_dc_code(categories_dir: &Path) -> Result<String> {
-    struct DcRowData {
-        short_id: u32,
-        ident: String,
-        name: String,
-        description: String,
+/// Converts a `PascalCase` or `camelCase` identifier into `SCREAMING_SNAKE_CASE`.
+#[must_use]
+pub fn to_screaming_snake_case(ident: &str) -> String {
+    if ident.chars().all(|c| !c.is_ascii_lowercase()) {
+        return ident.to_string();
     }
 
-    let mut records: Vec<DcRowData> = Vec::new();
-    let mut seen_idents = HashSet::new();
+    let chars: Vec<char> = ident.chars().collect();
+    let mut out = String::with_capacity(ident.len().saturating_add(4));
 
-    for row in read_dc_category_rows(categories_dir)? {
-        let Some(ident) = extract_ident_annotation(&row.aliases) else {
-            continue;
-        };
-        if !seen_idents.insert(ident.clone()) {
+    for (i, &ch) in chars.iter().enumerate() {
+        if ch == '_' {
+            if !out.ends_with('_') {
+                out.push('_');
+            }
             continue;
         }
-        records.push(DcRowData {
-            short_id: row.short_id,
+        if i > 0 && ch.is_ascii_uppercase() {
+            let prev = chars.get(i.saturating_sub(1)).copied();
+            let next = chars.get(i.saturating_add(1)).copied();
+            let prev_is_lower_or_digit = prev.is_some_and(|p| {
+                p.is_ascii_lowercase() || p.is_ascii_digit()
+            });
+            let prev_is_upper = prev.is_some_and(|p| p.is_ascii_uppercase());
+            let next_is_lower = next.is_some_and(|n| n.is_ascii_lowercase());
+
+            if (prev_is_lower_or_digit || (prev_is_upper && next_is_lower))
+                && !out.ends_with('_')
+            {
+                out.push('_');
+            }
+        }
+        out.push(ch.to_ascii_uppercase());
+    }
+
+    out
+}
+
+/// Collects all Short Dc records that declare a `ProgrammaticIdentifier` in `index`.
+fn collect_dc_const_records(
+    index: &BuildGraphIndex,
+) -> Result<Vec<DcConstRecord>> {
+    let sh_name = index.require_ident("CanonicalName")?;
+    let sh_desc = index.require_ident("Description")?;
+
+    let mut records = Vec::new();
+    let mut seen_idents = HashSet::new();
+    let mut seen_shorts = HashSet::new();
+
+    for short_id in index.all_short_dc_ids()? {
+        let subj = DcShorthand::Short(short_id);
+        let Some(ident_raw) = index.ident_for_shorthand(subj) else {
+            continue;
+        };
+        let ident = ident_raw.trim().to_string();
+        ensure!(
+            is_valid_rust_ident(&ident),
+            "Invalid @ident(\"{ident}\") on Dc {short_id}"
+        );
+        let const_name = format!("DC_{}", to_screaming_snake_case(&ident));
+        if !seen_idents.insert(const_name.clone()) {
+            bail!(
+                "Duplicate @ident(\"{ident}\") (constant {const_name}) on Dc {short_id}"
+            );
+        }
+        if !seen_shorts.insert(short_id) {
+            bail!("Duplicate short ID {short_id} with @ident(\"{ident}\")");
+        }
+        // Reason for fallback: subjects returned by all_short_dc_ids have a CanonicalName.
+        let name = index
+            .single_property_string(subj, sh_name)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        // Reason for fallback: Dcs without an explicit description default to empty string.
+        let description = index
+            .single_property_string(subj, sh_desc)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+
+        records.push(DcConstRecord {
+            short_id,
             ident,
-            name: row.name,
-            description: row.description,
+            name,
+            description,
         });
     }
 
     records.sort_by_key(|r| r.short_id);
+    Ok(records)
+}
+
+/// Generates the contents of `dc.generated.rs` from a pre-built [`BuildGraphIndex`].
+///
+/// # Errors
+/// Returns an error if the graph is missing required ontology Dcs or contains invalid identifiers.
+pub fn generate_dc_code_from_index(
+    index: &BuildGraphIndex,
+) -> Result<String> {
+    let records = collect_dc_const_records(index)?;
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
     out.push_str("\n\n");
-    out.push_str("//! Constants and definitions for Document Character (Dc) data.\n");
-    out.push_str("//! @generated by ctb-build-support::dc_codegen from category data tables.\n");
+    out.push_str(
+        "//! Constants and definitions for Document Character (Dc) data.\n",
+    );
+    out.push_str(
+        "//! @generated by ctb-build-support::dc_codegen from category data tables.\n",
+    );
     out.push_str("//! Do not edit by hand.\n\n");
-    out.push_str("#[expect(\n");
-    out.push_str("    unused_imports,\n");
-    out.push_str("    clippy::wildcard_imports,\n");
-    out.push_str("    reason = \"Standard workspace module prelude\"\n");
-    out.push_str(")]\n");
-    out.push_str("use crate::utilities::*;\n\n");
-    out.push_str("pub use ctb_storage_minimal::global_graph_layout::{\n");
-    out.push_str("    SHORT_DC_REGION_END, SHORT_DC_REGION_START,\n");
-    out.push_str("};\n\n");
+    out.push_str(
+        "#[expect(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\n",
+    );
+    out.push_str(
+        "pub use ctb_storage_minimal::global_graph_layout::{\n    SHORT_DC_REGION_END, SHORT_DC_REGION_START,\n};\n\n",
+    );
     out.push_str("pub use crate::dc_char::DcChar;\n\n");
 
-    for r in &records {
-        let screaming = to_screaming_snake_case(&r.ident);
-        let doc = if !r.description.is_empty() {
-            &r.description
+    for rec in &records {
+        let const_name = to_screaming_snake_case(&rec.ident);
+        let doc = if !rec.description.is_empty() {
+            &rec.description
         } else {
-            &r.name
+            &rec.name
         };
+        let doc_clean = doc.replace('\n', " ").replace('\r', "");
         out.push_str(&format!(
-            "/// {} (Dc {}).\npub const DC_{screaming}: DcChar = DcChar::from_short({});\n",
-            doc.replace('\n', " "),
-            r.short_id,
-            r.short_id
+            "/// {} (Dc {}).\npub const DC_{}: DcChar = DcChar::from_short({});\n",
+            doc_clean, rec.short_id, const_name, rec.short_id
         ));
     }
 
     out.push_str(
-        "\n/// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.\n\
-        #[must_use]\n\
-        pub fn short_to_long_dc(short_id: u32) -> u128 {\n    \
-            SHORT_DC_REGION_START.saturating_add(u128::from(short_id))\n\
-        }\n\n\
-        /// Converts a long (Global Graph) Document Character ID to its short Dc ID, if within short range.\n\
-        #[must_use]\n\
-        pub fn long_to_short_dc(dc_id: u128) -> Option<u32> {\n    \
-            if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {\n        \
-                u32::try_from(dc_id.saturating_sub(SHORT_DC_REGION_START)).ok()\n    \
-            } else {\n        \
-                None\n    \
-            }\n\
-        }\n",
+        "\n/// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.\n",
     );
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn short_to_long_dc(short_id: u32) -> u128 {\n");
+    out.push_str(
+        "    SHORT_DC_REGION_START.saturating_add(u128::from(short_id))\n",
+    );
+    out.push_str("}\n\n");
+
+    out.push_str(
+        "/// Converts a long (Global Graph) Document Character ID to its short Dc ID, if within short range.\n",
+    );
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn long_to_short_dc(dc_id: u128) -> Option<u32> {\n");
+    out.push_str(
+        "    if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {\n",
+    );
+    out.push_str(
+        "        u32::try_from(dc_id.saturating_sub(SHORT_DC_REGION_START)).ok()\n",
+    );
+    out.push_str("    } else {\n");
+    out.push_str("        None\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
 
     Ok(out)
 }
 
-/// Generates or updates `src/formats/dcdata/dc.generated.rs` if contents changed.
+/// Generates the contents of `dc.generated.rs` from the system graph in `graph_dir`.
 ///
 /// # Errors
-/// Returns an error if directory resolution, generation, or writing fails.
-pub fn generate_dc_file(base_dir: &Path) -> Result<bool> {
-    let repo_root = find_repository_root_from(base_dir)?;
-    let categories_dir = repo_root
-        .join("src")
-        .join("formats")
-        .join("dcdata")
-        .join("data")
-        .join("categories");
-    ensure!(
-        categories_dir.is_dir(),
-        "Could not locate categories directory at {}",
-        categories_dir.display()
-    );
+/// Returns an error if `graph_dir` cannot be read or contains invalid data.
+pub fn generate_dc_code(graph_dir: &Path) -> Result<String> {
+    let index = BuildGraphIndex::from_graph_dir(graph_dir)?;
+    generate_dc_code_from_index(&index)
+}
 
-    let target_file = repo_root
+/// Generates `src/formats/dcdata/dc.generated.rs` if its contents have changed.
+///
+/// # Errors
+/// Returns an error if reading the system graph or writing the generated file fails.
+pub fn generate_dc_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = crate::find_repository_root_from(base_dir)?;
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let out_file = repo_root
         .join("src")
         .join("formats")
         .join("dcdata")
         .join("dc.generated.rs");
 
-    let code = generate_dc_code(&categories_dir)?;
-    write_if_changed(&target_file, &code)
+    ensure!(
+        graph_dir.is_dir(),
+        "Could not locate system graph directory at {}",
+        graph_dir.display()
+    );
+
+    let code = generate_dc_code(&graph_dir)?;
+
+    if let Ok(existing) = fs::read_to_string(&out_file) {
+        if existing == code {
+            return Ok(false);
+        }
+    }
+
+    fs::write(&out_file, code).with_context(|| {
+        format!("Failed to write {}", out_file.display())
+    })?;
+    Ok(true)
 }
 
-/// Formats a set of short Dc IDs as a compact Rust match pattern, collapsing
-/// contiguous integer spans into `start..=end` ranges.
+/// Formats a sorted set of `u32` short IDs into a compact Rust pattern (e.g. `127..=190 | 195`).
 fn format_short_id_pattern(ids: &BTreeSet<u32>) -> String {
-    let mut parts = Vec::new();
-    let id_list: Vec<u32> = ids.iter().copied().collect();
-    let mut i = 0;
-    while i < id_list.len() {
-        let Some(&start) = id_list.get(i) else {
-            break;
-        };
-        let mut end = start;
-        while let Some(&next) = id_list.get(i.saturating_add(1)) {
-            if next == end.saturating_add(1) {
-                end = next;
-                i = i.saturating_add(1);
-            } else {
-                break;
+    let mut ranges: Vec<(u32, u32)> = Vec::new();
+    for &id in ids {
+        if let Some(last) = ranges.last_mut() {
+            if id == last.1.saturating_add(1) {
+                last.1 = id;
+                continue;
             }
         }
-        if end > start.saturating_add(1) {
-            parts.push(format!("{start}..={end}"));
-        } else if end == start.saturating_add(1) {
-            parts.push(format!("{start} | {end}"));
-        } else {
-            parts.push(format!("{start}"));
-        }
-        i = i.saturating_add(1);
+        ranges.push((id, id));
     }
-    parts.join(" | ")
+
+    let parts: Vec<String> = ranges
+        .into_iter()
+        .map(|(start, end)| {
+            if start == end {
+                format!("{start}")
+            } else if end == start.saturating_add(1) {
+                format!("{start} | {end}")
+            } else {
+                format!("{start}..={end}")
+            }
+        })
+        .collect();
+
+    if parts.is_empty() {
+        "u32::MAX".to_string()
+    } else {
+        parts.join(" | ")
+    }
 }
 
-/// Generates the contents of `role.generated.rs` from category CSV files.
+/// Generates the contents of `src/formats/dcdata/syntax/role.generated.rs` from a [`BuildGraphIndex`].
 ///
 /// # Errors
-/// Returns an error if reading directory or CSV parsing fails.
-pub fn generate_role_code(categories_dir: &Path) -> Result<String> {
-    struct RoleRowData {
-        short_id: u32,
-        ident: String,
-        name: String,
-        description: String,
+/// Returns an error if required ontology entities are missing from `index`.
+pub fn generate_role_code_from_index(
+    index: &BuildGraphIndex,
+) -> Result<String> {
+    let records = collect_dc_const_records(index)?;
+
+    let require_short = |ident: &str| -> Result<u32> {
+        let sh = index.require_ident(ident)?;
+        let DcShorthand::Short(sid) = sh else {
+            bail!("Expected Short Dc for @ident(\"{ident}\"), found {sh}");
+        };
+        Ok(sid)
+    };
+
+    let base64_start = require_short("Base64Start")?;
+    let base64_end = require_short("Base64End")?;
+    let base64_padding = require_short("Base64Padding")?;
+    ensure!(
+        base64_start <= base64_end,
+        "Base64Start ({base64_start}) must be <= Base64End ({base64_end})"
+    );
+    let base64_digits: BTreeSet<u32> = (base64_start..=base64_end).collect();
+
+    // 1. TypeToken: all Short Dcs in `.EL Types`, plus TypeUnion, FilePathDelimiter,
+    // TypeIntersection, FormatParamApplication, EntityType, RelationshipType, Relationship, Entity.
+    let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
+    for short_id in index.all_short_dc_ids()? {
+        let subj = DcShorthand::Short(short_id);
+        if index.subject_script(subj) == Some(".EL Types") {
+            type_tokens.insert(short_id);
+        }
+    }
+    for ident in [
+        "TypeUnion",
+        "FilePathDelimiter",
+        "TypeIntersection",
+        "FormatParamApplication",
+        "EntityType",
+        "RelationshipType",
+        "Relationship",
+        "Entity",
+    ] {
+        type_tokens.insert(require_short(ident)?);
     }
 
-    let mut records: Vec<RoleRowData> = Vec::new();
-    let mut seen_idents = HashSet::new();
+    // 2. PrimitiveValueAtom: OptionalAbsent + Short Dc members of NamedConstruct("boolean").
+    let sh_syntax_rule = index.require_ident("SyntaxRule")?;
+    let sh_pat_alt = index.require_ident("PatternAlternation")?;
+    let sh_subpat = index.require_ident("SubpatternMatch")?;
+    let sh_begin_group = index.require_ident("BeginAssociativityGroup")?;
+    let sh_end_group = index.require_ident("EndAssociativityGroup")?;
 
-    let mut base64_digits: BTreeSet<u32> = BTreeSet::new();
-    let mut base64_start_opt: Option<u32> = None;
-    let mut base64_end_opt: Option<u32> = None;
-    let mut base64_padding_opt: Option<u32> = None;
-    let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
     let mut primitive_atoms: BTreeSet<u32> = BTreeSet::new();
-    let mut domain_atoms: BTreeSet<u32> = BTreeSet::new();
+    primitive_atoms.insert(require_short("OptionalAbsent")?);
+    if let Some(bool_seed_id) = index.seed_node_id(
+        &BuildSeedEntity::NamedConstruct("boolean".to_string()),
+    ) {
+        if let Some(DcShorthand::Long(rule_node_id)) = index.single_property(
+            DcShorthand::Long(bool_seed_id),
+            sh_syntax_rule,
+        ) {
+            if let Some(tokens) = index.node_tokens(rule_node_id) {
+                for &tok in tokens {
+                    if tok != sh_pat_alt
+                        && tok != sh_begin_group
+                        && tok != sh_end_group
+                    {
+                        if let DcShorthand::Short(sid) = tok {
+                            primitive_atoms.insert(sid);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. DomainValueAtom: PrimitiveValueAtom + FilePathDelimiter + `.Semantic` Short Dcs
+    // that have no SyntaxRule and no IsClosingDelimiterFor of their own and represent
+    // stream kinds or Finder label values.
+    let mut domain_atoms: BTreeSet<u32> = primitive_atoms.clone();
+    domain_atoms.insert(require_short("FilePathDelimiter")?);
+
+    let sh_name = index.require_ident("CanonicalName")?;
+    let sh_closes = index.framing().is_closing_delimiter_for;
+    for short_id in index.all_short_dc_ids()? {
+        let subj = DcShorthand::Short(short_id);
+        if index.subject_script(subj) == Some(".Semantic") {
+            let has_rule =
+                index.single_property(subj, sh_syntax_rule).is_some();
+            let has_closes =
+                !index.direct_objects(sh_closes, subj).is_empty();
+            if !has_rule && !has_closes {
+                if let Some(name) = index.single_property_string(subj, sh_name)
+                {
+                    if name.starts_with("Stream kind:")
+                        || name.starts_with("Mac OS Finder label")
+                    {
+                        domain_atoms.insert(short_id);
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. EvaluableExpressionStarter: all Short Dcs in `.EL Routines`, plus Short Dc
+    // subpattern targets (`605 <sid>`) in NamedConstruct("value"), plus
+    // EquivalentRepresentations and PartiallyEquivalentRepresentations.
     let mut evaluable_starters: BTreeSet<u32> = BTreeSet::new();
-    let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
-
-    for row in read_dc_category_rows(categories_dir)? {
-        let short_id = row.short_id;
-        let ident_opt = extract_ident_annotation(&row.aliases);
-
-        if row.script == ".EL Routines" {
+    for short_id in index.all_short_dc_ids()? {
+        let subj = DcShorthand::Short(short_id);
+        if index.subject_script(subj) == Some(".EL Routines") {
             evaluable_starters.insert(short_id);
         }
-
-        if row.aliases.contains("@roleDef()") {
-            if let Some(ref ident) = ident_opt {
-                if seen_idents.insert(ident.clone()) {
-                    records.push(RoleRowData {
-                        short_id,
-                        ident: ident.clone(),
-                        name: row.name,
-                        description: row.description,
-                    });
+    }
+    if let Some(val_seed_id) = index.seed_node_id(
+        &BuildSeedEntity::NamedConstruct("value".to_string()),
+    ) {
+        if let Some(DcShorthand::Long(rule_node_id)) = index.single_property(
+            DcShorthand::Long(val_seed_id),
+            sh_syntax_rule,
+        ) {
+            if let Some(tokens) = index.node_tokens(rule_node_id) {
+                for window in tokens.windows(2) {
+                    if let &[op, DcShorthand::Short(sid)] = window {
+                        if op == sh_subpat {
+                            evaluable_starters.insert(sid);
+                        }
+                    }
                 }
             }
         }
+    }
+    for ident in [
+        "EquivalentRepresentations",
+        "PartiallyEquivalentRepresentations",
+    ] {
+        evaluable_starters.insert(require_short(ident)?);
+    }
 
-        match ident_opt.as_deref() {
-            Some("Base64Start") => base64_start_opt = Some(short_id),
-            Some("Base64End") => base64_end_opt = Some(short_id),
-            Some("Base64Padding") => base64_padding_opt = Some(short_id),
-            _ => {}
-        }
+    // 5. StructuralSeparator: ListElementSeparator + `.Punctuation` Short Dcs that have
+    // a CanonicalDecomposition and GeneralCategory `Zl`/`Zp` or BidiClass `B`.
+    let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
+    structural_seps.insert(require_short("ListElementSeparator")?);
+    let sh_canon_decomp = index.require_ident("CanonicalDecomposition")?;
+    let sh_bidi_prop = index.require_ident("BidirectionalClass")?;
+    let bidi_b_seed =
+        index.seed_node_id(&BuildSeedEntity::BidiClass("B".to_string()));
 
-        for role_name in extract_composite_role_defs(&row.aliases) {
-            match role_name.as_str() {
-                "Base64Digit" => {
-                    base64_digits.insert(short_id);
-                }
-                "TypeToken" => {
-                    type_tokens.insert(short_id);
-                }
-                "PrimitiveValueAtom" => {
-                    primitive_atoms.insert(short_id);
-                }
-                "DomainValueAtom" => {
-                    domain_atoms.insert(short_id);
-                }
-                "EvaluableExpressionStarter" => {
-                    evaluable_starters.insert(short_id);
-                }
-                "StructuralSeparator" => {
-                    structural_seps.insert(short_id);
-                }
-                _ => {}
+    for short_id in index.all_short_dc_ids()? {
+        let subj = DcShorthand::Short(short_id);
+        if index.subject_script(subj) == Some(".Punctuation")
+            && !index.property_entries(subj, sh_canon_decomp).is_empty()
+        {
+            let gc_is_line_or_para = matches!(
+                index.subject_general_category(subj),
+                Some("Zl" | "Zp")
+            );
+            let bidi_is_b = bidi_b_seed.is_some_and(|b_id| {
+                index.single_property(subj, sh_bidi_prop)
+                    == Some(DcShorthand::Long(b_id))
+            });
+            if gc_is_line_or_para || bidi_is_b {
+                structural_seps.insert(short_id);
             }
         }
     }
-
-    if let (Some(start), Some(end)) = (base64_start_opt, base64_end_opt) {
-        for id in start..=end {
-            base64_digits.insert(id);
-        }
-    }
-
-    records.sort_by_key(|r| r.short_id);
 
     let base64_digits_pat = format_short_id_pattern(&base64_digits);
     let type_tokens_pat = format_short_id_pattern(&type_tokens);
     let primitive_atoms_pat = format_short_id_pattern(&primitive_atoms);
     let domain_atoms_pat = format_short_id_pattern(&domain_atoms);
-    let evaluable_starters_pat = format_short_id_pattern(&evaluable_starters);
+    let evaluable_starters_pat =
+        format_short_id_pattern(&evaluable_starters);
     let structural_seps_pat = format_short_id_pattern(&structural_seps);
-
-    let base64_min = base64_digits.first().copied().unwrap_or(127);
-    let base64_max = base64_digits.last().copied().unwrap_or(190);
-    let base64_padding = base64_padding_opt.unwrap_or(195);
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
     out.push_str("\n\n");
-    out.push_str("//! Document Character (Dc) syntactic and semantic role classifications.\n");
+    out.push_str(
+        "//! Document Character (Dc) syntactic and semantic role classifications.\n",
+    );
     out.push_str("//!\n");
-    out.push_str("//! @generated by ctb-build-support::dc_codegen from category data tables.\n");
+    out.push_str(
+        "//! @generated by ctb-build-support::dc_codegen from category data tables.\n",
+    );
     out.push_str("//! Do not edit by hand.\n\n");
-    out.push_str("#[allow(\n");
-    out.push_str("    unused_imports,\n");
-    out.push_str("    clippy::wildcard_imports,\n");
-    out.push_str("    reason = \"Standard workspace module prelude\"\n");
-    out.push_str(")]\n");
-    out.push_str("use crate::utilities::*;\n\n");
-    out.push_str("use ctb_utilities::dc_char::{FORMAT_REGION_END, FORMAT_REGION_START};\n");
+    out.push_str(
+        "#[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\n",
+    );
+    out.push_str(
+        "use ctb_utilities::dc_char::{FORMAT_REGION_END, FORMAT_REGION_START};\n",
+    );
     out.push_str("use serde::{Deserialize, Serialize};\n\n");
-    out.push_str("/// Classification of syntactic framing and semantic roles for Document\n");
+
+    out.push_str(
+        "/// Classification of syntactic framing and semantic roles for Document\n",
+    );
     out.push_str("/// Characters.\n");
-    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n");
+    out.push_str(
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n",
+    );
     out.push_str("pub enum DcRole {\n");
 
-    for r in &records {
-        let doc = if !r.description.is_empty() {
-            &r.description
+    for rec in &records {
+        let doc = if !rec.description.is_empty() {
+            &rec.description
         } else {
-            &r.name
+            &rec.name
         };
+        let doc_clean = doc.replace('\n', " ").replace('\r', "");
         out.push_str(&format!(
             "    /// {} (`{}`).\n    {},\n",
-            doc.replace('\n', " "),
-            r.short_id,
-            r.ident
+            doc_clean, rec.short_id, rec.ident
         ));
     }
 
     out.push_str(
-        "    // Composite semantic roles\n\
-    /// Integer format indicator (`FormatId::Integer` `f199`).\n\
+        "    /// Format indicator for an integer in a number header (`FormatId::Integer`).\n\
     IntegerFormatIndicator,\n\
-    /// Base64 encapsulation digit (`127..=190`).\n\
+    /// Base64 encapsulation digit character (0..=63).\n\
     Base64Digit,\n\
-    /// General type token (script `.EL Types` or `.Formats`).\n\
+    /// Built-in type token, format token, or type operator.\n\
     TypeToken,\n\
-    /// Primitive value atom (absent optional or boolean literal).\n\
+    /// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).\n\
     PrimitiveValueAtom,\n\
-    /// Domain-specific value atom.\n\
+    /// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).\n\
     DomainValueAtom,\n\
-    /// Starter token for an evaluable Dc expression.\n\
+    /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).\n\
     EvaluableExpressionStarter,\n\
-    /// Structural separator (list element separator or whitespace delimiter).\n\
+    /// Structural separator (newlines, paragraph separators, list element separators).\n\
     StructuralSeparator,\n\
-}\n\n",
+}\n\n"
     );
 
     out.push_str("impl DcRole {\n");
-
     out.push_str(
         "    /// Returns the defining short Dc ID for this role, if uniquely defined by a single Document Character.\n\
-        #[must_use]\n\
-        pub fn defining_short(self) -> Option<u32> {\n\
-            match self {\n",
+#[must_use]\n\
+pub fn defining_short(self) -> Option<u32> {\n\
+match self {\n"
     );
-    for r in &records {
+    for rec in &records {
         out.push_str(&format!(
             "            Self::{} => Some({}),\n",
-            r.ident, r.short_id
+            rec.ident, rec.short_id
         ));
     }
     out.push_str(
         "            _ => None,\n\
-            }\n\
-        }\n\n",
+}\n\
+}\n\n\
+    /// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.\n\
+#[must_use]\n\
+pub fn defining_dc(self) -> Option<DcChar> {\n\
+self.defining_short().map(DcChar::from_short)\n\
+}\n\n\
+    /// Returns true if the given canonical token (in global graph `u128` layout)\n\
+/// directly matches this role.\n\
+#[must_use]\n\
+pub fn matches_canonical(self, token: u128) -> bool {\n\
+let short = DcChar::from_u128(token).to_short().ok();\n\
+match self {\n"
     );
-
-    out.push_str(
-        "    /// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.\n\
-        #[must_use]\n\
-        pub fn defining_dc(self) -> Option<DcChar> {\n\
-            self.defining_short().map(DcChar::from_short)\n\
-        }\n\n",
-    );
-
-    out.push_str(
-        "    /// Returns true if the given canonical token (in global graph `u128` layout)\n\
-        /// directly matches this role.\n\
-        #[must_use]\n\
-        pub fn matches_canonical(self, token: u128) -> bool {\n\
-            let short = DcChar::from_u128(token).to_short().ok();\n\
-            match self {\n",
-    );
-    for r in &records {
+    for rec in &records {
         out.push_str(&format!(
             "            Self::{} => short == Some({}),\n",
-            r.ident, r.short_id
+            rec.ident, rec.short_id
         ));
     }
     out.push_str(&format!(
         "            Self::IntegerFormatIndicator => {{\n\
-                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
-                    && ctb_utilities::format_id::FormatId::from_dc_id(token)\n\
-                        == Some(ctb_utilities::format_id::FormatId::Integer)\n\
-            }}\n\
-            Self::Base64Digit => matches!(short, Some({base64_digits_pat})),\n\
-            Self::TypeToken => {{\n\
-                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
-                    || matches!(short, Some({type_tokens_pat}))\n\
-            }}\n\
-            Self::PrimitiveValueAtom => matches!(short, Some({primitive_atoms_pat})),\n\
-            Self::DomainValueAtom => matches!(short, Some({domain_atoms_pat})),\n\
-            Self::EvaluableExpressionStarter => {{\n\
-                matches!(short, Some({evaluable_starters_pat}))\n\
-            }}\n\
-            Self::StructuralSeparator => {{\n\
-                matches!(short, Some({structural_seps_pat}))\n\
-            }}\n\
-        }}\n\
-    }}\n\n"
-    ));
-
-    out.push_str(&format!(
-        "    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel\n\
-        /// (`64`) if `token` represents a Base64 encapsulation character.\n\
-        #[must_use]\n\
-        pub fn base64_digit_value(token: u128) -> Option<u8> {{\n\
-            let short = DcChar::from_u128(token).to_short().ok()?;\n\
-            if short == {base64_padding} {{\n\
-                Some(64)\n\
-            }} else if ({base64_min}..={base64_max}).contains(&short) {{\n\
-                u8::try_from(short.saturating_sub({base64_min})).ok()\n\
-            }} else {{\n\
-                None\n\
-            }}\n\
-        }}\n\
+(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
+&& ctb_utilities::format_id::FormatId::from_dc_id(token)\n\
+== Some(ctb_utilities::format_id::FormatId::Integer)\n\
+}}\n\
+Self::Base64Digit => matches!(short, Some({base64_digits_pat})),\n\
+Self::TypeToken => {{\n\
+(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
+|| matches!(short, Some({type_tokens_pat}))\n\
+}}\n\
+Self::PrimitiveValueAtom => matches!(short, Some({primitive_atoms_pat})),\n\
+Self::DomainValueAtom => matches!(short, Some({domain_atoms_pat})),\n\
+Self::EvaluableExpressionStarter => {{\n\
+matches!(short, Some({evaluable_starters_pat}))\n\
+}}\n\
+Self::StructuralSeparator => {{\n\
+matches!(short, Some({structural_seps_pat}))\n\
+}}\n\
+}}\n\
+}}\n\n\
+    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel\n\
+/// (`64`) if `token` represents a Base64 encapsulation character.\n\
+#[must_use]\n\
+pub fn base64_digit_value(token: u128) -> Option<u8> {{\n\
+let short = DcChar::from_u128(token).to_short().ok()?;\n\
+if short == {base64_padding} {{\n\
+Some(64)\n\
+}} else if ({base64_start}..={base64_end}).contains(&short) {{\n\
+u8::try_from(short.saturating_sub({base64_start})).ok()\n\
+}} else {{\n\
+None\n\
+}}\n\
+}}\n\
 }}\n"
     ));
 
     Ok(out)
 }
 
-/// Generates or updates `src/formats/dcdata/syntax/role.generated.rs` if contents changed.
+/// Generates the contents of `src/formats/dcdata/syntax/role.generated.rs` from the system graph in `graph_dir`.
 ///
 /// # Errors
-/// Returns an error if directory resolution, generation, or writing fails.
-pub fn generate_role_file(base_dir: &Path) -> Result<bool> {
-    let repo_root = find_repository_root_from(base_dir)?;
-    let categories_dir = repo_root
-        .join("src")
-        .join("formats")
-        .join("dcdata")
-        .join("data")
-        .join("categories");
-    ensure!(
-        categories_dir.is_dir(),
-        "Could not locate categories directory at {}",
-        categories_dir.display()
-    );
+/// Returns an error if `graph_dir` cannot be read or contains invalid data.
+pub fn generate_role_code(graph_dir: &Path) -> Result<String> {
+    let index = BuildGraphIndex::from_graph_dir(graph_dir)?;
+    generate_role_code_from_index(&index)
+}
 
-    let target_file = repo_root
+/// Generates `src/formats/dcdata/syntax/role.generated.rs` if its contents have changed.
+///
+/// # Errors
+/// Returns an error if reading the system graph or writing the generated file fails.
+pub fn generate_role_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = crate::find_repository_root_from(base_dir)?;
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let out_file = repo_root
         .join("src")
         .join("formats")
         .join("dcdata")
         .join("syntax")
         .join("role.generated.rs");
 
-    let code = generate_role_code(&categories_dir)?;
-    write_if_changed(&target_file, &code)
-}
+    ensure!(
+        graph_dir.is_dir(),
+        "Could not locate system graph directory at {}",
+        graph_dir.display()
+    );
 
-/// Resolves the framing and relationship Document Characters for `.ctbnbdl` (`CtbNodeBundle`)
-/// encoding, decoding, and active/inactive node partitioning from the `@ident(...)`
-/// annotations in `categories_dir`.
-///
-/// # Errors
-/// Returns an error if `categories_dir` cannot be read or any of the required `@ident(...)`
-/// definitions is missing.
-pub fn resolve_ctbnbdl_framing_dcs(
-    categories_dir: &Path,
-) -> Result<crate::ctbnbdl::CtbnbdlFramingDcs> {
-    let mut begin_node = None;
-    let mut end_node = None;
-    let mut escape = None;
-    let mut evaluate_as_atom = None;
-    let mut has_a = None;
-    let mut has_value = None;
-    let mut preferred = None;
-    let mut supersedes = None;
-    let mut retracts = None;
-    let mut enclosing_document = None;
-    let mut is_instance_of = None;
-    let mut is_subtype_of = None;
-    let mut is_based_on = None;
-    let mut is_deprecated = None;
-    let mut is_closing_delimiter_for = None;
-    let mut is_associated_with = None;
+    let code = generate_role_code(&graph_dir)?;
 
-    for row in read_dc_category_rows(categories_dir)? {
-        let Some(ident) = extract_ident_annotation(&row.aliases) else {
-            continue;
-        };
-        let sh = crate::shorthand::DcShorthand::Short(row.short_id);
-        match ident.as_str() {
-            "BeginGraphNodeDefinition" => begin_node = Some(sh),
-            "EndGraphNodeDefinition" => end_node = Some(sh),
-            "Escape" => escape = Some(sh),
-            "EvaluateValueAsAtom" => evaluate_as_atom = Some(sh),
-            "HasA" => has_a = Some(sh),
-            "HasValue" => has_value = Some(sh),
-            "Preferred" => preferred = Some(sh),
-            "Supersedes" => supersedes = Some(sh),
-            "Retracts" => retracts = Some(sh),
-            "EnclosingDocument" => enclosing_document = Some(sh),
-            "IsInstanceOf" => is_instance_of = Some(sh),
-            "IsSubtypeOf" => is_subtype_of = Some(sh),
-            "IsBasedOn" => is_based_on = Some(sh),
-            "IsDeprecated" => is_deprecated = Some(sh),
-            "IsClosingDelimiterFor" => is_closing_delimiter_for = Some(sh),
-            "IsAssociatedWith" => is_associated_with = Some(sh),
-            _ => {}
+    if let Ok(existing) = fs::read_to_string(&out_file) {
+        if existing == code {
+            return Ok(false);
         }
     }
 
-    Ok(crate::ctbnbdl::CtbnbdlFramingDcs {
-        begin_node: begin_node.context(
-            "Missing @ident(\"BeginGraphNodeDefinition\") in Dc category tables",
-        )?,
-        end_node: end_node.context(
-            "Missing @ident(\"EndGraphNodeDefinition\") in Dc category tables",
-        )?,
-        escape: escape
-            .context("Missing @ident(\"Escape\") in Dc category tables")?,
-        evaluate_as_atom: evaluate_as_atom.context(
-            "Missing @ident(\"EvaluateValueAsAtom\") in Dc category tables",
-        )?,
-        has_a: has_a
-            .context("Missing @ident(\"HasA\") in Dc category tables")?,
-        has_value: has_value
-            .context("Missing @ident(\"HasValue\") in Dc category tables")?,
-        preferred: preferred
-            .context("Missing @ident(\"Preferred\") in Dc category tables")?,
-        supersedes: supersedes
-            .context("Missing @ident(\"Supersedes\") in Dc category tables")?,
-        retracts: retracts
-            .context("Missing @ident(\"Retracts\") in Dc category tables")?,
-        enclosing_document: enclosing_document.context(
-            "Missing @ident(\"EnclosingDocument\") in Dc category tables",
-        )?,
-        is_instance_of: is_instance_of.context(
-            "Missing @ident(\"IsInstanceOf\") in Dc category tables",
-        )?,
-        is_subtype_of: is_subtype_of
-            .context("Missing @ident(\"IsSubtypeOf\") in Dc category tables")?,
-        is_based_on: is_based_on
-            .context("Missing @ident(\"IsBasedOn\") in Dc category tables")?,
-        is_deprecated: is_deprecated.context(
-            "Missing @ident(\"IsDeprecated\") in Dc category tables",
-        )?,
-        is_closing_delimiter_for: is_closing_delimiter_for.context(
-            "Missing @ident(\"IsClosingDelimiterFor\") in Dc category tables",
-        )?,
-        is_associated_with: is_associated_with.context(
-            "Missing @ident(\"IsAssociatedWith\") in Dc category tables",
-        )?,
-    })
+    fs::write(&out_file, code).with_context(|| {
+        format!("Failed to write {}", out_file.display())
+    })?;
+    Ok(true)
+}
+
+/// Resolves all 16 [`CtbnbdlFramingDcs`] short IDs from the `.ctbnodes` system graph in `graph_dir`.
+///
+/// # Errors
+/// Returns an error if `graph_dir` cannot be read or any required framing Dc is missing.
+pub fn resolve_ctbnbdl_framing_dcs(
+    graph_dir: &Path,
+) -> Result<CtbnbdlFramingDcs> {
+    resolve_ctbnbdl_framing_dcs_from_graph_dir(graph_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_screaming_snake_case() {
+        assert_eq!(to_screaming_snake_case("BeginNumber"), "BEGIN_NUMBER");
+        assert_eq!(
+            to_screaming_snake_case("StartEncapsulationUtf8"),
+            "START_ENCAPSULATION_UTF8"
+        );
+        assert_eq!(to_screaming_snake_case("LangSay"), "LANG_SAY");
+        assert_eq!(to_screaming_snake_case("LongDc"), "LONG_DC");
+        assert_eq!(to_screaming_snake_case("ALREADY_UPPER"), "ALREADY_UPPER");
+    }
+
+    #[test]
+    fn test_generate_dc_code_succeeds() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = crate::find_repository_root_from(manifest).unwrap();
+        let graph_dir = repo_root.join("assets").join("data").join("graph");
+
+        let code = generate_dc_code(&graph_dir).unwrap();
+        assert!(
+            code.contains("pub const DC_RANGE: DcChar = DcChar::from_short(4);")
+        );
+        assert!(
+            code.contains("pub const DC_LONG_DC: DcChar = DcChar::from_short(308);")
+        );
+        assert!(code.contains("pub fn short_to_long_dc("));
+        assert!(code.contains("pub fn long_to_short_dc("));
+    }
+
+    #[test]
+    fn test_generate_role_code_succeeds() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = crate::find_repository_root_from(manifest).unwrap();
+        let graph_dir = repo_root.join("assets").join("data").join("graph");
+
+        let code = generate_role_code(&graph_dir).unwrap();
+        assert!(code.contains("pub enum DcRole {"));
+        assert!(code.contains("BeginNumber,"));
+        assert!(code.contains("BeginLiteral,"));
+        assert!(code.contains("TypeToken,"));
+        assert!(code.contains("EvaluableExpressionStarter,"));
+        assert!(
+            code.contains("pub fn matches_canonical(self, token: u128) -> bool")
+        );
+        assert!(
+            code.contains("pub fn base64_digit_value(token: u128) -> Option<u8>")
+        );
+    }
+
+    #[test]
+    fn test_resolve_ctbnbdl_framing_dcs_succeeds() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = crate::find_repository_root_from(manifest).unwrap();
+        let graph_dir = repo_root.join("assets").join("data").join("graph");
+
+        let framing = resolve_ctbnbdl_framing_dcs(&graph_dir).unwrap();
+        assert_eq!(framing.begin_node, DcShorthand::Short(617));
+        assert_eq!(framing.end_node, DcShorthand::Short(618));
+        assert_eq!(framing.escape, DcShorthand::Short(255));
+        assert_eq!(framing.evaluate_as_atom, DcShorthand::Short(616));
+        assert_eq!(framing.has_a, DcShorthand::Short(584));
+        assert_eq!(framing.has_value, DcShorthand::Short(610));
+        assert_eq!(framing.preferred, DcShorthand::Short(570));
+        assert_eq!(framing.supersedes, DcShorthand::Short(591));
+        assert_eq!(framing.retracts, DcShorthand::Short(592));
+        assert_eq!(framing.enclosing_document, DcShorthand::Short(615));
+        assert_eq!(framing.is_instance_of, DcShorthand::Short(586));
+        assert_eq!(framing.is_subtype_of, DcShorthand::Short(587));
+        assert_eq!(framing.is_based_on, DcShorthand::Short(588));
+        assert_eq!(framing.is_deprecated, DcShorthand::Short(589));
+        assert_eq!(framing.is_closing_delimiter_for, DcShorthand::Short(590));
+        assert_eq!(framing.is_associated_with, DcShorthand::Short(598));
+    }
 }

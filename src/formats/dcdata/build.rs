@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Build script generating `dc.generated.rs` and `syntax/role.generated.rs`
-//! from the authoritative Dc CSV dataset in `data/`.
+//! from the authoritative system graph in `assets/data/graph/`.
 
 #[allow(
     unused_imports,
@@ -28,12 +28,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 fn main() -> Result<()> {
-    println!("cargo:rerun-if-changed=data/categories");
-    println!("cargo:rerun-if-changed=data/magic/ctoolbox.magic");
-    println!("cargo:rerun-if-changed=data/formats.generated.csv");
-    println!("cargo:rerun-if-changed=data/README-named-types.csv");
-    println!("cargo:rerun-if-changed=data/README-decompositions.csv");
-    println!("cargo:rerun-if-changed=data/README.scripts.csv");
+    println!("cargo:rerun-if-changed=../../../assets/data/graph");
+    println!("cargo:rerun-if-changed=dc.generated.rs");
     println!("cargo:rerun-if-changed=syntax/role.generated.rs");
 
     let repo_root = ctb_build_support::find_repository_root()?;

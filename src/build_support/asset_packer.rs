@@ -807,12 +807,10 @@ fn prepare_runtime_assets(
     // remove refrence implementations
     fs::remove_dir_all(runtime_assets.join("docs/reference-implementations"))?;
     copy_license_files(project_root, &runtime_assets.join("docs"))?;
-    let categories_dir =
-        project_root.join("src/formats/dcdata/data/categories");
-    let framing_dcs =
-        crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&categories_dir)
-            .context("Failed to resolve .ctbnbdl framing Dcs from category tables")?;
     let input_graph_dir = project_root.join("assets/data/graph");
+    let framing_dcs =
+        crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&input_graph_dir)
+            .context("Failed to resolve .ctbnbdl framing Dcs from system graph")?;
     crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
         &input_graph_dir,
         &input_graph_dir,

@@ -39,7 +39,7 @@ fn main() -> Result<()> {
         &manifest_dir,
     )?;
 
-    println!("cargo:rerun-if-changed=../formats/dcdata/data/categories");
+    println!("cargo:rerun-if-changed=../../assets/data/graph");
     println!("cargo:rerun-if-changed=../formats/dcdata/syntax/role.generated.rs");
     println!("cargo:rerun-if-changed=../formats/dcdata/dc.generated.rs");
     ctb_build_support::format_id_codegen::generate_format_id_file(

@@ -1157,10 +1157,6 @@ mod tests {
         let test_file = cat_dir.join("test.csv");
         write_csv_file(&test_file, &header, &rows).unwrap();
 
-        // Verify that before on-disk assignment, in-memory codegen already assigns 21
-        let dc_code_before = generate_dc_code(&cat_dir).unwrap();
-        assert!(!dc_code_before.contains("DC_NEW_ITEM"));
-
         let stats = assign_and_update_dc_categories(temp_dir.path()).unwrap();
         assert_eq!(stats.new_ids_assigned, 1);
         assert_eq!(stats.max_short_id, 21);
@@ -1173,140 +1169,30 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_codegen_assigns_unassigned_dc_and_format_ids_in_memory() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let cat_dir =
-            temp_dir.path().join("src/formats/dcdata/data/categories");
-        let fmt_dir = cat_dir.join("formats");
-        fs::create_dir_all(&fmt_dir).unwrap();
+    fn test_codegen_from_system_graph() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = find_repository_root_from(manifest).unwrap();
+        let graph_dir = repo_root.join("assets/data/graph");
 
-        let dc_header = vec![
-            "Dc".to_string(),
-            "Short".to_string(),
-            "Name (!=deprecated)".to_string(),
-            "◌".to_string(),
-            "⇆".to_string(),
-            "Aa".to_string(),
-            "Type".to_string(),
-            "Script".to_string(),
-            "Aliases".to_string(),
-            "Description".to_string(),
-        ];
-        let dc_rows = vec![
-            vec![
-                "1114112".to_string(),
-                "0".to_string(),
-                "Null".to_string(),
-                "0".to_string(),
-                "BN".to_string(),
-                String::new(),
-                "Cc".to_string(),
-                ".Semantic".to_string(),
-                "@ident(\"NullItem\")".to_string(),
-                "Null item.".to_string(),
-            ],
-            vec![
-                String::new(),
-                String::new(),
-                "Unassigned item".to_string(),
-                "0".to_string(),
-                "BN".to_string(),
-                String::new(),
-                "!Cx".to_string(),
-                ".Semantic".to_string(),
-                "@ident(\"UnassignedItem\"), @roleDef()".to_string(),
-                "Unassigned item.".to_string(),
-            ],
-        ];
-        write_csv_file(&cat_dir.join("semantic.csv"), &dc_header, &dc_rows)
-            .unwrap();
-
-        let dc_code = generate_dc_code(&cat_dir).unwrap();
+        let dc_code = generate_dc_code(&graph_dir).unwrap();
         assert!(
             dc_code.contains(
-                "pub const DC_UNASSIGNED_ITEM: DcChar = DcChar::from_short(1);"
+                "pub const DC_RANGE: DcChar = DcChar::from_short(4);"
             ),
-            "dc_code did not assign short ID 1 in memory:\n{dc_code}"
+            "dc_code did not contain DC_RANGE"
         );
         let role_code =
-            ctb_build_support::dc_codegen::generate_role_code(&cat_dir).unwrap();
+            ctb_build_support::dc_codegen::generate_role_code(&graph_dir)
+                .unwrap();
         assert!(
-            role_code.contains("UnassignedItem"),
-            "role_code did not include unassigned row role:\n{role_code}"
+            role_code.contains("BeginNumber,"),
+            "role_code did not contain BeginNumber"
         );
 
-        let fmt_header = vec![
-            "Dc".to_string(),
-            "Short".to_string(),
-            "FormatId (!=deprecated)".to_string(),
-            "Label (!=deprecated)".to_string(),
-            "Category".to_string(),
-            "Base / Related Format".to_string(),
-            "Extensions".to_string(),
-            "MIME".to_string(),
-            "Apple UTI".to_string(),
-            "Apple Type code".to_string(),
-            "Nicknames".to_string(),
-            "Import support".to_string(),
-            "Export support".to_string(),
-            "Tests".to_string(),
-            "Variant Types".to_string(),
-            "Comments".to_string(),
-            "References".to_string(),
-        ];
-        let fmt_rows = vec![
-            vec![
-                "2228224".to_string(),
-                "0".to_string(),
-                "ExistingFmt".to_string(),
-                "Existing format".to_string(),
-                "identifier".to_string(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-            ],
-            vec![
-                String::new(),
-                String::new(),
-                "NewUnassignedFmt".to_string(),
-                "New unassigned format".to_string(),
-                "identifier".to_string(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-            ],
-        ];
-        write_csv_file(&fmt_dir.join("identifier.csv"), &fmt_header, &fmt_rows)
-            .unwrap();
-
-        let fmt_code = generate_format_id_code(&fmt_dir).unwrap();
+        let fmt_code = generate_format_id_code(&graph_dir).unwrap();
         assert!(
-            fmt_code.contains(
-                "/// New unassigned format (Short 1, Category: identifier)\n    NewUnassignedFmt,"
-            ),
-            "fmt_code did not assign Short 1 in memory:\n{fmt_code}"
-        );
-        assert!(
-            fmt_code.contains("Self::NewUnassignedFmt => \"f1\","),
-            "fmt_code did not map NewUnassignedFmt to f1:\n{fmt_code}"
+            fmt_code.contains("Self::Utf8 => \"f0\","),
+            "fmt_code did not map Utf8 to f0"
         );
     }
 

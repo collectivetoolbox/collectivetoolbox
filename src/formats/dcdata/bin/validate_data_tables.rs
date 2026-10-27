@@ -111,79 +111,6 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_formats_dcdata::updater::generate_format_id_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated format_id.generated.rs from formats category tables.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating format_id.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
-    match ctb_build_support::dc_codegen::generate_dc_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated dcdata/dc.generated.rs from category tables with @ident annotations.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating dcdata/dc.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
-    match ctb_build_support::dc_codegen::generate_role_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated dcdata/syntax/role.generated.rs from category tables with @roleDef annotations.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating dcdata/syntax/role.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
-    match ctb_build_support::extension_codegen::generate_extension_data_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated extension_data.generated.rs from formats category tables.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating extension_data.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
-    match ctb_build_support::encoding_codegen::generate_encoding_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated encoding.generated.rs from formats category tables.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating encoding.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
-
-    match ctb_build_support::format_support_codegen::generate_format_support_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated format_support.generated.rs from formats category tables.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating format_support.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
-
     match ctb_formats_dcdata::graph_ledger::update_system_graph_ledger(&repo_root) {
         Ok(stats) => {
             if stats.nodes_appended > 0 || stats.files_written > 0 {
@@ -199,6 +126,78 @@ fn main() -> ExitCode {
         }
         Err(e) => {
             eprintln!("Error updating System graph ledger (assets/data/graph/system-*.ctbnodes): {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_formats_dcdata::updater::generate_format_id_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated format_id.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating format_id.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::dc_codegen::generate_dc_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated dcdata/dc.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating dcdata/dc.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::dc_codegen::generate_role_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated dcdata/syntax/role.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating dcdata/syntax/role.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::extension_codegen::generate_extension_data_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated extension_data.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating extension_data.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::encoding_codegen::generate_encoding_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated encoding.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating encoding.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::format_support_codegen::generate_format_support_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated format_support.generated.rs from system graph.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating format_support.generated.rs: {e}");
             return ExitCode::FAILURE;
         }
     }

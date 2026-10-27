@@ -200,14 +200,6 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::sensitive("C"),
     },
     ExtensionEntry {
-        format_id: FormatId::Freeze2,
-        rule: ExtensionRule::sensitive("F"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Freeze1,
-        rule: ExtensionRule::sensitive("F"),
-    },
-    ExtensionEntry {
         format_id: FormatId::Rzip,
         rule: ExtensionRule::insensitive("rz"),
     },
@@ -230,6 +222,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Lzma2,
         rule: ExtensionRule::insensitive("lzma2"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Freeze2,
+        rule: ExtensionRule::sensitive("F"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Freeze1,
+        rule: ExtensionRule::sensitive("F"),
     },
     ExtensionEntry {
         format_id: FormatId::Szip,
@@ -413,11 +413,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Pkcs7Mime,
-        rule: ExtensionRule::insensitive("spc"),
+        rule: ExtensionRule::insensitive("p7r"),
     },
     ExtensionEntry {
         format_id: FormatId::Pkcs7Mime,
-        rule: ExtensionRule::insensitive("p7r"),
+        rule: ExtensionRule::insensitive("spc"),
     },
     ExtensionEntry {
         format_id: FormatId::Pkcs12,
@@ -605,11 +605,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::AppleDouble,
-        rule: ExtensionRule::insensitive("ADF"),
+        rule: ExtensionRule::insensitive("rsrc"),
     },
     ExtensionEntry {
         format_id: FormatId::AppleDouble,
-        rule: ExtensionRule::insensitive("rsrc"),
+        rule: ExtensionRule::insensitive("ADF"),
     },
     ExtensionEntry {
         format_id: FormatId::CtbNode,
@@ -705,11 +705,23 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Elf,
+        rule: ExtensionRule::insensitive("AppImage"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Elf,
         rule: ExtensionRule::insensitive("bin"),
     },
     ExtensionEntry {
         format_id: FormatId::Elf,
         rule: ExtensionRule::insensitive("elf"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Elf,
+        rule: ExtensionRule::insensitive("ko"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Elf,
+        rule: ExtensionRule::insensitive("mod"),
     },
     ExtensionEntry {
         format_id: FormatId::Elf,
@@ -729,35 +741,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Elf,
-        rule: ExtensionRule::insensitive("ko"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Elf,
-        rule: ExtensionRule::insensitive("mod"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Elf,
         rule: ExtensionRule::insensitive("so"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Elf,
-        rule: ExtensionRule::insensitive("AppImage"),
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
         rule: ExtensionRule::insensitive("exe"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Pe,
-        rule: ExtensionRule::insensitive("com"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Pe,
-        rule: ExtensionRule::insensitive("dll"),
-    },
-    ExtensionEntry {
-        format_id: FormatId::Pe,
-        rule: ExtensionRule::insensitive("sys"),
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
@@ -769,7 +757,15 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
+        rule: ExtensionRule::insensitive("com"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Pe,
         rule: ExtensionRule::insensitive("cpl"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Pe,
+        rule: ExtensionRule::insensitive("dll"),
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
@@ -785,6 +781,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
+        rule: ExtensionRule::insensitive("msstyles"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Pe,
         rule: ExtensionRule::insensitive("mui"),
     },
     ExtensionEntry {
@@ -797,11 +797,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
-        rule: ExtensionRule::insensitive("tsp"),
+        rule: ExtensionRule::insensitive("sys"),
     },
     ExtensionEntry {
         format_id: FormatId::Pe,
-        rule: ExtensionRule::insensitive("msstyles"),
+        rule: ExtensionRule::insensitive("tsp"),
     },
     ExtensionEntry {
         format_id: FormatId::MachO,
@@ -825,11 +825,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Lnk,
-        rule: ExtensionRule::insensitive("url"),
+        rule: ExtensionRule::insensitive("cda"),
     },
     ExtensionEntry {
         format_id: FormatId::Lnk,
-        rule: ExtensionRule::insensitive("cda"),
+        rule: ExtensionRule::insensitive("url"),
     },
     ExtensionEntry {
         format_id: FormatId::Torrent,
@@ -853,11 +853,11 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Cpp,
-        rule: ExtensionRule::insensitive("cxx"),
+        rule: ExtensionRule::insensitive("cc"),
     },
     ExtensionEntry {
         format_id: FormatId::Cpp,
-        rule: ExtensionRule::insensitive("cc"),
+        rule: ExtensionRule::insensitive("cxx"),
     },
     ExtensionEntry {
         format_id: FormatId::Cpp,

@@ -17,221 +17,69 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Codegen for `FormatId` enum and `format_id.generated.rs` from format
-//! category CSV data tables.
+//! Build-time code generator for `src/utilities/format_id.generated.rs` from
+//! the system graph in `assets/data/graph/`.
 
+use crate::global_graph_layout::FORMAT_REGION_START;
+use crate::graph_index::BuildGraphIndex;
+use crate::license_consts::DEFAULT_AGPL_HEADER;
+use crate::shorthand::DcShorthand;
 use anyhow::{Context, Result, bail, ensure};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use crate::license_consts::DEFAULT_AGPL_HEADER;
-use crate::{find_repository_root_from, is_unassigned_id};
-
-pub const FORMAT_REGION_START: u128 = 2_228_224;
-pub const MAX_FORMAT_ID: usize = 1_114_111;
-
-/// Parses a format shorthand string (e.g. `"f405"` or `"405"`) into its integer ID.
-///
-/// # Errors
-/// Returns an error if the shorthand is invalid or exceeds `MAX_FORMAT_ID`.
-pub fn parse_format_shorthand(s: &str) -> Result<usize> {
-    let trimmed = s.trim();
-    if let Some(rest) = trimmed.strip_prefix('f') {
-        ensure!(
-            !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()),
-            "Invalid format ID '{trimmed}': prefix 'f' must be followed by decimal digits"
-        );
-        let id = rest
-            .parse::<usize>()
-            .map_err(|e| anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}"))?;
-        ensure!(
-            id <= MAX_FORMAT_ID,
-            "Format ID {id} exceeds maximum {MAX_FORMAT_ID}"
-        );
-        Ok(id)
-    } else if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_ascii_digit()) {
-        let id = trimmed
-            .parse::<usize>()
-            .map_err(|e| anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}"))?;
-        ensure!(
-            id <= MAX_FORMAT_ID,
-            "Format ID {id} exceeds maximum {MAX_FORMAT_ID}"
-        );
-        Ok(id)
-    } else {
-        bail!("Invalid format shorthand '{s}'");
-    }
+#[derive(Debug, Clone)]
+struct FormatRecord {
+    dc_id: u128,
+    short_id: u32,
+    ident: String,
+    label: String,
+    category: String,
+    nicknames: Vec<String>,
+    title: Option<String>,
+    implies_shorts: Vec<u32>,
 }
 
-/// Splits a comma-separated string while respecting parentheses, brackets, and quotes.
-#[must_use]
-pub fn split_comma_separated_items(raw: &str) -> Vec<String> {
-    let mut items = Vec::new();
-    let mut depth_paren = 0usize;
-    let mut depth_bracket = 0usize;
-    let mut in_quotes = false;
-    let mut is_escaped = false;
-    let mut current = String::new();
-
-    for ch in raw.chars() {
-        if is_escaped {
-            is_escaped = false;
-            current.push(ch);
-            continue;
-        }
-        if ch == '\\' {
-            is_escaped = true;
-            current.push(ch);
-            continue;
-        }
-        if ch == '"' {
-            in_quotes = !in_quotes;
-            current.push(ch);
-            continue;
-        }
-        if in_quotes {
-            current.push(ch);
-            continue;
-        }
-
-        match ch {
-            '(' => {
-                depth_paren = depth_paren.saturating_add(1);
-                current.push(ch);
-            }
-            ')' => {
-                depth_paren = depth_paren.saturating_sub(1);
-                current.push(ch);
-            }
-            '[' => {
-                depth_bracket = depth_bracket.saturating_add(1);
-                current.push(ch);
-            }
-            ']' => {
-                depth_bracket = depth_bracket.saturating_sub(1);
-                current.push(ch);
-            }
-            ',' if depth_paren == 0 && depth_bracket == 0 => {
-                let trimmed = current.trim();
-                if !trimmed.is_empty() {
-                    items.push(trimmed.to_string());
-                }
-                current.clear();
-            }
-            _ => {
-                current.push(ch);
-            }
-        }
+/// Validates that an identifier is a valid non-empty Rust identifier.
+fn is_valid_rust_ident(ident: &str) -> bool {
+    if ident.is_empty() {
+        return false;
     }
-    let trimmed = current.trim();
-    if !trimmed.is_empty() {
-        items.push(trimmed.to_string());
+    let mut chars = ident.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return false;
     }
-    items
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// Unescapes a double-quoted string payload inside a directive.
-fn unescape_quoted_directive_payload(raw: &str) -> Option<String> {
-    let trimmed = raw.trim();
-    let content = trimmed.strip_prefix('"')?.strip_suffix('"')?;
-    let mut res = String::with_capacity(content.len());
-    let mut chars = content.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            if let Some(&next_c) = chars.peek() {
-                if next_c == '"' || next_c == '\\' {
-                    res.push(next_c);
-                    let _ = chars.next();
-                    continue;
-                }
-            }
-            res.push('\\');
+/// Converts a format category name (such as `base_alphabet` or `v:lineEndings`) into a
+/// `PascalCase` Rust enum variant name for `FormatCategory`.
+fn category_to_variant(category: &str) -> String {
+    let base = category
+        .strip_prefix("v.")
+        .or_else(|| category.strip_prefix("v:"))
+        .unwrap_or(category);
+    let mut out = String::new();
+    let mut capitalize_next = true;
+    for ch in base.chars() {
+        if ch == '_' || ch == '-' || ch == '.' || ch == ':' {
+            capitalize_next = true;
+        } else if capitalize_next {
+            out.extend(ch.to_uppercase());
+            capitalize_next = false;
         } else {
-            res.push(c);
+            out.push(ch);
         }
     }
-    Some(res)
-}
-
-/// Extracts title and directly implied format IDs from a raw Base / Related column cell.
-fn extract_title_and_implies(raw_base: &str) -> (Option<String>, Vec<usize>) {
-    if raw_base.is_empty() {
-        return (None, Vec::new());
+    if out.is_empty() {
+        "Other".to_string()
+    } else {
+        out
     }
-    let items = split_comma_separated_items(raw_base);
-    let mut title = None;
-    let mut shorts = Vec::new();
-
-    for item in items {
-        let item_trimmed = item.trim();
-        if let Some(inner) = item_trimmed.strip_prefix("@title(") {
-            if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
-                    if !unescaped.trim().is_empty() && title.is_none() {
-                        title = Some(unescaped);
-                    }
-                }
-            }
-        } else if let Some(inner) = item_trimmed.strip_prefix("@implies(") {
-            if let Some(stripped) = inner.strip_suffix(')') {
-                for conj in stripped.split('&') {
-                    let trimmed = conj.trim().trim_start_matches('(').trim_end_matches(')');
-                    if !trimmed.contains('|') {
-                        if let Some(num_str) = trimmed.strip_prefix('f') {
-                            if let Ok(id) = num_str.parse::<usize>() {
-                                if !shorts.contains(&id) {
-                                    shorts.push(id);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    (title, shorts)
-}
-
-/// Reads a CSV file returning all parsed rows.
-///
-/// # Errors
-/// Returns an error if reading or CSV parsing fails.
-pub fn read_csv_rows(path: &Path) -> Result<Vec<Vec<String>>> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read CSV at {}", path.display()))?;
-
-    let mut rdr = csv::ReaderBuilder::new()
-        .has_headers(false)
-        .flexible(true)
-        .from_reader(content.as_bytes());
-
-    let mut rows = Vec::new();
-    for result in rdr.records() {
-        let record = result.with_context(|| {
-            format!("Failed to parse record in {}", path.display())
-        })?;
-        rows.push(
-            record
-                .iter()
-                .map(std::string::ToString::to_string)
-                .collect::<Vec<String>>(),
-        );
-    }
-
-    if rows.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Drop header row
-    rows.remove(0);
-    Ok(rows)
-}
-
-/// Checks whether an entire row consists solely of empty cells.
-#[must_use]
-pub fn is_empty_row(row: &[String]) -> bool {
-    row.iter().all(|cell| cell.trim().is_empty())
 }
 
 fn to_snake_case(s: &str) -> String {
@@ -256,172 +104,142 @@ fn to_screaming_snake_case(s: &str) -> String {
     to_snake_case(s).to_ascii_uppercase()
 }
 
-fn category_to_variant_name(cat: &str) -> String {
-    let s = if let Some(stripped) = cat.strip_prefix("v:") {
-        stripped
-    } else {
-        cat
-    };
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    for ch in s.chars() {
-        if ch == '_' || ch == '-' || ch == ':' {
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.extend(ch.to_uppercase());
-            capitalize_next = false;
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}
-
-fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
-    if path.exists() {
-        if let Ok(existing) = fs::read_to_string(path) {
-            if existing == content {
-                return Ok(false);
-            }
-        }
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
-    Ok(true)
-}
-
-/// Generates the contents of `format_id.generated.rs` from format category CSV files.
+/// Generates the contents of `format_id.generated.rs` from a [`BuildGraphIndex`].
 ///
 /// # Errors
-/// Returns an error if reading files or CSV parsing fails.
+/// Returns an error if the graph is missing required ontology Dcs or contains duplicate/invalid formats.
 #[expect(
     clippy::too_many_lines,
     reason = "Code generator for FormatId enum with all variants and mappings"
 )]
-pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
-    struct FormatRowData {
-        dc_id: u128,
-        short_id: usize,
-        ident: String,
-        label: String,
-        category: String,
-        nicknames: Vec<String>,
-        title: Option<String>,
-        implies_shorts: Vec<usize>,
-    }
+pub fn generate_format_id_code_from_index(
+    index: &BuildGraphIndex,
+) -> Result<String> {
+    let sh_name = index.require_ident("CanonicalName")?;
+    let sh_nick = index.require_ident("Nickname")?;
+    let sh_formal_alias = index.require_ident("FormalAlias")?;
+    let sh_subtype = index.framing().is_subtype_of;
+    let sh_begin_group = index.require_ident("BeginAssociativityGroup")?;
+    let sh_end_group = index.require_ident("EndAssociativityGroup")?;
+    let sh_type_union = index.require_ident("TypeUnion")?;
 
-    let mut records: Vec<FormatRowData> = Vec::new();
+    let mut records = Vec::new();
     let mut seen_idents = HashSet::new();
+    let mut seen_shorts = HashSet::new();
+    let mut seen_dcs = HashSet::new();
 
-    if formats_dir.is_dir() {
-        let mut csv_paths = Vec::new();
-        for entry in fs::read_dir(formats_dir)? {
-            let path = entry?.path();
-            if path.is_file() {
-                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                    continue;
-                };
-                if file_name.ends_with(".csv")
-                    && file_name != "schema.csv"
-                    && !file_name.ends_with(".generated.csv")
-                {
-                    csv_paths.push(path);
-                }
-            }
-        }
-        csv_paths.sort();
+    for short_id in index.all_format_short_ids()? {
+        let fid_usize = usize::try_from(short_id).with_context(|| {
+            format!("Format short ID {short_id} exceeds usize::MAX")
+        })?;
+        let subj = DcShorthand::Format(fid_usize);
+        let dc_id = FORMAT_REGION_START.saturating_add(u128::from(short_id));
 
-        // Pass 1: Find maximum assigned short ID across all format category files
-        let mut max_short_id = 0usize;
-        let mut files_rows = Vec::new();
-        for path in csv_paths {
-            let rows = read_csv_rows(&path)?;
-            for row in &rows {
-                if is_empty_row(row) {
-                    continue;
-                }
-                if let Some(short_str) = row.get(1) {
-                    if let Ok(s_id) = parse_format_shorthand(short_str) {
-                        if s_id > max_short_id {
-                            max_short_id = s_id;
+        let ident = index
+            .ident_for_shorthand(subj)
+            .with_context(|| {
+                format!("Format f{short_id} has no @ident(\"...\") in system graph")
+            })?
+            .trim()
+            .to_string();
+        ensure!(
+            is_valid_rust_ident(&ident),
+            "Format f{short_id} has invalid Rust identifier '{ident}'"
+        );
+
+        // Reason for fallback: subjects returned by all_format_short_ids have a CanonicalName.
+        let label = index
+            .single_property_string(subj, sh_name)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        ensure!(
+            !label.is_empty(),
+            "Format f{short_id} ({ident}) has empty CanonicalName"
+        );
+
+        // Reason for fallback: formats without an explicit script default to "other".
+        let script = index.subject_script(subj).unwrap_or_default();
+        let category = script
+            .strip_prefix(".Formats:")
+            .or_else(|| script.strip_prefix("Formats:"))
+            .map_or_else(|| "other".to_string(), |s| s.trim().to_string());
+
+        let nicknames: Vec<String> = index
+            .multi_property_strings_preferred_first(subj, sh_nick)
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let title = index
+            .multi_property_strings_preferred_first(subj, sh_formal_alias)
+            .into_iter()
+            .map(|s| s.trim().to_string())
+            .find(|s| !s.is_empty());
+
+        let mut implies_shorts: Vec<u32> = Vec::new();
+        for &obj in index.direct_objects(sh_subtype, subj) {
+            match obj {
+                DcShorthand::Format(target_fid) => {
+                    if let Ok(target_sid) = u32::try_from(target_fid) {
+                        if !implies_shorts.contains(&target_sid) {
+                            implies_shorts.push(target_sid);
                         }
                     }
                 }
-            }
-            files_rows.push(rows);
-        }
-
-        // Pass 2: Build FormatRowData, assigning max_short_id + 1 in-memory for unassigned rows
-        for rows in files_rows {
-            for row in rows {
-                if is_empty_row(&row) {
-                    continue;
+                DcShorthand::Long(expr_node_id) => {
+                    if let Some(tokens) = index.node_tokens(expr_node_id) {
+                        let is_pure_format_conjunction =
+                            !tokens.is_empty()
+                                && tokens.iter().all(|&tok| {
+                                    tok == sh_begin_group
+                                        || tok == sh_end_group
+                                        || tok == sh_type_union
+                                        || matches!(tok, DcShorthand::Format(_))
+                                });
+                        if is_pure_format_conjunction {
+                            for &tok in tokens {
+                                if let DcShorthand::Format(target_fid) = tok {
+                                    if let Ok(target_sid) =
+                                        u32::try_from(target_fid)
+                                    {
+                                        if !implies_shorts.contains(&target_sid)
+                                        {
+                                            implies_shorts.push(target_sid);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                // Reason for fallback: cells beyond the row length default to empty string
-                let get = |idx: usize| -> String {
-                    row.get(idx).cloned().unwrap_or_default()
-                };
-                let short_id = if let Ok(s_id) = parse_format_shorthand(&get(1)) {
-                    s_id
-                } else if is_unassigned_id(&get(1)) {
-                    let next_id = max_short_id.saturating_add(1);
-                    max_short_id = next_id;
-                    next_id
-                } else if let Ok(dc_id) = get(0).trim().parse::<u128>() {
-                    // Reason for fallback: out-of-range short format id conversion defaults to 0 placeholder
-                    usize::try_from(dc_id.saturating_sub(FORMAT_REGION_START)).unwrap_or(0)
-                } else {
-                    0
-                };
-
-                let raw_ident = get(2);
-                let clean_ident = raw_ident.trim_start_matches('!').trim().to_string();
-                if clean_ident.is_empty() {
-                    continue;
-                }
-                if seen_idents.contains(&clean_ident) {
-                    continue;
-                }
-                seen_idents.insert(clean_ident.clone());
-
-                let dc_id = if let Ok(dc) = get(0).trim().parse::<u128>() {
-                    dc
-                } else {
-                    // Reason for fallback: short format id conversion to u128 defaults to 0 on conversion failure
-                    FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0))
-                };
-
-                let raw_label = get(3);
-                let label = raw_label.trim_start_matches('!').trim().to_string();
-                let category = get(4).trim().to_string();
-
-                let raw_nicknames = get(10);
-                let nicknames: Vec<String> = if raw_nicknames.is_empty() {
-                    Vec::new()
-                } else {
-                    split_comma_separated_items(&raw_nicknames)
-                        .into_iter()
-                        .filter(|s| !s.is_empty())
-                        .collect()
-                };
-
-                let raw_base = get(5);
-                let (title, implies_shorts) = extract_title_and_implies(&raw_base);
-
-                records.push(FormatRowData {
-                    dc_id,
-                    short_id,
-                    ident: clean_ident,
-                    label,
-                    category,
-                    nicknames,
-                    title,
-                    implies_shorts,
-                });
+                DcShorthand::Unicode(_)
+                | DcShorthand::Short(_)
+                | DcShorthand::Local(_) => {}
             }
         }
+
+        if !seen_idents.insert(ident.clone()) {
+            bail!("Duplicate FormatId variant '{ident}' on f{short_id}");
+        }
+        if !seen_shorts.insert(short_id) {
+            bail!("Duplicate Format short ID {short_id}");
+        }
+        if !seen_dcs.insert(dc_id) {
+            bail!("Duplicate Format Dc ID {dc_id}");
+        }
+
+        records.push(FormatRecord {
+            dc_id,
+            short_id,
+            ident,
+            label,
+            category,
+            nicknames,
+            title,
+            implies_shorts,
+        });
     }
 
     records.sort_by_key(|r| r.short_id);
@@ -430,7 +248,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     let mut category_variants: BTreeSet<String> = BTreeSet::new();
     let mut cat_to_variant: HashMap<String, String> = HashMap::new();
     for r in &records {
-        let variant = category_to_variant_name(&r.category);
+        let variant = category_to_variant(&r.category);
         cat_to_variant.insert(r.category.clone(), variant.clone());
         category_variants.insert(variant);
     }
@@ -439,33 +257,48 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
     out.push_str("\n\n");
-    out.push_str("//! @generated by ctb-formats-dcdata::updater from format category data tables.\n");
+    out.push_str(
+        "//! @generated by ctb-formats-dcdata::updater from format category data tables.\n",
+    );
     out.push_str("//! Do not edit by hand.\n\n");
     out.push_str("#[allow(\n");
     out.push_str("    unused_imports,\n");
     out.push_str("    clippy::wildcard_imports,\n");
     out.push_str("    reason = \"Standard workspace module prelude\"\n");
     out.push_str(")]\n");
-    out.push_str("use crate::dc_char::DcChar;\nuse serde::{Serialize, Deserialize};\n\n");
-    out.push_str("/// High-level category of file formats for domain filtering and score boosting.\n");
-    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n");
+    out.push_str(
+        "use crate::dc_char::DcChar;\nuse serde::{Serialize, Deserialize};\n\n",
+    );
+    out.push_str(
+        "/// High-level category of file formats for domain filtering and score boosting.\n",
+    );
+    out.push_str(
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n",
+    );
     out.push_str("pub enum FormatCategory {\n");
     for cat_var in &category_variants {
         out.push_str(&format!("    {cat_var},\n"));
     }
     out.push_str("}\n\n");
 
-    out.push_str("/// Standardized format identifier enum derived from formats category tables.\n");
+    out.push_str(
+        "/// Standardized format identifier enum derived from formats category tables.\n",
+    );
     out.push_str("#[expect(\n");
     out.push_str("    non_camel_case_types,\n");
     out.push_str("    reason = \"Language and format variants use underscores to reflect canonical format abbreviations\"\n");
     out.push_str(")]\n");
-    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n");
+    out.push_str(
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n",
+    );
     out.push_str("pub enum FormatId {\n");
 
     for r in &records {
         let escaped_label = r.label.replace('\n', " ").replace('"', "\\\"");
-        out.push_str(&format!("    /// {} (Short {}, Category: {})\n", escaped_label, r.short_id, r.category));
+        out.push_str(&format!(
+            "    /// {} (Short {}, Category: {})\n",
+            escaped_label, r.short_id, r.category
+        ));
         out.push_str(&format!("    {},\n", r.ident));
     }
     if !seen_idents.contains("Unknown") {
@@ -475,7 +308,9 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("}\n\n");
 
     out.push_str("impl FormatId {\n");
-    out.push_str("    /// Returns the primary format category for this format ID.\n");
+    out.push_str(
+        "    /// Returns the primary format category for this format ID.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub fn category(&self) -> FormatCategory {\n");
     out.push_str("        match self {\n");
@@ -483,19 +318,30 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     let mut grouped_by_cat: BTreeMap<String, Vec<&str>> = BTreeMap::new();
     for r in &records {
         if let Some(var) = cat_to_variant.get(&r.category) {
-            grouped_by_cat.entry(var.clone()).or_default().push(&r.ident);
+            grouped_by_cat
+                .entry(var.clone())
+                .or_default()
+                .push(&r.ident);
         }
     }
     for (var, idents) in grouped_by_cat {
         out.push_str("            ");
-        out.push_str(&idents.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(
+            &idents
+                .iter()
+                .map(|s| format!("Self::{s}"))
+                .collect::<Vec<_>>()
+                .join("\n            | "),
+        );
         out.push_str(&format!(" => FormatCategory::{var},\n"));
     }
     out.push_str("            _ => FormatCategory::Other,\n");
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Looks up a `FormatId` variant from its identifier name or nickname.\n");
+    out.push_str(
+        "    /// Looks up a `FormatId` variant from its identifier name or nickname.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub fn from_ident(ident: &str) -> Option<Self> {\n");
     out.push_str("        let trimmed = ident.trim();\n");
@@ -509,11 +355,17 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
         }
         for nick in &r.nicknames {
             let nick_lower = nick.trim().to_ascii_lowercase();
-            if !nick_lower.is_empty() && !patterns.contains(&format!("\"{nick_lower}\"")) {
+            if !nick_lower.is_empty()
+                && !patterns.contains(&format!("\"{nick_lower}\""))
+            {
                 patterns.push(format!("\"{nick_lower}\""));
             }
         }
-        out.push_str(&format!("            {} => Some(Self::{}),\n", patterns.join(" | "), r.ident));
+        out.push_str(&format!(
+            "            {} => Some(Self::{}),\n",
+            patterns.join(" | "),
+            r.ident
+        ));
     }
     if !seen_idents.contains("Unknown") {
         out.push_str("            \"unknown\" => Some(Self::Unknown),\n");
@@ -522,12 +374,17 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Returns the canonical Rust identifier string for this format.\n");
+    out.push_str(
+        "    /// Returns the canonical Rust identifier string for this format.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn ident(&self) -> &'static str {\n");
     out.push_str("        match self {\n");
     for r in &records {
-        out.push_str(&format!("            Self::{} => \"{}\",\n", r.ident, r.ident));
+        out.push_str(&format!(
+            "            Self::{} => \"{}\",\n",
+            r.ident, r.ident
+        ));
     }
     if !seen_idents.contains("Unknown") {
         out.push_str("            Self::Unknown => \"Unknown\",\n");
@@ -535,30 +392,35 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Returns the canonical human-readable title (\"true name\") for this format if defined.\n");
+    out.push_str(
+        "    /// Returns the canonical human-readable title (\"true name\") for this format if defined.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn title(&self) -> Option<&'static str> {\n");
     out.push_str("        match self {\n");
     for r in &records {
         if let Some(t) = &r.title {
             let escaped = t.replace('\\', "\\\\").replace('"', "\\\"");
-            out.push_str(&format!("            Self::{} => Some(\"{}\"),\n", r.ident, escaped));
+            out.push_str(&format!(
+                "            Self::{} => Some(\"{}\"),\n",
+                r.ident, escaped
+            ));
         }
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    let short_to_ident: HashMap<usize, String> = records
+    let short_to_ident: HashMap<u32, String> = records
         .iter()
         .map(|r| (r.short_id, r.ident.clone()))
         .collect();
-    let direct_implies: HashMap<usize, Vec<usize>> = records
+    let direct_implies: HashMap<u32, Vec<u32>> = records
         .iter()
         .map(|r| (r.short_id, r.implies_shorts.clone()))
         .collect();
 
-    let mut transitive_implies: HashMap<usize, Vec<String>> = HashMap::new();
+    let mut transitive_implies: HashMap<u32, Vec<String>> = HashMap::new();
     for r in &records {
         let mut seen = HashSet::new();
         let mut queue = r.implies_shorts.clone();
@@ -584,8 +446,12 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
         }
     }
 
-    out.push_str("    /// Returns the slice of formats directly and transitively implied by this format,\n");
-    out.push_str("    /// as declared by `@implies(...)` directives in format tables.\n");
+    out.push_str(
+        "    /// Returns the slice of formats directly and transitively implied by this format,\n",
+    );
+    out.push_str(
+        "    /// as declared by `@implies(...)` directives in format tables.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn implies(&self) -> &'static [Self] {\n");
     out.push_str("        match self {\n");
@@ -613,12 +479,17 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     // the `FormatId` enum, `FormatId::shorthand()` ("f<N>"), or `FormatId::ident()`.
 
 
-    out.push_str("    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n");
+    out.push_str(
+        "    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn shorthand(&self) -> &'static str {\n");
     out.push_str("        match self {\n");
     for r in &records {
-        out.push_str(&format!("            Self::{} => \"f{}\",\n", r.ident, r.short_id));
+        out.push_str(&format!(
+            "            Self::{} => \"f{}\",\n",
+            r.ident, r.short_id
+        ));
     }
     if !seen_idents.contains("Unknown") {
         out.push_str("            Self::Unknown => \"unknown\",\n");
@@ -626,24 +497,34 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\").\n");
+    out.push_str(
+        "    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\").\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n");
     out.push_str("        let trimmed = shorthand.trim();\n");
     out.push_str("        match trimmed {\n");
     for r in &records {
-        out.push_str(&format!("            \"f{}\" => Some(Self::{}),\n", r.short_id, r.ident));
+        out.push_str(&format!(
+            "            \"f{}\" => Some(Self::{}),\n",
+            r.short_id, r.ident
+        ));
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Returns the Global Document Character ID if known.\n");
+    out.push_str(
+        "    /// Returns the Global Document Character ID if known.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn dc_id(&self) -> Option<u128> {\n");
     out.push_str("        match self {\n");
     for r in &records {
-        out.push_str(&format!("            Self::{} => Some({}_u128),\n", r.ident, r.dc_id));
+        out.push_str(&format!(
+            "            Self::{} => Some({}_u128),\n",
+            r.ident, r.dc_id
+        ));
     }
     if !seen_idents.contains("Unknown") {
         out.push_str("            Self::Unknown => None,\n");
@@ -651,7 +532,9 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Returns the format character as a `DcChar`, if known.\n");
+    out.push_str(
+        "    /// Returns the format character as a `DcChar`, if known.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn dc_char(&self) -> Option<DcChar> {\n");
     out.push_str("        match self {\n");
@@ -664,12 +547,17 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Looks up a `FormatId` from its Global Document Character ID.\n");
+    out.push_str(
+        "    /// Looks up a `FormatId` from its Global Document Character ID.\n",
+    );
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn from_dc_id(id: u128) -> Option<Self> {\n");
     out.push_str("        match id {\n");
     for r in &records {
-        out.push_str(&format!("            {}_u128 => Some(Self::{}),\n", r.dc_id, r.ident));
+        out.push_str(&format!(
+            "            {}_u128 => Some(Self::{}),\n",
+            r.dc_id, r.ident
+        ));
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
@@ -680,37 +568,56 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     for r in &records {
         let screaming = to_screaming_snake_case(&r.ident);
         let escaped_label = r.label.replace('\n', " ").replace('"', "\\\"");
-        out.push_str(&format!("/// DcChar constant for Format `{}` (Short f{}, Category: {}): {}\n", r.ident, r.short_id, r.category, escaped_label));
-        out.push_str(&format!("pub const DC_{screaming}: DcChar = DcChar::from_format({});\n", r.short_id));
+        out.push_str(&format!(
+            "/// DcChar constant for Format `{}` (Short f{}, Category: {}): {}\n",
+            r.ident, r.short_id, r.category, escaped_label
+        ));
+        out.push_str(&format!(
+            "pub const DC_{screaming}: DcChar = DcChar::from_format({});\n",
+            r.short_id
+        ));
     }
 
     Ok(out)
 }
 
-/// Generates or updates `src/utilities/format_id.generated.rs` if the contents changed.
+/// Generates the contents of `format_id.generated.rs` from the system graph in `graph_dir`.
 ///
 /// # Errors
-/// Returns an error if directory resolution, generation, or writing fails.
-pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
-    let repo_root = find_repository_root_from(base_dir)?;
-    let formats_dir = repo_root
-        .join("src")
-        .join("formats")
-        .join("dcdata")
-        .join("data")
-        .join("categories")
-        .join("formats");
-    ensure!(
-        formats_dir.is_dir(),
-        "Could not locate formats directory at {}",
-        formats_dir.display()
-    );
+/// Returns an error if `graph_dir` cannot be read or contains invalid data.
+pub fn generate_format_id_code(graph_dir: &Path) -> Result<String> {
+    let index = BuildGraphIndex::from_graph_dir(graph_dir)?;
+    generate_format_id_code_from_index(&index)
+}
 
-    let target_file_utilities = repo_root
+/// Generates `src/utilities/format_id.generated.rs` if its contents have changed.
+///
+/// # Errors
+/// Returns an error if reading the system graph or writing the generated file fails.
+pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = crate::find_repository_root_from(base_dir)?;
+    let graph_dir = repo_root.join("assets").join("data").join("graph");
+    let out_file = repo_root
         .join("src")
         .join("utilities")
         .join("format_id.generated.rs");
 
-    let code = generate_format_id_code(&formats_dir)?;
-    write_if_changed(&target_file_utilities, &code)
+    ensure!(
+        graph_dir.is_dir(),
+        "Could not locate system graph directory at {}",
+        graph_dir.display()
+    );
+
+    let code = generate_format_id_code(&graph_dir)?;
+
+    if let Ok(existing) = fs::read_to_string(&out_file) {
+        if existing == code {
+            return Ok(false);
+        }
+    }
+
+    fs::write(&out_file, code).with_context(|| {
+        format!("Failed to write {}", out_file.display())
+    })?;
+    Ok(true)
 }
