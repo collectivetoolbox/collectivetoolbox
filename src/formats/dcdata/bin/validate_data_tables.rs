@@ -203,5 +203,19 @@ fn main() -> ExitCode {
         }
     }
 
+    if repo_root.join("built/ctoolbox.rsrc").is_file() {
+        let options = ctb_build_support::asset_packer::PrepareOptions {
+            prepare_runtime_bundle: true,
+            prepare_minimal_assets: false,
+            include_rust_docs: false,
+            archive_source: false,
+            write_debug_stubs: true,
+        };
+        if let Err(e) = ctb_build_support::asset_packer::prepare_assets(&repo_root, &options) {
+            eprintln!("Error repacking runtime resource bundles (built/ctoolbox.rsrc): {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
     ExitCode::SUCCESS
 }

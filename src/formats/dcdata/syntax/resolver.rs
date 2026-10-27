@@ -1150,6 +1150,7 @@ impl DatasetRuleResolver {
 
         let equivalents: Vec<_> = dc_defns
             .iter()
+            .chain(format_defns.iter())
             .flat_map(|defn| {
                 defn.decompositions
                     .iter()
