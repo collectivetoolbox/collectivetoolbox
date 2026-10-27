@@ -193,7 +193,6 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
                 }
                 tokens.push(DcToken::from_short_dc(DC_END_PARAMETER));
             }
-            tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP));
         }
     }
 }
@@ -514,10 +513,6 @@ fn decode_apply_params(
         let Some(tok) = tokens.get(*pos) else {
             break;
         };
-        if is_closing_token(tok, resolver) {
-            *pos = pos.saturating_add(1);
-            break;
-        }
         if tok.fills_role_with(DcRole::BeginParameter, resolver) {
             *pos = pos.saturating_add(1);
             let Some(name_tok) = tokens.get(*pos) else {

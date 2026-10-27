@@ -808,6 +808,7 @@ impl DatasetRuleResolver {
                         out.scripts.push(sub.clone());
                     }
                 } else if (name == "format" || name == "formats") && subtype.is_none() {
+                    out.scripts.push("Formats".to_string());
                     out.ranges.push((
                         ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
                         ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END,
@@ -1474,7 +1475,7 @@ impl DatasetRuleResolver {
             }
         }
 
-        // 3. Collect `<equiv>` (`DC_CANONICAL_DECOMPOSITION`) pairs across Unicode clarifications and Short Dcs
+        // 3. Collect `<equiv>` (`DC_CANONICAL_DECOMPOSITION`) pairs across Unicode clarifications, Short Dcs, and Format Dcs
         let mut all_char_subjects: Vec<(u128, DcShorthand)> = unicode_subjects
             .iter()
             .map(|&(gid, cp)| (gid, DcShorthand::Unicode(cp)))
@@ -1482,6 +1483,11 @@ impl DatasetRuleResolver {
                 short_subjects
                     .iter()
                     .map(|&(gid, sid)| (gid, DcShorthand::Short(sid))),
+            )
+            .chain(
+                format_subjects
+                    .iter()
+                    .map(|&(gid, fid)| (gid, DcShorthand::Format(fid))),
             )
             .collect();
         all_char_subjects.sort_by_key(|&(gid, _)| gid);

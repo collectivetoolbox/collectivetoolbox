@@ -362,10 +362,12 @@ pub const DC_SUPPORT_COMPLETE: DcChar = DcChar::from_short(629);
 pub const DC_SUPPORT_LOSSLESS_ROUNDTRIP: DcChar = DcChar::from_short(630);
 /// Indicates lossless roundtripping with optional strict structural and semantic validation. (Dc 631).
 pub const DC_SUPPORT_LOSSLESS_STRICT_VALIDATION: DcChar = DcChar::from_short(631);
-/// Property indicating a format variant or format category along which a format varies. (Dc 632).
+/// Property indicating a format variation (.Formats:format_variant) along which a format varies. (Dc 632).
 pub const DC_FORMAT_VARIATION_ASPECT: DcChar = DcChar::from_short(632);
 /// Property specifying the default variant format used by a format when none is explicitly specified. (Dc 633).
 pub const DC_DEFAULT_FORMAT_VARIANT: DcChar = DcChar::from_short(633);
+/// Short parameter nickname (such as in '@vary_as("...")') used to identify a format variation aspect in parametric format expressions. (Dc 634).
+pub const DC_DC_FORMAT_VARIATION_NICKNAME: DcChar = DcChar::from_short(634);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

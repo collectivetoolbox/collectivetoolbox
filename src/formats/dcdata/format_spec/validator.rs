@@ -123,7 +123,11 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
         }
         FormatExpr::Apply { target, params } => {
             ensure!(
-                matches!(target.as_ref(), FormatExpr::Dc(DcShorthand::Format(_))),
+                matches!(
+                    target.as_ref(),
+                    FormatExpr::Dc(DcShorthand::Format(_))
+                        | FormatExpr::Dc(DcShorthand::Short(9))
+                ),
                 "Application target must be a format Dc shorthand (e.g. 'f350'), found '{target}'"
             );
             validate_node_recursive(target)?;
@@ -138,8 +142,8 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
                     param
                         .name
                         .chars()
-                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
-                    "Parameter name '{}' must be lowercase snake_case in application '{expr}'",
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+                    "Parameter name '{}' must be an ASCII identifier in application '{expr}'",
                     param.name
                 );
                 ensure!(

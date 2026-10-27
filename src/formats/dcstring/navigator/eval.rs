@@ -377,6 +377,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             ch.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
                                 || ch.fills_role_with(DcRole::TypeUnion, ctx.resolver)
                                 || ch.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
+                                || ch.fills_role_with(DcRole::FormatParamApplication, ctx.resolver)
                         });
                         if constructor {
                             let Some(rule) = token
@@ -860,7 +861,8 @@ impl<'a> DcDocumentNavigator<'a> {
                     let is_type_constructor = name == "type"
                         && (first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
                             || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
-                            || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver));
+                            || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver)
+                            || first_dc.fills_role_with(DcRole::FormatParamApplication, ctx.resolver));
                     if is_type_constructor {
                         if subtype.is_none() {
                             self.eval_type_constructor(ctx)?
@@ -2640,6 +2642,7 @@ pub(crate) fn is_identifier_leading_type_starter(
     tok.fills_role_with(DcRole::BeginTypeDef, resolver)
         || tok.fills_role_with(DcRole::TypeIntersection, resolver)
         || tok.fills_role_with(DcRole::TypeUnion, resolver)
+        || tok.fills_role_with(DcRole::FormatParamApplication, resolver)
         || is_single_type_token(tok, resolver)
 }
 

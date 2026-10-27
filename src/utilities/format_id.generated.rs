@@ -1299,15 +1299,15 @@ pub enum FormatId {
     IpV4String,
     /// IPv6 address string (Short 608, Category: identifier)
     IpV6String,
-    /// Line endings variation (Short 609, Category: format_variant)
+    /// Line endings format variation (Short 609, Category: format_variant)
     LineEndingsVariant,
-    /// Unicode Private Use Area variation (Short 610, Category: format_variant)
+    /// Unicode Private Use Area format variation (Short 610, Category: format_variant)
     UnicodePuaVariant,
-    /// Letter casing variation (Short 611, Category: format_variant)
+    /// Letter casing format variation (Short 611, Category: format_variant)
     CaseVariant,
-    /// Padding convention variation (Short 612, Category: format_variant)
+    /// Padding convention format variation (Short 612, Category: format_variant)
     PaddingVariant,
-    /// Base alphabet variation (Short 613, Category: format_variant)
+    /// Base alphabet format variation (Short 613, Category: format_variant)
     BaseAlphabetVariant,
     /// Case-insensitive matching or formatting (Short 614, Category: v:case)
     CaseInsensitive,
@@ -1381,6 +1381,8 @@ pub enum FormatId {
     CscArchive2,
     /// Collective Toolbox (Short 649, Category: userspace)
     CollectiveToolbox,
+    /// Character encoding format variation (Short 650, Category: format_variant)
+    EncodingVariant,
 }
 
 impl FormatId {
@@ -1728,7 +1730,8 @@ impl FormatId {
             | Self::UnicodePuaVariant
             | Self::CaseVariant
             | Self::PaddingVariant
-            | Self::BaseAlphabetVariant => FormatCategory::FormatVariant,
+            | Self::BaseAlphabetVariant
+            | Self::EncodingVariant => FormatCategory::FormatVariant,
             Self::XxHash32
             | Self::XxHash64
             | Self::XxHash3_64
@@ -2697,6 +2700,7 @@ impl FormatId {
             "cscjournal5" | "csc_journal5" => Some(Self::CscJournal5),
             "cscarchive2" | "csc_archive2" => Some(Self::CscArchive2),
             "collectivetoolbox" | "collective_toolbox" => Some(Self::CollectiveToolbox),
+            "encodingvariant" | "encoding_variant" => Some(Self::EncodingVariant),
             _ => None,
         }
     }
@@ -3355,6 +3359,7 @@ impl FormatId {
             Self::CscJournal5 => "CscJournal5",
             Self::CscArchive2 => "CscArchive2",
             Self::CollectiveToolbox => "CollectiveToolbox",
+            Self::EncodingVariant => "EncodingVariant",
         }
     }
 
@@ -4218,6 +4223,7 @@ impl FormatId {
             Self::CscJournal5 => "f647",
             Self::CscArchive2 => "f648",
             Self::CollectiveToolbox => "f649",
+            Self::EncodingVariant => "f650",
         }
     }
 
@@ -4876,6 +4882,7 @@ impl FormatId {
             "f647" => Some(Self::CscJournal5),
             "f648" => Some(Self::CscArchive2),
             "f649" => Some(Self::CollectiveToolbox),
+            "f650" => Some(Self::EncodingVariant),
             _ => None,
         }
     }
@@ -5534,6 +5541,7 @@ impl FormatId {
             Self::CscJournal5 => Some(2228871_u128),
             Self::CscArchive2 => Some(2228872_u128),
             Self::CollectiveToolbox => Some(2228873_u128),
+            Self::EncodingVariant => Some(2228874_u128),
         }
     }
 
@@ -6204,6 +6212,7 @@ impl FormatId {
             2228871_u128 => Some(Self::CscJournal5),
             2228872_u128 => Some(Self::CscArchive2),
             2228873_u128 => Some(Self::CollectiveToolbox),
+            2228874_u128 => Some(Self::EncodingVariant),
             _ => None,
         }
     }
@@ -7427,15 +7436,15 @@ pub const DC_UUID_OID: DcChar = DcChar::from_format(606);
 pub const DC_IP_V4_STRING: DcChar = DcChar::from_format(607);
 /// DcChar constant for Format `IpV6String` (Short f608, Category: identifier): IPv6 address string
 pub const DC_IP_V6_STRING: DcChar = DcChar::from_format(608);
-/// DcChar constant for Format `LineEndingsVariant` (Short f609, Category: format_variant): Line endings variation
+/// DcChar constant for Format `LineEndingsVariant` (Short f609, Category: format_variant): Line endings format variation
 pub const DC_LINE_ENDINGS_VARIANT: DcChar = DcChar::from_format(609);
-/// DcChar constant for Format `UnicodePuaVariant` (Short f610, Category: format_variant): Unicode Private Use Area variation
+/// DcChar constant for Format `UnicodePuaVariant` (Short f610, Category: format_variant): Unicode Private Use Area format variation
 pub const DC_UNICODE_PUA_VARIANT: DcChar = DcChar::from_format(610);
-/// DcChar constant for Format `CaseVariant` (Short f611, Category: format_variant): Letter casing variation
+/// DcChar constant for Format `CaseVariant` (Short f611, Category: format_variant): Letter casing format variation
 pub const DC_CASE_VARIANT: DcChar = DcChar::from_format(611);
-/// DcChar constant for Format `PaddingVariant` (Short f612, Category: format_variant): Padding convention variation
+/// DcChar constant for Format `PaddingVariant` (Short f612, Category: format_variant): Padding convention format variation
 pub const DC_PADDING_VARIANT: DcChar = DcChar::from_format(612);
-/// DcChar constant for Format `BaseAlphabetVariant` (Short f613, Category: format_variant): Base alphabet variation
+/// DcChar constant for Format `BaseAlphabetVariant` (Short f613, Category: format_variant): Base alphabet format variation
 pub const DC_BASE_ALPHABET_VARIANT: DcChar = DcChar::from_format(613);
 /// DcChar constant for Format `CaseInsensitive` (Short f614, Category: v:case): Case-insensitive matching or formatting
 pub const DC_CASE_INSENSITIVE: DcChar = DcChar::from_format(614);
@@ -7509,3 +7518,5 @@ pub const DC_CSC_JOURNAL5: DcChar = DcChar::from_format(647);
 pub const DC_CSC_ARCHIVE2: DcChar = DcChar::from_format(648);
 /// DcChar constant for Format `CollectiveToolbox` (Short f649, Category: userspace): Collective Toolbox
 pub const DC_COLLECTIVE_TOOLBOX: DcChar = DcChar::from_format(649);
+/// DcChar constant for Format `EncodingVariant` (Short f650, Category: format_variant): Character encoding format variation
+pub const DC_ENCODING_VARIANT: DcChar = DcChar::from_format(650);

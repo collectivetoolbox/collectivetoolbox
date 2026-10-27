@@ -65,21 +65,22 @@ pub use crate::ctbnbdl::{
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
-    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_NUMBER, DC_BIDIRECTIONAL_CLASS,
-    DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
-    DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
-    DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
+    DC_BEGIN_GRAPH_NODE_DEFINITION, DC_BEGIN_NUMBER, DC_BEGIN_PARAMETER,
+    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS,
+    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
+    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
-    DC_DC_GENERAL_CATEGORY, DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
-    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
-    DC_END_GRAPH_NODE_DEFINITION, DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE,
-    DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS, DC_FORMAT_VARIATION_ASPECT,
-    DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
-    DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
-    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
-    DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
-    DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
+    DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
+    DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION, DC_END_NUMBER,
+    DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM, DC_FORMAL_ALIAS,
+    DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
+    DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
+    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS,
+    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
+    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
     DC_NEGATED_PATTERN, DC_NICKNAME, DC_PATTERN_ALTERNATION,
     DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION,
     DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
@@ -242,6 +243,8 @@ struct DesiredDatasetState {
     preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
     /// Direct 3-token binary statements: `(verb, subject, object_spec) -> comment`.
     direct_statements: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
+    /// Maps `@vary_as` nicknames (e.g. `"radix"`, `"encoding"`) to their `.Formats:format_variant` Dc shorthand.
+    vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
 
 /// Specification of a value or target referenced in a statement.
@@ -529,6 +532,10 @@ fn build_initial_token_labels(
         ),
         (DC_FORMAT_VARIATION_ASPECT, "Format variation aspect"),
         (DC_DEFAULT_FORMAT_VARIANT, "Default format variant"),
+        (
+            DC_DC_FORMAT_VARIATION_NICKNAME,
+            "Dc format variation nickname",
+        ),
         (DC_FILE_EXTENSION, "File extension"),
         (DC_MEDIA_TYPE, "IANA Media Type"),
         (DC_UNIFORM_TYPE_IDENTIFIER, "Uniform Type Identifier"),
@@ -621,6 +628,8 @@ struct LedgerBuilder {
     active_preferred: BTreeMap<(DcShorthand, DcShorthand), (u128, u128, u128)>,
     /// Active direct binary statements: `(verb, subject, object) -> stmt_id`.
     active_direct_stmts: BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
+    /// Maps `@vary_as` nicknames to their `.Formats:format_variant` Dc shorthand.
+    vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
 
 impl LedgerBuilder {
@@ -650,6 +659,18 @@ impl LedgerBuilder {
             );
         }
 
+        let mut vary_as_to_format_variant = default_vary_as_to_format_variant();
+        let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
+        for (&(subj, prop), &(_, _, val_tok)) in &index.active_single_props {
+            if prop == sh_var_nick {
+                if let DcShorthand::Long(str_id) = val_tok {
+                    if let Some(nick) = index.string_by_node_id.get(&str_id) {
+                        vary_as_to_format_variant.insert(nick.clone(), subj);
+                    }
+                }
+            }
+        }
+
         Self {
             nodes: index.nodes,
             appended_count: 0,
@@ -664,6 +685,7 @@ impl LedgerBuilder {
             active_multi_preferred: index.active_multi_preferred,
             active_preferred: index.active_preferred,
             active_direct_stmts: index.active_direct_stmts,
+            vary_as_to_format_variant,
         }
     }
 
@@ -1019,22 +1041,36 @@ impl LedgerBuilder {
         expr: &FormatExpr,
     ) -> Result<Vec<DcShorthand>> {
         let dc_tokens = encode_dc_stream(expr);
+        let sh_begin_param = sh(DC_BEGIN_PARAMETER);
         let mut shorthands = Vec::with_capacity(dc_tokens.len());
+        let mut prev_sh = None;
         for tok in dc_tokens {
             match tok {
-                DcToken::Dc(shorthand) => shorthands.push(shorthand),
+                DcToken::Dc(shorthand) => {
+                    shorthands.push(shorthand);
+                    prev_sh = Some(shorthand);
+                }
                 DcToken::NamedType(name) => {
+                    if prev_sh == Some(sh_begin_param) {
+                        if let Some(&variant_sh) =
+                            self.vary_as_to_format_variant.get(&name)
+                        {
+                            shorthands.push(variant_sh);
+                            prev_sh = Some(variant_sh);
+                            continue;
+                        }
+                    }
                     let seed_key = SeedEntityKey::NamedConstruct(name.clone());
-                    if let Some(&construct_id) =
+                    let resolved = if let Some(&construct_id) =
                         self.seed_entity_ids.get(&seed_key)
                     {
-                        shorthands.push(DcShorthand::Long(construct_id));
+                        DcShorthand::Long(construct_id)
                     } else if let Ok(int_val) = name.parse::<u128>() {
                         let int_id = self.get_or_insert_value_node(
                             encode_integer_value_tokens(int_val),
                             int_val.to_string(),
                         )?;
-                        shorthands.push(DcShorthand::Long(int_id));
+                        DcShorthand::Long(int_id)
                     } else {
                         // Reason for fallback: unquoted literal names are used as-is; quoted strings unescape interior quotes.
                         let clean = name
@@ -1048,8 +1084,10 @@ impl LedgerBuilder {
                             encode_string_value_tokens(&clean),
                             format!("{clean:?}"),
                         )?;
-                        shorthands.push(DcShorthand::Long(str_id));
-                    }
+                        DcShorthand::Long(str_id)
+                    };
+                    shorthands.push(resolved);
+                    prev_sh = Some(resolved);
                 }
             }
         }
@@ -1060,6 +1098,11 @@ impl LedgerBuilder {
         &mut self,
         mut desired: DesiredDatasetState,
     ) -> Result<()> {
+        for (nick, variant_sh) in &desired.vary_as_to_format_variant {
+            self.vary_as_to_format_variant
+                .insert(nick.clone(), *variant_sh);
+        }
+
         // 1. Ensure all seed classification entities exist and add their label/syntax properties.
         for seed_key in &desired.seed_entities {
             let entity_id = self.ensure_seed_entity(seed_key)?;
@@ -1597,6 +1640,21 @@ pub fn single_valued_property_set() -> HashSet<DcShorthand> {
         sh(DC_DATA_FORMAT_DESCRIPTION),
         sh(DC_IMPLEMENTATION_SUPPORT_LEVEL),
         sh(DC_DEFAULT_FORMAT_VARIANT),
+        sh(DC_DC_FORMAT_VARIATION_NICKNAME),
+    ])
+}
+
+/// Returns the default mapping from `@vary_as` nicknames to `.Formats:format_variant` shorthands.
+#[must_use]
+pub fn default_vary_as_to_format_variant() -> HashMap<String, DcShorthand> {
+    HashMap::from([
+        ("radix".to_string(), DcShorthand::Format(354)),
+        ("lineEndings".to_string(), DcShorthand::Format(609)),
+        ("unicodePua".to_string(), DcShorthand::Format(610)),
+        ("case".to_string(), DcShorthand::Format(611)),
+        ("padding".to_string(), DcShorthand::Format(612)),
+        ("alphabet".to_string(), DcShorthand::Format(613)),
+        ("encoding".to_string(), DcShorthand::Format(650)),
     ])
 }
 
@@ -1763,6 +1821,22 @@ fn compile_desired_dataset_state(
         dc_defns.iter().chain(format_defns.iter()).collect();
     all_defns.sort_by_key(|d| d.dc_id);
 
+    state.vary_as_to_format_variant = default_vary_as_to_format_variant();
+    for defn in &all_defns {
+        if defn.script == ".Formats:format_variant" {
+            if let Some(fmt) = &defn.format {
+                if let Some(vary_as) = &fmt.vary_as {
+                    if !vary_as.is_empty() {
+                        state.vary_as_to_format_variant.insert(
+                            vary_as.clone(),
+                            DcShorthand::from_global_id(defn.dc_id),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     for defn in all_defns {
         compile_defn_statements(&mut state, defn)?;
     }
@@ -1827,7 +1901,7 @@ fn compile_defn_statements(
     }
 
     // Character-specific properties (combining class `580`, bidi class `581`, general category `583`/`608`)
-    if defn.format.is_none() {
+    if !matches!(subj, DcShorthand::Format(_)) {
         if defn.combining_class != 0 {
             let cc_u128 = u128::from(defn.combining_class);
             state.single_properties.insert(
@@ -2042,21 +2116,32 @@ fn compile_defn_statements(
             continue;
         }
         let mut payload_tokens = Vec::new();
+        let mut all_shorthands = true;
         for tok_str in payload.split_whitespace() {
             if let Ok(shorthand) = DcShorthand::parse(tok_str) {
                 payload_tokens.push(shorthand);
+            } else {
+                all_shorthands = false;
+                break;
             }
         }
-        let val_spec = if payload_tokens.len() == 1 {
+        let val_spec = if all_shorthands && payload_tokens.len() == 1 {
             #[expect(
                 clippy::expect_used,
                 reason = "payload_tokens.len() == 1 checked immediately above"
             )]
             ValueSpec::Direct(*payload_tokens.first().expect("single token"))
-        } else if !payload_tokens.is_empty() {
+        } else if all_shorthands && !payload_tokens.is_empty() {
             ValueSpec::ValueNode {
                 tokens: payload_tokens,
                 comment: format!("<{tag}> {payload}"),
+            }
+        } else if let Ok(expr) = parse_format_expr(payload)
+            && !matches!(expr, FormatExpr::Dc(_) | FormatExpr::NamedType(_))
+        {
+            ValueSpec::FormatExprNode {
+                expr: Box::new(expr),
+                raw_comment: format!("<{tag}> {payload}"),
             }
         } else {
             make_string_value_spec(payload)
@@ -2247,19 +2332,20 @@ fn compile_defn_statements(
                 }
         }
 
-        // Format variation aspects (`Dc 632`): `@vary_as`, `@varies`, and `Variant Types`
+        // Format variation nickname (`Dc 634`): `@vary_as`
         if let Some(vary_as) = &fmt.vary_as {
             if !vary_as.is_empty() {
-                state.multi_properties.insert(
+                state.single_properties.insert(
+                    (subj, sh(DC_DC_FORMAT_VARIATION_NICKNAME)),
                     (
-                        subj,
-                        sh(DC_FORMAT_VARIATION_ASPECT),
                         make_string_value_spec(vary_as),
+                        format!("{subj} vary_as {vary_as:?}"),
                     ),
-                    format!("{subj} vary_as {vary_as:?}"),
                 );
             }
         }
+
+        // Format variation aspects (`Dc 632`): `@varies` and `Variant Types`
         for &target_sh in &fmt.varies {
             state.multi_properties.insert(
                 (
@@ -2274,24 +2360,21 @@ fn compile_defn_statements(
             for vtype in
                 vtypes.split(',').map(str::trim).filter(|s| !s.is_empty())
             {
-                let script_name = if vtype == "encoding" {
-                    ".Formats:encoding".to_string()
-                } else {
-                    format!(".Formats:v:{vtype}")
-                };
-                insert_script_and_parents(
-                    &mut state.seed_entities,
-                    &script_name,
-                );
+                let &target_sh = state
+                    .vary_as_to_format_variant
+                    .get(vtype)
+                    .with_context(|| {
+                        format!(
+                            "Unknown format variant type '{vtype}' on {subj}; no .Formats:format_variant defines @vary_as(\"{vtype}\")"
+                        )
+                    })?;
                 state.multi_properties.insert(
                     (
                         subj,
                         sh(DC_FORMAT_VARIATION_ASPECT),
-                        ValueSpec::SeedEntity(SeedEntityKey::Script(
-                            script_name.clone(),
-                        )),
+                        ValueSpec::Direct(target_sh),
                     ),
-                    format!("{subj} variant_type {vtype}"),
+                    format!("{subj} variant_type {vtype} ({target_sh})"),
                 );
             }
         }
@@ -3180,6 +3263,98 @@ mod tests {
             stats.files_written, 0,
             "System graph ledger modified chunk files during test; run ./scripts/validate-data-tables"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_arbitrary_base_n_format_param_application_and_dc9() -> Result<()> {
+        use crate::dc::DC_FORMAT_PARAM_APPLICATION;
+        use crate::dc_def::FormatDetails;
+        use crate::syntax::{DatasetRuleResolver, SyntaxRuleResolver};
+
+        // 1. Test arbitrary Natural1 base (e.g. radix=123) in FormatExpr::Apply
+        let mut fv_base = sample_dc_defn(354, "A radix in a number system", "Base");
+        fv_base.dc_id = 2_228_578;
+        fv_base.script = ".Formats:format_variant".to_string();
+        fv_base.format = Some(FormatDetails {
+            vary_as: Some("radix".to_string()),
+            ..FormatDetails::default()
+        });
+
+        let mut base123 = sample_dc_defn(999, "Base 123 numeral", "Base123");
+        base123.dc_id = 2_229_223;
+        base123.script = ".Formats:number".to_string();
+        base123.decompositions = vec!["<equiv>f350(radix=123)".to_string()];
+        base123.format = Some(FormatDetails::default());
+
+        let scripts = BTreeSet::from([
+            ".Formats:format_variant".to_string(),
+            ".Formats:number".to_string(),
+        ]);
+        let (nodes, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[],
+            &[fv_base, base123],
+            &scripts,
+            None,
+        )?;
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes);
+
+        // Verify integer value node 123 was created and referenced inside a `535 f350 258 f354 l<int_id> 259` node
+        let expected_int_tokens = encode_integer_value_tokens(123);
+        let int_node = index
+            .nodes()
+            .iter()
+            .find(|n| n.tokens == expected_int_tokens)
+            .expect("Expected integer value node for 123");
+        assert_eq!(index.get_integer(DcShorthand::Long(int_node.id)), Some(123));
+
+        let apply_node = index
+            .nodes()
+            .iter()
+            .find(|n| n.tokens.first() == Some(&sh(DC_FORMAT_PARAM_APPLICATION)))
+            .expect("Expected Dc 535 FormatParamApplication value node");
+        assert_eq!(
+            apply_node.tokens,
+            vec![
+                sh(DC_FORMAT_PARAM_APPLICATION),
+                DcShorthand::Format(350),
+                sh(DC_BEGIN_PARAMETER),
+                DcShorthand::Format(354),
+                DcShorthand::Long(int_node.id),
+                sh(crate::dc::DC_END_PARAMETER),
+            ]
+        );
+
+        let reconstructed = index.reconstruct_format_defns()?;
+        let rec_base123 = reconstructed
+            .iter()
+            .find(|d| d.short_id == Some(999))
+            .expect("Reconstructed Base123 format");
+        assert_eq!(
+            rec_base123.decompositions,
+            vec!["<equiv>f350(radix=123)".to_string()]
+        );
+
+        // 2. Verify live SeedGraphIndex only uses `.Formats:format_variant` Dcs as targets of Dc 632,
+        // and Dc 9 ("Gregorian calendar identifier") is recognized as a format in `.Formats:calendar`.
+        let shared = crate::seed_graph::SeedGraphIndex::shared()?;
+        for (&(_, prop, val_tok), _) in shared.active_multi_props() {
+            if prop == sh(DC_FORMAT_VARIATION_ASPECT) {
+                assert!(
+                    matches!(val_tok, DcShorthand::Format(_)),
+                    "Dc 632 (Format variation aspect) must only take a format_variant Dc, found {val_tok}"
+                );
+            }
+        }
+
+        let resolver = DatasetRuleResolver::load_from_seed_graph()?;
+        let dc9_gid = crate::dc::short_to_long_dc(9);
+        assert!(resolver.token_satisfies_type(dc9_gid, "format", None));
+        assert!(resolver.token_satisfies_type(dc9_gid, "format", Some("calendar")));
+        assert!(resolver.token_satisfies_type(dc9_gid, "type", None));
+        assert!(resolver.token_satisfies_type(dc9_gid, "type", Some("calendar")));
+
         Ok(())
     }
 }

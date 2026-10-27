@@ -284,7 +284,7 @@ mod tests {
     fn test_parametric_application_dc_stream() {
         let expr = parse_format_expr("f350(radix=16)").unwrap();
         let dc_stream = encode_dc_stream_string(&expr);
-        assert_eq!(dc_stream, "535 f350 258 radix 16 259 299");
+        assert_eq!(dc_stream, "535 f350 258 radix 16 259");
 
         let decoded = decode_dc_stream_string(&dc_stream).unwrap();
         assert_eq!(decoded, expr);
@@ -292,9 +292,16 @@ mod tests {
         // Embedded in binary conversion expression
         let compound = parse_format_expr("f350(radix=16) > f0").unwrap();
         let comp_stream = encode_dc_stream_string(&compound);
-        assert_eq!(comp_stream, "302 535 f350 258 radix 16 259 299 f0");
+        assert_eq!(comp_stream, "302 535 f350 258 radix 16 259 f0");
         let comp_decoded = decode_dc_stream_string(&comp_stream).unwrap();
         assert_eq!(comp_decoded, compound);
+
+        // Embedded as the last child of a non-tail variable-arity union
+        let nested_union = parse_format_expr("(f355 | f350(radix=16)) > f0").unwrap();
+        let union_stream = encode_dc_stream_string(&nested_union);
+        assert_eq!(union_stream, "302 300 f355 535 f350 258 radix 16 259 299 f0");
+        let union_decoded = decode_dc_stream_string(&union_stream).unwrap();
+        assert_eq!(union_decoded, nested_union);
     }
 
     #[crate::ctb_test]

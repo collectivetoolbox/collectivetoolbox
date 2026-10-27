@@ -67,3 +67,34 @@ l8589951057: 587 628 627 # Is a subtype of (Partial or basic dialect support, Wo
 l8589951058: 587 629 628 # Is a subtype of (Complete implementation, Partial or basic dialect support)
 l8589951059: 587 630 629 # Is a subtype of (Can be losslessly roundtripped, Complete implementation)
 l8589951060: 587 631 630 # Is a subtype of (Lossless roundtripping with strict validation, Can be losslessly roundtripped)
+l8589951061: u66 u6f u72 u6d u61 u74 u5f u76 u61 u72 u69 u61 u6e u74 # "format_variant"
+l8589951062: 599 298 605 l8589934717 299 298 258 298 298 602 298 298 605 l8589934706 584 l8589951061 299 299 298 298 605 l8589934708 299 299 299 299 298 298 602 298 298 605 l8589934720 299 299 298 298 605 l8589934717 299 299 298 298 605 l8589934697 299 299 299 299 259 299 298 603 4 l8589949075 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct type, End associativity group, Begin associativity group, Begin parameter, Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "format_variant", End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct identifier, End associativity group, End associativity group, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Pattern alternation, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct value, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct type, End associativity group, End associativity group, Begin associativity group, Begin associativity group, Subpattern match, Named syntax construct atom_dc, End associativity group, End associativity group, End associativity group, End associativity group, End parameter, End associativity group, Begin associativity group, Pattern repetition, Range, 1, End associativity group
+l8589951063: u50 u72 u6f u70 u65 u72 u74 u79 u20 u69 u6e u64 u69 u63 u61 u74 u69 u6e u67 u20 u61 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e u20 u28 u2e u46 u6f u72 u6d u61 u74 u73 u3a u66 u6f u72 u6d u61 u74 u5f u76 u61 u72 u69 u61 u6e u74 u29 u20 u61 u6c u6f u6e u67 u20 u77 u68 u69 u63 u68 u20 u61 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u65 u73 u2e # "Property indicating a format variation (.Formats:format_variant) along which a format varies."
+l8589951064: u44 u63 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e u20 u6e u69 u63 u6b u6e u61 u6d u65 # "Dc format variation nickname"
+l8589951065: u53 u68 u6f u72 u74 u20 u70 u61 u72 u61 u6d u65 u74 u65 u72 u20 u6e u69 u63 u6b u6e u61 u6d u65 u20 u28 u73 u75 u63 u68 u20 u61 u73 u20 u69 u6e u20 u27 u40 u76 u61 u72 u79 u5f u61 u73 u28 u22 u2e u2e u2e u22 u29 u27 u29 u20 u75 u73 u65 u64 u20 u74 u6f u20 u69 u64 u65 u6e u74 u69 u66 u79 u20 u61 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e u20 u61 u73 u70 u65 u63 u74 u20 u69 u6e u20 u70 u61 u72 u61 u6d u65 u74 u72 u69 u63 u20 u66 u6f u72 u6d u61 u74 u20 u65 u78 u70 u72 u65 u73 u73 u69 u6f u6e u73 u2e # "Short parameter nickname (such as in '@vary_as(\"...\")') used to identify a format variation aspect in parametric format expressions."
+l8589951066: u44 u63 u46 u6f u72 u6d u61 u74 u56 u61 u72 u69 u61 u74 u69 u6f u6e u4e u69 u63 u6b u6e u61 u6d u65 # "DcFormatVariationNickname"
+l8589951067: u4c u69 u6e u65 u20 u65 u6e u64 u69 u6e u67 u73 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Line endings format variation"
+l8589951068: u76 u3a u6c u69 u6e u65 u45 u6e u64 u69 u6e u67 u73 # "v:lineEndings"
+l8589951069: 599 298 605 l8589934706 584 l8589951068 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:lineEndings", End associativity group
+l8589951070: u55 u6e u69 u63 u6f u64 u65 u20 u50 u72 u69 u76 u61 u74 u65 u20 u55 u73 u65 u20 u41 u72 u65 u61 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Unicode Private Use Area format variation"
+l8589951071: u76 u3a u75 u6e u69 u63 u6f u64 u65 u50 u75 u61 # "v:unicodePua"
+l8589951072: 599 298 605 l8589934706 584 l8589951071 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:unicodePua", End associativity group
+l8589951073: u4c u65 u74 u74 u65 u72 u20 u63 u61 u73 u69 u6e u67 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Letter casing format variation"
+l8589951074: u76 u3a u63 u61 u73 u65 # "v:case"
+l8589951075: 599 298 605 l8589934706 584 l8589951074 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:case", End associativity group
+l8589951076: u50 u61 u64 u64 u69 u6e u67 u20 u63 u6f u6e u76 u65 u6e u74 u69 u6f u6e u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Padding convention format variation"
+l8589951077: u76 u3a u70 u61 u64 u64 u69 u6e u67 # "v:padding"
+l8589951078: 599 298 605 l8589934706 584 l8589951077 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "v:padding", End associativity group
+l8589951079: u42 u61 u73 u65 u20 u61 u6c u70 u68 u61 u62 u65 u74 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Base alphabet format variation"
+l8589951080: u43 u68 u61 u72 u61 u63 u74 u65 u72 u20 u65 u6e u63 u6f u64 u69 u6e u67 u20 u66 u6f u72 u6d u61 u74 u20 u76 u61 u72 u69 u61 u74 u69 u6f u6e # "Character encoding format variation"
+l8589951081: u45 u6e u63 u6f u64 u69 u6e u67 u56 u61 u72 u69 u61 u6e u74 # "EncodingVariant"
+l8589951082: u65 u6e u63 u6f u64 u69 u6e u67 # "encoding"
+l8589951083: 599 298 605 l8589934706 584 l8589951082 299 # Self reference, Begin associativity group, Subpattern match, Named syntax construct format, Has a, "encoding", End associativity group
+l8589951084: 584 9 581 # Has a (Gregorian calendar identifier, Unicode bidirectional class)
+l8589951085: 610 l8589951084 l8589934593 # Has value (l8589951084, Bidi class BN)
+l8589951086: 584 535 594 # Has a (Format parameter application, Syntax rule)
+l8589951087: 610 l8589951086 l8589951062 # Has value (l8589951086, 535 :~ [type] (258 ([format:format_variant] | [identifier]) ([value] | [type] | [atom_dc]) 259)+)
+l8589951088: 610 l8589949480 l8589951063 # Has value (l8589949480, "Property indicating a format variation (.Formats:format_variant) along which a format varies.")
+l8589951089: 591 l8589951088 l8589949481 # Supersedes (l8589951088, l8589949481)
+l8589951090: 584 634 572 # Has a (Dc format variation nickname, Canonical name)
+l8589951091: 610 l8589951090 l8589951064 # Has value (l8589951090, "Dc format variation nickname")

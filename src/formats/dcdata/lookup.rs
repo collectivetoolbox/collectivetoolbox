@@ -308,6 +308,11 @@ mod tests {
                 "syntax AST mismatch on {}",
                 c.dc_id
             );
+            assert_eq!(
+                g.format, c.format,
+                "format details mismatch on {}",
+                c.dc_id
+            );
         }
     }
 

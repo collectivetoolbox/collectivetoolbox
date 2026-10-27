@@ -48,15 +48,16 @@ use ctb_utilities::format_id::{
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
-    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_COMBINING_CLASS,
-    DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER,
-    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
-    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
+    DC_BEGIN_PARAMETER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
+    DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
+    DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
+    DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
-    DC_DC_GENERAL_CATEGORY, DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
-    DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP, DC_ENTITY_TYPE,
-    DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
+    DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
+    DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
+    DC_END_ASSOCIATIVITY_GROUP, DC_ENTITY_TYPE, DC_FORMAL_ALIAS,
+    DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
     DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
     DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
     DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
@@ -1120,6 +1121,14 @@ impl SeedGraphIndex {
                 .map(ToString::to_string)
                 .collect();
 
+            let format_details = if script.starts_with(".Formats:")
+                || script.starts_with("Formats:")
+            {
+                Some(FormatDetails::default())
+            } else {
+                None
+            };
+
             defns.push(DcDefn {
                 dc_id,
                 short_id,
@@ -1146,7 +1155,7 @@ impl SeedGraphIndex {
                 syntax,
                 closes,
                 description,
-                format: None,
+                format: format_details,
                 source_file: format!("{category}.csv"),
                 line_number: 0,
             });
@@ -1183,6 +1192,7 @@ impl SeedGraphIndex {
         let sh_uti = sh(DC_UNIFORM_TYPE_IDENTIFIER);
         let sh_ostype = sh(DC_APPLE_OS_TYPE);
         let sh_var_aspect = sh(DC_FORMAT_VARIATION_ASPECT);
+        let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
         let sh_def_variant = sh(DC_DEFAULT_FORMAT_VARIANT);
         let sh_ctb = sh(DC_COLLECTIVE_TOOLBOX);
         let sh_supp_level = sh(DC_IMPLEMENTATION_SUPPORT_LEVEL);
@@ -1435,27 +1445,30 @@ impl SeedGraphIndex {
 
             let mut varies = Vec::new();
             let mut variant_type_items = Vec::new();
-            let mut vary_as = None;
+            let vary_as = self
+                .get_single_property_string(subj, sh_var_nick)
+                .map(str::to_string);
             for entry in self.get_multi_properties(subj, sh_var_aspect) {
-                match entry.value {
-                    DcShorthand::Format(_) => {
+                if let DcShorthand::Format(_) = entry.value {
+                    if let Some(nick) =
+                        self.get_single_property_string(entry.value, sh_var_nick)
+                    {
+                        let v_script = format!(".Formats:v:{nick}");
+                        let direct_script = format!(".Formats:{nick}");
+                        if self
+                            .seed_entity_ids
+                            .contains_key(&SeedEntityKey::Script(v_script))
+                            || self
+                                .seed_entity_ids
+                                .contains_key(&SeedEntityKey::Script(direct_script))
+                        {
+                            variant_type_items.push(nick.to_string());
+                        } else {
+                            varies.push(entry.value);
+                        }
+                    } else {
                         varies.push(entry.value);
                     }
-                    DcShorthand::Long(id) => {
-                        if let Some(SeedEntityKey::Script(s)) =
-                            self.get_seed_entity(id)
-                        {
-                            // Reason for fallback: if not a '.Formats:v:' sub-category, strip '.Formats:' prefix.
-                            let v_name = s
-                                .strip_prefix(".Formats:v:")
-                                .or_else(|| s.strip_prefix(".Formats:"))
-                                .unwrap_or(s.as_str());
-                            variant_type_items.push(v_name.to_string());
-                        } else if let Some(s) = self.get_string(entry.value) {
-                            vary_as = Some(s.to_string());
-                        }
-                    }
-                    _ => {}
                 }
             }
             let variant_types = if variant_type_items.is_empty() {
@@ -1559,8 +1572,20 @@ impl SeedGraphIndex {
         let node = self.get_node(node_id).with_context(|| {
             format!("FormatExpr value node l{node_id} not found in seed graph")
         })?;
+        let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
+        let sh_begin_param = sh(DC_BEGIN_PARAMETER);
         let mut dc_tokens = Vec::with_capacity(node.tokens.len());
+        let mut prev_tok = None;
         for &tok in &node.tokens {
+            if prev_tok == Some(sh_begin_param) {
+                if let Some(nick) =
+                    self.get_single_property_string(tok, sh_var_nick)
+                {
+                    dc_tokens.push(DcToken::NamedType(nick.to_string()));
+                    prev_tok = Some(tok);
+                    continue;
+                }
+            }
             if let DcShorthand::Long(id) = tok {
                 if let Some(SeedEntityKey::NamedConstruct(name)) =
                     self.get_seed_entity(id)
@@ -1576,6 +1601,7 @@ impl SeedGraphIndex {
             } else {
                 dc_tokens.push(DcToken::Dc(tok));
             }
+            prev_tok = Some(tok);
         }
         decode_dc_stream(&dc_tokens).with_context(|| {
             format!("Failed to decode FormatExpr tokens in node l{node_id}")
@@ -1588,6 +1614,28 @@ impl SeedGraphIndex {
         }
         if let DcShorthand::Long(node_id) = val_tok {
             if let Some(node) = self.get_node(node_id) {
+                let is_format_op = |tok: DcShorthand| -> bool {
+                    tok == sh(DC_TYPE_UNION)
+                        || tok == sh(DC_TYPE_TRANSFORMATION)
+                        || tok == sh(DC_TYPE_CONVERSION)
+                        || tok == sh(DC_TYPE_TRANSMUTATION)
+                        || tok == sh(DC_TYPE_INTERSECTION)
+                        || tok == sh(DC_FORMAT_PARAM_APPLICATION)
+                };
+                let starts_format_expr = node.tokens.first().is_some_and(|&t| {
+                    is_format_op(t)
+                        || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
+                            && node
+                                .tokens
+                                .get(1)
+                                .copied()
+                                .is_some_and(is_format_op))
+                });
+                if starts_format_expr {
+                    if let Ok(expr) = self.decode_format_expr_node(node_id) {
+                        return crate::format_spec::format_expr(&expr);
+                    }
+                }
                 let parts: Vec<String> =
                     node.tokens.iter().map(ToString::to_string).collect();
                 return parts.join(" ");
