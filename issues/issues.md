@@ -79,6 +79,7 @@ Next, please consider a way to improve the unicode display to use either inline 
 
 ## Formats and Utilities
 
+- [ ] Revisit whether `BaseAlphabet` (`f359`, `2228583` in `formats/number.csv`: "A set of characters used in a positional number system") and `BaseAlphabetVariant` (`f613`, `2228837` in `formats/format_variant.csv`: "Base alphabet variation") are duplicates or should remain distinct.
 - [ ] Restore the removed semantic coordinate types in `formats/math`, using
   current Dc/derive conventions rather than blindly restoring old code.
 - [ ] HQX archive support
