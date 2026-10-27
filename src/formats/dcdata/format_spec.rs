@@ -296,12 +296,17 @@ mod tests {
         let comp_decoded = decode_dc_stream_string(&comp_stream).unwrap();
         assert_eq!(comp_decoded, compound);
 
-        // Embedded as the last child of a non-tail variable-arity union
-        let nested_union = parse_format_expr("(f355 | f350(radix=16)) > f0").unwrap();
-        let union_stream = encode_dc_stream_string(&nested_union);
-        assert_eq!(union_stream, "302 516 f355 535 f350 258 radix 16 259 299 f0");
-        let union_decoded = decode_dc_stream_string(&union_stream).unwrap();
-        assert_eq!(union_decoded, nested_union);
+        // Embedded as the last child of a non-tail variable-arity intersection (`|`)
+        let nested_intersection =
+            parse_format_expr("(f355 | f350(radix=16)) > f0").unwrap();
+        let intersection_stream = encode_dc_stream_string(&nested_intersection);
+        assert_eq!(
+            intersection_stream,
+            "302 516 f355 535 f350 258 radix 16 259 299 f0"
+        );
+        let intersection_decoded =
+            decode_dc_stream_string(&intersection_stream).unwrap();
+        assert_eq!(intersection_decoded, nested_intersection);
     }
 
     #[crate::ctb_test]
