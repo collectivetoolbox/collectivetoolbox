@@ -654,6 +654,7 @@ pub fn execute_copy_pipeline(
                 continue;
             }
         };
+        receipt.apply_stream_adaptations(&mut entity);
         record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
         let actual_dest_path = &receipt.destination_path;
         if actual_dest_path != dest_path {
@@ -757,9 +758,19 @@ pub fn execute_copy_pipeline(
 
                 let relative = fixup.dir_entity.identity.relative_path.as_deref()
                     .context("Missing deferred directory relative path")?;
-                let stream_warnings = match fixup.sandbox.authorize_metadata(relative, options.existing_entry_policy)
-                    .and_then(|()| ctb_io::file::write_streams_with_warnings(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)) {
-                    Ok(stream_warnings) => stream_warnings,
+                let (stream_adaptations, stream_warnings) = match fixup
+                    .sandbox
+                    .authorize_metadata(relative, options.existing_entry_policy)
+                    .and_then(|()| {
+                        ctb_io::file::materialize_directory_streams_and_companions(
+                            &fixup.dir_entity,
+                            &fixup.dest_path,
+                            &fixup.sandbox,
+                            &options,
+                            &ctb_io::file::streams::FilesystemStreamSource,
+                        )
+                    }) {
+                    Ok(res) => res,
                     Err(e) => {
                         record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                         let _ = handle_item_error(
@@ -773,6 +784,28 @@ pub fn execute_copy_pipeline(
                         continue;
                     }
                 };
+                for adapt in &stream_adaptations {
+                    if let Some(stream) = fixup.dir_entity.streams.get_mut(adapt.stream_index) {
+                        if adapt.source_stream_name != adapt.materialized_stream_name {
+                            stream.entity.metadata.set_materialized_stream_name(
+                                &adapt.source_stream_name,
+                                &adapt.materialized_stream_name,
+                            );
+                        }
+                        if let (Some(src_rel), Some(mat_rel)) = (
+                            adapt.source_relative_path.as_deref(),
+                            adapt.materialized_relative_path.as_deref(),
+                        ) {
+                            if src_rel != mat_rel {
+                                stream
+                                    .entity
+                                    .metadata
+                                    .set_materialized_relative_path(src_rel, mat_rel);
+                            }
+                            stream.entity.identity.relative_path = Some(mat_rel.to_path_buf());
+                        }
+                    }
+                }
                 record_materialization_warnings(journal, &mut fixup.dir_entity, stream_warnings)?;
                 let warnings = match apply_entity_metadata(
                     &fixup.dest_path,
@@ -1122,7 +1155,8 @@ fn copy_single_item(
                         );
                     }
                 };
-                record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                receipt.apply_stream_adaptations(&mut entity);
+        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
                 let final_dest = receipt.destination_path;
                 if final_dest != dest_path {
                     if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
@@ -1291,7 +1325,8 @@ fn copy_single_item(
                         );
                     }
                 };
-                record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                receipt.apply_stream_adaptations(&mut entity);
+        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
                 let final_dest = receipt.destination_path;
                 if final_dest != dest_path {
                     if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
@@ -1397,6 +1432,7 @@ fn copy_single_item(
             );
         }
     };
+    receipt.apply_stream_adaptations(&mut entity);
     record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
 
     if file_used_noatime {
@@ -3539,6 +3575,143 @@ mod tests {
         assert_eq!(
             zone_from_apple.data.as_deref(),
             Some(expected_pan_zone.as_slice())
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_directory_windows_ads_and_best_effort_stream_adaptation_journal_verify() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // 1. Subdirectory with an alongside Windows ADS companion (`subdir:Zone.Identifier`)
+        let subdir = src.join("subdir");
+        fs::create_dir_all(&subdir).unwrap();
+        let dir_zone = b"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.com/\r\n";
+        fs::write(src.join("subdir:Zone.Identifier"), dir_zone).unwrap();
+        fs::write(subdir.join("inside.txt"), b"inside subdir").unwrap();
+
+        // 2. Copy with --force-write-windows-ads and verify with `verify_directory_against_manifest`
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        args.force_write_windows_ads = true;
+
+        let res = run_csc(args).expect("run csc directory windows ads");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest.join("subdir").is_dir());
+        assert_eq!(
+            fs::read(dest.join("subdir:Zone.Identifier")).unwrap(),
+            dir_zone
+        );
+        assert_eq!(
+            fs::read(dest.join("subdir").join("inside.txt")).unwrap(),
+            b"inside subdir"
+        );
+
+        let verify_args = crate::args::default_verify_args(state, Some(dest));
+        let verify_report = crate::verifier::verify_directory_against_manifest(&verify_args).unwrap();
+        assert!(
+            verify_report.is_clean(),
+            "csc verify must pass for directory Windows ADS companion: {}",
+            verify_report.format_human_report()
+        );
+
+        // 3. Test AppleDouble with slashes/collisions converted to Windows ADS in best-effort mode:
+        //    - Default mode must fail when stream name contains `/`
+        //    - `--best-effort-metadata` must clean stream names, disambiguate collisions,
+        //      record `materialized.stream_name` in the journal, and pass `verify_directory_against_manifest`!
+        let src2 = temp.path().join("src2");
+        let dest2_strict = temp.path().join("dest2_strict");
+        let dest2_best = temp.path().join("dest2_best");
+        let state2_strict = temp.path().join("state2_strict");
+        let state2_best = temp.path().join("state2_best");
+        fs::create_dir_all(&src2).unwrap();
+        fs::create_dir_all(&state2_strict).unwrap();
+        fs::create_dir_all(&state2_best).unwrap();
+
+        fs::write(src2.join("doc.txt"), b"Document payload").unwrap();
+        let mut doc_entity =
+            ctb_io::file::FileEntity::from_filesystem(&src2.join("doc.txt"), Some(&src2)).unwrap();
+        doc_entity.streams = vec![
+            ctb_io::file::AttachedStream::from_data(
+                Some(ctb_io::file::StreamName::from_bytes(b"stream/with/slash")),
+                ctb_io::file::StreamKind::ExtendedAttribute,
+                b"slash-payload-1".to_vec(),
+            )
+            .unwrap(),
+            ctb_io::file::AttachedStream::from_data(
+                Some(ctb_io::file::StreamName::from_bytes(b"stream\\with\\slash")),
+                ctb_io::file::StreamKind::ExtendedAttribute,
+                b"slash-payload-2".to_vec(),
+            )
+            .unwrap(),
+            ctb_io::file::AttachedStream::from_data(
+                Some(ctb_io::file::StreamName::from_bytes(b"stream:with:colon")),
+                ctb_io::file::StreamKind::ExtendedAttribute,
+                b"colon-payload".to_vec(),
+            )
+            .unwrap(),
+        ];
+        let ad_bytes = ctb_io::file::serialize_apple_double_for_entity(&doc_entity).unwrap();
+        fs::write(src2.join("._doc.txt"), ad_bytes).unwrap();
+
+        // Strict/default copy must fail because `stream/with/slash` is invalid as a sidecar filename
+        let mut strict_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src2.display())),
+                dest2_strict,
+            ],
+            state2_strict,
+        );
+        strict_args.read_apple_double_alongside = true;
+        strict_args.force_write_windows_ads = true;
+        assert!(
+            run_csc(strict_args).is_err(),
+            "Default/strict mode must fail on stream names containing path separators or colons"
+        );
+
+        // Best-effort copy must clean, disambiguate, record in journal, and verify!
+        let mut best_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src2.display())),
+                dest2_best.clone(),
+            ],
+            state2_best.clone(),
+        );
+        best_args.read_apple_double_alongside = true;
+        best_args.force_write_windows_ads = true;
+        best_args.best_effort_metadata = true;
+        let best_res = run_csc(best_args).expect("best-effort copy must succeed");
+        match best_res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest2_best.join("doc.txt:stream⌿with⌿slash").exists());
+        assert!(dest2_best.join("doc.txt:stream_with_colon").exists());
+
+        // Verify journal recorded `materialized.stream_name` even when verify runs with best_effort = false!
+        let mut verify_best_args = crate::args::default_verify_args(state2_best, Some(dest2_best));
+        verify_best_args.criteria.best_effort = false;
+        let verify_best_report =
+            crate::verifier::verify_directory_against_manifest(&verify_best_args).unwrap();
+        assert!(
+            verify_best_report.is_clean(),
+            "csc verify must pass for adapted & disambiguated streams using journal metadata: {}",
+            verify_best_report.format_human_report()
         );
     }
 

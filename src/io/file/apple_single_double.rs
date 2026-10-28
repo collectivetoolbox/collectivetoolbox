@@ -669,14 +669,45 @@ fn join_windows_ads_companions_captured(
     Ok(())
 }
 
-/// Computes the destination paths of all Windows ADS `<filename>:<stream_name>` companion
-/// files that would be written for `entity` at `dest_path`.
-pub fn windows_ads_companion_paths(
+/// Record of a stream name and/or companion relative path adapted during
+/// best-effort materialization.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamAdaptationRecord {
+    /// Index of the stream in `entity.streams`.
+    pub stream_index: usize,
+    /// Original stream name bytes before adaptation.
+    pub source_stream_name: Vec<u8>,
+    /// Materialized stream name bytes written on disk.
+    pub materialized_stream_name: Vec<u8>,
+    /// Original relative path of the companion before adaptation, if applicable.
+    pub source_relative_path: Option<PathBuf>,
+    /// Materialized relative path of the companion written on disk, if applicable.
+    pub materialized_relative_path: Option<PathBuf>,
+}
+
+/// Planned Windows ADS `<filename>:<stream_name>` companion file for a stream.
+#[derive(Debug, Clone)]
+pub struct PlannedWindowsAdsCompanion {
+    /// Index of the stream in `entity.streams`.
+    pub stream_index: usize,
+    /// Destination path of the companion file.
+    pub companion_path: PathBuf,
+    /// Attached stream descriptor.
+    pub stream: AttachedStream,
+    /// Adaptation metadata if the stream name or companion path was modified in best-effort mode.
+    pub adaptation: Option<StreamAdaptationRecord>,
+    /// Materialization warning emitted if the stream name was adapted.
+    pub warning: Option<String>,
+}
+
+/// Computes the planned Windows ADS `<filename>:<stream_name>` companion files for `entity`
+/// at `dest_path`, including any best-effort stream-name adaptations and warnings.
+pub fn plan_windows_ads_companions(
     entity: &FileEntity,
     dest_path: &Path,
     dest_dir: &crate::sandboxable_dir::SandboxableDir,
     strict_lossless: bool,
-) -> Result<Vec<(PathBuf, AttachedStream)>> {
+) -> Result<Vec<PlannedWindowsAdsCompanion>> {
     if entity.streams.is_empty() {
         return Ok(Vec::new());
     }
@@ -685,16 +716,29 @@ pub fn windows_ads_companion_paths(
     let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
     // Reason for fallback: destination path without a file name component defaults to verbatim OsStr
     let file_name = dest_path.file_name().unwrap_or(dest_path.as_os_str());
+    let base_len = file_name.as_encoded_bytes().len();
+
+    let orig_base_rel = entity
+        .metadata
+        .source_relative_path()
+        .or_else(|| entity.identity.relative_path.clone());
 
     let mut out = Vec::with_capacity(entity.streams.len());
     let mut seen_names = std::collections::HashSet::new();
 
-    for stream in &entity.streams {
-        let raw_stream_os = match &stream.name {
-            Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+    for (stream_index, stream) in entity.streams.iter().enumerate() {
+        let raw_stream_bytes: std::borrow::Cow<'_, [u8]> = match &stream.name {
+            Some(name) => {
+                if strict_lossless {
+                    let os = name.to_os_string_for_materialization(true)?;
+                    std::borrow::Cow::Owned(os.as_encoded_bytes().to_vec())
+                } else {
+                    name.as_bytes()
+                }
+            }
             None => match stream.kind {
                 StreamKind::MacOsResourceFork => {
-                    std::ffi::OsString::from(crate::streams::RESOURCE_FORK_XATTR_NAME)
+                    std::borrow::Cow::Borrowed(crate::streams::RESOURCE_FORK_XATTR_NAME.as_bytes())
                 }
                 _ => {
                     if strict_lossless {
@@ -703,25 +747,115 @@ pub fn windows_ads_companion_paths(
                             dest_path.display()
                         );
                     }
-                    continue;
+                    std::borrow::Cow::Borrowed(b"")
                 }
             },
         };
-        let stream_bytes = raw_stream_os.as_encoded_bytes();
+        let stream_bytes = raw_stream_bytes.as_ref();
         let trimmed_leading = stream_bytes.strip_prefix(b":").unwrap_or(stream_bytes); // Reason for fallback: stream name without leading ':' is already unprefixed
-        let clean_suffix = strip_ads_data_type_suffix(trimmed_leading);
-        ensure!(
-            !clean_suffix.is_empty(),
-            "Windows ADS companion stream name cannot be empty for {}",
-            dest_path.display()
-        );
-        ensure!(
-            !clean_suffix.contains(&b'/') && !clean_suffix.contains(&0),
-            "Windows ADS companion stream name contains path separator or NUL for {}",
-            dest_path.display()
-        );
+        let orig_suffix = strip_ads_data_type_suffix(trimmed_leading);
 
-        let companion_file_name = build_windows_ads_companion_os_string(file_name, clean_suffix)?;
+        let (final_suffix_bytes, adaptation_warning) = if strict_lossless {
+            ensure!(
+                !orig_suffix.is_empty(),
+                "Windows ADS companion stream name cannot be empty for {}",
+                dest_path.display()
+            );
+            ensure!(
+                orig_suffix != b"." && orig_suffix != b"..",
+                "Windows ADS companion stream name cannot be '.' or '..' for {}",
+                dest_path.display()
+            );
+            ensure!(
+                !orig_suffix.contains(&b'/')
+                    && !orig_suffix.contains(&b'\\')
+                    && !orig_suffix.contains(&b':')
+                    && !orig_suffix.contains(&0),
+                "Windows ADS companion stream name contains path separator, colon, or NUL for {}",
+                dest_path.display()
+            );
+            ensure!(
+                base_len
+                    .saturating_add(1)
+                    .saturating_add(orig_suffix.len())
+                    <= crate::clean_name::MAX_FILENAME_BYTES,
+                "Windows ADS companion filename exceeds maximum filename length ({} bytes) for {}",
+                crate::clean_name::MAX_FILENAME_BYTES,
+                dest_path.display()
+            );
+            if cfg!(windows) {
+                let s = std::str::from_utf8(orig_suffix).with_context(|| {
+                    format!(
+                        "Non-UTF-8 stream name cannot be materialized as companion filename on Windows for {}",
+                        dest_path.display()
+                    )
+                })?;
+                ensure!(
+                    !s.chars().any(|c| matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control()),
+                    "Windows ADS companion stream name contains illegal characters for {}",
+                    dest_path.display()
+                );
+            }
+            (orig_suffix.to_vec(), None)
+        } else {
+            let max_suffix_bytes = crate::clean_name::MAX_FILENAME_BYTES
+                .saturating_sub(base_len.saturating_add(1));
+            ensure!(
+                max_suffix_bytes > 0,
+                "Base filename {:?} leaves no room for Windows ADS companion suffix on {}",
+                file_name,
+                dest_path.display()
+            );
+            let (mut cleaned_str, mut reason) =
+                crate::clean_name::clean_stream_name_for_companion(orig_suffix, max_suffix_bytes);
+
+            let mut candidate_companion =
+                build_windows_ads_companion_os_string(file_name, cleaned_str.as_bytes())?;
+            if seen_names.contains(&candidate_companion) {
+                let base_cleaned = cleaned_str.clone();
+                let mut collision_idx = 1_usize;
+                loop {
+                    let disambiguated = crate::clean_name::disambiguate_cleaned_name(
+                        &base_cleaned,
+                        orig_suffix,
+                        collision_idx,
+                        max_suffix_bytes,
+                    );
+                    let cand_os = build_windows_ads_companion_os_string(
+                        file_name,
+                        disambiguated.as_bytes(),
+                    )?;
+                    if !seen_names.contains(&cand_os) {
+                        cleaned_str = disambiguated;
+                        candidate_companion = cand_os;
+                        break;
+                    }
+                    collision_idx = collision_idx.saturating_add(1);
+                }
+                let disambig_msg = "disambiguated colliding stream name";
+                reason = Some(match reason {
+                    Some(prev) => format!("{prev}, {disambig_msg}"),
+                    None => disambig_msg.to_string(),
+                });
+            }
+            let _ = candidate_companion;
+            let warning = if cleaned_str.as_bytes() != orig_suffix {
+                let orig_lossy = String::from_utf8_lossy(orig_suffix);
+                Some(format!(
+                    "Adapted Windows ADS companion stream name {:?} -> {:?} on {} (best-effort: {})",
+                    orig_lossy,
+                    cleaned_str,
+                    dest_path.display(),
+                    reason.as_deref().unwrap_or("cleaned stream name") // Reason for fallback: default description when stream name was modified
+                ))
+            } else {
+                None
+            };
+            (cleaned_str.into_bytes(), warning)
+        };
+
+        let companion_file_name =
+            build_windows_ads_companion_os_string(file_name, &final_suffix_bytes)?;
         ensure!(
             seen_names.insert(companion_file_name.clone()),
             "Windows ADS companion names collide on {}",
@@ -738,10 +872,63 @@ pub fn windows_ads_companion_paths(
             )),
             "Windows ADS companion path is not contained in the destination sandbox"
         );
-        out.push((companion_path, stream.clone()));
+
+        let mat_rel = relative.to_path_buf();
+        let src_rel = orig_base_rel.as_ref().map(|base_rel| {
+            let base_file = base_rel.file_name().unwrap_or(base_rel.as_os_str()); // Reason for fallback: single-component relative path is already the file name
+            let orig_comp_os = build_windows_ads_companion_os_string(base_file, orig_suffix)
+                .unwrap_or_else(|_| {
+                    // Reason for fallback: non-UTF-8 suffix on non-Unix falls back to lossy string display for source relative path record
+                    std::ffi::OsString::from(format!(
+                        "{}:{}",
+                        base_file.to_string_lossy(),
+                        String::from_utf8_lossy(orig_suffix)
+                    ))
+                });
+            match base_rel.parent() {
+                Some(p) if !p.as_os_str().is_empty() => p.join(orig_comp_os),
+                _ => PathBuf::from(orig_comp_os),
+            }
+        });
+
+        let path_changed = src_rel.as_ref().is_some_and(|s| *s != mat_rel);
+        let adaptation = if final_suffix_bytes != orig_suffix || path_changed {
+            Some(StreamAdaptationRecord {
+                stream_index,
+                source_stream_name: orig_suffix.to_vec(),
+                materialized_stream_name: final_suffix_bytes,
+                source_relative_path: src_rel,
+                materialized_relative_path: Some(mat_rel),
+            })
+        } else {
+            None
+        };
+
+        out.push(PlannedWindowsAdsCompanion {
+            stream_index,
+            companion_path,
+            stream: stream.clone(),
+            adaptation,
+            warning: adaptation_warning,
+        });
     }
 
     Ok(out)
+}
+
+/// Computes the destination paths of all Windows ADS `<filename>:<stream_name>` companion
+/// files that would be written for `entity` at `dest_path`.
+pub fn windows_ads_companion_paths(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
+    strict_lossless: bool,
+) -> Result<Vec<(PathBuf, AttachedStream)>> {
+    let planned = plan_windows_ads_companions(entity, dest_path, dest_dir, strict_lossless)?;
+    Ok(planned
+        .into_iter()
+        .map(|p| (p.companion_path, p.stream))
+        .collect())
 }
 
 fn build_windows_ads_companion_os_string(
@@ -783,6 +970,27 @@ pub fn write_windows_ads_companions(
     strict_lossless: bool,
     stream_source: &dyn crate::streams::AttachedStreamSource,
 ) -> Result<Vec<PathBuf>> {
+    let (paths, _adaptations, _warnings) = write_windows_ads_companions_with_warnings(
+        entity,
+        dest_path,
+        dest_dir,
+        existing,
+        strict_lossless,
+        stream_source,
+    )?;
+    Ok(paths)
+}
+
+/// Writes alongside `<filename>:<stream_name>` Windows ADS companion files for `entity`,
+/// returning `(written_paths, stream_adaptations, warnings)`.
+pub fn write_windows_ads_companions_with_warnings(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
+    existing: crate::sandboxable_dir::ExistingEntryPolicy,
+    strict_lossless: bool,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<(Vec<PathBuf>, Vec<StreamAdaptationRecord>, Vec<String>)> {
     let times = if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
         Some((
@@ -795,13 +1003,86 @@ pub fn write_windows_ads_companions(
         None
     };
 
-    let planned = windows_ads_companion_paths(entity, dest_path, dest_dir, strict_lossless)?;
+    let planned = plan_windows_ads_companions(entity, dest_path, dest_dir, strict_lossless)?;
     if planned.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), Vec::new(), Vec::new()));
     }
 
     let mut written_paths = Vec::with_capacity(planned.len());
-    for (companion_path, stream) in planned {
+    let mut adaptations = Vec::new();
+    let mut warnings = Vec::new();
+    // Reason for fallback: destination path without a parent directory defaults to current working directory "."
+    let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
+    // Reason for fallback: destination path without a file name component defaults to verbatim OsStr
+    let file_name = dest_path.file_name().unwrap_or(dest_path.as_os_str());
+    let max_suffix_bytes = crate::clean_name::MAX_FILENAME_BYTES
+        .saturating_sub(file_name.as_encoded_bytes().len().saturating_add(1))
+        .max(1);
+    for mut item in planned {
+        if !strict_lossless
+            && existing == crate::sandboxable_dir::ExistingEntryPolicy::Refuse
+            && std::fs::symlink_metadata(&item.companion_path).is_ok()
+        {
+            let orig_suffix = item
+                .adaptation
+                .as_ref()
+                .map_or_else(Vec::new, |a| a.source_stream_name.clone());
+            let base_cleaned = item
+                .adaptation
+                .as_ref()
+                .map_or_else(
+                    || String::from_utf8_lossy(&orig_suffix).into_owned(),
+                    |a| String::from_utf8_lossy(&a.materialized_stream_name).into_owned(),
+                );
+            let mut collision_idx = 1_usize;
+            loop {
+                let disambig = crate::clean_name::disambiguate_cleaned_name(
+                    &base_cleaned,
+                    &orig_suffix,
+                    collision_idx,
+                    max_suffix_bytes,
+                );
+                let cand_os = build_windows_ads_companion_os_string(file_name, disambig.as_bytes())?;
+                let cand_path = parent_dir.join(&cand_os);
+                if std::fs::symlink_metadata(&cand_path).is_err() {
+                    let rel = cand_path
+                        .strip_prefix(dest_dir.root_path())
+                        .context("Windows ADS companion is outside the destination sandbox")?
+                        .to_path_buf();
+                    let w = format!(
+                        "Disambiguated colliding Windows ADS companion {:?} -> {:?} on {} (best-effort)",
+                        item.companion_path.display(),
+                        cand_path.display(),
+                        dest_path.display()
+                    );
+                    item.companion_path = cand_path;
+                    item.warning = Some(match item.warning {
+                        Some(prev) => format!("{prev}; {w}"),
+                        None => w,
+                    });
+                    item.adaptation = Some(StreamAdaptationRecord {
+                        stream_index: item.stream_index,
+                        source_stream_name: orig_suffix,
+                        materialized_stream_name: disambig.into_bytes(),
+                        source_relative_path: item
+                            .adaptation
+                            .and_then(|a| a.source_relative_path),
+                        materialized_relative_path: Some(rel),
+                    });
+                    break;
+                }
+                collision_idx = collision_idx.saturating_add(1);
+            }
+        }
+        let companion_path = item.companion_path;
+        let stream = item.stream;
+        if let Some(w) = item.warning {
+            warn_fmt!("{w}");
+            warnings.push(w);
+        }
+        if let Some(adapt) = item.adaptation {
+            adaptations.push(adapt);
+        }
         let FileEntityKind::Regular {
             size: expected_size,
             sha256: expected_sha256,
@@ -878,7 +1159,7 @@ pub fn write_windows_ads_companions(
         written_paths.push(companion_path);
     }
 
-    Ok(written_paths)
+    Ok((written_paths, adaptations, warnings))
 }
 
 fn read_captured_apple_input(path: &Path, snapshot: Option<&crate::payload::SourceSnapshot>, single_only: bool) -> Result<Option<Vec<u8>>> {
@@ -1283,6 +1564,195 @@ mod tests {
             ExistingEntryPolicy::Replace,
             true,
             &crate::streams::FilesystemStreamSource,
+        )?;
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_ads_stream_name_cleaning_collisions_and_directory_companions() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let src_dir = temp.path().join("src");
+        let dest_dir_path = temp.path().join("dest");
+        std::fs::create_dir_all(&src_dir)?;
+        std::fs::create_dir_all(&dest_dir_path)?;
+
+        // 1. Directory with an alongside `<dirname>:Zone.Identifier` companion
+        let sub_dir = src_dir.join("my_folder");
+        std::fs::create_dir(&sub_dir)?;
+        let dir_zone_bytes = b"[ZoneTransfer]\r\nZoneId=3\r\n";
+        std::fs::write(
+            src_dir.join("my_folder:Zone.Identifier"),
+            dir_zone_bytes,
+        )?;
+
+        let dir_entity = FileEntity::from_filesystem(&sub_dir, Some(&src_dir))?;
+        ensure!(dir_entity.is_dir());
+        let dir_stream = dir_entity
+            .streams
+            .iter()
+            .find(|s| {
+                s.name
+                    .as_ref()
+                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+            })
+            .context("Directory must join my_folder:Zone.Identifier stream")?;
+        ensure!(dir_stream.data.as_deref() == Some(dir_zone_bytes.as_slice()));
+
+        // Materialize directory with ForceWindowsAds
+        let dest_sandbox = SandboxableDir::open(&dest_dir_path)?;
+        let mat_opts = crate::materializer::MaterializeOptions {
+            strict_lossless: false,
+            apple_write_mode: AppleWriteMode::ForceWindowsAds,
+            ..Default::default()
+        };
+        let dir_receipt = crate::materializer::materialize_entity(
+            &dir_entity,
+            None,
+            &dest_sandbox,
+            &mat_opts,
+        )?;
+        ensure!(dir_receipt.destination_path == dest_dir_path.join("my_folder"));
+        ensure!(
+            std::fs::read(dest_dir_path.join("my_folder:Zone.Identifier"))?
+                == dir_zone_bytes
+        );
+        crate::verifier::verify_materialized_entity(
+            &dir_receipt.destination_path,
+            &dir_entity,
+            false,
+        )?;
+
+        // 2. Unrepresentable and colliding stream names:
+        //    - slash/backslash (`a/b`, `a\b` -> collide on `a⌿b`!)
+        //    - NUL and colon (`bad\0:name`)
+        //    - invalid UTF-8 binary bytes (`bin\xff\xfe`)
+        //    - unnamed non-resource-fork stream (`None`)
+        let src_file = src_dir.join("sample.txt");
+        std::fs::write(&src_file, b"hello")?;
+        let mut entity = FileEntity::from_filesystem(&src_file, Some(&src_dir))?;
+        entity.streams = vec![
+            AttachedStream::from_data(
+                Some(crate::streams::StreamName::from_bytes(b"a/b")),
+                StreamKind::NtfsAlternateDataStream,
+                b"slash-stream".to_vec(),
+            )?,
+            AttachedStream::from_data(
+                Some(crate::streams::StreamName::from_bytes(b"a\\b")),
+                StreamKind::NtfsAlternateDataStream,
+                b"backslash-stream".to_vec(),
+            )?,
+            AttachedStream::from_data(
+                Some(crate::streams::StreamName::from_bytes(b"bad\0:name")),
+                StreamKind::NtfsAlternateDataStream,
+                b"nul-colon-stream".to_vec(),
+            )?,
+            AttachedStream::from_data(
+                Some(crate::streams::StreamName::from_bytes(b"bin\xff\xfe")),
+                StreamKind::NtfsAlternateDataStream,
+                b"binary-name-stream".to_vec(),
+            )?,
+            AttachedStream::from_data(
+                None,
+                StreamKind::NtfsAlternateDataStream,
+                b"unnamed-stream".to_vec(),
+            )?,
+        ];
+
+        // In strict_lossless mode, materialization MUST fail on each unrepresentable stream
+        let strict_opts = crate::materializer::MaterializeOptions {
+            strict_lossless: true,
+            apple_write_mode: AppleWriteMode::ForceWindowsAds,
+            ..Default::default()
+        };
+        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        ensure!(
+            crate::materializer::materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &dest_sandbox,
+                &strict_opts,
+            )
+            .is_err(),
+            "Strict lossless mode must reject unrepresentable Windows ADS stream names"
+        );
+
+        // In best-effort mode (`strict_lossless: false`), materialization MUST clean & disambiguate
+        // all 5 streams, record adaptations, and pass verification!
+        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let receipt = crate::materializer::materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &dest_sandbox,
+            &mat_opts,
+        )?;
+        ensure!(receipt.stream_adaptations.len() == 5);
+        ensure!(!receipt.warnings.is_empty());
+
+        let mut recorded_entity = entity.clone();
+        receipt.apply_stream_adaptations(&mut recorded_entity);
+        for stream in &recorded_entity.streams {
+            ensure!(
+                stream.entity.metadata.materialized_stream_name().is_some(),
+                "Adapted stream must record materialized.stream_name in metadata"
+            );
+            ensure!(
+                stream.entity.metadata.materialized_relative_path().is_some(),
+                "Adapted stream must record materialized.relative_path in metadata"
+            );
+        }
+
+        // Verify both with recorded_entity (as stored in journal) and raw entity (best-effort)
+        crate::verifier::verify_materialized_entity(
+            &receipt.destination_path,
+            &recorded_entity,
+            false,
+        )?;
+        crate::verifier::verify_materialized_entity(
+            &receipt.destination_path,
+            &entity,
+            false,
+        )?;
+
+        // 3. Overlong base filename (255 bytes) + stream in best-effort mode must truncate base
+        //    filename so `<base>:<stream>` fits within 255 bytes.
+        let mut long_entity = entity.clone();
+        let long_name = "L".repeat(255);
+        long_entity.identity.relative_path = Some(PathBuf::from(&long_name));
+        long_entity.streams = vec![AttachedStream::from_data(
+            Some(crate::streams::StreamName::from_bytes(b"Zone.Identifier")),
+            StreamKind::NtfsAlternateDataStream,
+            b"zone-for-long".to_vec(),
+        )?];
+        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        ensure!(
+            crate::materializer::materialize_entity(
+                &long_entity,
+                Some(&mut payload),
+                &dest_sandbox,
+                &strict_opts,
+            )
+            .is_err(),
+            "Strict lossless mode must reject >255 byte combined companion filename"
+        );
+        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let long_receipt = crate::materializer::materialize_entity(
+            &long_entity,
+            Some(&mut payload),
+            &dest_sandbox,
+            &mat_opts,
+        )?;
+        let mat_base_len = long_receipt
+            .destination_path
+            .file_name()
+            .unwrap()
+            .as_encoded_bytes()
+            .len();
+        ensure!(mat_base_len + 1 + "Zone.Identifier".len() <= crate::clean_name::MAX_FILENAME_BYTES);
+        crate::verifier::verify_materialized_entity(
+            &long_receipt.destination_path,
+            &long_entity,
+            false,
         )?;
 
         Ok(())

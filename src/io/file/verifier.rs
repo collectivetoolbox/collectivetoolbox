@@ -827,10 +827,21 @@ pub fn audit_entity_detailed(
         }
 
         let mut expected_map = HashMap::new();
+        let base_len = path
+            .file_name()
+            .map_or(0, |f| f.as_encoded_bytes().len());
+        let max_suffix_bytes = crate::clean_name::MAX_FILENAME_BYTES
+            .saturating_sub(base_len.saturating_add(1))
+            .max(1);
         for s in &expected.streams {
             let hash = match &s.entity.kind {
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
+            };
+            let recorded_mat_name = if let Some(mat_bytes) = s.entity.metadata.materialized_stream_name() {
+                Some(crate::streams::StreamName::from_bytes(mat_bytes).canonicalize_native()?)
+            } else {
+                None
             };
             let mut native_name = match &s.name {
                 Some(name) => name.canonicalize_native_for_materialization(!options.best_effort)?,
@@ -840,17 +851,75 @@ pub fn audit_entity_detailed(
                             crate::streams::RESOURCE_FORK_XATTR_NAME,
                         ).canonicalize_native()?
                     }
-                    _ => continue,
+                    _ => {
+                        if let Some(ref mat) = recorded_mat_name {
+                            if disk_map.contains_key(mat) {
+                                mat.clone()
+                            } else {
+                                continue;
+                            }
+                        } else if options.best_effort {
+                            let (cleaned, _) = crate::clean_name::clean_stream_name_for_companion(b"", max_suffix_bytes);
+                            let cand = crate::streams::StreamName::from_str(&cleaned).canonicalize_native()?;
+                            if disk_map.contains_key(&cand) {
+                                cand
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
+                    }
                 },
             };
-            if options.best_effort {
+            if !disk_map.contains_key(&native_name) {
+                if let Some(mat) = recorded_mat_name {
+                    if disk_map.contains_key(&mat) {
+                        native_name = mat;
+                    }
+                }
+            }
+            if options.best_effort && !disk_map.contains_key(&native_name) {
                 let raw_name = native_name.to_os_string()?;
                 let adapted = crate::streams::StreamName::from_str(&raw_name.to_string_lossy())
                     .canonicalize_native()?;
-                if adapted != native_name {
-                    if !disk_map.contains_key(&native_name) && disk_map.contains_key(&adapted) {
-                        warn!("Auditing replacement-encoded stream name (best-effort)");
-                        native_name = adapted;
+                if adapted != native_name && disk_map.contains_key(&adapted) {
+                    warn!("Auditing replacement-encoded stream name (best-effort)");
+                    native_name = adapted;
+                } else {
+                    let raw_bytes: Vec<u8> = match &s.name {
+                        Some(n) => n.as_bytes().into_owned(),
+                        None => Vec::new(),
+                    };
+                    // Reason for fallback: stream name without leading ':' is already unprefixed
+                    let trimmed = raw_bytes.strip_prefix(b":").unwrap_or(&raw_bytes);
+                    let (cleaned_str, _) = crate::clean_name::clean_stream_name_for_companion(
+                        trimmed,
+                        max_suffix_bytes,
+                    );
+                    let mut cand = crate::streams::StreamName::from_str(&cleaned_str)
+                        .canonicalize_native()?;
+                    if expected_map.contains_key(&cand) || !disk_map.contains_key(&cand) {
+                        for collision_idx in 1_usize..=expected.streams.len().saturating_add(1) {
+                            let disambig = crate::clean_name::disambiguate_cleaned_name(
+                                &cleaned_str,
+                                trimmed,
+                                collision_idx,
+                                max_suffix_bytes,
+                            );
+                            let disambig_cand = crate::streams::StreamName::from_str(&disambig)
+                                .canonicalize_native()?;
+                            if !expected_map.contains_key(&disambig_cand)
+                                && disk_map.contains_key(&disambig_cand)
+                            {
+                                cand = disambig_cand;
+                                break;
+                            }
+                        }
+                    }
+                    if disk_map.contains_key(&cand) {
+                        warn!("Auditing cleaned companion stream name (best-effort)");
+                        native_name = cand;
                     }
                 }
             }

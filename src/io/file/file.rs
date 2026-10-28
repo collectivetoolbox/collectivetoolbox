@@ -235,18 +235,21 @@ pub use apple_single_double::{
     AppleArchive, AppleArchiveExt, AppleDoubleStyle, AppleFormat, AppleMetadata,
     AppleRawEntry, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
     ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
+    PlannedWindowsAdsCompanion, StreamAdaptationRecord,
     create_apple_archive_from_entity, get_companion_path, is_apple_double_file,
-    read_apple_single_double, serialize_apple_double_for_entity,
-    split_windows_ads_companion_bytes, windows_ads_companion_paths,
-    write_apple_double_companion, write_apple_single_double,
-    write_windows_ads_companions, APPLESINGLE_MAGIC_BE,
+    plan_windows_ads_companions, read_apple_single_double,
+    serialize_apple_double_for_entity, split_windows_ads_companion_bytes,
+    windows_ads_companion_paths, write_apple_double_companion,
+    write_apple_single_double, write_windows_ads_companions,
+    write_windows_ads_companions_with_warnings, APPLESINGLE_MAGIC_BE,
     APPLESINGLE_MAGIC_LE, VERSION_2_0_BE,
 };
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{
     MAX_FILENAME_BYTES, adapt_component_for_materialization,
-    adapt_relative_path_for_materialization, clean_file_name, clean_file_name_unix,
-    clean_file_name_windows,
+    adapt_component_with_max_bytes, adapt_relative_path_for_materialization,
+    clean_file_name, clean_file_name_unix, clean_file_name_windows,
+    clean_stream_name_for_companion, disambiguate_cleaned_name,
 };
 pub use entity::{File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload};
 pub use link_path::LinkPath;
@@ -262,7 +265,8 @@ pub use identity::{
 };
 pub use ctb_formats_dcstring::{Integer, Natural};
 pub use materializer::{
-    MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
+    MaterializeOptions, MaterializeReceipt, apply_entity_metadata,
+    materialize_directory_streams_and_companions, materialize_entity,
     materialize_entity_at_path, materialize_entity_with_stream_source, verify_directory_filenames_exact,
     verify_filename_exact_bytes, write_file_durable,
 };

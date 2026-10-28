@@ -1175,6 +1175,58 @@ impl FileMetadata {
             ))
         })
     }
+
+    /// Records the original source stream name and the actual materialized
+    /// stream name when best-effort mode or companion format adaptation renames
+    /// an alternate data stream or extended attribute.
+    pub fn set_materialized_stream_name(
+        &mut self,
+        source_name: &[u8],
+        materialized_name: &[u8],
+    ) {
+        if self.native.is_none() {
+            self.native = Some(NativeMetadata {
+                source_os: OsFamily::CURRENT,
+                values: std::collections::BTreeMap::new(),
+            });
+        }
+        if let Some(ref mut native) = self.native {
+            native.values.insert(
+                "source.stream_name".to_string(),
+                NativeMetadataValue::Bytes(source_name.to_vec()),
+            );
+            native.values.insert(
+                "materialized.stream_name".to_string(),
+                NativeMetadataValue::Bytes(materialized_name.to_vec()),
+            );
+        }
+    }
+
+    /// Returns the original source stream name bytes if this stream was renamed
+    /// during materialization.
+    #[must_use]
+    pub fn source_stream_name(&self) -> Option<&[u8]> {
+        let native = self.native.as_ref()?;
+        let NativeMetadataValue::Bytes(bytes) =
+            native.values.get("source.stream_name")?
+        else {
+            return None;
+        };
+        Some(bytes.as_slice())
+    }
+
+    /// Returns the actual materialized stream name bytes if recorded in
+    /// metadata.
+    #[must_use]
+    pub fn materialized_stream_name(&self) -> Option<&[u8]> {
+        let native = self.native.as_ref()?;
+        let NativeMetadataValue::Bytes(bytes) =
+            native.values.get("materialized.stream_name")?
+        else {
+            return None;
+        };
+        Some(bytes.as_slice())
+    }
 }
 
 impl Default for FileMetadata {
@@ -1431,6 +1483,8 @@ pub fn native_metadata_differences(
             "io.noatime",
             "source.relative_path",
             "materialized.relative_path",
+            "source.stream_name",
+            "materialized.stream_name",
         ];
         let actual = capture_native_metadata(
             destination,

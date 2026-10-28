@@ -357,13 +357,30 @@ pub fn validate_and_order_directory_entries(
         }
     }
 
-    // Kahn's algorithm for topological sorting
+    // Kahn's algorithm for topological sorting.
+    // Since `queue.pop()` pops from the back, place entries whose names require
+    // best-effort adaptation earlier in `queue` so unadapted entries are popped
+    // and materialized first, allowing adapted siblings that collide with them
+    // to disambiguate cleanly.
     let mut queue = Vec::new();
     for (i, &deg) in in_degree.iter().enumerate() {
         if deg == 0 {
             queue.push(i);
         }
     }
+    queue.sort_by_key(|&i| {
+        let needs_adaptation = planned_actions
+            .get(i)
+            .is_some_and(|a| {
+                crate::clean_name::adapt_component_for_materialization(
+                    &a.effective_dest_name,
+                    true,
+                )
+                .1
+                .is_some()
+            });
+        (!needs_adaptation, i)
+    });
 
     let mut ordered = Vec::with_capacity(n);
     while let Some(u) = queue.pop() {

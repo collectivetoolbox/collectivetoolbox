@@ -27,9 +27,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::apple_double::{
-    AppleFormat, AppleWriteMode, apple_double_companion_path, create_apple_archive_from_entity,
-    windows_ads_companion_paths, write_apple_double_companion, write_apple_single_double,
-    write_windows_ads_companions,
+    AppleFormat, AppleWriteMode, StreamAdaptationRecord, apple_double_companion_path,
+    create_apple_archive_from_entity, plan_windows_ads_companions,
+    write_apple_double_companion, write_apple_single_double,
+    write_windows_ads_companions_with_warnings,
 };
 use crate::entity::{FileEntity, FileEntityKind};
 use crate::identity::resolve_relative_path_for_os;
@@ -124,6 +125,38 @@ pub struct MaterializeReceipt {
     pub skipped_identical: bool,
     /// Fidelity issues observed while materializing the entity.
     pub warnings: Vec<String>,
+    /// Stream name and companion path adaptations applied in best-effort mode.
+    pub stream_adaptations: Vec<StreamAdaptationRecord>,
+}
+
+impl MaterializeReceipt {
+    /// Applies any stream adaptations recorded during materialization to `entity.streams`.
+    pub fn apply_stream_adaptations(&self, entity: &mut FileEntity) {
+        for adapt in &self.stream_adaptations {
+            if let Some(stream) = entity.streams.get_mut(adapt.stream_index) {
+                if adapt.source_stream_name != adapt.materialized_stream_name {
+                    stream.entity.metadata.set_materialized_stream_name(
+                        &adapt.source_stream_name,
+                        &adapt.materialized_stream_name,
+                    );
+                }
+                if let (Some(src_rel), Some(mat_rel)) = (
+                    adapt.source_relative_path.as_deref(),
+                    adapt.materialized_relative_path.as_deref(),
+                ) {
+                    if src_rel != mat_rel
+                        || adapt.source_stream_name != adapt.materialized_stream_name
+                    {
+                        stream
+                            .entity
+                            .metadata
+                            .set_materialized_relative_path(src_rel, mat_rel);
+                    }
+                    stream.entity.identity.relative_path = Some(mat_rel.to_path_buf());
+                }
+            }
+        }
+    }
 }
 
 /// Applies ownership, permissions, and timestamps from `meta` to `dest`.
@@ -466,13 +499,68 @@ pub fn materialize_entity_with_stream_source(
         options.path_policy,
     )?;
 
+    let max_leaf_bytes = if !options.strict_lossless {
+        if options.apple_write_mode.is_windows_ads() && !entity.streams.is_empty() {
+            let max_stream_len: usize = entity
+                .streams
+                .iter()
+                .map(|s| {
+                    s.name
+                        .as_ref()
+                        .map_or(7, |n| n.as_bytes().len().clamp(8, 64))
+                })
+                .max()
+                .unwrap_or(16); // Reason for fallback: non-empty streams slice always yields Some
+            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(max_stream_len.saturating_add(1))
+        } else if options.apple_write_mode.double_style().is_some()
+            && (!entity.streams.is_empty()
+                // Reason for fallback: absent AppleMetadata defaults to false
+                || entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()))
+        {
+            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(2)
+        } else if (options.apple_write_mode == AppleWriteMode::ForceAppleSingle
+            || options.apple_write_mode == AppleWriteMode::MaybeAppleSingle)
+            && options.apple_single_write_extension
+                != crate::apple_double::AppleSingleExtension::WithoutExtension
+        {
+            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(4)
+        } else {
+            crate::clean_name::MAX_FILENAME_BYTES
+        }
+    } else {
+        crate::clean_name::MAX_FILENAME_BYTES
+    };
+
     let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless {
         (orig_relative_path.to_path_buf(), Vec::new())
     } else {
-        let (adapted, warnings) = crate::clean_name::adapt_relative_path_for_materialization(
+        let (mut adapted, mut warnings) = crate::clean_name::adapt_relative_path_for_materialization(
             orig_relative_path,
             cfg!(windows),
         );
+        if max_leaf_bytes < crate::clean_name::MAX_FILENAME_BYTES {
+            if let Some(leaf) = adapted.file_name().map(std::ffi::OsStr::to_os_string) {
+                if leaf.as_encoded_bytes().len() > max_leaf_bytes {
+                    let (short_leaf, reason) = crate::clean_name::adapt_component_with_max_bytes(
+                        &leaf,
+                        cfg!(windows),
+                        max_leaf_bytes,
+                    );
+                    let new_adapted = match adapted.parent() {
+                        Some(p) if !p.as_os_str().is_empty() => p.join(&short_leaf),
+                        _ => PathBuf::from(&short_leaf),
+                    };
+                    let msg = format!(
+                        "Adapted destination path {:?} -> {:?} to leave room for companion filename (best-effort: {})",
+                        adapted.display(),
+                        new_adapted.display(),
+                        reason.as_deref().unwrap_or("truncated base filename") // Reason for fallback: default description when base filename is shortened
+                    );
+                    warnings.push(msg);
+                    adapted = new_adapted;
+                }
+            }
+        }
         for w in &warnings {
             warn_fmt!("{w}");
         }
@@ -484,6 +572,54 @@ pub fn materialize_entity_with_stream_source(
         relative_path,
         options.path_policy,
     )?;
+
+    if !options.strict_lossless
+        && options.existing_entry_policy == ExistingEntryPolicy::Refuse
+        && !entity.is_dir()
+        && relative_path_buf != orig_relative_path
+        && std::fs::symlink_metadata(&dest_path).is_ok()
+    {
+        if let Some(leaf_os) = relative_path_buf.file_name().map(std::ffi::OsStr::to_os_string) {
+            let leaf_str = leaf_os.to_string_lossy();
+            // Reason for fallback: single-component relative path is already the file name
+            let orig_leaf_bytes = orig_relative_path
+                .file_name()
+                .unwrap_or(orig_relative_path.as_os_str())
+                .as_encoded_bytes();
+            let mut collision_idx = 1_usize;
+            loop {
+                let disambiguated = crate::clean_name::disambiguate_cleaned_name(
+                    &leaf_str,
+                    orig_leaf_bytes,
+                    collision_idx,
+                    max_leaf_bytes,
+                );
+                let cand_rel = match relative_path_buf.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => p.join(&disambiguated),
+                    _ => PathBuf::from(&disambiguated),
+                };
+                let cand_dest = resolve_and_validate_path(
+                    dest_dir.root_path(),
+                    &cand_rel,
+                    options.path_policy,
+                )?;
+                if std::fs::symlink_metadata(&cand_dest).is_err() {
+                    let w = format!(
+                        "Disambiguated colliding adapted destination path {:?} -> {:?} (best-effort)",
+                        relative_path_buf.display(),
+                        cand_rel.display()
+                    );
+                    warn_fmt!("{w}");
+                    path_warnings.push(w);
+                    relative_path_buf = cand_rel;
+                    relative_path = &relative_path_buf;
+                    dest_path = cand_dest;
+                    break;
+                }
+                collision_idx = collision_idx.saturating_add(1);
+            }
+        }
+    }
 
     if options.dry_run {
         let size = match &entity.kind {
@@ -499,6 +635,7 @@ pub fn materialize_entity_with_stream_source(
             },
             skipped_identical: false,
             warnings: path_warnings,
+            stream_adaptations: Vec::new(),
         });
     }
 
@@ -632,6 +769,7 @@ pub fn materialize_entity_with_stream_source(
                 sha256: None,
                 skipped_identical: false,
                 warnings,
+                stream_adaptations: Vec::new(),
             })
         }
         FileEntityKind::Hardlink {
@@ -728,6 +866,7 @@ pub fn materialize_entity_with_stream_source(
                 sha256: None,
                 skipped_identical: false,
                 warnings,
+                stream_adaptations: Vec::new(),
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
@@ -756,109 +895,14 @@ pub fn materialize_entity_with_stream_source(
                 }
             }
             dest_dir.authorize_metadata(relative_path, options.existing_entry_policy)?;
-            let mut write_companion = false;
-            let mut write_windows_ads = false;
-            let mut stream_warnings = Vec::new();
-            match options.apple_write_mode {
-                AppleWriteMode::ForceAppleDouble(_) => {
-                    write_companion = true;
-                }
-                AppleWriteMode::MaybeAppleDouble(_) => {
-                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-                    let res = crate::streams::write_streams_from_source_with_warnings(
-                        &dest_path,
-                        None,
-                        &entity.streams,
-                        false,
-                        stream_source,
-                    );
-                    match res {
-                        Ok(w) => {
-                            stream_warnings.extend(w);
-                            if has_apple_meta {
-                                write_companion = true;
-                            }
-                        }
-                        Err(err) => {
-                            warn_fmt!(
-                                "Native stream write failed on directory {}; falling back to AppleDouble companion: {err:#}",
-                                dest_path.display()
-                            );
-                            write_companion = true;
-                        }
-                    }
-                }
-                AppleWriteMode::ForceWindowsAds => {
-                    write_windows_ads = !entity.streams.is_empty();
-                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
-                        anyhow::bail!(
-                            "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
-                            dest_path.display()
-                        );
-                    }
-                }
-                AppleWriteMode::MaybeWindowsAds => {
-                    let res = crate::streams::write_streams_from_source_with_warnings(
-                        &dest_path,
-                        None,
-                        &entity.streams,
-                        true,
-                        stream_source,
-                    );
-                    match res {
-                        Ok(w) => {
-                            stream_warnings.extend(w);
-                        }
-                        Err(err) => {
-                            warn_fmt!(
-                                "Native stream write failed on directory {}; falling back to Windows ADS companions: {err:#}",
-                                dest_path.display()
-                            );
-                            write_windows_ads = !entity.streams.is_empty();
-                        }
-                    }
-                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
-                        anyhow::bail!(
-                            "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
-                            dest_path.display()
-                        );
-                    }
-                }
-                _ => {
-                    stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
-                        &dest_path,
-                        None,
-                        &entity.streams,
-                        options.strict_lossless,
-                        stream_source,
-                    )?);
-                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
-                        anyhow::bail!(
-                            "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
-                            dest_path.display()
-                        );
-                    }
-                }
-            }
-            if write_companion {
-                if let Some(style) = options.apple_write_mode.double_style() {
-                    write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
-                }
-            }
-            if write_windows_ads {
-                write_windows_ads_companions(
+            let (stream_adaptations, stream_warnings) =
+                materialize_directory_streams_and_companions(
                     entity,
                     &dest_path,
                     dest_dir,
-                    options.existing_entry_policy,
-                    options.strict_lossless,
+                    options,
                     stream_source,
                 )?;
-            }
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
             warnings.extend(apply_entity_metadata(
@@ -876,6 +920,7 @@ pub fn materialize_entity_with_stream_source(
                 sha256: None,
                 skipped_identical: false,
                 warnings,
+                stream_adaptations,
             })
         }
         FileEntityKind::Fifo
@@ -955,6 +1000,7 @@ pub fn materialize_entity_with_stream_source(
                 sha256: None,
                 skipped_identical: false,
                 warnings,
+                stream_adaptations: Vec::new(),
             })
         }
         FileEntityKind::Socket => {
@@ -1136,6 +1182,7 @@ pub fn materialize_entity_with_stream_source(
                     sha256: Some(single_sha256),
                     skipped_identical: false,
                     warnings,
+                    stream_adaptations: Vec::new(),
                 });
             }
 
@@ -1512,11 +1559,16 @@ pub fn materialize_entity_with_stream_source(
                 }
             }
             if write_windows_ads && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
-                for (companion, _) in windows_ads_companion_paths(entity, &dest_path, dest_dir, options.strict_lossless)? {
-                    match std::fs::symlink_metadata(&companion) {
-                        Ok(_) => bail!("Windows ADS companion already exists; explicit overwrite permission required: {}", companion.display()),
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-                        Err(error) => return Err(error).context("Cannot inspect Windows ADS companion destination"),
+                for planned in plan_windows_ads_companions(entity, &dest_path, dest_dir, options.strict_lossless)? {
+                    if options.strict_lossless || planned.adaptation.is_none() {
+                        match std::fs::symlink_metadata(&planned.companion_path) {
+                            Ok(_) => bail!(
+                                "Windows ADS companion already exists; explicit overwrite permission required: {}",
+                                planned.companion_path.display()
+                            ),
+                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                            Err(error) => return Err(error).context("Cannot inspect Windows ADS companion destination"),
+                        }
                     }
                 }
             }
@@ -1573,9 +1625,29 @@ pub fn materialize_entity_with_stream_source(
             if let Err(err) = dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name, options.existing_entry_policy) {
                 if !options.strict_lossless && is_filename_rejection_error(&err) {
                     if let Some(orig_name) = file_name.file_name() {
-                        let (adapted_name, reason) =
-                            crate::clean_name::adapt_component_for_materialization(orig_name, true);
+                        let (mut adapted_name, reason) =
+                            crate::clean_name::adapt_component_with_max_bytes(orig_name, true, max_leaf_bytes);
                         if adapted_name != orig_name {
+                            if options.existing_entry_policy == ExistingEntryPolicy::Refuse
+                                && std::fs::symlink_metadata(parent_dir.join(&adapted_name)).is_ok()
+                            {
+                                let base_str = adapted_name.to_string_lossy();
+                                let mut collision_idx = 1_usize;
+                                loop {
+                                    let disambig = crate::clean_name::disambiguate_cleaned_name(
+                                        &base_str,
+                                        orig_name.as_encoded_bytes(),
+                                        collision_idx,
+                                        max_leaf_bytes,
+                                    );
+                                    let cand_os = std::ffi::OsString::from(&disambig);
+                                    if std::fs::symlink_metadata(parent_dir.join(&cand_os)).is_err() {
+                                        adapted_name = cand_os;
+                                        break;
+                                    }
+                                    collision_idx = collision_idx.saturating_add(1);
+                                }
+                            }
                             let new_rel = match relative_path.parent() {
                                 Some(p) if !p.as_os_str().is_empty() => p.join(&adapted_name),
                                 _ => PathBuf::from(&adapted_name),
@@ -1613,8 +1685,9 @@ pub fn materialize_entity_with_stream_source(
                     write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
             }
+            let mut stream_adaptations = Vec::new();
             if write_windows_ads {
-                write_windows_ads_companions(
+                let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
                     entity,
                     &dest_path,
                     dest_dir,
@@ -1622,6 +1695,8 @@ pub fn materialize_entity_with_stream_source(
                     options.strict_lossless,
                     stream_source,
                 )?;
+                stream_adaptations = adapts;
+                warnings.extend(ads_warnings);
             }
 
             #[cfg(unix)]
@@ -1660,6 +1735,7 @@ pub fn materialize_entity_with_stream_source(
                 sha256: Some(computed_sha256),
                 skipped_identical: false,
                 warnings,
+                stream_adaptations,
             })
         }
         FileEntityKind::Inaccessible => {
@@ -1820,6 +1896,143 @@ pub fn verify_directory_filenames_exact(
         );
     }
     Ok(())
+}
+
+/// Materializes streams and optional AppleDouble or Windows ADS companion files
+/// for a directory entity at `dest_path`, returning `(stream_adaptations, warnings)`.
+pub fn materialize_directory_streams_and_companions(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &SandboxableDir,
+    options: &MaterializeOptions,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<(Vec<StreamAdaptationRecord>, Vec<String>)> {
+    let mut write_companion = false;
+    let mut write_windows_ads = false;
+    let mut stream_warnings = Vec::new();
+    match options.apple_write_mode {
+        AppleWriteMode::ForceAppleDouble(_) => {
+            write_companion = true;
+        }
+        AppleWriteMode::MaybeAppleDouble(_) => {
+            // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+            let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+            let res = crate::streams::write_streams_from_source_with_warnings(
+                dest_path,
+                None,
+                &entity.streams,
+                false,
+                stream_source,
+            );
+            match res {
+                Ok(w) => {
+                    stream_warnings.extend(w);
+                    if has_apple_meta {
+                        write_companion = true;
+                    }
+                }
+                Err(err) => {
+                    warn_fmt!(
+                        "Native stream write failed on directory {}; falling back to AppleDouble companion: {err:#}",
+                        dest_path.display()
+                    );
+                    write_companion = true;
+                }
+            }
+        }
+        AppleWriteMode::ForceWindowsAds => {
+            write_windows_ads = !entity.streams.is_empty();
+            // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                anyhow::bail!(
+                    "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
+                    dest_path.display()
+                );
+            }
+        }
+        AppleWriteMode::MaybeWindowsAds => {
+            let res = crate::streams::write_streams_from_source_with_warnings(
+                dest_path,
+                None,
+                &entity.streams,
+                true,
+                stream_source,
+            );
+            match res {
+                Ok(w) => {
+                    stream_warnings.extend(w);
+                }
+                Err(err) => {
+                    warn_fmt!(
+                        "Native stream write failed on directory {}; falling back to Windows ADS companions: {err:#}",
+                        dest_path.display()
+                    );
+                    write_windows_ads = !entity.streams.is_empty();
+                }
+            }
+            // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                anyhow::bail!(
+                    "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
+                    dest_path.display()
+                );
+            }
+        }
+        _ => {
+            stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
+                dest_path,
+                None,
+                &entity.streams,
+                options.strict_lossless,
+                stream_source,
+            )?);
+            // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                anyhow::bail!(
+                    "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
+                    dest_path.display()
+                );
+            }
+        }
+    }
+
+    let parent_sandbox = if (write_companion || write_windows_ads)
+        && dest_path == dest_dir.root_path()
+    {
+        match dest_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            Some(p) => Some(SandboxableDir::open(p)?),
+            None => Some(SandboxableDir::open(".")?),
+        }
+    } else {
+        None
+    };
+    let companion_sandbox = parent_sandbox.as_ref().unwrap_or(dest_dir); // Reason for fallback: non-root directory uses dest_dir directly
+
+    if write_companion {
+        if let Some(style) = options.apple_write_mode.double_style() {
+            write_apple_double_companion(
+                entity,
+                dest_path,
+                companion_sandbox,
+                style,
+                options.existing_entry_policy,
+            )?;
+        }
+    }
+    let mut stream_adaptations = Vec::new();
+    if write_windows_ads {
+        let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
+            entity,
+            dest_path,
+            companion_sandbox,
+            options.existing_entry_policy,
+            options.strict_lossless,
+            stream_source,
+        )?;
+        stream_adaptations = adapts;
+        stream_warnings.extend(ads_warnings);
+    }
+    Ok((stream_adaptations, stream_warnings))
 }
 
 /// Convenience wrapper to materialize an entity given a destination root path.
@@ -1985,10 +2198,12 @@ fn try_update_existing_regular_entity(
         }
     }
 
+    let mut stream_adaptations = Vec::new();
+    let mut stream_warnings = Vec::new();
     if let Some(style) = options.apple_write_mode.double_style() {
         write_apple_double_companion(entity, dest_path, dest_dir, style, options.existing_entry_policy)?;
     } else if options.apple_write_mode.is_windows_ads() {
-        write_windows_ads_companions(
+        let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
             entity,
             dest_path,
             dest_dir,
@@ -1996,6 +2211,8 @@ fn try_update_existing_regular_entity(
             options.strict_lossless,
             &crate::streams::FilesystemStreamSource,
         )?;
+        stream_adaptations = adapts;
+        stream_warnings.extend(ads_warnings);
     } else {
         // Write missing or mismatched streams
         for (stream, source_name) in entity.streams.iter().zip(&source_names) {
@@ -2049,7 +2266,8 @@ fn try_update_existing_regular_entity(
     }
 
     // 9. Apply ownership, permissions, and timestamps (defer flags to next step)
-    let mut warnings = apply_entity_metadata(
+    let mut warnings = stream_warnings;
+    warnings.extend(apply_entity_metadata(
         dest_path,
         Some(dest_path),
         &entity.metadata,
@@ -2057,7 +2275,7 @@ fn try_update_existing_regular_entity(
         false,
         options.strict_lossless,
         options.check_birthtime,
-    )?;
+    )?);
 
     // 10. Apply final file flags
     let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
@@ -2114,6 +2332,7 @@ fn try_update_existing_regular_entity(
         sha256: Some(computed_sha256),
         skipped_identical: true,
         warnings,
+        stream_adaptations,
     }))
 }
 #[cfg(test)]

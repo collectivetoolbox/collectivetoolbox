@@ -375,16 +375,36 @@ pub fn adapt_component_for_materialization(
     component: &std::ffi::OsStr,
     force_windows_rules: bool,
 ) -> (std::ffi::OsString, Option<String>) {
+    adapt_component_with_max_bytes(
+        component,
+        force_windows_rules,
+        MAX_FILENAME_BYTES,
+    )
+}
+
+/// Adapts a single path component for best-effort materialization with an
+/// explicit maximum UTF-8/byte length budget `max_bytes`.
+#[must_use]
+pub fn adapt_component_with_max_bytes(
+    component: &std::ffi::OsStr,
+    force_windows_rules: bool,
+    max_bytes: usize,
+) -> (std::ffi::OsString, Option<String>) {
+    let max_bytes = max_bytes.clamp(1, MAX_FILENAME_BYTES);
     let raw_bytes = component.as_encoded_bytes();
     if !force_windows_rules {
+        let is_dot = raw_bytes.is_empty() || raw_bytes == b"." || raw_bytes == b"..";
         let has_nul = raw_bytes.contains(&0);
         let has_slash = raw_bytes.contains(&b'/');
-        let too_long = raw_bytes.len() > MAX_FILENAME_BYTES;
-        if !has_nul && !has_slash && !too_long {
+        let too_long = raw_bytes.len() > max_bytes;
+        if !is_dot && !has_nul && !has_slash && !too_long {
             return (component.to_os_string(), None);
         }
 
         let mut reasons = Vec::new();
+        if is_dot {
+            reasons.push("replaced empty/dot component with 'unnamed'".to_string());
+        }
         if has_nul {
             reasons.push("removed NUL bytes".to_string());
         }
@@ -395,7 +415,7 @@ pub fn adapt_component_for_materialization(
             reasons.push(format!(
                 "truncated from {} to at most {} bytes",
                 raw_bytes.len(),
-                MAX_FILENAME_BYTES
+                max_bytes
             ));
         }
 
@@ -407,11 +427,14 @@ pub fn adapt_component_for_materialization(
             }
             cleaned.push(if c == '/' { '⌿' } else { c });
         }
-        if cleaned.len() > MAX_FILENAME_BYTES {
-            cleaned = truncate_filename(&cleaned, MAX_FILENAME_BYTES);
+        if cleaned.len() > max_bytes {
+            cleaned = truncate_filename(&cleaned, max_bytes);
         }
         if cleaned.is_empty() || cleaned == "." || cleaned == ".." {
             cleaned = "unnamed".to_string();
+        }
+        if cleaned.len() > max_bytes {
+            cleaned = truncate_to_byte_limit(&cleaned, max_bytes).to_string();
         }
         return (
             std::ffi::OsString::from(cleaned),
@@ -483,21 +506,21 @@ pub fn adapt_component_for_materialization(
         result = after_reserved;
     }
 
-    if result.len() > MAX_FILENAME_BYTES {
+    if result.len() > max_bytes {
         reasons.push(format!(
             "truncated from {} to at most {} bytes",
             result.len(),
-            MAX_FILENAME_BYTES
+            max_bytes
         ));
-        result = truncate_filename(&result, MAX_FILENAME_BYTES);
+        result = truncate_filename(&result, max_bytes);
         let trimmed_post = result.trim_end_matches(is_trim_trailing);
         result = if trimmed_post.is_empty() {
             "unnamed".to_string()
         } else {
             sanitize_windows_reserved_name(trimmed_post)
         };
-        if result.len() > MAX_FILENAME_BYTES {
-            result = truncate_to_byte_limit(&result, MAX_FILENAME_BYTES).to_string();
+        if result.len() > max_bytes {
+            result = truncate_to_byte_limit(&result, max_bytes).to_string();
         }
     }
 
@@ -516,6 +539,178 @@ pub fn adapt_component_for_materialization(
             Some(reasons.join(", ")),
         )
     }
+}
+
+/// Cleans a raw stream suffix for materialization as a `<filename>:<stream_name>`
+/// sidecar file in best-effort mode, returning `(cleaned_suffix, reason_if_changed)`.
+///
+/// Replaces `/` and `\` with `⌿`, replaces invalid UTF-8 sequences with `\u{FFFD}`,
+/// replaces Windows-illegal characters (including `:`) with `_`, removes NUL and
+/// control characters, substitutes `"unnamed"` if empty, and truncates to `max_bytes`.
+#[must_use]
+pub fn clean_stream_name_for_companion(
+    raw_bytes: &[u8],
+    max_bytes: usize,
+) -> (String, Option<String>) {
+    let max_bytes = max_bytes.clamp(1, MAX_FILENAME_BYTES);
+    let valid_utf8 = std::str::from_utf8(raw_bytes).ok();
+    let raw_str = String::from_utf8_lossy(raw_bytes);
+    let mut reasons = Vec::new();
+    if raw_bytes.is_empty() {
+        reasons.push("substituted 'unnamed' for empty stream name".to_string());
+    }
+    if valid_utf8.is_none() {
+        reasons.push("replaced invalid UTF-8 bytes".to_string());
+    }
+    if raw_str.chars().any(|c| c == '\0' || is_control_or_separator(c)) {
+        reasons.push("removed control/NUL characters".to_string());
+    }
+    if raw_str.contains('/') || raw_str.contains('\\') {
+        reasons.push("replaced path separators with '⌿'".to_string());
+    }
+    if raw_str
+        .chars()
+        .any(|c| c != '\\' && is_windows_illegal_char(c))
+    {
+        reasons.push("replaced reserved stream characters".to_string());
+    }
+    if raw_str.chars().any(is_unicode_format_char) {
+        reasons.push("replaced Unicode format characters".to_string());
+    }
+
+    let mut cleaned = String::with_capacity(raw_str.len());
+    let mut last_was_whitespace = false;
+    for c in raw_str.chars() {
+        if c == '\0' || is_control_or_separator(c) {
+            continue;
+        }
+        if c == '/' || c == '\\' {
+            cleaned.push('⌿');
+            last_was_whitespace = false;
+            continue;
+        }
+        if is_windows_illegal_char(c) || is_unicode_format_char(c) {
+            cleaned.push('_');
+            last_was_whitespace = false;
+            continue;
+        }
+        if c.is_whitespace() || c == '\u{FEFF}' {
+            if cleaned.is_empty() || last_was_whitespace {
+                continue;
+            }
+            cleaned.push(' ');
+            last_was_whitespace = true;
+            continue;
+        }
+        last_was_whitespace = false;
+        cleaned.push(c);
+    }
+
+    let trimmed = cleaned.trim_end_matches(is_trim_trailing);
+    if trimmed.len() != cleaned.len() {
+        reasons.push("trimmed trailing dots/spaces".to_string());
+    }
+    let mut result = if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+        "unnamed".to_string()
+    } else {
+        trimmed.to_string()
+    };
+
+    let after_reserved = sanitize_windows_reserved_name(&result);
+    if after_reserved != result {
+        reasons.push("renamed DOS reserved device name".to_string());
+        result = after_reserved;
+    }
+
+    if result.len() > max_bytes {
+        reasons.push(format!(
+            "truncated from {} to at most {} bytes",
+            result.len(),
+            max_bytes
+        ));
+        result = truncate_filename(&result, max_bytes);
+        let trimmed_post = result.trim_end_matches(is_trim_trailing);
+        result = if trimmed_post.is_empty() || trimmed_post == "." || trimmed_post == ".." {
+            "unnamed".to_string()
+        } else {
+            sanitize_windows_reserved_name(trimmed_post)
+        };
+        if result.len() > max_bytes {
+            result = truncate_to_byte_limit(&result, max_bytes).to_string();
+        }
+    }
+
+    if result.is_empty() {
+        result.push_str("unnamed");
+    }
+
+    if valid_utf8 == Some(result.as_str()) {
+        (result, None)
+    } else {
+        if reasons.is_empty() {
+            reasons.push("normalized stream name for companion file".to_string());
+        }
+        (result, Some(reasons.join(", ")))
+    }
+}
+
+/// Disambiguates a cleaned filename or stream suffix that collides with another
+/// entry by appending a deterministic FNV-1a hash tag before any file extension,
+/// respecting `max_bytes`.
+#[must_use]
+pub fn disambiguate_cleaned_name(
+    cleaned: &str,
+    original_bytes: &[u8],
+    collision_index: usize,
+    max_bytes: usize,
+) -> String {
+    let max_bytes = max_bytes.clamp(1, MAX_FILENAME_BYTES);
+    let mut hash: u32 = 0x811c_9dc5;
+    for &b in original_bytes {
+        hash ^= u32::from(b);
+        hash = hash.wrapping_mul(0x0100_0193);
+    }
+    let suffix = if collision_index <= 1 {
+        format!("-{hash:08x}")
+    } else {
+        format!("-{hash:08x}-{collision_index}")
+    };
+
+    if suffix.len() >= max_bytes {
+        return truncate_to_byte_limit(&suffix, max_bytes).to_string();
+    }
+
+    let (base, ext) = if let Some(dot_idx) = cleaned.rfind('.') {
+        if dot_idx > 0 {
+            // Reason for fallback: dot_idx is a valid char boundary from rfind('.')
+            let b = cleaned.get(..dot_idx).unwrap_or(cleaned);
+            // Reason for fallback: dot_idx is a valid char boundary from rfind('.')
+            let e = cleaned.get(dot_idx..).unwrap_or("");
+            (b, e)
+        } else {
+            (cleaned, "")
+        }
+    } else {
+        (cleaned, "")
+    };
+
+    let ext_and_suffix_len = suffix.len().saturating_add(ext.len());
+    if ext_and_suffix_len < max_bytes {
+        let max_base = max_bytes.saturating_sub(ext_and_suffix_len);
+        let trunc_base = truncate_to_byte_limit(base, max_base)
+            .trim_end_matches(is_trim_trailing);
+        let effective_base = if trunc_base.is_empty() {
+            truncate_to_byte_limit("unnamed", max_base)
+        } else {
+            trunc_base
+        };
+        return format!("{effective_base}{suffix}{ext}");
+    }
+
+    let max_base = max_bytes.saturating_sub(suffix.len());
+    let trunc_base = truncate_to_byte_limit(cleaned, max_base)
+        .trim_end_matches(is_trim_trailing);
+    format!("{trunc_base}{suffix}")
 }
 
 /// Adapts all normal components of a relative path for best-effort
