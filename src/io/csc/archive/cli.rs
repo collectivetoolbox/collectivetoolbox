@@ -285,6 +285,7 @@ fn archive_apple_read_options() -> AppleReadOptions {
         read_apple_single: false,
         read_apple_single_as: false,
         read_apple_single_asf: false,
+        read_windows_ads_alongside: false,
     }
 }
 

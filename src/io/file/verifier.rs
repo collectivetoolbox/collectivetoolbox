@@ -800,6 +800,7 @@ pub fn audit_entity_detailed(
                 read_apple_single: true,
                 read_apple_single_as: true,
                 read_apple_single_asf: true,
+                read_windows_ads_alongside: true,
             };
             if crate::apple_double::join_apple_double_or_single(&mut check_entity, path, None, &all_apple_opts).is_ok() {
                 on_disk_streams = check_entity.streams;

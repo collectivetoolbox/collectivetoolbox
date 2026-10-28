@@ -240,6 +240,22 @@ pub struct CscArgs {
     #[arg(long, alias = "write-apple-single")]
     pub write_apple_single_without_extension: bool,
 
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files (default: enabled).
+    #[arg(long, overrides_with = "no_read_windows_ads")]
+    pub read_windows_ads: bool,
+
+    /// Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, overrides_with = "read_windows_ads")]
+    pub no_read_windows_ads: bool,
+
+    /// Write alongside `<filename>:<stream_name>` Windows alternate data stream companion files if native streams cannot be preserved.
+    #[arg(long)]
+    pub maybe_write_windows_ads: bool,
+
+    /// Force writing attached streams as alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, alias = "write-windows-ads")]
+    pub force_write_windows_ads: bool,
+
     /// Record full provenance environment information using slow environment detection
     /// (e.g. network discovery for public IP addresses and server time synchronization).
     #[arg(long)]
@@ -306,10 +322,10 @@ impl CscArgs {
         self.strict || self.check_birthtime || cfg!(windows)
     }
 
-    /// Resolves AppleSingle / AppleDouble read options.
+    /// Resolves AppleSingle / AppleDouble / Windows ADS companion read options.
     #[must_use]
     pub fn resolve_apple_read_options(&self) -> AppleReadOptions {
-        resolve_apple_read_options_from_flags(
+        let mut opts = resolve_apple_read_options_from_flags(
             self.read_apple_double,
             self.read_apple_double_alongside,
             self.no_read_apple_double_alongside,
@@ -319,10 +335,12 @@ impl CscArgs {
             self.read_apple_single_without_extension,
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
-        )
+        );
+        opts.read_windows_ads_alongside = !self.no_read_windows_ads || self.read_windows_ads;
+        opts
     }
 
-    /// Resolves AppleSingle / AppleDouble write mode, ensuring mutual exclusivity.
+    /// Resolves AppleSingle / AppleDouble / Windows ADS write mode, ensuring mutual exclusivity.
     pub fn resolve_apple_write_mode(&self) -> Result<(AppleWriteMode, AppleSingleExtension)> {
         let mut count = 0_usize;
         if self.maybe_write_apple_double.is_some() {
@@ -340,10 +358,16 @@ impl CscArgs {
         if is_explicit_force_single {
             count = count.saturating_add(1);
         }
+        if self.maybe_write_windows_ads {
+            count = count.saturating_add(1);
+        }
+        if self.force_write_windows_ads {
+            count = count.saturating_add(1);
+        }
 
         if count > 1 {
             anyhow::bail!(
-                "Cannot specify more than one AppleDouble or AppleSingle write mode simultaneously"
+                "Cannot specify more than one AppleDouble, AppleSingle, or Windows ADS write mode simultaneously"
             );
         }
 
@@ -360,6 +384,10 @@ impl CscArgs {
             AppleWriteMode::ForceAppleSingle
         } else if self.maybe_write_apple_single {
             AppleWriteMode::MaybeAppleSingle
+        } else if self.force_write_windows_ads {
+            AppleWriteMode::ForceWindowsAds
+        } else if self.maybe_write_windows_ads {
+            AppleWriteMode::MaybeWindowsAds
         } else if self.best_effort_metadata {
             AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside)
         } else {
@@ -421,6 +449,7 @@ pub fn resolve_apple_read_options_from_flags(
         read_apple_single: read_bare,
         read_apple_single_as: read_as,
         read_apple_single_asf: read_asf,
+        read_windows_ads_alongside: true,
     }
 }
 
@@ -817,16 +846,24 @@ pub struct CscDiffArgs {
     #[arg(long, value_name = "EXT", action = clap::ArgAction::Append)]
     pub read_apple_single_with_extension: Vec<AppleSingleExtension>,
 
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files (default: enabled).
+    #[arg(long, overrides_with = "no_read_windows_ads")]
+    pub read_windows_ads: bool,
+
+    /// Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, overrides_with = "read_windows_ads")]
+    pub no_read_windows_ads: bool,
+
     /// Record full provenance environment information using slow environment detection.
     #[arg(long)]
     pub full_provenance: bool,
 }
 
 impl CscDiffArgs {
-    /// Resolves AppleSingle / AppleDouble read options.
+    /// Resolves AppleSingle / AppleDouble / Windows ADS companion read options.
     #[must_use]
     pub fn resolve_apple_read_options(&self) -> AppleReadOptions {
-        resolve_apple_read_options_from_flags(
+        let mut opts = resolve_apple_read_options_from_flags(
             self.read_apple_double,
             self.read_apple_double_alongside,
             self.no_read_apple_double_alongside,
@@ -836,7 +873,9 @@ impl CscDiffArgs {
             self.read_apple_single_without_extension,
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
-        )
+        );
+        opts.read_windows_ads_alongside = !self.no_read_windows_ads || self.read_windows_ads;
+        opts
     }
 
     /// Converts this set of CLI verification flags into `EntityAuditOptions`.
@@ -1256,6 +1295,10 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         force_write_apple_single: false,
         write_apple_single_with_extension: None,
         write_apple_single_without_extension: false,
+        read_windows_ads: false,
+        no_read_windows_ads: false,
+        maybe_write_windows_ads: false,
+        force_write_windows_ads: false,
         full_provenance: false,
         continue_on_error: false,
         allow_journal_errors: false,
@@ -1328,6 +1371,8 @@ pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs
         read_apple_single_without_extension: false,
         no_read_apple_single: false,
         read_apple_single_with_extension: Vec::new(),
+        read_windows_ads: false,
+        no_read_windows_ads: false,
         full_provenance: false,
     }
 }

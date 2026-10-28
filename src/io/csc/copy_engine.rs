@@ -3408,6 +3408,141 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_csc_windows_ads_fixture_roundtrip_and_orphan_preservation() {
+        let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("file")
+            .join("fixtures")
+            .join("windows_ads");
+        let expected_pan = fs::read(fixture_dir.join("example2 with lemurs.pan")).unwrap();
+        let expected_pan_zone =
+            fs::read(fixture_dir.join("example2 with lemurs.pan:Zone.Identifier")).unwrap();
+        let expected_bin = fs::read(fixture_dir.join("example2 with lemurs-edited.bin")).unwrap();
+        let expected_bin_zone =
+            fs::read(fixture_dir.join("example2 with lemurs-edited.bin:Zone.Identifier")).unwrap();
+
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest_ads = temp.path().join("dest_ads");
+        let dest_apple = temp.path().join("dest_apple");
+        let state1 = temp.path().join("state1");
+        let state2 = temp.path().join("state2");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state1).unwrap();
+        fs::create_dir_all(&state2).unwrap();
+
+        fs::write(src.join("example2 with lemurs.pan"), &expected_pan).unwrap();
+        fs::write(
+            src.join("example2 with lemurs.pan:Zone.Identifier"),
+            &expected_pan_zone,
+        )
+        .unwrap();
+        fs::write(src.join("example2 with lemurs-edited.bin"), &expected_bin).unwrap();
+        fs::write(
+            src.join("example2 with lemurs-edited.bin:Zone.Identifier"),
+            &expected_bin_zone,
+        )
+        .unwrap();
+        // Orphaned Windows ADS file with no base sibling must be preserved as a normal file
+        fs::write(
+            src.join("orphan.bin:Zone.Identifier"),
+            b"[ZoneTransfer]\r\nZoneId=3\r\n",
+        )
+        .unwrap();
+
+        // 1. Copy with --force-write-windows-ads: joins companions on read and recreates them on dest
+        let mut args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest_ads.clone(),
+            ],
+            state1,
+        );
+        args1.force_write_windows_ads = true;
+
+        let res1 = run_csc(args1).expect("run csc windows ads");
+        match res1 {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert_eq!(
+            fs::read(dest_ads.join("example2 with lemurs.pan")).unwrap(),
+            expected_pan
+        );
+        assert_eq!(
+            fs::read(dest_ads.join("example2 with lemurs.pan:Zone.Identifier")).unwrap(),
+            expected_pan_zone
+        );
+        assert_eq!(
+            fs::read(dest_ads.join("example2 with lemurs-edited.bin")).unwrap(),
+            expected_bin
+        );
+        assert_eq!(
+            fs::read(dest_ads.join("example2 with lemurs-edited.bin:Zone.Identifier")).unwrap(),
+            expected_bin_zone
+        );
+        assert_eq!(
+            fs::read(dest_ads.join("orphan.bin:Zone.Identifier")).unwrap(),
+            b"[ZoneTransfer]\r\nZoneId=3\r\n"
+        );
+
+        // Diff src and dest_ads: must match cleanly with 0 untracked entries
+        let mut diff_args = crate::args::default_diff_args(src.clone(), dest_ads.clone());
+        diff_args.criteria.ignore_ctime = true;
+        let diff_report = crate::diff_engine::diff_paths(&diff_args).unwrap();
+        assert!(
+            diff_report.is_clean(),
+            "Diff report not clean: {}",
+            diff_report.format_human_report()
+        );
+
+        // 2. Copy from Windows ADS sidecars to AppleDouble alongside companions (cross-convention conversion!)
+        let mut args2 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", dest_ads.display())),
+                dest_apple.clone(),
+            ],
+            state2,
+        );
+        args2.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+
+        let res2 = run_csc(args2).expect("run csc windows ads to appledouble");
+        match res2 {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest_apple.join("._example2 with lemurs.pan").exists());
+        assert!(
+            !dest_apple
+                .join("example2 with lemurs.pan:Zone.Identifier")
+                .exists()
+        );
+        let entity_from_apple =
+            ctb_io::file::FileEntity::from_filesystem(&dest_apple.join("example2 with lemurs.pan"), Some(&dest_apple))
+                .unwrap();
+        let zone_from_apple = entity_from_apple
+            .streams
+            .iter()
+            .find(|s| {
+                s.name
+                    .as_ref()
+                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+            })
+            .expect("Zone.Identifier preserved inside AppleDouble companion");
+        assert_eq!(
+            zone_from_apple.data.as_deref(),
+            Some(expected_pan_zone.as_slice())
+        );
+    }
+
+    #[crate::ctb_test]
     fn test_csc_read_apple_single_with_extension_strips() {
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("src");

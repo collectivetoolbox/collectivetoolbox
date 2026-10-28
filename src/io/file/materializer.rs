@@ -28,7 +28,8 @@ use crate::utilities::*;
 
 use crate::apple_double::{
     AppleFormat, AppleWriteMode, apple_double_companion_path, create_apple_archive_from_entity,
-    write_apple_double_companion, write_apple_single_double,
+    windows_ads_companion_paths, write_apple_double_companion, write_apple_single_double,
+    write_windows_ads_companions,
 };
 use crate::entity::{FileEntity, FileEntityKind};
 use crate::identity::resolve_relative_path_for_os;
@@ -756,6 +757,7 @@ pub fn materialize_entity_with_stream_source(
             }
             dest_dir.authorize_metadata(relative_path, options.existing_entry_policy)?;
             let mut write_companion = false;
+            let mut write_windows_ads = false;
             let mut stream_warnings = Vec::new();
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
@@ -787,6 +789,44 @@ pub fn materialize_entity_with_stream_source(
                         }
                     }
                 }
+                AppleWriteMode::ForceWindowsAds => {
+                    write_windows_ads = !entity.streams.is_empty();
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
+                            dest_path.display()
+                        );
+                    }
+                }
+                AppleWriteMode::MaybeWindowsAds => {
+                    let res = crate::streams::write_streams_from_source_with_warnings(
+                        &dest_path,
+                        None,
+                        &entity.streams,
+                        true,
+                        stream_source,
+                    );
+                    match res {
+                        Ok(w) => {
+                            stream_warnings.extend(w);
+                        }
+                        Err(err) => {
+                            warn_fmt!(
+                                "Native stream write failed on directory {}; falling back to Windows ADS companions: {err:#}",
+                                dest_path.display()
+                            );
+                            write_windows_ads = !entity.streams.is_empty();
+                        }
+                    }
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
+                            dest_path.display()
+                        );
+                    }
+                }
                 _ => {
                     stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
                         &dest_path,
@@ -808,6 +848,16 @@ pub fn materialize_entity_with_stream_source(
                 if let Some(style) = options.apple_write_mode.double_style() {
                     write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
+            }
+            if write_windows_ads {
+                write_windows_ads_companions(
+                    entity,
+                    &dest_path,
+                    dest_dir,
+                    options.existing_entry_policy,
+                    options.strict_lossless,
+                    stream_source,
+                )?;
             }
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
@@ -1362,6 +1412,7 @@ pub fn materialize_entity_with_stream_source(
             let temp_path = parent_dir.join(&temp_name);
 
             let mut write_companion = false;
+            let mut write_windows_ads = false;
             let mut stream_warnings = Vec::new();
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
@@ -1393,6 +1444,44 @@ pub fn materialize_entity_with_stream_source(
                         }
                     }
                 }
+                AppleWriteMode::ForceWindowsAds => {
+                    write_windows_ads = !entity.streams.is_empty();
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for {} with Windows ADS companions",
+                            dest_path.display()
+                        );
+                    }
+                }
+                AppleWriteMode::MaybeWindowsAds => {
+                    let streams_res = crate::streams::write_streams_from_source_with_warnings(
+                        &temp_path,
+                        Some(&dest_path),
+                        &entity.streams,
+                        true,
+                        stream_source,
+                    );
+                    match streams_res {
+                        Ok(w) => {
+                            stream_warnings.extend(w);
+                        }
+                        Err(err) => {
+                            warn_fmt!(
+                                "Native stream write failed on {}; falling back to Windows ADS companions: {err:#}",
+                                dest_path.display()
+                            );
+                            write_windows_ads = !entity.streams.is_empty();
+                        }
+                    }
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for {} with Windows ADS companions",
+                            dest_path.display()
+                        );
+                    }
+                }
                 _ => {
                     stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
                         &temp_path,
@@ -1419,6 +1508,15 @@ pub fn materialize_entity_with_stream_source(
                             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
                             Err(error) => return Err(error).context("Cannot inspect AppleDouble companion destination"),
                         }
+                    }
+                }
+            }
+            if write_windows_ads && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
+                for (companion, _) in windows_ads_companion_paths(entity, &dest_path, dest_dir, options.strict_lossless)? {
+                    match std::fs::symlink_metadata(&companion) {
+                        Ok(_) => bail!("Windows ADS companion already exists; explicit overwrite permission required: {}", companion.display()),
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                        Err(error) => return Err(error).context("Cannot inspect Windows ADS companion destination"),
                     }
                 }
             }
@@ -1456,7 +1554,7 @@ pub fn materialize_entity_with_stream_source(
                     ignore_flags: true,
                     ignore_atime: !payload_noatime,
                     check_birthtime: options.check_birthtime,
-                    ignore_xattrs: write_companion,
+                    ignore_xattrs: write_companion || write_windows_ads,
                     ..EntityAuditOptions::default()
                 };
                 let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;
@@ -1515,6 +1613,16 @@ pub fn materialize_entity_with_stream_source(
                     write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
             }
+            if write_windows_ads {
+                write_windows_ads_companions(
+                    entity,
+                    &dest_path,
+                    dest_dir,
+                    options.existing_entry_policy,
+                    options.strict_lossless,
+                    stream_source,
+                )?;
+            }
 
             #[cfg(unix)]
             sync_parent_dir_best_effort(&parent_dir_fd, &parent_dir);
@@ -1537,7 +1645,7 @@ pub fn materialize_entity_with_stream_source(
             warnings.extend(crate::metadata::check_metadata_replication(
                 &dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
             )?);
-            if write_companion || options.check_atime || options.check_ctime || options.check_birthtime {
+            if write_companion || write_windows_ads || options.check_atime || options.check_ctime || options.check_birthtime {
                 if let Some(expected) = audited_entity.as_ref() {
                     crate::verifier::verify_materialized_entity_ext(
                         &dest_path, expected, true, options.check_atime,
@@ -1879,6 +1987,15 @@ fn try_update_existing_regular_entity(
 
     if let Some(style) = options.apple_write_mode.double_style() {
         write_apple_double_companion(entity, dest_path, dest_dir, style, options.existing_entry_policy)?;
+    } else if options.apple_write_mode.is_windows_ads() {
+        write_windows_ads_companions(
+            entity,
+            dest_path,
+            dest_dir,
+            options.existing_entry_policy,
+            options.strict_lossless,
+            &crate::streams::FilesystemStreamSource,
+        )?;
     } else {
         // Write missing or mismatched streams
         for (stream, source_name) in entity.streams.iter().zip(&source_names) {

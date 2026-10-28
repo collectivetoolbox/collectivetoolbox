@@ -28,7 +28,8 @@ use crate::utilities::*;
 
 use crate::apple_single_double::{
     AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
-    get_companion_path, APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE,
+    get_companion_path, split_windows_ads_companion_bytes, APPLESINGLE_MAGIC_BE,
+    APPLESINGLE_MAGIC_LE,
 };
 use crate::traversal::DirEntryItem;
 use std::collections::HashMap;
@@ -295,12 +296,43 @@ pub fn validate_and_order_directory_entries(
                 }
             }
 
-            // Check if companion path itself already exists on disk as a directory
+        // Check if companion path itself already exists on disk as a directory
             if comp.exists() && comp.is_dir() {
                 anyhow::bail!(
                     "Companion collision: companion path '{}' already exists on disk as a directory",
                     comp.display()
                 );
+            }
+        }
+
+        if write_mode == AppleWriteMode::ForceWindowsAds {
+            let entry_name = &action.entry.file_name;
+            if let Some((base_bytes, _)) =
+                split_windows_ads_companion_bytes(action.effective_dest_name.as_encoded_bytes())
+            {
+                let base_dest_path = {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::ffi::OsStrExt;
+                        curr_tgt.join(std::ffi::OsStr::from_bytes(base_bytes))
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        match std::str::from_utf8(base_bytes) {
+                            Ok(s) => curr_tgt.join(s),
+                            Err(_) => PathBuf::new(),
+                        }
+                    }
+                };
+                if let Some((base_entry, _)) = target_to_entry.get(&base_dest_path) {
+                    if base_entry != entry_name {
+                        anyhow::bail!(
+                            "Companion collision detected: Windows ADS companion for '{}' collides with destination path for '{}'",
+                            base_entry.to_string_lossy(),
+                            entry_name.to_string_lossy()
+                        );
+                    }
+                }
             }
         }
     }
@@ -619,6 +651,42 @@ mod tests {
         ensure!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
         ensure!(err_msg.contains("__MACOSX") || err_msg.contains("collision"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_name_collision_windows_ads_companion_conflict() -> Result<()> {
+        let temp = tempdir()?;
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
+
+        fs::write(src.join("file.txt"), b"base file")?;
+        fs::write(src.join("file.txt:Zone.Identifier"), b"independent file")?;
+
+        let read_opts = AppleReadOptions {
+            read_windows_ads_alongside: false,
+            ..Default::default()
+        };
+        let traversal_opts = TraversalOptions::new().apple_read_options(read_opts);
+        let entries = read_dir_safe(&src, &traversal_opts)?;
+
+        let res = validate_and_order_directory_entries(
+            entries,
+            &src,
+            &dest,
+            &dest,
+            Path::new(""),
+            &read_opts,
+            AppleWriteMode::ForceWindowsAds,
+            AppleSingleExtension::WithoutExtension,
+        );
+
+        ensure!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        ensure!(err_msg.contains("Companion collision") || err_msg.contains("collision"));
 
         Ok(())
     }

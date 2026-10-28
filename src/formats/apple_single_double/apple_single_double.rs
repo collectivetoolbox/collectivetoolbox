@@ -220,8 +220,8 @@ impl std::str::FromStr for AppleSingleExtension {
     }
 }
 
-/// Options controlling which AppleSingle and AppleDouble styles to detect and
-/// unpack on read.
+/// Options controlling which AppleSingle, AppleDouble, and Windows alternate
+/// data stream companion styles to detect and unpack on read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppleReadOptions {
     /// Read alongside ._<filename> companion files. Defaults to true.
@@ -242,6 +242,10 @@ pub struct AppleReadOptions {
     /// Read AppleSingle files with .asf extension and strip .asf upon decode.
     /// Defaults to false.
     pub read_apple_single_asf: bool,
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream
+    /// companion files (such as `<filename>:Zone.Identifier`). Defaults to true.
+    #[serde(default)]
+    pub read_windows_ads_alongside: bool,
 }
 
 impl Default for AppleReadOptions {
@@ -254,6 +258,7 @@ impl Default for AppleReadOptions {
             read_apple_single: false,
             read_apple_single_as: false,
             read_apple_single_asf: false,
+            read_windows_ads_alongside: true,
         }
     }
 }

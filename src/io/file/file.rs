@@ -237,7 +237,9 @@ pub use apple_single_double::{
     ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
     create_apple_archive_from_entity, get_companion_path, is_apple_double_file,
     read_apple_single_double, serialize_apple_double_for_entity,
-    write_apple_double_companion, write_apple_single_double, APPLESINGLE_MAGIC_BE,
+    split_windows_ads_companion_bytes, windows_ads_companion_paths,
+    write_apple_double_companion, write_apple_single_double,
+    write_windows_ads_companions, APPLESINGLE_MAGIC_BE,
     APPLESINGLE_MAGIC_LE, VERSION_2_0_BE,
 };
 pub use block_device_size::query_block_device_size;

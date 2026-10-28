@@ -736,6 +736,7 @@ impl DirTraverser {
             if let Some(meta) = &sym_meta {
                 if should_skip_apple_companion(
                     dir_abs,
+                    &file_name,
                     &name_str,
                     &entry_path,
                     meta,
@@ -1074,11 +1075,38 @@ fn extract_inode_key(path: &Path, meta: &Metadata) -> Option<InodeKey> {
 
 fn should_skip_apple_companion(
     dir_path: &Path,
+    file_name: &std::ffi::OsStr,
     name_str: &str,
     entry_path: &Path,
     sym_meta: &std::fs::Metadata,
     options: &AppleReadOptions,
 ) -> bool {
+    if options.read_windows_ads_alongside && sym_meta.is_file() {
+        if let Some((base_bytes, _)) =
+            crate::apple_double::split_windows_ads_companion_bytes(file_name.as_encoded_bytes())
+        {
+            #[cfg(unix)]
+            let base_os = {
+                use std::os::unix::ffi::OsStrExt;
+                std::ffi::OsStr::from_bytes(base_bytes).to_os_string()
+            };
+            #[cfg(not(unix))]
+            let base_os = std::str::from_utf8(base_bytes)
+                .ok()
+                .map(std::ffi::OsString::from);
+            #[cfg(unix)]
+            if dir_path.join(base_os).symlink_metadata().is_ok() {
+                return true;
+            }
+            #[cfg(not(unix))]
+            if let Some(base_os) = base_os {
+                if dir_path.join(base_os).symlink_metadata().is_ok() {
+                    return true;
+                }
+            }
+        }
+    }
+
     if options.read_apple_double_alongside {
         if let Some(base_name) = name_str.strip_prefix("._") {
             if !base_name.is_empty() {
