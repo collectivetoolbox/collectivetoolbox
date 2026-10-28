@@ -1292,7 +1292,13 @@ mod tests {
             .collect::<std::io::Result<Vec<_>>>()?;
         names.sort();
         ensure!(names == vec![OsString::from("._base"), OsString::from("base")]);
-        let interpreted = read_dir_safe(root, &TraversalOptions::new())?;
+        let default_interpreted = read_dir_safe(root, &TraversalOptions::new())?;
+        ensure!(default_interpreted.len() == 2);
+        let alongside_opts = TraversalOptions::new().apple_read_options(AppleReadOptions {
+            read_apple_double_alongside: true,
+            ..Default::default()
+        });
+        let interpreted = read_dir_safe(root, &alongside_opts)?;
         ensure!(interpreted.len() == 1 && interpreted.first().is_some_and(|entry| entry.file_name == "base"));
         crate::materializer::verify_filename_exact_bytes(root, b"._base")?;
         crate::materializer::verify_directory_filenames_exact(root, &[b"base", b"._base"])?;

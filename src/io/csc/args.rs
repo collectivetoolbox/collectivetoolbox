@@ -168,7 +168,7 @@ pub struct CscArgs {
     )]
     pub read_apple_double: Option<AppleDoubleStyle>,
 
-    /// Read alongside (._<filename>) AppleDouble companion files (default: enabled).
+    /// Read alongside (._<filename>) AppleDouble companion files.
     #[arg(long, overrides_with = "no_read_apple_double_alongside")]
     pub read_apple_double_alongside: bool,
 
@@ -240,7 +240,7 @@ pub struct CscArgs {
     #[arg(long, alias = "write-apple-single")]
     pub write_apple_single_without_extension: bool,
 
-    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files (default: enabled).
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
     #[arg(long, overrides_with = "no_read_windows_ads")]
     pub read_windows_ads: bool,
 
@@ -336,7 +336,7 @@ impl CscArgs {
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
         );
-        opts.read_windows_ads_alongside = !self.no_read_windows_ads || self.read_windows_ads;
+        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
         opts
     }
 
@@ -411,16 +411,13 @@ pub fn resolve_apple_read_options_from_flags(
     no_read_apple_single: bool,
     read_apple_single_with_extension: &[AppleSingleExtension],
 ) -> AppleReadOptions {
-    let mut alongside = !no_read_apple_double_alongside;
-    if read_apple_double_alongside {
-        alongside = true;
-    }
+    let mut alongside = read_apple_double_alongside && !no_read_apple_double_alongside;
     let mut zip = read_apple_double_zip;
     let mut netatalk = read_apple_double_netatalk;
 
     if let Some(style) = read_apple_double {
         match style {
-            AppleDoubleStyle::Alongside => alongside = true,
+            AppleDoubleStyle::Alongside => alongside = !no_read_apple_double_alongside,
             AppleDoubleStyle::Zip => zip = true,
             AppleDoubleStyle::Netatalk => netatalk = true,
         }
@@ -449,7 +446,7 @@ pub fn resolve_apple_read_options_from_flags(
         read_apple_single: read_bare,
         read_apple_single_as: read_as,
         read_apple_single_asf: read_asf,
-        read_windows_ads_alongside: true,
+        read_windows_ads_alongside: false,
     }
 }
 
@@ -814,7 +811,7 @@ pub struct CscDiffArgs {
     )]
     pub read_apple_double: Option<AppleDoubleStyle>,
 
-    /// Read alongside (._<filename>) AppleDouble companion files (default: enabled).
+    /// Read alongside (._<filename>) AppleDouble companion files.
     #[arg(long, overrides_with = "no_read_apple_double_alongside")]
     pub read_apple_double_alongside: bool,
 
@@ -846,7 +843,7 @@ pub struct CscDiffArgs {
     #[arg(long, value_name = "EXT", action = clap::ArgAction::Append)]
     pub read_apple_single_with_extension: Vec<AppleSingleExtension>,
 
-    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files (default: enabled).
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
     #[arg(long, overrides_with = "no_read_windows_ads")]
     pub read_windows_ads: bool,
 
@@ -874,7 +871,7 @@ impl CscDiffArgs {
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
         );
-        opts.read_windows_ads_alongside = !self.no_read_windows_ads || self.read_windows_ads;
+        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
         opts
     }
 
@@ -1363,7 +1360,7 @@ pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs
         verbose: false,
         one_file_system: false,
         read_apple_double: None,
-        read_apple_double_alongside: true,
+        read_apple_double_alongside: false,
         no_read_apple_double_alongside: false,
         read_apple_double_zip: false,
         read_apple_double_netatalk: false,
@@ -1577,6 +1574,13 @@ mod tests {
         let normal = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
         assert!(!normal.best_effort_metadata);
         assert!(!normal.strict);
+        assert_eq!(
+            normal.resolve_apple_read_options(),
+            ctb_io::file::AppleReadOptions::default(),
+            "All read-apple* and read-windows-ads options must be off by default"
+        );
+        assert!(!normal.resolve_apple_read_options().read_apple_double_alongside);
+        assert!(!normal.resolve_apple_read_options().read_windows_ads_alongside);
         assert_eq!(normal.should_check_birthtime(), cfg!(windows));
         let birthtime = CscArgs::try_parse_from(["csc", "--check-birthtime", "src", "dest"]).unwrap();
         assert!(birthtime.should_check_birthtime());

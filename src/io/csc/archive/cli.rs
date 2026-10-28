@@ -1127,7 +1127,11 @@ mod tests {
         std::fs::write(&path, b"primary")?;
         std::fs::write(&companion, b"malformed")?;
         let raw = FilesystemCapture.capture(&path)?;
-        ensure!(CapturedSource::capture(&path, None, &AppleReadOptions::default(), false).is_err());
+        let read_alongside = AppleReadOptions {
+            read_apple_double_alongside: true,
+            ..Default::default()
+        };
+        ensure!(CapturedSource::capture(&path, None, &read_alongside, false).is_err());
         std::fs::write(&companion, b"changed companion")?;
         ensure!(raw.snapshot.validate()?.is_empty());
         let mut payload = raw.open(&path)?;
@@ -1140,7 +1144,7 @@ mod tests {
             std::fs::remove_file(&companion)?;
             std::os::unix::fs::symlink("missing", &companion)?;
             FilesystemCapture.capture(&path)?;
-            ensure!(CapturedSource::capture(&path, None, &AppleReadOptions::default(), false).is_err());
+            ensure!(CapturedSource::capture(&path, None, &read_alongside, false).is_err());
             ensure!(std::fs::read_link(&companion)? == Path::new("missing"));
             ensure!(std::fs::read(&path)? == b"primary");
         }

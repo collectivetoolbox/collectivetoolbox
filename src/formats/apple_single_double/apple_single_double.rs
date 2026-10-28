@@ -222,9 +222,9 @@ impl std::str::FromStr for AppleSingleExtension {
 
 /// Options controlling which AppleSingle, AppleDouble, and Windows alternate
 /// data stream companion styles to detect and unpack on read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct AppleReadOptions {
-    /// Read alongside ._<filename> companion files. Defaults to true.
+    /// Read alongside ._<filename> companion files. Defaults to false.
     pub read_apple_double_alongside: bool,
     /// Read __MACOSX/ companion files. Defaults to false.
     pub read_apple_double_zip: bool,
@@ -243,24 +243,9 @@ pub struct AppleReadOptions {
     /// Defaults to false.
     pub read_apple_single_asf: bool,
     /// Read alongside `<filename>:<stream_name>` Windows alternate data stream
-    /// companion files (such as `<filename>:Zone.Identifier`). Defaults to true.
+    /// companion files (such as `<filename>:Zone.Identifier`). Defaults to false.
     #[serde(default)]
     pub read_windows_ads_alongside: bool,
-}
-
-impl Default for AppleReadOptions {
-    fn default() -> Self {
-        Self {
-            read_apple_double_alongside: true,
-            read_apple_double_zip: false,
-            read_apple_double_netatalk: false,
-            read_apple_single_without_extension: false,
-            read_apple_single: false,
-            read_apple_single_as: false,
-            read_apple_single_asf: false,
-            read_windows_ads_alongside: true,
-        }
-    }
 }
 
 impl AppleReadOptions {

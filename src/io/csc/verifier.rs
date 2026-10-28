@@ -347,6 +347,84 @@ pub fn audit_entries_against_target(
         };
 
         result.verified_paths.insert(normalize_rel_path(&disk_rel_path));
+        for stream in &entity.streams {
+            if let Some(mat_stream_rel) = stream.entity.metadata.materialized_relative_path() {
+                result.verified_paths.insert(normalize_rel_path(&mat_stream_rel));
+            }
+            let stream_name_opt = stream
+                .entity
+                .metadata
+                .materialized_stream_name()
+                .map(ctb_io::file::StreamName::from_bytes)
+                .or_else(|| stream.name.clone())
+                .or_else(|| {
+                    if stream.kind == ctb_io::file::StreamKind::MacOsResourceFork {
+                        Some(ctb_io::file::StreamName::from_str("com.apple.ResourceFork"))
+                    } else {
+                        None
+                    }
+                });
+            if let Some(s_name) = stream_name_opt {
+                let mut comp_os = disk_rel_path.as_os_str().to_os_string();
+                comp_os.push(":");
+                comp_os.push(s_name.to_string_lossy().as_ref());
+                let comp_rel = PathBuf::from(comp_os);
+                if target_dir.join(&comp_rel).symlink_metadata().is_ok() {
+                    result.verified_paths.insert(normalize_rel_path(&comp_rel));
+                }
+            }
+        }
+        if !entity.streams.is_empty()
+            || entity.metadata.apple.is_some()
+            || entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty())
+        {
+            if let Some(fname) = disk_rel_path.file_name() {
+                let mut ad_name = std::ffi::OsString::from("._");
+                ad_name.push(fname);
+                let ad_rel = match disk_rel_path.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => p.join(&ad_name),
+                    _ => PathBuf::from(&ad_name),
+                };
+                if ctb_io::file::is_apple_double_file(&target_dir.join(&ad_rel)) {
+                    result.verified_paths.insert(normalize_rel_path(&ad_rel));
+                }
+                let zip_rel = match disk_rel_path.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => {
+                        Path::new("__MACOSX").join(p).join(&ad_name)
+                    }
+                    _ => Path::new("__MACOSX").join(&ad_name),
+                };
+                if ctb_io::file::is_apple_double_file(&target_dir.join(&zip_rel)) {
+                    result.verified_paths.insert(normalize_rel_path(&zip_rel));
+                    let mut anc = zip_rel.parent();
+                    while let Some(p) = anc {
+                        if p.as_os_str().is_empty() {
+                            break;
+                        }
+                        result.verified_paths.insert(normalize_rel_path(p));
+                        anc = p.parent();
+                    }
+                }
+            }
+            let neta_rel = if entity.is_dir() {
+                disk_rel_path.join(".AppleDouble").join(".Parent")
+            } else if let Some(fname) = disk_rel_path.file_name() {
+                match disk_rel_path.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => p.join(".AppleDouble").join(fname),
+                    _ => Path::new(".AppleDouble").join(fname),
+                }
+            } else {
+                PathBuf::new()
+            };
+            if !neta_rel.as_os_str().is_empty()
+                && ctb_io::file::is_apple_double_file(&target_dir.join(&neta_rel))
+            {
+                result.verified_paths.insert(normalize_rel_path(&neta_rel));
+                if let Some(p) = neta_rel.parent() {
+                    result.verified_paths.insert(normalize_rel_path(p));
+                }
+            }
+        }
         let full_path = target_dir.join(&disk_rel_path);
 
         match &entity.kind {

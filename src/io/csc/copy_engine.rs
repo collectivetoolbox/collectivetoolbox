@@ -3487,7 +3487,7 @@ mod tests {
         )
         .unwrap();
 
-        // 1. Copy with --force-write-windows-ads: joins companions on read and recreates them on dest
+        // 1. Copy with --read-windows-ads and --force-write-windows-ads: joins companions on read and recreates them on dest
         let mut args1 = default_test_args(
             vec![
                 PathBuf::from(format!("{}/", src.display())),
@@ -3495,6 +3495,7 @@ mod tests {
             ],
             state1,
         );
+        args1.read_windows_ads = true;
         args1.force_write_windows_ads = true;
 
         let res1 = run_csc(args1).expect("run csc windows ads");
@@ -3528,6 +3529,7 @@ mod tests {
 
         // Diff src and dest_ads: must match cleanly with 0 untracked entries
         let mut diff_args = crate::args::default_diff_args(src.clone(), dest_ads.clone());
+        diff_args.read_windows_ads = true;
         diff_args.criteria.ignore_ctime = true;
         let diff_report = crate::diff_engine::diff_paths(&diff_args).unwrap();
         assert!(
@@ -3544,6 +3546,7 @@ mod tests {
             ],
             state2,
         );
+        args2.read_windows_ads = true;
         args2.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
 
         let res2 = run_csc(args2).expect("run csc windows ads to appledouble");
@@ -3560,9 +3563,17 @@ mod tests {
                 .join("example2 with lemurs.pan:Zone.Identifier")
                 .exists()
         );
+        let ad_read_opts = ctb_io::file::AppleReadOptions {
+            read_apple_double_alongside: true,
+            ..Default::default()
+        };
         let entity_from_apple =
-            ctb_io::file::FileEntity::from_filesystem(&dest_apple.join("example2 with lemurs.pan"), Some(&dest_apple))
-                .unwrap();
+            ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+                &dest_apple.join("example2 with lemurs.pan"),
+                Some(&dest_apple),
+                &ad_read_opts,
+            )
+            .unwrap();
         let zone_from_apple = entity_from_apple
             .streams
             .iter()
@@ -3594,11 +3605,12 @@ mod tests {
         fs::write(src.join("subdir:Zone.Identifier"), dir_zone).unwrap();
         fs::write(subdir.join("inside.txt"), b"inside subdir").unwrap();
 
-        // 2. Copy with --force-write-windows-ads and verify with `verify_directory_against_manifest`
+        // 2. Copy with --read-windows-ads and --force-write-windows-ads and verify with `verify_directory_against_manifest`
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
+        args.read_windows_ads = true;
         args.force_write_windows_ads = true;
 
         let res = run_csc(args).expect("run csc directory windows ads");

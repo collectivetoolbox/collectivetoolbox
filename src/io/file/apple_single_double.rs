@@ -1484,7 +1484,15 @@ mod tests {
         let expected_pan_zone = std::fs::read(&pan_zone_path)?;
         let expected_bin_zone = std::fs::read(&bin_zone_path)?;
 
-        let entity_pan = FileEntity::from_filesystem(&pan_path, Some(&fixture_dir))?;
+        let ads_opts = AppleReadOptions {
+            read_windows_ads_alongside: true,
+            ..Default::default()
+        };
+        let entity_pan = FileEntity::from_filesystem_with_apple_options(
+            &pan_path,
+            Some(&fixture_dir),
+            &ads_opts,
+        )?;
         let zone_stream = entity_pan
             .streams
             .iter()
@@ -1497,7 +1505,11 @@ mod tests {
         ensure!(zone_stream.kind == StreamKind::NtfsAlternateDataStream);
         ensure!(zone_stream.data.as_deref() == Some(expected_pan_zone.as_slice()));
 
-        let entity_bin = FileEntity::from_filesystem(&bin_path, Some(&fixture_dir))?;
+        let entity_bin = FileEntity::from_filesystem_with_apple_options(
+            &bin_path,
+            Some(&fixture_dir),
+            &ads_opts,
+        )?;
         let bin_stream = entity_bin
             .streams
             .iter()
@@ -1510,16 +1522,8 @@ mod tests {
         ensure!(bin_stream.kind == StreamKind::NtfsAlternateDataStream);
         ensure!(bin_stream.data.as_deref() == Some(expected_bin_zone.as_slice()));
 
-        // Verify disabled read_windows_ads_alongside does not join the companion
-        let disabled_opts = AppleReadOptions {
-            read_windows_ads_alongside: false,
-            ..Default::default()
-        };
-        let entity_no_ads = FileEntity::from_filesystem_with_apple_options(
-            &pan_path,
-            Some(&fixture_dir),
-            &disabled_opts,
-        )?;
+        // Verify default AppleReadOptions (read_windows_ads_alongside: false) does not join the companion
+        let entity_no_ads = FileEntity::from_filesystem(&pan_path, Some(&fixture_dir))?;
         ensure!(
             !entity_no_ads.streams.iter().any(|s| {
                 s.name
@@ -1586,7 +1590,15 @@ mod tests {
             dir_zone_bytes,
         )?;
 
-        let dir_entity = FileEntity::from_filesystem(&sub_dir, Some(&src_dir))?;
+        let ads_opts = AppleReadOptions {
+            read_windows_ads_alongside: true,
+            ..Default::default()
+        };
+        let dir_entity = FileEntity::from_filesystem_with_apple_options(
+            &sub_dir,
+            Some(&src_dir),
+            &ads_opts,
+        )?;
         ensure!(dir_entity.is_dir());
         let dir_stream = dir_entity
             .streams
