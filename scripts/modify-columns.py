@@ -268,7 +268,7 @@ def get_files_for_dataset(repo_root: Path, dataset_type: str) -> Tuple[List[Path
     """Return all CSV files and the schema file for the given dataset type."""
     d_type = dataset_type.lower().strip()
     if d_type in ("dcs", "dc", "dcdata", "dctext"):
-        base_dir = repo_root / "src" / "formats" / "dcdata" / "data"
+        base_dir = repo_root / "src" / "formats" / "dcdata" / "fixtures"
         categories_dir = base_dir / "categories"
         schema_file = base_dir / "schema.csv"
         files = []
@@ -280,7 +280,7 @@ def get_files_for_dataset(repo_root: Path, dataset_type: str) -> Tuple[List[Path
 
     elif d_type in ("formats", "format", "util", "utilities"):
         formats_dir = (
-            repo_root / "src" / "formats" / "dcdata" / "data" / "categories" / "formats"
+            repo_root / "src" / "formats" / "dcdata" / "fixtures" / "categories" / "formats"
         )
         schema_file = formats_dir / "schema.csv"
         files = []

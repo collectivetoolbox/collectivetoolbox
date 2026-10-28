@@ -96,7 +96,9 @@ fn should_skip_dir(
         || rel_str == "packaging/guix/generated"
         || rel_str == "assets/web/vendor"
         || rel_str == "src/formats/dcdata/data/magic/upstream"
-        || rel_str == "src/formats/dcdata/fixtures/droid/skeletons"    {
+        || rel_str == "src/formats/detection/fixtures/magic"
+        || rel_str == "src/formats/detection/fixtures/droid/skeletons"
+    {
         return true;
     }
 

@@ -249,10 +249,9 @@ mod tests {
         let from_graph = get_all_dc_defns();
         let mut report = crate::report::ValidationReport::new();
         let known_format_ids = std::collections::HashSet::new();
-        let dc_dir = crate::get_dc_categories_dir()
-            .expect("Embedded categories directory must be present");
-        let mut from_csv = crate::validation::validate_all_dc_files(
-            dc_dir,
+        let dc_dir = crate::get_dc_categories_dir_path();
+        let mut from_csv = crate::validation::validate_all_dc_files_from_disk(
+            &dc_dir,
             &known_format_ids,
             None,
             None,
@@ -320,8 +319,9 @@ mod tests {
     fn test_seed_graph_format_defns_match_embedded_csv_defns() {
         let from_graph = get_all_format_defns();
         let mut report = crate::report::ValidationReport::new();
-        let mut from_csv = crate::format::validate_all_format_files(
-            &crate::FORMATS_CATEGORIES_DIR,
+        let fmt_dir = crate::get_formats_categories_dir_path();
+        let mut from_csv = crate::format::validate_all_format_files_from_disk(
+            &fmt_dir,
             None,
             &mut report,
         );

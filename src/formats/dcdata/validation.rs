@@ -30,9 +30,7 @@ use include_dir::Dir;
 
 use crate::dc::{SHORT_DC_REGION_END, SHORT_DC_REGION_START};
 use crate::dc_def::DcDefn;
-use crate::format::{
-    validate_all_format_files, validate_all_format_files_from_disk,
-};
+use crate::format::validate_all_format_files_from_disk;
 use crate::layout::validate_layout_table;
 use crate::report::ValidationReport;
 use crate::shared::{
@@ -44,154 +42,29 @@ use crate::syntax::{
     build_format_validation_registry, normalize_syntax_pattern,
     parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
-use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
 use ctb_storage_minimal::shorthand::parse_unicode_shorthand;
 
-/// Runs comprehensive validation across all repository data tables strictly in memory
-/// using the embedded directory asset bundles.
+/// Runs comprehensive validation across all repository data tables.
 pub fn validate_all_data_tables() -> ValidationReport {
     validate_all_data_tables_embedded()
 }
 
-/// Runs validation using the embedded directory snapshots.
+/// Runs validation across all repository data tables located in the repository.
 pub fn validate_all_data_tables_embedded() -> ValidationReport {
-    let mut report = ValidationReport::new();
-
-    // 1. Validate Global Graph Layout table
-    validate_layout_table(
-        ctb_storage_minimal::global_graph_layout::GLOBAL_GRAPH_LAYOUT_CSV,
-        "storage/minimal/data/global-graph-layout.csv",
-        &mut report,
-    );
-
-    // 2. Validate Scripts Registry table
-    let Some(known_scripts) = load_embedded_known_scripts(&mut report) else {
-        return report;
-    };
-
-    // 3. Validate Formats category files
-    let format_rows =
-        validate_all_format_files(&FORMATS_CATEGORIES_DIR, Some(&known_scripts), &mut report);
-    let known_format_ids: HashSet<usize> =
-        format_rows.iter().filter_map(|r| r.short_id).collect();
-    let known_format_with_syntax: HashSet<usize> =
-        format_rows.iter().filter(|r| r.syntax.is_some()).filter_map(|r| r.short_id).collect();
-
-    // 4. Validate Decompositions table
-    let known_decomp_tags = if let Some(decomp_bytes) =
-        crate::get_dc_data_file("README-decompositions.csv")
-    {
-        validate_decompositions_table(
-            &decomp_bytes,
-            "data/README-decompositions.csv",
-            &mut report,
-        )
-    } else {
-        report.add_error(
-            "data/README-decompositions.csv",
-            None,
-            None,
-            "Could not locate embedded README-decompositions.csv",
-            None,
-        );
-        HashSet::new()
-    };
-
-    let named_types_bytes_opt = crate::get_dc_data_file("README-named-types.csv");
-    // Reason for fallback: optional named types file defaults to empty set if not present
-    let known_named_types = named_types_bytes_opt
-        .as_ref()
-        .map(|b| extract_named_type_names(b))
-        .unwrap_or_default();
-
-    let format_registry = build_format_validation_registry(&format_rows);
-
-    // 5. Validate Document Characters category files
-    let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
-        validate_all_dc_files(
-            dc_dir,
-            &known_format_ids,
-            Some(&known_decomp_tags),
-            Some(&known_named_types),
-            Some(&known_scripts),
-            Some(&known_format_with_syntax),
-            Some(&format_registry),
-            &mut report,
-        )
-    } else {
-        report.add_error(
-            "data/categories",
-            None,
-            None,
-            "Could not locate embedded categories directory",
-            None,
-        );
-        Vec::new()
-    };
-
-    // 5. Validate Cross-Table Name / Label Uniqueness
-    let dc_names: Vec<(usize, &str, &str)> = dc_rows
-        .iter()
-        .filter_map(|r| {
-            r.short_id
-                .map(|sid| (sid, r.name.as_str(), r.source_file.as_str()))
-        })
-        .collect();
-
-    let format_labels: Vec<(usize, &str, &str)> = format_rows
-        .iter()
-        .filter_map(|r| {
-            r.short_id
-                .map(|sid| (sid, r.name.as_str(), r.source_file.as_str()))
-        })
-        .collect();
-
-    validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
-
-    // 6. Validate Named Types table
-    let known_dc_ids: HashSet<u32> = dc_rows
-        .iter()
-        .filter_map(|r| r.short_id)
-        .filter_map(|id| u32::try_from(id).ok())
-        .collect();
-
-    let mut known_syntax_targets: HashSet<CharTarget> = dc_rows
-        .iter()
-        .filter(|r| r.syntax.is_some())
-        .filter_map(|r| r.short_id)
-        .filter_map(|id| u32::try_from(id).ok())
-        .map(CharTarget::Dc)
-        .collect();
-    for &fid in &known_format_with_syntax {
-        if let Some(format_id) =
-            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
-        {
-            known_syntax_targets.insert(CharTarget::Format(format_id));
+    match crate::find_repository_root() {
+        Ok(repo_root) => validate_all_data_tables_from_repo(&repo_root),
+        Err(e) => {
+            let mut report = ValidationReport::new();
+            report.add_error(
+                "src/formats/dcdata/fixtures",
+                None,
+                None,
+                format!("Could not locate repository root: {e}"),
+                None,
+            );
+            report
         }
     }
-
-    if let Some(named_types_bytes) = named_types_bytes_opt {
-        validate_named_types_table(
-            &named_types_bytes,
-            "data/README-named-types.csv",
-            &known_dc_ids,
-            &known_format_ids,
-            Some(&known_scripts),
-            Some(&known_syntax_targets),
-            Some(&format_registry),
-            &mut report,
-        );
-    } else {
-        report.add_error(
-            "data/README-named-types.csv",
-            None,
-            None,
-            "Could not locate embedded README-named-types.csv",
-            None,
-        );
-    }
-
-    report
 }
 
 /// Runs validation directly against live files in a repository directory.
@@ -220,20 +93,20 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 2. Validate Scripts Registry table
-    let scripts_path = repo_root.join("src/formats/dcdata/data/README.scripts.csv");
+    let scripts_path = repo_root.join("src/formats/dcdata/fixtures/README.scripts.csv");
     let Ok(bytes) = std::fs::read(&scripts_path) else {
         report.add_error(
-            "src/formats/dcdata/data/README.scripts.csv",
+            "src/formats/dcdata/fixtures/README.scripts.csv",
             None,
             None,
             "Could not locate README.scripts.csv on disk",
-            Some("Ensure file exists in src/formats/dcdata/data/"),
+            Some("Ensure file exists in src/formats/dcdata/fixtures/"),
         );
         return report;
     };
     let known_scripts = validate_scripts_table(
         &bytes,
-        "src/formats/dcdata/data/README.scripts.csv",
+        "src/formats/dcdata/fixtures/README.scripts.csv",
         &mut report,
     );
     if report.has_errors() && known_scripts.is_empty() {
@@ -241,7 +114,7 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 3. Validate Formats category files
-    let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
+    let formats_dir = repo_root.join("src/formats/dcdata/fixtures/categories/formats");
     let format_rows =
         validate_all_format_files_from_disk(&formats_dir, Some(&known_scripts), &mut report);
     let known_format_ids: HashSet<usize> =
@@ -251,26 +124,26 @@ pub fn validate_all_data_tables_from_repo(
 
     // 4. Validate Decompositions table
     let decomp_path =
-        repo_root.join("src/formats/dcdata/data/README-decompositions.csv");
+        repo_root.join("src/formats/dcdata/fixtures/README-decompositions.csv");
     let known_decomp_tags = if let Ok(bytes) = std::fs::read(&decomp_path) {
         validate_decompositions_table(
             &bytes,
-            "src/formats/dcdata/data/README-decompositions.csv",
+            "src/formats/dcdata/fixtures/README-decompositions.csv",
             &mut report,
         )
     } else {
         report.add_error(
-            "src/formats/dcdata/data/README-decompositions.csv",
+            "src/formats/dcdata/fixtures/README-decompositions.csv",
             None,
             None,
             "Could not locate README-decompositions.csv on disk",
-            Some("Ensure file exists in src/formats/dcdata/data/"),
+            Some("Ensure file exists in src/formats/dcdata/fixtures/"),
         );
         HashSet::new()
     };
 
     let named_types_path =
-        repo_root.join("src/formats/dcdata/data/README-named-types.csv");
+        repo_root.join("src/formats/dcdata/fixtures/README-named-types.csv");
     let named_types_bytes_opt = std::fs::read(&named_types_path).ok();
     // Reason for fallback: optional named types file defaults to empty set if not present on disk
     let known_named_types = named_types_bytes_opt
@@ -281,7 +154,7 @@ pub fn validate_all_data_tables_from_repo(
     let format_registry = build_format_validation_registry(&format_rows);
 
     // 5. Validate Document Characters category files
-    let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
+    let dc_dir = repo_root.join("src/formats/dcdata/fixtures/categories");
     let dc_rows = validate_all_dc_files_from_disk(
         &dc_dir,
         &known_format_ids,
@@ -337,7 +210,7 @@ pub fn validate_all_data_tables_from_repo(
     if let Some(bytes) = named_types_bytes_opt {
         validate_named_types_table(
             &bytes,
-            "src/formats/dcdata/data/README-named-types.csv",
+            "src/formats/dcdata/fixtures/README-named-types.csv",
             &known_dc_ids,
             &known_format_ids,
             Some(&known_scripts),
@@ -347,11 +220,11 @@ pub fn validate_all_data_tables_from_repo(
         );
     } else {
         report.add_error(
-            "src/formats/dcdata/data/README-named-types.csv",
+            "src/formats/dcdata/fixtures/README-named-types.csv",
             None,
             None,
             "Could not locate README-named-types.csv on disk",
-            Some("Ensure file exists in src/formats/dcdata/data/"),
+            Some("Ensure file exists in src/formats/dcdata/fixtures/"),
         );
     }
 
@@ -2357,7 +2230,7 @@ pub fn validate_all_dc_files(
     }
     validate_dc_files_data(
         files,
-        "src/formats/dcdata/data/categories/",
+        "src/formats/dcdata/fixtures/categories/",
         known_format_ids,
         known_decomp_tags,
         known_named_types,
@@ -2496,7 +2369,7 @@ mod tests {
 
         let mut report = ValidationReport::new();
         let rows = validate_all_format_files_from_disk(
-            &repo_root.join("src/formats/dcdata/data/categories/formats"),
+            &repo_root.join("src/formats/dcdata/fixtures/categories/formats"),
             None,
             &mut report,
         );
@@ -2684,8 +2557,8 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let repo = temp_dir.path();
 
-        let dc_cats = repo.join("src/formats/dcdata/data/categories");
-        let fmt_cats = repo.join("src/formats/dcdata/data/categories/formats");
+        let dc_cats = repo.join("src/formats/dcdata/fixtures/categories");
+        let fmt_cats = repo.join("src/formats/dcdata/fixtures/categories/formats");
         std::fs::create_dir_all(&dc_cats).unwrap();
         std::fs::create_dir_all(&fmt_cats).unwrap();
 
@@ -2703,7 +2576,7 @@ mod tests {
             "Description".to_string(),
         ];
         write_csv_file(
-            &repo.join("src/formats/dcdata/data/schema.csv"),
+            &repo.join("src/formats/dcdata/fixtures/schema.csv"),
             &dc_schema_header,
             &[],
         )
@@ -2729,7 +2602,7 @@ mod tests {
             "References".to_string(),
         ];
         write_csv_file(
-            &repo.join("src/formats/dcdata/data/categories/formats/schema.csv"),
+            &repo.join("src/formats/dcdata/fixtures/categories/formats/schema.csv"),
             &fmt_schema_header,
             &[],
         )
@@ -2839,7 +2712,7 @@ mod tests {
 
         // Verify generated DcList.generated.csv contents and order
         let (dc_gen_hdr, dc_gen_rows) = read_csv_file(
-            &repo.join("src/formats/dcdata/data/DcList.generated.csv"),
+            &repo.join("src/formats/dcdata/fixtures/DcList.generated.csv"),
         )
         .unwrap();
         assert_eq!(dc_gen_hdr, canonical_header);
@@ -2851,7 +2724,7 @@ mod tests {
 
         // Verify generated formats.generated.csv contents and order
         let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(
-            &repo.join("src/formats/dcdata/data/formats.generated.csv"),
+            &repo.join("src/formats/dcdata/fixtures/formats.generated.csv"),
         )
         .unwrap();
         assert_eq!(fmt_gen_hdr, canonical_header);
@@ -2865,7 +2738,7 @@ mod tests {
         /*
                 // Verify generated unicode.generated.csv
         let (uni_gen_hdr, uni_gen_rows) = read_csv_file(
-            &repo.join("src/formats/dcdata/data/unicode.generated.csv"),
+            &repo.join("src/formats/dcdata/fixtures/unicode.generated.csv"),
         )
         .unwrap();
         assert_eq!(uni_gen_hdr, canonical_header);
@@ -2875,7 +2748,7 @@ mod tests {
 
         // Verify generated all.generated.csv
         let (all_gen_hdr, all_gen_rows) = read_csv_file(
-            &repo.join("src/formats/dcdata/data/all.generated.csv"),
+            &repo.join("src/formats/dcdata/fixtures/all.generated.csv"),
         )
         .unwrap();
         assert_eq!(all_gen_hdr, canonical_header);
@@ -2884,16 +2757,16 @@ mod tests {
         */
         // Verify unicode and all tables are NOT generated
         let uni_csv_path =
-            repo.join("src/formats/dcdata/data/unicode.generated.csv");
+            repo.join("src/formats/dcdata/fixtures/unicode.generated.csv");
         assert!(!uni_csv_path.exists());
         let all_csv_path =
-            repo.join("src/formats/dcdata/data/all.generated.csv");
+            repo.join("src/formats/dcdata/fixtures/all.generated.csv");
         assert!(!all_csv_path.exists());
 
         // Verify JSON files are NOT generated
-        let dc_json_path = repo.join("src/formats/dcdata/data/DcList.generated.json");
+        let dc_json_path = repo.join("src/formats/dcdata/fixtures/DcList.generated.json");
         assert!(!dc_json_path.exists());
-        let fmt_json_path = repo.join("src/formats/dcdata/data/formats.generated.json");
+        let fmt_json_path = repo.join("src/formats/dcdata/fixtures/formats.generated.json");
         assert!(!fmt_json_path.exists());
     }
 

@@ -743,7 +743,7 @@ where
                         format!(
                             "Directive '@varies({target})' references non-variant format or character. Only formats in '.Formats:format_variant' are permitted in '@varies'"
                         ),
-                        Some("Ensure the target is defined in 'src/formats/dcdata/data/categories/formats/format_variant.csv'"),
+                        Some("Ensure the target is defined in 'src/formats/dcdata/fixtures/categories/formats/format_variant.csv'"),
                     );
                 }
             }
@@ -782,7 +782,7 @@ pub fn validate_all_format_files(
     }
     validate_format_files_data(
         files,
-        "src/formats/dcdata/data/categories/formats/",
+        "src/formats/dcdata/fixtures/categories/formats/",
         known_scripts,
         report,
     )

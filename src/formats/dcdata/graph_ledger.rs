@@ -2561,7 +2561,7 @@ pub fn update_ledger_in_memory(
 /// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/*.ctbnodes`
 /// using the append-only revision ledger algorithm.
 pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
-    let data_dir = repo_root.join("src/formats/dcdata/data");
+    let data_dir = repo_root.join("src/formats/dcdata/fixtures");
     let categories_dir = data_dir.join("categories");
     let formats_dir = categories_dir.join("formats");
     let scripts_path = data_dir.join("README.scripts.csv");
@@ -2574,7 +2574,7 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
     })?;
     let known_scripts_set = crate::validation::validate_scripts_table(
         &scripts_bytes,
-        "src/formats/dcdata/data/README.scripts.csv",
+        "src/formats/dcdata/fixtures/README.scripts.csv",
         &mut report,
     );
     let known_scripts: BTreeSet<String> =

@@ -2969,41 +2969,44 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_droid_pronom_detection_pdf() {
-        if let Some(pdf_bytes) =
-            ctb_formats_dcdata::get_dc_data_file("droid/tests/signatures/sample.pdf")
-        {
-            let mut source: &[u8] = &pdf_bytes;
-            let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
-            assert!(cands
-                .iter()
-                .any(|c| c.mime.as_deref() == Some("application/pdf")));
-            assert!(cands.iter().any(|c| c.evidence.iter().any(
-                |e| matches!(e, DetectionEvidence::Pronom { puid, .. } if puid == "fmt/18")
-            )));
-        }
+        let pdf_bytes = ctb_utilities::load_manifest_fixture(
+            env!("CARGO_MANIFEST_DIR"),
+            "droid/signatures/sample.pdf",
+        )
+        .expect("missing droid/signatures/sample.pdf fixture");
+        let mut source: &[u8] = &pdf_bytes;
+        let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
+        assert!(cands
+            .iter()
+            .any(|c| c.mime.as_deref() == Some("application/pdf")));
+        assert!(cands.iter().any(|c| c.evidence.iter().any(
+            |e| matches!(e, DetectionEvidence::Pronom { puid, .. } if puid == "fmt/18")
+        )));
     }
 
     #[crate::ctb_test]
     fn test_droid_pronom_detection_jpeg() {
-        if let Some(jpeg_bytes) =
-            ctb_formats_dcdata::get_dc_data_file("droid/tests/signatures/DROID.jpeg")
-        {
-            let mut source: &[u8] = &jpeg_bytes;
-            let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
-            assert!(cands
-                .iter()
-                .any(|c| c.mime.as_deref() == Some("image/jpeg")));
-        }
+        let jpeg_bytes = ctb_utilities::load_manifest_fixture(
+            env!("CARGO_MANIFEST_DIR"),
+            "droid/signatures/DROID.jpeg",
+        )
+        .expect("missing droid/signatures/DROID.jpeg fixture");
+        let mut source: &[u8] = &jpeg_bytes;
+        let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
+        assert!(cands
+            .iter()
+            .any(|c| c.mime.as_deref() == Some("image/jpeg")));
     }
 
     #[crate::ctb_test]
     fn test_droid_container_test_zip() {
-        if let Some(zip_bytes) =
-            ctb_formats_dcdata::get_dc_data_file("droid/tests/containers/test.zip")
-        {
-            let mut source: &[u8] = &zip_bytes;
-            let _ = inspect_zip_container_comprehensive(&mut source);
-        }
+        let zip_bytes = ctb_utilities::load_manifest_fixture(
+            env!("CARGO_MANIFEST_DIR"),
+            "droid/containers/test.zip",
+        )
+        .expect("missing droid/containers/test.zip fixture");
+        let mut source: &[u8] = &zip_bytes;
+        let _ = inspect_zip_container_comprehensive(&mut source);
     }
 }
 /*
