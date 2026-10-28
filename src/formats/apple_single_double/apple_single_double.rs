@@ -1206,11 +1206,17 @@ fn parse_finder_info(
     {
         (String::new(), String::new(), Some([top, left, bottom, right]))
     } else {
-        (
-            String::from_utf8_lossy(type_bytes).to_string(),
-            String::from_utf8_lossy(creator_bytes).to_string(),
-            None,
-        )
+        let f_type = if type_bytes == [0, 0, 0, 0] {
+            String::new()
+        } else {
+            String::from_utf8_lossy(type_bytes).to_string()
+        };
+        let f_creator = if creator_bytes == [0, 0, 0, 0] {
+            String::new()
+        } else {
+            String::from_utf8_lossy(creator_bytes).to_string()
+        };
+        (f_type, f_creator, None)
     };
 
     let raw_flags = if is_big_endian {
