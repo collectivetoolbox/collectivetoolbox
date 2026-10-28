@@ -379,6 +379,13 @@ impl<'a> DcDocumentNavigator<'a> {
                                 || ch.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
                                 || ch.fills_role_with(DcRole::FormatParamApplication, ctx.resolver)
                         });
+                        let has_term_wrapper = !ctx.unescaped_literal_payload
+                            && token.is_some_and(|ch| {
+                                ch.fills_role_with(DcRole::LangSay, ctx.resolver)
+                                    || ch.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
+                                    || ch.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
+                                    || ctx.resolver.is_representation_set(ch.to_u128())
+                            });
                         if constructor {
                             let Some(rule) = token
                                 .and_then(|ch| CharTarget::from_u128(ch.to_u128()))
@@ -407,7 +414,9 @@ impl<'a> DcDocumentNavigator<'a> {
                             ctx.depth = ctx.depth.saturating_add(1);
                             ctx.self_dc = token.map(DcChar::to_u128);
                             frames.push(Frame::Pattern(rule.pattern.clone()));
-                        } else if let SyntaxTerm::Group(group_pat) = term {
+                        } else if !has_term_wrapper
+                            && let SyntaxTerm::Group(group_pat) = term
+                        {
                             frames.push(Frame::Pattern(group_pat));
                         } else {
                             matched = self.eval_term_single(&term, ctx)?;
