@@ -1225,6 +1225,10 @@ pub fn apply_bsd_acl_metadata(
                             dest.display()
                         );
                     }
+                    warn_fmt!(
+                        "Failed to apply POSIX.1e access ACL to {}: {err} (proceeding best-effort)",
+                        dest.display()
+                    );
                 }
             }
         }
@@ -1250,6 +1254,10 @@ pub fn apply_bsd_acl_metadata(
                             dest.display()
                         );
                     }
+                    warn_fmt!(
+                        "Failed to apply POSIX.1e default ACL to {}: {err} (proceeding best-effort)",
+                        dest.display()
+                    );
                 }
             }
         }

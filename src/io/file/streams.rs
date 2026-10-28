@@ -269,6 +269,18 @@ impl StreamName {
     /// Preserves exact bytes when the destination OS supports them; otherwise
     /// permits replacement characters only in explicit best-effort mode.
     pub fn to_os_string_for_materialization(&self, strict_lossless: bool) -> Result<OsString> {
+        let (name, _warnings) = self.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+        Ok(name)
+    }
+
+    /// Preserves exact bytes when the destination OS supports them; otherwise
+    /// permits replacement characters only in explicit best-effort mode,
+    /// returning both the adapted `OsString` and any warnings logged.
+    pub fn to_os_string_for_materialization_with_warnings(
+        &self,
+        strict_lossless: bool,
+    ) -> Result<(OsString, Vec<String>)> {
+        let mut warnings = Vec::new();
         let native = self.to_native_os_string();
         let name = match native {
             Ok(name) => name,
@@ -284,8 +296,16 @@ impl StreamName {
                         }
                         #[cfg(windows)]
                         {
-                            warn_fmt!("Replacing incomplete historical UTF-16 stream-name unit (best-effort): {error:#}");
-                            return Self::WindowsUtf16(units).to_os_string_for_materialization(false);
+                            let (adapted, mut sub_warnings) =
+                                Self::WindowsUtf16(units).to_os_string_for_materialization_with_warnings(false)?;
+                            let msg = format!(
+                                "Adapted incomplete historical UTF-16 stream name {:?} -> {:?} (best-effort: {error:#})",
+                                self.to_string_lossy(),
+                                adapted.to_string_lossy()
+                            );
+                            warn_fmt!("{msg}");
+                            sub_warnings.insert(0, msg);
+                            return Ok((adapted, sub_warnings));
                         }
                         #[cfg(not(windows))]
                         String::from_utf16_lossy(&units)
@@ -294,8 +314,16 @@ impl StreamName {
                         if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes) {
                             #[cfg(windows)]
                             {
-                                warn_fmt!("Normalizing noncanonical WTF-8 stream name (best-effort): {error:#}");
-                                return Self::WindowsUtf16(units).to_os_string_for_materialization(false);
+                                let (adapted, mut sub_warnings) =
+                                    Self::WindowsUtf16(units).to_os_string_for_materialization_with_warnings(false)?;
+                                let msg = format!(
+                                    "Normalized noncanonical WTF-8 stream name {:?} -> {:?} (best-effort: {error:#})",
+                                    self.to_string_lossy(),
+                                    adapted.to_string_lossy()
+                                );
+                                warn_fmt!("{msg}");
+                                sub_warnings.insert(0, msg);
+                                return Ok((adapted, sub_warnings));
                             }
                             #[cfg(not(windows))]
                             String::from_utf16_lossy(&units)
@@ -308,30 +336,45 @@ impl StreamName {
                     }
                     _ => self.to_string_lossy().into_owned(),
                 };
-                warn_fmt!("Adapting stream name encoding (best-effort): {error:#}");
+                let msg = format!(
+                    "Adapted stream name encoding {:?} -> {:?} (best-effort: {error:#})",
+                    self.to_string_lossy(),
+                    text
+                );
+                warn_fmt!("{msg}");
+                warnings.push(msg);
                 OsString::from(text)
             }
         };
         if name.as_encoded_bytes().contains(&0) {
             anyhow::ensure!(!strict_lossless, "Stream name contains a NUL unsupported by the destination OS");
-            warn!("Replacing NUL in stream name (best-effort)");
-            #[cfg(unix)]
-            {
-                let bytes = name.as_encoded_bytes().split(|byte| *byte == 0)
-                    .collect::<Vec<_>>().join("\u{fffd}".as_bytes());
-                return Ok(OsStr::from_bytes(&bytes).to_os_string());
-            }
-            #[cfg(windows)]
-            {
-                use std::os::windows::ffi::{OsStrExt, OsStringExt};
-                let units: Vec<u16> = name.encode_wide()
-                    .map(|unit| if unit == 0 { 0xfffd } else { unit }).collect();
-                return Ok(OsString::from_wide(&units));
-            }
-            #[cfg(not(any(unix, windows)))]
-            return Ok(OsString::from(name.to_string_lossy().replace('\0', "\u{fffd}")));
+            let adapted = {
+                #[cfg(unix)]
+                {
+                    let bytes = name.as_encoded_bytes().split(|byte| *byte == 0)
+                        .collect::<Vec<_>>().join("\u{fffd}".as_bytes());
+                    OsStr::from_bytes(&bytes).to_os_string()
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+                    let units: Vec<u16> = name.encode_wide()
+                        .map(|unit| if unit == 0 { 0xfffd } else { unit }).collect();
+                    OsString::from_wide(&units)
+                }
+                #[cfg(not(any(unix, windows)))]
+                OsString::from(name.to_string_lossy().replace('\0', "\u{fffd}"))
+            };
+            let msg = format!(
+                "Replaced NUL in stream name {:?} -> {:?} (best-effort)",
+                name.to_string_lossy(),
+                adapted.to_string_lossy()
+            );
+            warn_fmt!("{msg}");
+            warnings.push(msg);
+            return Ok((adapted, warnings));
         }
-        Ok(name)
+        Ok((name, warnings))
     }
 
     fn to_native_os_string(&self) -> Result<OsString> {
@@ -930,13 +973,32 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
+    let _warnings = write_streams_with_warnings(dest, target_display_path, streams, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes all attached streams (xattrs, resource forks) to `dest`, returning
+/// any best-effort adaptation or fallback warnings that were logged.
+#[cfg(unix)]
+pub fn write_streams_with_warnings(
+    dest: &Path,
+    target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
+    let mut warnings = Vec::new();
     let mut names = std::collections::HashSet::new();
     let mut validated = Vec::new();
     for stream in streams {
         let name_os = match &stream.name {
-            Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+            Some(name) => {
+                let (os_name, name_warnings) =
+                    name.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+                warnings.extend(name_warnings);
+                os_name
+            }
             None => match stream.kind {
                 // On macOS, com.apple.ResourceFork writes to the resource fork directly.
                 // On other Unix platforms, com.apple.ResourceFork stores the resource fork in xattr.
@@ -950,10 +1012,12 @@ pub fn write_streams(
                             display_target.display()
                         );
                     }
-                    warn_fmt!(
-                        "Caveat: Skipping unnamed stream on {} (proceeding best-effort)",
+                    let msg = format!(
+                        "Skipping unnamed stream on {} (proceeding best-effort)",
                         display_target.display()
                     );
+                    warn_fmt!("Caveat: {msg}");
+                    warnings.push(msg);
                     continue;
                 }
             },
@@ -990,8 +1054,14 @@ pub fn write_streams(
                 if adapted != name_os {
                     anyhow::ensure!(names.insert(adapted.clone()),
                         "Replacement stream names collide on the destination filesystem");
-                    warn_fmt!("Destination rejected stream name encoding on {}; retrying with replacement characters (best-effort): {e}",
-                        display_target.display());
+                    let msg = format!(
+                        "Destination rejected stream name encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {e}",
+                        name_os.to_string_lossy(),
+                        adapted.to_string_lossy(),
+                        display_target.display()
+                    );
+                    warn_fmt!("{msg}");
+                    warnings.push(msg);
                     xattr::set(dest, &adapted, data).with_context(|| format!(
                         "Destination also rejected adapted stream name {adapted:?} on {}",
                         display_target.display(),
@@ -1009,16 +1079,18 @@ pub fn write_streams(
                     e
                 );
             }
-            warn_fmt!(
-                "Caveat: Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {} (it may be too large for the OS or filesystem; proceeding best-effort)",
+            let msg = format!(
+                "Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {} (it may be too large for the OS or filesystem; proceeding best-effort)",
                 stream.to_string_lossy(),
                 stream_size,
                 display_target.display(),
                 e
             );
+            warn_fmt!("Caveat: {msg}");
+            warnings.push(msg);
         }
     }
-    Ok(())
+    Ok(warnings)
 }
 
 /// Writes attached bodies from the caller's source before file publication.
@@ -1029,11 +1101,35 @@ pub fn write_streams_from_source(
     strict_lossless: bool,
     source: &dyn AttachedStreamSource,
 ) -> Result<()> {
+    let _warnings = write_streams_from_source_with_warnings(
+        dest,
+        target_display_path,
+        streams,
+        strict_lossless,
+        source,
+    )?;
+    Ok(())
+}
+
+/// Writes attached bodies from the caller's source before file publication,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+pub fn write_streams_from_source_with_warnings(
+    dest: &Path,
+    target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+    source: &dyn AttachedStreamSource,
+) -> Result<Vec<String>> {
     if streams.iter().all(|stream| stream.data.is_some()) {
-        return write_streams(dest, target_display_path, streams, strict_lossless);
+        return write_streams_with_warnings(dest, target_display_path, streams, strict_lossless);
     }
     #[cfg(windows)]
-    return windows::write_windows_streams_from_source(dest, streams, strict_lossless, source);
+    return windows::write_windows_streams_from_source_with_warnings(
+        dest,
+        streams,
+        strict_lossless,
+        source,
+    );
     #[cfg(not(windows))]
     {
         let mut names = std::collections::HashSet::new();
@@ -1048,11 +1144,17 @@ pub fn write_streams_from_source(
             };
             ensure!(names.insert(name), "Stream names collide on the destination platform");
         }
+        let mut warnings = Vec::new();
         for stream in streams {
             let mut reader = source.open(stream)?;
-            write_stream_from_reader(dest, stream, &mut reader, strict_lossless)?;
+            warnings.extend(write_stream_from_reader_with_warnings(
+                dest,
+                stream,
+                &mut reader,
+                strict_lossless,
+            )?);
         }
-        Ok(())
+        Ok(warnings)
     }
 }
 
@@ -1064,20 +1166,41 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
+    let _warnings = write_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes a single attached stream from a reader to its native destination,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+#[cfg(unix)]
+pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
     let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
         anyhow::bail!("Attached stream is not a regular payload");
     };
+    let mut warnings = Vec::new();
     let mut hasher = Sha256Stream::new();
     let name_os = match &stream.name {
-        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+        Some(name) => {
+            let (os_name, name_warnings) =
+                name.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+            warnings.extend(name_warnings);
+            os_name
+        }
         None => match stream.kind {
             StreamKind::MacOsResourceFork => OsString::from(RESOURCE_FORK_XATTR_NAME),
             _ => {
                 if strict_lossless {
                     anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
                 }
-                warn_fmt!("Caveat: Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
-                return Ok(());
+                let msg = format!("Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
+                warn_fmt!("Caveat: {msg}");
+                warnings.push(msg);
+                return Ok(warnings);
             }
         },
     };
@@ -1098,7 +1221,7 @@ pub fn write_stream_from_reader<R: std::io::Read>(
             }
             anyhow::ensure!(total_written == *size && hasher.finalize() == *sha256,
                 "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
-            return Ok(());
+            return Ok(warnings);
         }
     }
 
@@ -1121,6 +1244,24 @@ pub fn write_stream_from_reader<R: std::io::Read>(
         "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
     let stream_size = data.len();
     if let Err(e) = xattr::set(dest, &name_os, &data) {
+        if !strict_lossless && e.raw_os_error() == Some(libc::EILSEQ) {
+            let adapted = OsString::from(name_os.to_string_lossy().into_owned());
+            if adapted != name_os {
+                let msg = format!(
+                    "Destination rejected stream name encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {e}",
+                    name_os.to_string_lossy(),
+                    adapted.to_string_lossy(),
+                    dest.display()
+                );
+                warn_fmt!("{msg}");
+                warnings.push(msg);
+                xattr::set(dest, &adapted, &data).with_context(|| format!(
+                    "Destination also rejected adapted stream name {adapted:?} on {}",
+                    dest.display(),
+                ))?;
+                return Ok(warnings);
+            }
+        }
         if strict_lossless {
             anyhow::bail!(
                 "Target filesystem failed to store stream {:?} ({} bytes) on {}: {e} (it may be too large for the OS or filesystem). Data would be lost.",
@@ -1129,14 +1270,16 @@ pub fn write_stream_from_reader<R: std::io::Read>(
                 dest.display()
             );
         }
-        warn_fmt!(
-            "Caveat: Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {e} (it may be too large for the OS or filesystem; best-effort)",
+        let msg = format!(
+            "Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {e} (it may be too large for the OS or filesystem; best-effort)",
             stream.to_string_lossy(),
             stream_size,
             dest.display()
         );
+        warn_fmt!("Caveat: {msg}");
+        warnings.push(msg);
     }
-    Ok(())
+    Ok(warnings)
 }
 
 /// Writes a single attached stream directly from a `Read` stream to disk without buffering
@@ -1148,7 +1291,20 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
-    windows::write_windows_stream_from_reader(dest, stream, reader, strict_lossless)
+    let _warnings = write_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes a single attached stream directly from a `Read` stream to disk,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+#[cfg(windows)]
+pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
+    windows::write_windows_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)
 }
 
 /// Writes a single attached stream directly from a `Read` stream to disk without buffering
@@ -1163,6 +1319,18 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     Ok(())
 }
 
+/// Writes a single attached stream directly from a `Read` stream to disk,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+#[cfg(not(any(unix, windows)))]
+pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
+    _dest: &Path,
+    _stream: &AttachedStream,
+    _reader: &mut R,
+    _strict_lossless: bool,
+) -> Result<Vec<String>> {
+    Ok(Vec::new())
+}
+
 /// Writes all attached streams (NTFS alternate data streams) to `dest`.
 #[cfg(windows)]
 pub fn write_streams(
@@ -1171,24 +1339,53 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
-    windows::write_windows_streams(dest, streams, strict_lossless)
+    let _warnings = write_streams_with_warnings(dest, None, streams, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes all attached streams (NTFS alternate data streams) to `dest`,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+#[cfg(windows)]
+pub fn write_streams_with_warnings(
+    dest: &Path,
+    _target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
+    windows::write_windows_streams_with_warnings(dest, streams, strict_lossless)
 }
 
 /// Writes all attached streams (xattrs, resource forks) to `dest`.
 #[cfg(not(any(unix, windows)))]
 pub fn write_streams(
+    dest: &Path,
+    target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+) -> Result<()> {
+    let _warnings = write_streams_with_warnings(dest, target_display_path, streams, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes all attached streams (xattrs, resource forks) to `dest`,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+#[cfg(not(any(unix, windows)))]
+pub fn write_streams_with_warnings(
     _dest: &Path,
     _target_display_path: Option<&Path>,
     streams: &[AttachedStream],
     strict_lossless: bool,
-) -> Result<()> {
+) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
     if !streams.is_empty() {
         if strict_lossless {
             anyhow::bail!("Target platform does not support xattrs/streams");
         }
-        warn_fmt!("Caveat: Target platform does not support xattrs/streams (proceeding best-effort)");
+        let msg = "Target platform does not support xattrs/streams (proceeding best-effort)".to_string();
+        warn_fmt!("Caveat: {msg}");
+        warnings.push(msg);
     }
-    Ok(())
+    Ok(warnings)
 }
 
 /// Remove an attached stream/xattr from `path`.

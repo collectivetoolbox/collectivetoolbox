@@ -454,12 +454,31 @@ pub fn materialize_entity_with_stream_source(
             err_details
         );
     }
-    let relative_path = entity
+    let orig_relative_path = entity
         .identity
         .relative_path
         .as_deref()
         .context("Entity missing relative path for materialization")?;
-    let dest_path = resolve_and_validate_path(
+    let _validated_orig = resolve_and_validate_path(
+        dest_dir.root_path(),
+        orig_relative_path,
+        options.path_policy,
+    )?;
+
+    let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless {
+        (orig_relative_path.to_path_buf(), Vec::new())
+    } else {
+        let (adapted, warnings) = crate::clean_name::adapt_relative_path_for_materialization(
+            orig_relative_path,
+            cfg!(windows),
+        );
+        for w in &warnings {
+            warn_fmt!("{w}");
+        }
+        (adapted, warnings)
+    };
+    let mut relative_path: &Path = &relative_path_buf;
+    let mut dest_path = resolve_and_validate_path(
         dest_dir.root_path(),
         relative_path,
         options.path_policy,
@@ -478,12 +497,35 @@ pub fn materialize_entity_with_stream_source(
                 _ => None,
             },
             skipped_identical: false,
-            warnings: Vec::new(),
+            warnings: path_warnings,
         });
     }
 
-    let (parent_dir_fd, file_name) = dest_dir
-        .ensure_parent_dir(relative_path, options.path_policy)?;
+    let (mut parent_dir_fd, mut file_name) = match dest_dir
+        .ensure_parent_dir(relative_path, options.path_policy)
+    {
+        Ok(res) => res,
+        Err(err) if !options.strict_lossless && is_filename_rejection_error(&err) => {
+            let (win_adapted, win_warnings) =
+                crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+            if win_adapted == relative_path_buf {
+                return Err(err);
+            }
+            for w in &win_warnings {
+                warn_fmt!("{w}");
+            }
+            path_warnings.extend(win_warnings);
+            relative_path_buf = win_adapted;
+            relative_path = &relative_path_buf;
+            dest_path = resolve_and_validate_path(
+                dest_dir.root_path(),
+                relative_path,
+                options.path_policy,
+            )?;
+            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?
+        }
+        Err(err) => return Err(err),
+    };
 
     if options.existing_entry_policy == ExistingEntryPolicy::Refuse && !entity.is_dir() {
         match std::fs::symlink_metadata(&dest_path) {
@@ -498,38 +540,82 @@ pub fn materialize_entity_with_stream_source(
             if options.strict_lossless && options.check_birthtime && !cfg!(windows) && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce symlink birth time on this platform");
             }
-            let target_path = target.to_path_buf_for_materialization(options.strict_lossless)?;
-            let mut adaptation_warnings = Vec::new();
-            let create = |path: &Path| {
+            let (target_path, mut adaptation_warnings) =
+                target.to_path_buf_for_materialization_with_warnings(options.strict_lossless)?;
+            let create = |path: &Path, p_fd: &crate::sandboxable_dir::DirHandle, f_name: &Path, d_path: &Path| {
                 #[cfg(windows)]
                 if let Some(native) = &entity.metadata.native {
                     if native.source_os == OsFamily::Windows && native.values.contains_key("reparse.data") {
-                        return dest_dir.create_native_reparse_at(&dest_path, path, native, options.symlink_policy, options.existing_entry_policy);
+                        return dest_dir.create_native_reparse_at(d_path, path, native, options.symlink_policy, options.existing_entry_policy);
                     }
                 }
                 dest_dir.create_symlink_at(
-                    &parent_dir_fd.as_fd(),
-                    &file_name,
-                    &dest_path,
+                    &p_fd.as_fd(),
+                    f_name,
+                    d_path,
                     path.as_os_str().as_encoded_bytes(),
                     options.symlink_policy,
                     options.existing_entry_policy,
                 )
             };
-            if let Err(error) = create(&target_path) {
-                if options.strict_lossless || !crate::link_path::is_destination_encoding_error(&error) {
+            if let Err(error) = create(&target_path, &parent_dir_fd, &file_name, &dest_path) {
+                if options.strict_lossless {
                     return Err(error);
                 }
-                let adapted = PathBuf::from(target_path.to_string_lossy().into_owned());
-                anyhow::ensure!(adapted != target_path,
-                    "Destination rejected symlink encoding and no replacement adaptation is available: {error:#}");
-                let warning = format!("Destination rejected symlink encoding; retrying with replacement characters (best-effort): {error:#}");
-                warn_fmt!("{warning}");
-                create(&adapted)?;
-                adaptation_warnings.push(warning);
+                let mut handled = false;
+                if crate::link_path::is_destination_encoding_error(&error) {
+                    let adapted = PathBuf::from(target_path.to_string_lossy().into_owned());
+                    if adapted != target_path {
+                        let warning = format!(
+                            "Destination rejected symlink encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {error:#}",
+                            target_path.display(),
+                            adapted.display(),
+                            dest_path.display()
+                        );
+                        warn_fmt!("{warning}");
+                        create(&adapted, &parent_dir_fd, &file_name, &dest_path)?;
+                        adaptation_warnings.push(warning);
+                        handled = true;
+                    }
+                }
+                if !handled && is_filename_rejection_error(&error) {
+                    let (win_adapted, win_warnings) =
+                        crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+                    if win_adapted != relative_path_buf {
+                        for w in &win_warnings {
+                            warn_fmt!("{w}");
+                        }
+                        path_warnings.extend(win_warnings);
+                        relative_path_buf = win_adapted;
+                        relative_path = &relative_path_buf;
+                        dest_path = resolve_and_validate_path(
+                            dest_dir.root_path(),
+                            relative_path,
+                            options.path_policy,
+                        )?;
+                        let (new_p_fd, new_f_name) =
+                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        parent_dir_fd = new_p_fd;
+                        file_name = new_f_name;
+                        create(&target_path, &parent_dir_fd, &file_name, &dest_path)?;
+                        handled = true;
+                    }
+                }
+                if !handled {
+                    return Err(error);
+                }
             }
-            crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
-            let mut warnings = apply_entity_metadata(
+            let stream_warnings = crate::streams::write_streams_from_source_with_warnings(
+                &dest_path,
+                None,
+                &entity.streams,
+                options.strict_lossless,
+                stream_source,
+            )?;
+            let mut warnings = path_warnings;
+            warnings.extend(adaptation_warnings);
+            warnings.extend(stream_warnings);
+            warnings.extend(apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -537,8 +623,7 @@ pub fn materialize_entity_with_stream_source(
                 true,
                 options.strict_lossless,
                 options.check_birthtime,
-            )?;
-            warnings.extend(adaptation_warnings);
+            )?);
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -551,7 +636,9 @@ pub fn materialize_entity_with_stream_source(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let target_path = target_relative_path.to_path_buf_for_materialization(options.strict_lossless)?;
+            let (mut target_path, mut warnings) =
+                target_relative_path.to_path_buf_for_materialization_with_warnings(options.strict_lossless)?;
+            warnings.splice(0..0, path_warnings);
             if options.path_policy == PathTraversalPolicy::StrictSandboxed {
                 for comp in target_path.components() {
                     match comp {
@@ -567,25 +654,109 @@ pub fn materialize_entity_with_stream_source(
                     }
                 }
             }
-            dest_dir.create_hardlink(
+            if !options.strict_lossless {
+                let (adapted_target, target_warnings) =
+                    crate::clean_name::adapt_relative_path_for_materialization(
+                        &target_path,
+                        cfg!(windows),
+                    );
+                if adapted_target != target_path {
+                    for w in &target_warnings {
+                        warn_fmt!("{w}");
+                    }
+                    warnings.extend(target_warnings);
+                    target_path = adapted_target;
+                }
+            }
+            if let Err(err) = dest_dir.create_hardlink(
                 &target_path,
                 &parent_dir_fd.as_fd(),
                 &file_name,
                 options.existing_entry_policy,
-            )?;
+            ) {
+                if options.strict_lossless {
+                    return Err(err);
+                }
+                let mut retried = false;
+                let (win_target, win_target_warnings) =
+                    crate::clean_name::adapt_relative_path_for_materialization(&target_path, true);
+                if win_target != target_path {
+                    for w in &win_target_warnings {
+                        warn_fmt!("{w}");
+                    }
+                    warnings.extend(win_target_warnings);
+                    target_path = win_target;
+                    retried = true;
+                }
+                if is_filename_rejection_error(&err) {
+                    let (win_adapted, win_warnings) =
+                        crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+                    if win_adapted != relative_path_buf {
+                        for w in &win_warnings {
+                            warn_fmt!("{w}");
+                        }
+                        warnings.extend(win_warnings);
+                        relative_path_buf = win_adapted;
+                        relative_path = &relative_path_buf;
+                        dest_path = resolve_and_validate_path(
+                            dest_dir.root_path(),
+                            relative_path,
+                            options.path_policy,
+                        )?;
+                        let (new_p_fd, new_f_name) =
+                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        parent_dir_fd = new_p_fd;
+                        file_name = new_f_name;
+                        retried = true;
+                    }
+                }
+                if retried {
+                    dest_dir.create_hardlink(
+                        &target_path,
+                        &parent_dir_fd.as_fd(),
+                        &file_name,
+                        options.existing_entry_policy,
+                    )?;
+                } else {
+                    return Err(err);
+                }
+            }
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
                 sha256: None,
                 skipped_identical: false,
-                warnings: Vec::new(),
+                warnings,
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
-            let _dir_fd =
-                dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
+            if let Err(err) = dest_dir.ensure_dir_all(relative_path, options.path_policy) {
+                if !options.strict_lossless && is_filename_rejection_error(&err) {
+                    let (win_adapted, win_warnings) =
+                        crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+                    if win_adapted != relative_path_buf {
+                        for w in &win_warnings {
+                            warn_fmt!("{w}");
+                        }
+                        path_warnings.extend(win_warnings);
+                        relative_path_buf = win_adapted;
+                        relative_path = &relative_path_buf;
+                        dest_path = resolve_and_validate_path(
+                            dest_dir.root_path(),
+                            relative_path,
+                            options.path_policy,
+                        )?;
+                        let _ = dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
+                    } else {
+                        return Err(err);
+                    }
+                } else {
+                    return Err(err);
+                }
+            }
             dest_dir.authorize_metadata(relative_path, options.existing_entry_policy)?;
             let mut write_companion = false;
+            let mut stream_warnings = Vec::new();
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
                     write_companion = true;
@@ -593,13 +764,37 @@ pub fn materialize_entity_with_stream_source(
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-                    let res = crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, false, stream_source);
-                    if res.is_err() || has_apple_meta {
-                        write_companion = true;
+                    let res = crate::streams::write_streams_from_source_with_warnings(
+                        &dest_path,
+                        None,
+                        &entity.streams,
+                        false,
+                        stream_source,
+                    );
+                    match res {
+                        Ok(w) => {
+                            stream_warnings.extend(w);
+                            if has_apple_meta {
+                                write_companion = true;
+                            }
+                        }
+                        Err(err) => {
+                            warn_fmt!(
+                                "Native stream write failed on directory {}; falling back to AppleDouble companion: {err:#}",
+                                dest_path.display()
+                            );
+                            write_companion = true;
+                        }
                     }
                 }
                 _ => {
-                    crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
+                    stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
+                        &dest_path,
+                        None,
+                        &entity.streams,
+                        options.strict_lossless,
+                        stream_source,
+                    )?);
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
@@ -614,7 +809,9 @@ pub fn materialize_entity_with_stream_source(
                     write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
             }
-            let warnings = apply_entity_metadata(
+            let mut warnings = path_warnings;
+            warnings.extend(stream_warnings);
+            warnings.extend(apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -622,7 +819,7 @@ pub fn materialize_entity_with_stream_source(
                 true,
                 options.strict_lossless,
                 options.check_birthtime,
-            )?;
+            )?);
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -644,15 +841,56 @@ pub fn materialize_entity_with_stream_source(
             );
             // Reason for fallback: absent file mode for special node defaults to standard 0o666 permissions
             let mode = entity.metadata.mode.unwrap_or(0o666);
-            dest_dir.create_special(
+            if let Err(err) = dest_dir.create_special(
                 &parent_dir_fd.as_fd(),
                 &file_name,
                 &entity.kind,
                 mode,
                 options.existing_entry_policy,
+            ) {
+                if !options.strict_lossless && is_filename_rejection_error(&err) {
+                    let (win_adapted, win_warnings) =
+                        crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+                    if win_adapted != relative_path_buf {
+                        for w in &win_warnings {
+                            warn_fmt!("{w}");
+                        }
+                        path_warnings.extend(win_warnings);
+                        relative_path_buf = win_adapted;
+                        relative_path = &relative_path_buf;
+                        dest_path = resolve_and_validate_path(
+                            dest_dir.root_path(),
+                            relative_path,
+                            options.path_policy,
+                        )?;
+                        let (new_p_fd, new_f_name) =
+                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        parent_dir_fd = new_p_fd;
+                        file_name = new_f_name;
+                        dest_dir.create_special(
+                            &parent_dir_fd.as_fd(),
+                            &file_name,
+                            &entity.kind,
+                            mode,
+                            options.existing_entry_policy,
+                        )?;
+                    } else {
+                        return Err(err);
+                    }
+                } else {
+                    return Err(err);
+                }
+            }
+            let stream_warnings = crate::streams::write_streams_from_source_with_warnings(
+                &dest_path,
+                None,
+                &entity.streams,
+                options.strict_lossless,
+                stream_source,
             )?;
-            crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
-            let warnings = apply_entity_metadata(
+            let mut warnings = path_warnings;
+            warnings.extend(stream_warnings);
+            warnings.extend(apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -660,7 +898,7 @@ pub fn materialize_entity_with_stream_source(
                 true,
                 options.strict_lossless,
                 options.check_birthtime,
-            )?;
+            )?);
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -689,7 +927,7 @@ pub fn materialize_entity_with_stream_source(
         } => {
             if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite
                 && entity.streams.iter().all(|stream| stream.data.is_some()) {
-                if let Some(receipt) = try_update_existing_regular_entity(
+                if let Some(mut receipt) = try_update_existing_regular_entity(
                     &dest_path,
                     dest_dir,
                     entity,
@@ -698,6 +936,7 @@ pub fn materialize_entity_with_stream_source(
                     *is_sparse,
                     options,
                 )? {
+                    receipt.warnings.splice(0..0, path_warnings);
                     return Ok(receipt);
                 }
             }
@@ -790,7 +1029,8 @@ pub fn materialize_entity_with_stream_source(
                     _ => Path::new("."),
                 };
                 let temp_path = parent_dir.join(&temp_name);
-                let mut warnings = apply_entity_metadata(
+                let mut warnings = path_warnings;
+                warnings.extend(apply_entity_metadata(
                     &temp_path,
                     Some(&dest_path),
                     &entity.metadata,
@@ -798,7 +1038,7 @@ pub fn materialize_entity_with_stream_source(
                     false,
                     options.strict_lossless,
                     options.check_birthtime,
-                )?;
+                )?);
                 warnings.extend(source_warnings);
 
                 #[cfg(unix)]
@@ -826,6 +1066,13 @@ pub fn materialize_entity_with_stream_source(
                 } else {
                     parent_dir.join(&actual_file_name)
                 };
+                if actual_dest_path != dest_path {
+                    log_fmt!(
+                        "Materializing AppleSingle file with extension {:?} -> {:?}",
+                        dest_path.display(),
+                        actual_dest_path.display()
+                    );
+                }
 
                 dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name, options.existing_entry_policy)?;
                 cleanup_guard.active = false;
@@ -956,10 +1203,12 @@ pub fn materialize_entity_with_stream_source(
                             dest_path.display()
                         );
                     }
-                    sparse_warnings.push(format!(
+                    let msg = format!(
                         "Destination filesystem did not retain sparse support for {}",
                         dest_path.display()
-                    ));
+                    );
+                    warn_fmt!("Caveat: {msg}");
+                    sparse_warnings.push(msg);
                     can_use_sparse = false;
                 }
             }
@@ -1055,13 +1304,17 @@ pub fn materialize_entity_with_stream_source(
                                 if options.strict_lossless {
                                     return Err(err).context("Failed to punch sparse hole on Windows");
                                 }
-                                sparse_warnings.push(format!(
+                                let msg = format!(
                                     "Failed to punch sparse hole at offset {offset}: {err}"
-                                ));
+                                );
+                                warn_fmt!("Caveat: {msg}");
+                                sparse_warnings.push(msg);
                             } else if *length < 65_536 {
-                                sparse_warnings.push(format!(
+                                let msg = format!(
                                     "Windows NTFS sparse files allocate at 64KB granularity; sub-64KB hole at offset {offset} (length {length}) cannot be physically deallocated on restoration"
-                                ));
+                                );
+                                warn_fmt!("Caveat: {msg}");
+                                sparse_warnings.push(msg);
                             }
                         }
                     }
@@ -1103,12 +1356,13 @@ pub fn materialize_entity_with_stream_source(
             }
 
             let parent_dir = match dest_path.parent() {
-                Some(p) if !p.as_os_str().is_empty() => p,
-                _ => Path::new("."),
+                Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+                _ => PathBuf::from("."),
             };
             let temp_path = parent_dir.join(&temp_name);
 
             let mut write_companion = false;
+            let mut stream_warnings = Vec::new();
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
                     write_companion = true;
@@ -1116,13 +1370,37 @@ pub fn materialize_entity_with_stream_source(
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-                    let streams_res = crate::streams::write_streams_from_source(&temp_path, Some(&dest_path), &entity.streams, false, stream_source);
-                    if streams_res.is_err() || has_apple_meta {
-                        write_companion = true;
+                    let streams_res = crate::streams::write_streams_from_source_with_warnings(
+                        &temp_path,
+                        Some(&dest_path),
+                        &entity.streams,
+                        false,
+                        stream_source,
+                    );
+                    match streams_res {
+                        Ok(w) => {
+                            stream_warnings.extend(w);
+                            if has_apple_meta {
+                                write_companion = true;
+                            }
+                        }
+                        Err(err) => {
+                            warn_fmt!(
+                                "Native stream write failed on {}; falling back to AppleDouble companion: {err:#}",
+                                dest_path.display()
+                            );
+                            write_companion = true;
+                        }
                     }
                 }
                 _ => {
-                    crate::streams::write_streams_from_source(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless, stream_source)?;
+                    stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
+                        &temp_path,
+                        Some(&dest_path),
+                        &entity.streams,
+                        options.strict_lossless,
+                        stream_source,
+                    )?);
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
@@ -1152,7 +1430,9 @@ pub fn materialize_entity_with_stream_source(
                 drop(temp_file);
                 std::fs::OpenOptions::new().read(true).write(true).open(&temp_path)?
             };
-            let mut warnings = apply_entity_metadata(
+            let mut warnings = path_warnings;
+            warnings.extend(stream_warnings);
+            warnings.extend(apply_entity_metadata(
                 &temp_path,
                 Some(&dest_path),
                 &entity.metadata,
@@ -1160,7 +1440,7 @@ pub fn materialize_entity_with_stream_source(
                 false,
                 options.strict_lossless,
                 options.check_birthtime,
-            )?;
+            )?);
             warnings.extend(sparse_warnings);
             warnings.extend(source_warnings);
 
@@ -1189,10 +1469,45 @@ pub fn materialize_entity_with_stream_source(
             drop(temp_file);
 
             #[cfg(unix)]
-            sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
+            sync_parent_dir_best_effort(&parent_dir_fd, &parent_dir);
 
             // Atomic rename inside parent directory
-            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name, options.existing_entry_policy)?;
+            if let Err(err) = dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name, options.existing_entry_policy) {
+                if !options.strict_lossless && is_filename_rejection_error(&err) {
+                    if let Some(orig_name) = file_name.file_name() {
+                        let (adapted_name, reason) =
+                            crate::clean_name::adapt_component_for_materialization(orig_name, true);
+                        if adapted_name != orig_name {
+                            let new_rel = match relative_path.parent() {
+                                Some(p) if !p.as_os_str().is_empty() => p.join(&adapted_name),
+                                _ => PathBuf::from(&adapted_name),
+                            };
+                            let msg = format!(
+                                "Adapted destination path {:?} -> {:?} (best-effort: {})",
+                                orig_relative_path.display(),
+                                new_rel.display(),
+                                reason.as_deref().unwrap_or("rejected by destination filesystem") // Reason for fallback: default description when filesystem rejects component
+                            );
+                            warn_fmt!("{msg}");
+                            warnings.push(msg);
+                            file_name = PathBuf::from(&adapted_name);
+                            dest_path = parent_dir.join(&adapted_name);
+                            dest_dir.commit_atomic_file(
+                                &parent_dir_fd.as_fd(),
+                                &temp_name,
+                                &file_name,
+                                options.existing_entry_policy,
+                            )?;
+                        } else {
+                            return Err(err);
+                        }
+                    } else {
+                        return Err(err);
+                    }
+                } else {
+                    return Err(err);
+                }
+            }
             cleanup_guard.active = false;
 
             if write_companion {
@@ -1202,7 +1517,7 @@ pub fn materialize_entity_with_stream_source(
             }
 
             #[cfg(unix)]
-            sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
+            sync_parent_dir_best_effort(&parent_dir_fd, &parent_dir);
 
             // Deferred immutability: apply flags after publication, before restoring Windows change time.
             let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
@@ -1246,6 +1561,45 @@ pub fn materialize_entity_with_stream_source(
             );
         }
     }
+}
+
+fn is_filename_rejection_error(error: &anyhow::Error) -> bool {
+    if crate::link_path::is_destination_encoding_error(error) {
+        return true;
+    }
+    #[cfg(unix)]
+    if error.chain().any(|cause| {
+        matches!(
+            cause.downcast_ref::<rustix::io::Errno>(),
+            Some(&rustix::io::Errno::NAMETOOLONG | &rustix::io::Errno::INVAL | &rustix::io::Errno::ILSEQ)
+        )
+    }) {
+        return true;
+    }
+    error.chain().any(|cause| {
+        let Some(io_err) = cause.downcast_ref::<std::io::Error>() else {
+            return false;
+        };
+        let Some(raw) = io_err.raw_os_error() else {
+            return false;
+        };
+        #[cfg(unix)]
+        {
+            raw == nix::libc::ENAMETOOLONG
+                || raw == nix::libc::EINVAL
+                || raw == nix::libc::EILSEQ
+        }
+        #[cfg(windows)]
+        {
+            // ERROR_INVALID_NAME (123), ERROR_FILENAME_EXCED_RANGE (206), ERROR_NO_UNICODE_TRANSLATION (1113)
+            raw == 123 || raw == 206 || raw == 1113
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = raw;
+            false
+        }
+    })
 }
 
 #[cfg(unix)]
@@ -2748,6 +3102,142 @@ mod tests {
             err_msg.contains("target escapes destination root or contains root/parent components"),
             "Error message should mention escaping target: {err_msg}"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_best_effort_materialization_adapts_overlong_names_and_logs_warnings() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let dest_dir = SandboxableDir::create_or_open(temp_dir.path())?;
+
+        let overlong_stem = "a".repeat(260);
+        let overlong_name = format!("{overlong_stem}.txt");
+        let payload_bytes = b"best-effort rename payload".to_vec();
+        let sha256 = ctb_formats_checksum::sha256(&payload_bytes);
+
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from(&overlong_name)),
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: u64::try_from(payload_bytes.len())?,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: u64::try_from(payload_bytes.len())?,
+                }],
+            },
+            metadata: FileMetadata::default(),
+            streams: Vec::new(),
+        };
+
+        // Strict mode must reject the >255-byte component.
+        let mut strict_payload = crate::MemoryPayloadSource::new(payload_bytes.clone())?;
+        let strict_opts = MaterializeOptions {
+            strict_lossless: true,
+            ..MaterializeOptions::default()
+        };
+        assert!(
+            materialize_entity(&entity, Some(&mut strict_payload), &dest_dir, &strict_opts).is_err(),
+            "Strict mode must fail on >255-byte filename"
+        );
+
+        // Best-effort mode must truncate the component to <=255 bytes while preserving `.txt`
+        // and record the exact rename warning in `receipt.warnings`.
+        let mut be_payload = crate::MemoryPayloadSource::new(payload_bytes.clone())?;
+        let be_opts = MaterializeOptions {
+            strict_lossless: false,
+            ..MaterializeOptions::default()
+        };
+        let receipt = materialize_entity(&entity, Some(&mut be_payload), &dest_dir, &be_opts)?;
+        let materialized_name = receipt
+            .destination_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .context("Expected UTF-8 materialized filename")?;
+        assert!(materialized_name.len() <= 255);
+        assert!(materialized_name.ends_with(".txt"));
+        assert_eq!(std::fs::read(&receipt.destination_path)?, payload_bytes);
+        assert!(
+            receipt.warnings.iter().any(|w| {
+                w.contains("Adapted destination path")
+                    && w.contains(&overlong_name)
+                    && w.contains(materialized_name)
+            }),
+            "Expected rename warning in receipt.warnings, got: {:?}",
+            receipt.warnings
+        );
+
+        // Also verify Windows-specific filename adaptation rules (illegal chars, reserved names, trailing dots).
+        let (win_adapted, win_warnings) = crate::clean_name::adapt_relative_path_for_materialization(
+            Path::new("sub:dir/CON.txt/file?.log."),
+            true,
+        );
+        assert_eq!(win_adapted, PathBuf::from("sub_dir/unnamed.txt/file_.log"));
+        assert_eq!(win_warnings.len(), 1);
+        assert!(win_warnings[0].contains("Adapted destination path"));
+
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_best_effort_symlink_target_and_stream_name_adaptation_warnings() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let dest_dir = SandboxableDir::create_or_open(temp_dir.path())?;
+
+        // Symlink target containing NUL byte is adapted in best-effort mode and records warning.
+        let sym_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from("nul_target_link")),
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Symlink {
+                target: crate::link_path::LinkPath::from_bytes(b"target\0name", false),
+            },
+            metadata: FileMetadata::default(),
+            streams: Vec::new(),
+        };
+        let be_opts = MaterializeOptions {
+            strict_lossless: false,
+            symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
+            ..MaterializeOptions::default()
+        };
+        let sym_receipt = materialize_entity(&sym_entity, None, &dest_dir, &be_opts)?;
+        assert_eq!(
+            std::fs::read_link(&sym_receipt.destination_path)?,
+            PathBuf::from("target\u{FFFD}name")
+        );
+        assert!(
+            sym_receipt
+                .warnings
+                .iter()
+                .any(|w| w.contains("Replaced NUL in link target") && w.contains("target\\0name") && w.contains("->")),
+            "Expected link target adaptation warning, got: {:?}",
+            sym_receipt.warnings
+        );
+
+        // Stream name containing NUL byte is adapted in best-effort mode and records warning.
+        let stream_name = crate::streams::StreamName::from_bytes(b"user.bad\0attr");
+        let (adapted_stream, stream_warnings) =
+            stream_name.to_os_string_for_materialization_with_warnings(false)?;
+        assert_eq!(adapted_stream, std::ffi::OsString::from("user.bad\u{FFFD}attr"));
+        assert!(
+            stream_warnings
+                .iter()
+                .any(|w| w.contains("stream name") && w.contains("user.bad\\0attr") && w.contains("->")),
+            "Expected stream name adaptation warning, got: {:?}",
+            stream_warnings
+        );
+
         Ok(())
     }
 }

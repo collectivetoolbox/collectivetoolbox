@@ -265,6 +265,61 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
     }
 }
 
+/// Resolves raw relative path bytes to a local OS `PathBuf` for materialization.
+///
+/// When `strict_lossless` is true, behaves identically to [`resolve_relative_path_for_os`].
+/// When `strict_lossless` is false (best-effort mode), adapts path components that
+/// exceed length limits, contain illegal characters on the destination OS, or have
+/// unrepresentable byte sequences, logging and returning the adaptation warnings.
+pub fn resolve_relative_path_for_materialization(
+    raw_bytes: &[u8],
+    origin_is_windows: bool,
+    strict_lossless: bool,
+) -> Result<(PathBuf, Vec<String>)> {
+    if strict_lossless {
+        let path = resolve_relative_path_for_os(raw_bytes, origin_is_windows)?;
+        return Ok((path, Vec::new()));
+    }
+
+    match resolve_relative_path_for_os(raw_bytes, origin_is_windows) {
+        Ok(path) => {
+            let (adapted, warnings) = crate::clean_name::adapt_relative_path_for_materialization(
+                &path,
+                cfg!(windows),
+            );
+            for w in &warnings {
+                warn_fmt!("{w}");
+            }
+            Ok((adapted, warnings))
+        }
+        Err(err) => {
+            let lossy = String::from_utf8_lossy(raw_bytes);
+            let normalized_sep = if origin_is_windows || cfg!(windows) {
+                lossy.replace('\\', "/")
+            } else {
+                lossy.into_owned()
+            };
+            let fallback_path = PathBuf::from(&normalized_sep);
+            let (adapted, mut warnings) =
+                crate::clean_name::adapt_relative_path_for_materialization(&fallback_path, true);
+            if warnings.is_empty() {
+                let msg = format!(
+                    "Adapted relative path {:?} -> {:?} for host OS (best-effort: {err})",
+                    String::from_utf8_lossy(raw_bytes),
+                    adapted.display()
+                );
+                warn_fmt!("{msg}");
+                warnings.push(msg);
+            } else {
+                for w in &warnings {
+                    warn_fmt!("{w}");
+                }
+            }
+            Ok((adapted, warnings))
+        }
+    }
+}
+
 /// Queries the unique file identity ([`InodeKey`]) of a filesystem entry.
 ///
 /// On Unix, uses `symlink_metadata` to retrieve device (`st_dev`) and inode

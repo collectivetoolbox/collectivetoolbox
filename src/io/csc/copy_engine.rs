@@ -337,9 +337,23 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
 
-                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
+                let orig_rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
                 captured_tree.retain(&dir_snapshot);
+                let (rel, dir_adapt_warnings) = if strict_lossless || orig_rel.as_os_str().is_empty() || orig_rel == Path::new(".") {
+                    (orig_rel.clone(), Vec::new())
+                } else {
+                    ctb_io::file::adapt_relative_path_for_materialization(&orig_rel, cfg!(windows))
+                };
+                if rel != orig_rel {
+                    dir_entity.metadata.set_materialized_relative_path(&orig_rel, &rel);
+                }
+                let curr_tgt = if rel != orig_rel {
+                    dest_dir.root_path().join(&rel)
+                } else {
+                    curr_tgt
+                };
                 dir_entity.identity.relative_path = Some(rel.clone());
+                record_materialization_warnings(journal, &mut dir_entity, dir_adapt_warnings)?;
 
                 if !args.dry_run {
                     // Reason for fallback: absent relative path defaults to current directory "." as destination root
@@ -419,7 +433,12 @@ pub fn execute_copy_pipeline(
                     };
 
                     if item.is_dir {
-                        expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
+                        let expected_name = if strict_lossless {
+                            entry_name.clone()
+                        } else {
+                            ctb_io::file::adapt_component_for_materialization(&entry_name, cfg!(windows)).0
+                        };
+                        expected_filenames.push(expected_name.as_encoded_bytes().to_vec());
                     } else if item.is_symlink {
                         let CapturedSource { entity: sym_entity, snapshot } = match CapturedSource::capture(
                             &entry_src,
@@ -458,7 +477,12 @@ pub fn execute_copy_pipeline(
                             )?;
                             continue;
                         }
-                        expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
+                        let expected_name = if strict_lossless {
+                            entry_name.clone()
+                        } else {
+                            ctb_io::file::adapt_component_for_materialization(&entry_name, cfg!(windows)).0
+                        };
+                        expected_filenames.push(expected_name.as_encoded_bytes().to_vec());
                         let mut sym_entity = sym_entity;
                         sym_entity.identity.relative_path = Some(entry_rel);
                         deferred_symlinks.push(DeferredSymlink {
@@ -631,16 +655,40 @@ pub fn execute_copy_pipeline(
             }
         };
         record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+        let actual_dest_path = &receipt.destination_path;
+        if actual_dest_path != dest_path {
+            if let (Ok(orig_rel), Ok(actual_rel)) = (
+                compute_journal_relative_path(journal.destination(), dest_path),
+                compute_journal_relative_path(journal.destination(), actual_dest_path),
+            ) {
+                let source_rel = if orig_rel.as_os_str().is_empty() {
+                    entity.identity.relative_path.clone().unwrap_or(orig_rel) // Reason for fallback: single-file copy uses filename relative to parent dir
+                } else {
+                    orig_rel
+                };
+                let mat_rel = if actual_rel.as_os_str().is_empty() {
+                    actual_dest_path.file_name().map_or(actual_rel.clone(), PathBuf::from)
+                } else {
+                    actual_rel.clone()
+                };
+                if source_rel != mat_rel {
+                    entity.metadata.set_materialized_relative_path(&source_rel, &mat_rel);
+                }
+                if !actual_rel.as_os_str().is_empty() {
+                    entity.identity.relative_path = Some(actual_rel);
+                }
+            }
+        }
 
         if !args.dry_run {
-            let dest_target = match std::fs::symlink_metadata(dest_path)
+            let dest_target = match std::fs::symlink_metadata(actual_dest_path)
                 .map_err(anyhow::Error::new)
-                .and_then(|observed| ctb_io::file::metadata::read_symlink_target(dest_path, &observed))
+                .and_then(|observed| ctb_io::file::metadata::read_symlink_target(actual_dest_path, &observed))
             {
                 Ok(t) => t,
                 Err(e) => {
                     let error = e;
-                    record_materialization_failure(journal, dest_path, &entity, &error)?;
+                    record_materialization_failure(journal, actual_dest_path, &entity, &error)?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
@@ -661,9 +709,9 @@ pub fn execute_copy_pipeline(
                 if !exact && !adapted {
                     let err = anyhow::anyhow!(
                         "Target filesystem altered or normalized symlink target for {}",
-                        dest_path.display()
+                        actual_dest_path.display()
                     );
-                    record_materialization_failure(journal, dest_path, &entity, &err)?;
+                    record_materialization_failure(journal, actual_dest_path, &entity, &err)?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
@@ -678,8 +726,8 @@ pub fn execute_copy_pipeline(
         }
 
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
-        record_journal_entry(journal, dest_path, &entity)?;
-        files_to_verify.push((symlink_item.src_path, dest_path.clone(), entity));
+        record_journal_entry(journal, actual_dest_path, &entity)?;
+        files_to_verify.push((symlink_item.src_path, actual_dest_path.clone(), entity));
     }
 
     // =========================================================================
@@ -709,19 +757,23 @@ pub fn execute_copy_pipeline(
 
                 let relative = fixup.dir_entity.identity.relative_path.as_deref()
                     .context("Missing deferred directory relative path")?;
-                if let Err(e) = fixup.sandbox.authorize_metadata(relative, options.existing_entry_policy)
-                    .and_then(|()| write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)) {
-                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
-                    let _ = handle_item_error(
-                        &fixup.src_path,
-                        JournalErrorStage::Materialize,
-                        e,
-                        args,
-                        journal,
-                        &mut stats,
-                    )?;
-                    continue;
-                }
+                let stream_warnings = match fixup.sandbox.authorize_metadata(relative, options.existing_entry_policy)
+                    .and_then(|()| ctb_io::file::write_streams_with_warnings(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)) {
+                    Ok(stream_warnings) => stream_warnings,
+                    Err(e) => {
+                        record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
+                        let _ = handle_item_error(
+                            &fixup.src_path,
+                            JournalErrorStage::Materialize,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
+                };
+                record_materialization_warnings(journal, &mut fixup.dir_entity, stream_warnings)?;
                 let warnings = match apply_entity_metadata(
                     &fixup.dest_path,
                     None,
@@ -979,6 +1031,11 @@ fn copy_single_item(
     let file_name = effective_dest_rel.file_name().unwrap_or(effective_dest_rel.as_os_str());
     let effective_dest_path = parent_path.join(file_name);
 
+    if effective_dest_rel != dest_rel_path {
+        entity
+            .metadata
+            .set_materialized_relative_path(dest_rel_path, &effective_dest_rel);
+    }
     entity.identity.relative_path = Some(effective_dest_rel);
 
     if let FileEntityKind::Regular { size, sha256, .. } = &entity.kind
@@ -1051,21 +1108,34 @@ fn copy_single_item(
                 entity.kind = FileEntityKind::Hardlink {
                     target_relative_path: LinkPath::from_relative_path(first_target_rel)?,
                 };
-                if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
-                    record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
-                    return handle_item_error(
-                        src_path,
-                        JournalErrorStage::Materialize,
-                        err,
-                        args,
-                        journal,
-                        stats,
-                    );
+                let receipt = match materialize_entity(&entity, None, dest_dir, options) {
+                    Ok(receipt) => receipt,
+                    Err(err) => {
+                        record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
+                        return handle_item_error(
+                            src_path,
+                            JournalErrorStage::Materialize,
+                            err,
+                            args,
+                            journal,
+                            stats,
+                        );
+                    }
+                };
+                record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                let final_dest = receipt.destination_path;
+                if final_dest != dest_path {
+                    if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
+                        if !actual_rel.as_os_str().is_empty() && actual_rel != dest_rel_path {
+                            entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                            entity.identity.relative_path = Some(actual_rel);
+                        }
+                    }
                 }
                 stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
-                record_journal_entry(journal, &effective_dest_path, &entity)?;
-                files_to_verify.push((src_path.to_path_buf(), effective_dest_path.clone(), original_entity));
-                return Ok(Some(effective_dest_path));
+                record_journal_entry(journal, &final_dest, &entity)?;
+                files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), original_entity));
+                return Ok(Some(final_dest));
             }
         }
     }
@@ -1222,10 +1292,19 @@ fn copy_single_item(
                     }
                 };
                 record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                let final_dest = receipt.destination_path;
+                if final_dest != dest_path {
+                    if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
+                        if !actual_rel.as_os_str().is_empty() && actual_rel != dest_rel_path {
+                            entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                            entity.identity.relative_path = Some(actual_rel);
+                        }
+                    }
+                }
                 stats.special_files_created = stats.special_files_created.saturating_add(1);
-                record_journal_entry(journal, dest_path, &entity)?;
-                files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
-                return Ok(Some(dest_path.to_path_buf()));
+                record_journal_entry(journal, &final_dest, &entity)?;
+                files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), entity));
+                return Ok(Some(final_dest));
             } else {
                 stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
                 return Ok(None);
@@ -1336,6 +1415,17 @@ fn copy_single_item(
     }
     stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
 
+    if receipt.destination_path != dest_path {
+        if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &receipt.destination_path) {
+            if !actual_rel.as_os_str().is_empty() {
+                if actual_rel != dest_rel_path {
+                    entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                }
+                entity.identity.relative_path = Some(actual_rel);
+            }
+        }
+    }
+
     if entity.identity.nlink > 1 && entity.is_regular() {
         if let Some(ref rel) = entity.identity.relative_path {
             journal.commit_batch()?;
@@ -1424,6 +1514,19 @@ fn record_journal_entry(
 ) -> Result<()> {
     let mut journal_entity = entity.clone();
     let rel = compute_journal_relative_path(journal.destination(), dest_path)?;
+    if !rel.as_os_str().is_empty() && rel != Path::new(".") {
+        if let Some(orig_rel) = journal_entity
+            .metadata
+            .source_relative_path()
+            .or_else(|| journal_entity.identity.relative_path.clone())
+        {
+            if !orig_rel.as_os_str().is_empty() && orig_rel != Path::new(".") && orig_rel != rel {
+                journal_entity
+                    .metadata
+                    .set_materialized_relative_path(&orig_rel, &rel);
+            }
+        }
+    }
     journal_entity.identity.relative_path = Some(rel);
     journal.record_entity(&journal_entity);
     Ok(())
@@ -4028,6 +4131,63 @@ mod tests {
                 assert!(err.is_err(), "Resume must refuse when directory identity receipt does not match");
             }
         }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_tracks_materialized_path_for_renamed_entities() -> Result<()> {
+        let temp = tempdir()?;
+        let dest = temp.path().join("dest_renamed");
+        let state = temp.path().join("state_renamed");
+        fs::create_dir_all(&dest)?;
+        fs::create_dir_all(&state)?;
+
+        let journal_path = state.join("rename.cscjournal");
+        let desc_path = state.join("rename.cscdesc");
+        let mut journal = StateJournal::create_at_path(&journal_path, &desc_path, &[], &dest)?;
+
+        let orig_rel = PathBuf::from(format!("dir/{}.txt", "x".repeat(260)));
+        let (adapted_rel, warnings) =
+            ctb_io::file::adapt_relative_path_for_materialization(&orig_rel, true);
+        assert_ne!(orig_rel, adapted_rel);
+        assert!(!warnings.is_empty());
+
+        let mut entity = FileEntity::from_vec(b"renamed content".to_vec());
+        entity.identity.relative_path = Some(orig_rel.clone());
+        record_materialization_warnings(&mut journal, &mut entity, warnings)?;
+
+        // Simulate pre-materialization record at original path followed by post-materialization record at adapted path.
+        record_journal_entry(&mut journal, &dest.join(&orig_rel), &entity)?;
+        journal.commit_batch()?;
+        record_journal_entry(&mut journal, &dest.join(&adapted_rel), &entity)?;
+        journal.mark_completed()?;
+
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path)?;
+        // Must answer "where was file foo materialized to" even if materialization logic changes later.
+        assert_eq!(
+            snapshot.materialized_path_for(&orig_rel),
+            Some(adapted_rel.clone())
+        );
+        assert_eq!(
+            snapshot.materialized_path_for(&adapted_rel),
+            Some(adapted_rel.clone())
+        );
+        assert!(snapshot.is_committed(orig_rel.as_os_str().as_encoded_bytes()));
+        assert!(snapshot.is_committed(adapted_rel.as_os_str().as_encoded_bytes()));
+        assert_eq!(
+            snapshot.committed_entities.len(),
+            1,
+            "Pre-materialization unadapted entry must be superseded by post-materialization entry"
+        );
+        assert!(
+            snapshot
+                .warnings
+                .iter()
+                .any(|w| w.code == "FileMaterializationWarning" && w.message.contains("Adapted destination path")),
+            "Expected FileMaterializationWarning in journal warnings, got: {:?}",
+            snapshot.warnings
+        );
 
         Ok(())
     }

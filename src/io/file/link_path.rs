@@ -130,30 +130,55 @@ impl LinkPath {
     /// Converts for the destination OS, adapting unrepresentable encoding only
     /// in best-effort mode. Path interpretation and traversal guards still apply.
     pub fn to_path_buf_for_materialization(&self, strict_lossless: bool) -> Result<PathBuf> {
+        let (path, _warnings) = self.to_path_buf_for_materialization_with_warnings(strict_lossless)?;
+        Ok(path)
+    }
+
+    /// Converts for the destination OS, returning both the resolved [`PathBuf`]
+    /// and any best-effort adaptation warnings that were logged.
+    pub fn to_path_buf_for_materialization_with_warnings(
+        &self,
+        strict_lossless: bool,
+    ) -> Result<(PathBuf, Vec<String>)> {
+        let mut warnings = Vec::new();
         #[cfg(windows)]
         let bytes = match path_from_native_bytes(&self.bytes) {
             Ok(_) => self.bytes.clone(),
             Err(error) => {
                 ensure!(!strict_lossless, "Cannot represent link target on Windows: {error:#}");
-                warn_fmt!("Adapting link target encoding for Windows (best-effort): {error:#}");
-                if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(&self.bytes) {
+                let adapted = if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(&self.bytes) {
                     ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)?
                 } else {
                     String::from_utf8_lossy(&self.bytes).into_owned().into_bytes()
-                }
+                };
+                let msg = format!(
+                    "Adapted link target encoding {:?} -> {:?} for Windows (best-effort: {error:#})",
+                    String::from_utf8_lossy(&self.bytes),
+                    String::from_utf8_lossy(&adapted)
+                );
+                warn_fmt!("{msg}");
+                warnings.push(msg);
+                adapted
             }
         };
         #[cfg(not(windows))]
         let bytes = self.bytes.clone();
         let bytes = if bytes.contains(&0) {
             ensure!(!strict_lossless, "Link target contains a NUL unsupported by the destination OS");
-            warn!("Replacing NUL in link target (best-effort)");
-            bytes.split(|byte| *byte == 0).collect::<Vec<_>>().join("\u{fffd}".as_bytes())
+            let adapted = bytes.split(|byte| *byte == 0).collect::<Vec<_>>().join("\u{fffd}".as_bytes());
+            let msg = format!(
+                "Replaced NUL in link target {:?} -> {:?} (best-effort)",
+                String::from_utf8_lossy(&bytes),
+                String::from_utf8_lossy(&adapted)
+            );
+            warn_fmt!("{msg}");
+            warnings.push(msg);
+            adapted
         } else {
             bytes
         };
         if self.is_windows == cfg!(windows) {
-            return path_from_native_bytes(&bytes);
+            return Ok((path_from_native_bytes(&bytes)?, warnings));
         }
         if cfg!(windows) {
             ensure!(!bytes.contains(&b'\\') && !bytes.starts_with(b"/"),
@@ -163,7 +188,10 @@ impl LinkPath {
                 && bytes.get(1) != Some(&b':'),
                 "Windows rooted or prefixed link target cannot be adapted losslessly to Unix");
         }
-        crate::identity::resolve_relative_path_for_os(&bytes, self.is_windows)
+        let (resolved, resolve_warnings) =
+            crate::identity::resolve_relative_path_for_materialization(&bytes, self.is_windows, strict_lossless)?;
+        warnings.extend(resolve_warnings);
+        Ok((resolved, warnings))
     }
 
     /// Returns true if the link path is empty.

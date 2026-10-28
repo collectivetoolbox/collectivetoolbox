@@ -162,7 +162,23 @@ pub fn write_windows_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
-    write_windows_streams_from_source(dest, streams, strict_lossless, &super::FilesystemStreamSource)
+    let _warnings = write_windows_streams_with_warnings(dest, streams, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes alternate data streams to `dest` on Windows NTFS, returning any
+/// best-effort adaptation or fallback warnings that were logged.
+pub fn write_windows_streams_with_warnings(
+    dest: &Path,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
+    write_windows_streams_from_source_with_warnings(
+        dest,
+        streams,
+        strict_lossless,
+        &super::FilesystemStreamSource,
+    )
 }
 
 pub fn write_windows_streams_from_source(
@@ -171,10 +187,37 @@ pub fn write_windows_streams_from_source(
     strict_lossless: bool,
     source: &dyn super::AttachedStreamSource,
 ) -> Result<()> {
+    let _warnings = write_windows_streams_from_source_with_warnings(
+        dest,
+        streams,
+        strict_lossless,
+        source,
+    )?;
+    Ok(())
+}
+
+pub fn write_windows_streams_from_source_with_warnings(
+    dest: &Path,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+    source: &dyn super::AttachedStreamSource,
+) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
     let mut validated = Vec::new();
     let mut names: Vec<Vec<u16>> = Vec::new();
     for stream in streams {
-        let (canonical_name, name_units) = canonical_stream_name(stream, strict_lossless)?;
+        let Some((canonical_name, name_units, name_warnings)) =
+            canonical_stream_name_with_warnings(dest, stream, strict_lossless)?
+        else {
+            let msg = format!(
+                "Skipping unnamed stream on {} (proceeding best-effort)",
+                dest.display()
+            );
+            warn_fmt!("Caveat: {msg}");
+            warnings.push(msg);
+            continue;
+        };
+        warnings.extend(name_warnings);
         for existing in &names {
             anyhow::ensure!(!native_names_equal(existing, &name_units)?, "Stream names collide on the destination platform");
         }
@@ -209,13 +252,29 @@ pub fn write_windows_streams_from_source(
                             "Replacement stream names collide on the destination filesystem");
                     }
                     names.push(bare.to_vec());
-                    warn_fmt!("Destination rejected stream name encoding on {}; retrying with replacement characters (best-effort): {error}",
-                        dest.display());
+                    let msg = format!(
+                        "Destination rejected stream name encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {error}",
+                        name.to_string_lossy(),
+                        adapted.to_string_lossy(),
+                        dest.display()
+                    );
+                    warn_fmt!("{msg}");
+                    warnings.push(msg);
                     let mut reader = source.open(stream)?;
                     write_windows_stream_to_name(dest, stream, &adapted, &mut reader)
                         .context("Destination also rejected adapted Windows stream name")?;
                     continue;
                 }
+            }
+            if !strict_lossless {
+                let msg = format!(
+                    "Target filesystem cannot store Windows alternate data stream {:?} on {}: {error} (proceeding best-effort)",
+                    stream.to_string_lossy(),
+                    dest.display()
+                );
+                warn_fmt!("Caveat: {msg}");
+                warnings.push(msg);
+                continue;
             }
         }
         write.with_context(|| {
@@ -225,22 +284,36 @@ pub fn write_windows_streams_from_source(
             )
         })?;
     }
-    Ok(())
+    Ok(warnings)
 }
 
-fn canonical_stream_name(stream: &AttachedStream, strict_lossless: bool) -> Result<(OsString, Vec<u16>)> {
+fn canonical_stream_name_with_warnings(
+    dest: &Path,
+    stream: &AttachedStream,
+    strict_lossless: bool,
+) -> Result<Option<(OsString, Vec<u16>, Vec<String>)>> {
+    let mut warnings = Vec::new();
     let name = match &stream.name {
-        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+        Some(name) => {
+            let (os_name, name_warnings) =
+                name.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+            warnings.extend(name_warnings);
+            os_name
+        }
         None => match stream.kind {
             StreamKind::MacOsResourceFork => {
                 OsString::from("com.apple.ResourceFork")
             }
             _ => {
-                anyhow::bail!("Cannot write unnamed stream to Windows alternate data stream");
+                if strict_lossless {
+                    anyhow::bail!("Cannot write unnamed stream to Windows alternate data stream");
+                }
+                return Ok(None);
             },
         },
     };
     let units: Vec<u16> = name.encode_wide().collect();
+    if strict_lossless {
         anyhow::ensure!(
             !units.is_empty()
                 && !units.contains(&0)
@@ -248,31 +321,63 @@ fn canonical_stream_name(stream: &AttachedStream, strict_lossless: bool) -> Resu
                 && !units.contains(&u16::from(b'\\')),
             "Invalid Windows alternate data stream name: {:?}", stream.name
         );
-        let name_units = if units.first() == Some(&u16::from(b':')) {
-            anyhow::ensure!(
-                units.get(1).is_some_and(|unit| *unit != u16::from(b':')),
-                "Attached stream cannot overwrite the unnamed data fork: {:?}", stream.name
-            );
-            units.get(1..).context("Missing stream name")?
-        } else {
-            &units
-        };
-        let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
-        let name_units = if name_units.len() >= suffix.len()
-            && native_names_equal(name_units.get(name_units.len().saturating_sub(suffix.len())..).context("Invalid stream type suffix")?, &suffix)?
-        {
-            name_units.get(..name_units.len().saturating_sub(suffix.len())).context("Invalid stream name length")?
-        } else {
-            name_units
-        };
+    }
+    let name_units = if units.first() == Some(&u16::from(b':')) {
+        anyhow::ensure!(
+            units.get(1).is_some_and(|unit| *unit != u16::from(b':')),
+            "Attached stream cannot overwrite the unnamed data fork: {:?}", stream.name
+        );
+        units.get(1..).context("Missing stream name")?
+    } else {
+        &units
+    };
+    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+    let name_units = if name_units.len() >= suffix.len()
+        && native_names_equal(name_units.get(name_units.len().saturating_sub(suffix.len())..).context("Invalid stream type suffix")?, &suffix)?
+    {
+        name_units.get(..name_units.len().saturating_sub(suffix.len())).context("Invalid stream name length")?
+    } else {
+        name_units
+    };
+    let final_units = if strict_lossless {
         anyhow::ensure!(
             !name_units.is_empty() && !name_units.contains(&u16::from(b':')),
             "Invalid Windows alternate data stream name: {:?}", stream.name
         );
-        let mut canonical_name = OsString::from(":");
-        canonical_name.push(OsString::from_wide(name_units));
-        canonical_name.push(":$DATA");
-    Ok((canonical_name, name_units.to_vec()))
+        name_units.to_vec()
+    } else {
+        let mut sanitized: Vec<u16> = name_units
+            .iter()
+            .filter(|&&u| u != 0)
+            .map(|&u| {
+                if u == u16::from(b':') || u == u16::from(b'/') || u == u16::from(b'\\') {
+                    u16::from(b'_')
+                } else {
+                    u
+                }
+            })
+            .collect();
+        if sanitized.is_empty() {
+            sanitized = "unnamed".encode_utf16().collect();
+        }
+        if sanitized != name_units {
+            let orig_display = String::from_utf16_lossy(name_units);
+            let adapted_display = String::from_utf16_lossy(&sanitized);
+            let msg = format!(
+                "Adapted Windows alternate data stream name {:?} -> {:?} on {} (best-effort)",
+                orig_display,
+                adapted_display,
+                dest.display()
+            );
+            warn_fmt!("{msg}");
+            warnings.push(msg);
+        }
+        sanitized
+    };
+    let mut canonical_name = OsString::from(":");
+    canonical_name.push(OsString::from_wide(&final_units));
+    canonical_name.push(":$DATA");
+    Ok(Some((canonical_name, final_units, warnings)))
 }
 
 /// Writes a single alternate data stream from a streaming reader directly to disk.
@@ -282,8 +387,44 @@ pub fn write_windows_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
-    let (name, _) = canonical_stream_name(stream, strict_lossless)?;
-    write_windows_stream_to_name(dest, stream, &name, reader)
+    let _warnings = write_windows_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)?;
+    Ok(())
+}
+
+/// Writes a single alternate data stream from a streaming reader directly to disk,
+/// returning any best-effort adaptation or fallback warnings that were logged.
+pub fn write_windows_stream_from_reader_with_warnings<R: std::io::Read>(
+    dest: &Path,
+    stream: &AttachedStream,
+    reader: &mut R,
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
+    let Some((name, _, name_warnings)) =
+        canonical_stream_name_with_warnings(dest, stream, strict_lossless)?
+    else {
+        let msg = format!(
+            "Skipping unnamed stream on {} (proceeding best-effort)",
+            dest.display()
+        );
+        warn_fmt!("Caveat: {msg}");
+        warnings.push(msg);
+        return Ok(warnings);
+    };
+    warnings.extend(name_warnings);
+    if let Err(err) = write_windows_stream_to_name(dest, stream, &name, reader) {
+        if strict_lossless {
+            return Err(err);
+        }
+        let msg = format!(
+            "Target filesystem cannot store Windows alternate data stream {:?} on {}: {err} (proceeding best-effort)",
+            stream.to_string_lossy(),
+            dest.display()
+        );
+        warn_fmt!("Caveat: {msg}");
+        warnings.push(msg);
+    }
+    Ok(warnings)
 }
 
 fn write_windows_stream_to_name(

@@ -1103,6 +1103,78 @@ impl FileMetadata {
             }
         }
     }
+
+    /// Records the original source relative path and the actual materialized
+    /// relative path when best-effort mode or format adaptation renames a file.
+    pub fn set_materialized_relative_path(
+        &mut self,
+        source_rel: &std::path::Path,
+        materialized_rel: &std::path::Path,
+    ) {
+        if self.native.is_none() {
+            self.native = Some(NativeMetadata {
+                source_os: OsFamily::CURRENT,
+                values: std::collections::BTreeMap::new(),
+            });
+        }
+        if let Some(ref mut native) = self.native {
+            native.values.insert(
+                "source.relative_path".to_string(),
+                NativeMetadataValue::Bytes(
+                    source_rel.as_os_str().as_encoded_bytes().to_vec(),
+                ),
+            );
+            native.values.insert(
+                "materialized.relative_path".to_string(),
+                NativeMetadataValue::Bytes(
+                    materialized_rel.as_os_str().as_encoded_bytes().to_vec(),
+                ),
+            );
+        }
+    }
+
+    /// Returns the original source relative path if this entity was renamed
+    /// during materialization.
+    #[must_use]
+    pub fn source_relative_path(&self) -> Option<std::path::PathBuf> {
+        let native = self.native.as_ref()?;
+        let NativeMetadataValue::Bytes(bytes) =
+            native.values.get("source.relative_path")?
+        else {
+            return None;
+        };
+        crate::identity::resolve_relative_path_for_os(
+            bytes,
+            native.source_os == OsFamily::Windows,
+        )
+        .ok()
+        .or_else(|| {
+            Some(std::path::PathBuf::from(
+                String::from_utf8_lossy(bytes).into_owned(),
+            ))
+        })
+    }
+
+    /// Returns the actual materialized relative path if recorded in metadata.
+    #[must_use]
+    pub fn materialized_relative_path(&self) -> Option<std::path::PathBuf> {
+        let native = self.native.as_ref()?;
+        let NativeMetadataValue::Bytes(bytes) =
+            native.values.get("materialized.relative_path")?
+        else {
+            return None;
+        };
+        crate::identity::resolve_relative_path_for_os(
+            bytes,
+            native.source_os == OsFamily::Windows,
+        )
+        .ok()
+        .or_else(|| {
+            Some(std::path::PathBuf::from(
+                String::from_utf8_lossy(bytes).into_owned(),
+            ))
+        })
+    }
 }
 
 impl Default for FileMetadata {
@@ -1357,6 +1429,8 @@ pub fn native_metadata_differences(
             "change_time",
             "file_size",
             "io.noatime",
+            "source.relative_path",
+            "materialized.relative_path",
         ];
         let actual = capture_native_metadata(
             destination,

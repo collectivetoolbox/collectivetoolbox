@@ -450,6 +450,35 @@ impl JournalSnapshot {
     #[must_use]
     pub fn is_committed(&self, rel_bytes: &[u8]) -> bool {
         self.committed_entities.contains_key(rel_bytes)
+            || self.committed_entities.values().any(|entity| {
+                entity
+                    .metadata
+                    .source_relative_path()
+                    .is_some_and(|src| src.as_os_str().as_encoded_bytes() == rel_bytes)
+            })
+    }
+
+    /// Returns the actual relative path where `source_rel` was materialized on disk,
+    /// even if best-effort mode or format conversion renamed or truncated it.
+    #[must_use]
+    pub fn materialized_path_for(&self, source_rel: &Path) -> Option<PathBuf> {
+        let raw_bytes = source_rel.as_os_str().as_encoded_bytes();
+        for entity in self.committed_entities.values() {
+            if entity.metadata.source_relative_path().as_deref() == Some(source_rel) {
+                return entity
+                    .metadata
+                    .materialized_relative_path()
+                    .or_else(|| entity.identity.relative_path.clone());
+            }
+        }
+        if let Some(entity) = self.committed_entities.get(raw_bytes) {
+            return entity
+                .metadata
+                .materialized_relative_path()
+                .or_else(|| entity.identity.relative_path.clone())
+                .or_else(|| Some(source_rel.to_path_buf()));
+        }
+        None
     }
 }
 
@@ -856,6 +885,29 @@ impl StateJournal {
     pub fn snapshot(&self) -> Option<&JournalSnapshot> {
         self.snapshot.as_ref()
     }
+
+    /// Returns the actual relative path where `source_rel` was materialized on disk,
+    /// checking uncommitted records first and then any loaded journal snapshot.
+    #[must_use]
+    pub fn materialized_path_for(&self, source_rel: &Path) -> Option<PathBuf> {
+        for entity in self.uncommitted_entities.iter().rev() {
+            if entity.metadata.source_relative_path().as_deref() == Some(source_rel) {
+                return entity
+                    .metadata
+                    .materialized_relative_path()
+                    .or_else(|| entity.identity.relative_path.clone());
+            }
+            if entity.identity.relative_path.as_deref() == Some(source_rel) {
+                return entity
+                    .metadata
+                    .materialized_relative_path()
+                    .or_else(|| entity.identity.relative_path.clone());
+            }
+        }
+        self.snapshot
+            .as_ref()
+            .and_then(|snap| snap.materialized_path_for(source_rel))
+    }
 }
 
 /// Resolves a manifest path or directory into a `.cscjournal` file path.
@@ -1117,6 +1169,12 @@ pub fn read_v4_journal_snapshot(
             Some(bytes) => bytes.to_vec(),
             None => Vec::new(),
         };
+        if let Some(source_rel) = entity.metadata.source_relative_path() {
+            let source_bytes = source_rel.as_os_str().as_encoded_bytes();
+            if source_bytes != path_key.as_slice() {
+                committed_entities.remove(source_bytes);
+            }
+        }
         committed_entities.insert(path_key, entity);
     }
     Ok(JournalSnapshot {

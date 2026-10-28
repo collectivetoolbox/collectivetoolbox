@@ -361,6 +361,209 @@ pub fn clean_file_name_windows<P: AsRef<Path>>(
     PathBuf::from(result)
 }
 
+/// Adapts a single path component for best-effort materialization, returning
+/// the (possibly edited) component and a human-readable reason if it was modified.
+///
+/// When `force_windows_rules` is false (the default on POSIX), components are
+/// only edited if they exceed [`MAX_FILENAME_BYTES`] (255 bytes), contain NUL
+/// bytes, or contain embedded slashes. When `force_windows_rules` is true (the
+/// default on Windows, or when retrying after a destination filesystem rejects
+/// a name with `EILSEQ`/`EINVAL`/`ENAMETOOLONG`), Windows filename rules and
+/// UTF-8 replacement are also applied.
+#[must_use]
+pub fn adapt_component_for_materialization(
+    component: &std::ffi::OsStr,
+    force_windows_rules: bool,
+) -> (std::ffi::OsString, Option<String>) {
+    let raw_bytes = component.as_encoded_bytes();
+    if !force_windows_rules {
+        let has_nul = raw_bytes.contains(&0);
+        let has_slash = raw_bytes.contains(&b'/');
+        let too_long = raw_bytes.len() > MAX_FILENAME_BYTES;
+        if !has_nul && !has_slash && !too_long {
+            return (component.to_os_string(), None);
+        }
+
+        let mut reasons = Vec::new();
+        if has_nul {
+            reasons.push("removed NUL bytes".to_string());
+        }
+        if has_slash {
+            reasons.push("replaced '/' with '⌿'".to_string());
+        }
+        if too_long {
+            reasons.push(format!(
+                "truncated from {} to at most {} bytes",
+                raw_bytes.len(),
+                MAX_FILENAME_BYTES
+            ));
+        }
+
+        let raw_str = component.to_string_lossy();
+        let mut cleaned = String::with_capacity(raw_str.len());
+        for c in raw_str.chars() {
+            if c == '\0' {
+                continue;
+            }
+            cleaned.push(if c == '/' { '⌿' } else { c });
+        }
+        if cleaned.len() > MAX_FILENAME_BYTES {
+            cleaned = truncate_filename(&cleaned, MAX_FILENAME_BYTES);
+        }
+        if cleaned.is_empty() || cleaned == "." || cleaned == ".." {
+            cleaned = "unnamed".to_string();
+        }
+        return (
+            std::ffi::OsString::from(cleaned),
+            Some(reasons.join(", ")),
+        );
+    }
+
+    // Windows / restricted-filesystem sanitization rules
+    let valid_utf8 = component.to_str();
+    let raw_str = component.to_string_lossy();
+    let mut reasons = Vec::new();
+    if valid_utf8.is_none() {
+        reasons.push("replaced invalid UTF-8 bytes".to_string());
+    }
+    if raw_str.chars().any(|c| c == '\0' || is_control_or_separator(c)) {
+        reasons.push("removed control/NUL characters".to_string());
+    }
+    if raw_str.contains('/') {
+        reasons.push("replaced '/' with '⌿'".to_string());
+    }
+    if raw_str.chars().any(is_windows_illegal_char) {
+        reasons.push("replaced Windows-reserved characters".to_string());
+    }
+    if raw_str.chars().any(is_unicode_format_char) {
+        reasons.push("replaced Unicode format characters".to_string());
+    }
+
+    let mut cleaned = String::with_capacity(raw_str.len());
+    let mut last_was_whitespace = false;
+    for c in raw_str.chars() {
+        if c == '\0' || is_control_or_separator(c) {
+            continue;
+        }
+        if c == '/' {
+            cleaned.push('⌿');
+            last_was_whitespace = false;
+            continue;
+        }
+        if is_windows_illegal_char(c) || is_unicode_format_char(c) {
+            cleaned.push('_');
+            last_was_whitespace = false;
+            continue;
+        }
+        if c.is_whitespace() || c == '\u{FEFF}' {
+            if cleaned.is_empty() || last_was_whitespace {
+                continue;
+            }
+            cleaned.push(' ');
+            last_was_whitespace = true;
+            continue;
+        }
+        last_was_whitespace = false;
+        cleaned.push(c);
+    }
+
+    let trimmed = cleaned.trim_end_matches(is_trim_trailing);
+    if trimmed.len() != cleaned.len() {
+        reasons.push("trimmed trailing dots/spaces".to_string());
+    }
+    let mut result = if trimmed.is_empty() {
+        "unnamed".to_string()
+    } else {
+        trimmed.to_string()
+    };
+
+    let after_reserved = sanitize_windows_reserved_name(&result);
+    if after_reserved != result {
+        reasons.push("renamed DOS reserved device name".to_string());
+        result = after_reserved;
+    }
+
+    if result.len() > MAX_FILENAME_BYTES {
+        reasons.push(format!(
+            "truncated from {} to at most {} bytes",
+            result.len(),
+            MAX_FILENAME_BYTES
+        ));
+        result = truncate_filename(&result, MAX_FILENAME_BYTES);
+        let trimmed_post = result.trim_end_matches(is_trim_trailing);
+        result = if trimmed_post.is_empty() {
+            "unnamed".to_string()
+        } else {
+            sanitize_windows_reserved_name(trimmed_post)
+        };
+        if result.len() > MAX_FILENAME_BYTES {
+            result = truncate_to_byte_limit(&result, MAX_FILENAME_BYTES).to_string();
+        }
+    }
+
+    if result.is_empty() {
+        result.push_str("unnamed");
+    }
+
+    if valid_utf8 == Some(result.as_str()) {
+        (component.to_os_string(), None)
+    } else {
+        if reasons.is_empty() {
+            reasons.push("normalized whitespace/characters for Windows".to_string());
+        }
+        (
+            std::ffi::OsString::from(result),
+            Some(reasons.join(", ")),
+        )
+    }
+}
+
+/// Adapts all normal components of a relative path for best-effort
+/// materialization, returning the adapted `PathBuf` and any warnings describing
+/// component renames.
+#[must_use]
+pub fn adapt_relative_path_for_materialization(
+    relative_path: &Path,
+    force_windows_rules: bool,
+) -> (PathBuf, Vec<String>) {
+    let mut adapted = PathBuf::new();
+    let mut component_reasons = Vec::new();
+    let mut any_changed = false;
+
+    for comp in relative_path.components() {
+        match comp {
+            std::path::Component::Normal(name) => {
+                let (new_name, reason) =
+                    adapt_component_for_materialization(name, force_windows_rules);
+                if let Some(reason_str) = reason {
+                    any_changed = true;
+                    component_reasons.push(format!(
+                        "{:?} -> {:?} ({reason_str})",
+                        name.to_string_lossy(),
+                        new_name.to_string_lossy()
+                    ));
+                }
+                adapted.push(new_name);
+            }
+            other => {
+                adapted.push(other.as_os_str());
+            }
+        }
+    }
+
+    if any_changed {
+        let warning = format!(
+            "Adapted destination path {:?} -> {:?} (best-effort: {})",
+            relative_path.display(),
+            adapted.display(),
+            component_reasons.join("; ")
+        );
+        (adapted, vec![warning])
+    } else {
+        (relative_path.to_path_buf(), Vec::new())
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

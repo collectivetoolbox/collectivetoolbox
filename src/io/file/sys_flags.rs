@@ -165,6 +165,11 @@ fn flags_to_mask_from_map(
                 "Cannot losslessly apply flag {flag:?} on {os_name} for {}",
                 path.display()
             );
+        } else {
+            warn_fmt!(
+                "Skipping unsupported file flag {flag:?} on {os_name} for {} (best-effort)",
+                path.display()
+            );
         }
     }
     Ok(mask)
@@ -1131,10 +1136,18 @@ fn apply_file_flags_native(
     strict_lossless: bool,
 ) -> Result<()> {
     if let Some(raw_info) = raw {
-        if raw_info.has_unparsed_flags(source_os) && source_os != OsFamily::CURRENT && strict_lossless
-        {
-            anyhow::bail!(
-                "Cannot losslessly restore unparsed file flags from {} on target {}: {}",
+        if raw_info.has_unparsed_flags(source_os) && source_os != OsFamily::CURRENT {
+            if strict_lossless {
+                anyhow::bail!(
+                    "Cannot losslessly restore unparsed file flags from {} on target {}: {}",
+                    source_os.as_str(),
+                    OsFamily::CURRENT.as_str(),
+                    path.display()
+                );
+            }
+            warn_fmt!(
+                "Skipping unparsed file flags ({:#x}) from {} on target {} for {} (best-effort)",
+                raw_info.raw_value,
                 source_os.as_str(),
                 OsFamily::CURRENT.as_str(),
                 path.display()
@@ -1234,8 +1247,8 @@ fn apply_file_flags_native(
                     }
 
                     if current_accum != current {
-                        log_fmt!(
-                            "ioctl_setflags partially applied flags ({:#x} of {:#x}) for {}",
+                        warn_fmt!(
+                            "ioctl_setflags partially applied flags ({:#x} of {:#x}) for {} (best-effort)",
                             current_accum,
                             target_bits,
                             path.display()
@@ -1244,7 +1257,11 @@ fn apply_file_flags_native(
                     } else if (e == rustix::io::Errno::PERM || e == rustix::io::Errno::ACCESS)
                         && (target_bits & !LINUX_USER_SETTABLE_MASK) != 0
                     {
-                        // All requested changes were privileged flags that cannot be set unprivileged.
+                        warn_fmt!(
+                            "Skipping privileged file flags ({:#x}) for {} (best-effort: {e})",
+                            target_bits & !LINUX_USER_SETTABLE_MASK,
+                            path.display()
+                        );
                         return Ok(());
                     }
                 }
@@ -1255,7 +1272,7 @@ fn apply_file_flags_native(
                         path.display()
                     );
                 } else {
-                    log_fmt!(
+                    warn_fmt!(
                         "Failed to set file flags via ioctl for {}: {e} (proceeding best-effort)",
                         path.display()
                     );
@@ -1352,8 +1369,8 @@ fn apply_file_flags_native(
                         };
 
                         if retry_res == 0 {
-                            log_fmt!(
-                                "chflags partially applied settable flags ({:#x} of {:#x}) for {}",
+                            warn_fmt!(
+                                "chflags partially applied settable flags ({:#x} of {:#x}) for {} (best-effort)",
                                 settable_mask,
                                 target_mask,
                                 path.display()
@@ -1389,8 +1406,8 @@ fn apply_file_flags_native(
                         };
 
                         if user_retry == 0 {
-                            log_fmt!(
-                                "chflags partially applied user-settable flags ({:#x} of {:#x}) for {}",
+                            warn_fmt!(
+                                "chflags partially applied user-settable flags ({:#x} of {:#x}) for {} (best-effort)",
                                 user_mask,
                                 target_mask,
                                 path.display()
@@ -1469,8 +1486,8 @@ fn apply_file_flags_native(
                     }
 
                     if current_mask != init_mask {
-                        log_fmt!(
-                            "chflags partially applied individual flags ({:#x} of {:#x}) for {}",
+                        warn_fmt!(
+                            "chflags partially applied individual flags ({:#x} of {:#x}) for {} (best-effort)",
                             current_mask,
                             target_mask,
                             path.display()
@@ -1487,7 +1504,7 @@ fn apply_file_flags_native(
                         path.display()
                     );
                 } else {
-                    log_fmt!(
+                    warn_fmt!(
                         "chflags failed to apply flags ({:#x}) to {}: {err} (proceeding best-effort)",
                         target_mask,
                         path.display()
@@ -1507,13 +1524,18 @@ fn apply_file_flags_native(
         target_os = "dragonfly"
     )))]
     {
-        if (!flags.is_empty() || raw.is_some()) && strict_lossless {
-            anyhow::bail!(
-                "Host OS does not support setting file flags for {}",
+        if !flags.is_empty() || raw.is_some() {
+            if strict_lossless {
+                anyhow::bail!(
+                    "Host OS does not support setting file flags for {}",
+                    path.display()
+                );
+            }
+            warn_fmt!(
+                "Host OS does not support setting file flags for {} (proceeding best-effort)",
                 path.display()
             );
         }
-        let _ = path;
         Ok(())
     }
 }

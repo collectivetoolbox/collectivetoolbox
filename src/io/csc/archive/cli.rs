@@ -220,6 +220,8 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
             best_effort_metadata, strict, check_atime, check_ctime, check_birthtime, copy_specials_as_specials, recover } => {
             let reader = if *recover {
                 JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
+            } else if *best_effort_metadata && !*strict {
+                JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Complete, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
             } else {
                 JournalReader::new(File::open(archive)?)?
             };
@@ -764,7 +766,15 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
     }
     let sandbox = SandboxableDir::create_or_open(destination)?;
     for member in reader.members.iter().filter(|member| member.entity.is_dir()) {
-        let relative = member.entity.identity.relative_path.as_deref().context("Missing directory path")?;
+        let orig_relative = member.entity.identity.relative_path.as_deref().context("Missing directory path")?;
+        let adapted_buf;
+        let relative = if options.strict_lossless || orig_relative.as_os_str().is_empty() || orig_relative == Path::new(".") {
+            orig_relative
+        } else {
+            let (adapted, _) = ctb_io::file::adapt_relative_path_for_materialization(orig_relative, cfg!(windows));
+            adapted_buf = adapted;
+            &adapted_buf
+        };
         sandbox.ensure_dir_all(relative, PathTraversalPolicy::StrictSandboxed)?;
         if let Err(error) = sandbox.authorize_metadata(relative, options.existing_entry_policy) {
             if recover {
@@ -833,12 +843,14 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                         }
                         Err(error) => return Err(error),
                     };
-                    if let Err(error) = ctb_io::file::write_stream_from_reader(destination, stream, &mut stream_reader, options.strict_lossless) {
-                        if recover {
-                            warn_fmt!("Failed to write root directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
-                        } else {
-                            return Err(error);
+                    match ctb_io::file::write_stream_from_reader_with_warnings(destination, stream, &mut stream_reader, options.strict_lossless) {
+                        Ok(warnings) => {
+                            for warning in warnings { warn_fmt!("{warning}"); }
                         }
+                        Err(error) if recover => {
+                            warn_fmt!("Failed to write root directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
+                        }
+                        Err(error) => return Err(error),
                     }
                 }
             }
@@ -851,9 +863,21 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 }
                 Err(error) => return Err(error),
             }
+            if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
+                destination, &member.entity, options.strict_lossless,
+                options.check_atime, options.check_ctime, options.check_birthtime,
+            ) {
+                if recover {
+                    warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                } else {
+                    return Err(error);
+                }
+            }
         } else {
+            let mut verify_path = destination.join(relative);
             match ctb_io::file::materialize_entity_with_stream_source(&member.entity, None, &sandbox, options, reader) {
                 Ok(receipt) => {
+                    verify_path = receipt.destination_path;
                     for warning in receipt.warnings { warn_fmt!("{warning}"); }
                 }
                 Err(error) if recover => {
@@ -861,15 +885,15 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 }
                 Err(error) => return Err(error),
             }
-        }
-        if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
-            &destination.join(relative), &member.entity, options.strict_lossless,
-            options.check_atime, options.check_ctime, options.check_birthtime,
-        ) {
-            if recover {
-                warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
-            } else {
-                return Err(error);
+            if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
+                &verify_path, &member.entity, options.strict_lossless,
+                options.check_atime, options.check_ctime, options.check_birthtime,
+            ) {
+                if recover {
+                    warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                } else {
+                    return Err(error);
+                }
             }
         }
     }
@@ -2210,6 +2234,122 @@ mod tests {
             verify_recover,
             ToolResult::Immediate { exit_code: 0, .. }
         ));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_extract_best_effort_adapts_overlong_filename_and_verifies() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let archive_path = temporary.path().join("overlong.cscarchive");
+        let overlong_name = format!("{}.txt", "b".repeat(260));
+        let payload_bytes = b"archived overlong file payload".to_vec();
+        let sha256 = ctb_formats_checksum::sha256(&payload_bytes);
+
+        {
+            let file = File::create(&archive_path)?;
+            let session = crate::journal::JournalSessionRecord {
+                sources: vec![PathBuf::from("src")],
+                destination: PathBuf::new(),
+                origin_platform: u32::from(crate::journal::current_platform()),
+                environment: None,
+            };
+            let mut writer = crate::journal::JournalWriter::new(
+                file,
+                &session,
+                crate::journal::JournalMagic::ArchiveV2,
+            )?;
+            let entity = FileEntity {
+                identity: ctb_io::file::FileIdentity {
+                    origin: ctb_io::file::FileOrigin::Synthetic,
+                    relative_path: Some(PathBuf::from(&overlong_name)),
+                    enclosing_path: None,
+                    nlink: 1,
+                    hardlink_group: None,
+                },
+                kind: FileEntityKind::Regular {
+                    size: u64::try_from(payload_bytes.len())?,
+                    sha256,
+                    is_sparse: false,
+                    extents: vec![ctb_io::file::payload::Extent::Data {
+                        offset: 0,
+                        length: u64::try_from(payload_bytes.len())?,
+                    }],
+                },
+                metadata: ctb_io::file::FileMetadata::default(),
+                streams: Vec::new(),
+            };
+            let mut payload = ctb_io::file::MemoryPayloadSource::new(payload_bytes.clone())?;
+            writer.write_entity_checked(
+                &entity,
+                Some(&mut payload),
+                ctb_io::file::encoding::BodyPolicy::Include,
+                || Ok(()),
+            )?;
+            writer.finish()?;
+        }
+
+        // Strict extraction must fail on >255-byte component.
+        let strict_dest = temporary.path().join("strict_dest");
+        ensure!(
+            run_archive(&ArchiveArgs {
+                command: ArchiveCommand::Extract {
+                    archive: archive_path.clone(),
+                    destination: strict_dest,
+                    overwrite: false,
+                    trust_symlink_targets: false,
+                    best_effort_metadata: false,
+                    strict: true,
+                    check_atime: false,
+                    check_ctime: false,
+                    check_birthtime: false,
+                    copy_specials_as_specials: false,
+                    recover: false,
+                },
+            })
+            .is_err(),
+            "Strict extraction must reject overlong filename"
+        );
+
+        // Best-effort extraction must adapt the filename, materialize the file, and pass verification.
+        let be_dest = temporary.path().join("be_dest");
+        run_archive(&ArchiveArgs {
+            command: ArchiveCommand::Extract {
+                archive: archive_path.clone(),
+                destination: be_dest.clone(),
+                overwrite: false,
+                trust_symlink_targets: false,
+                best_effort_metadata: true,
+                strict: false,
+                check_atime: false,
+                check_ctime: false,
+                check_birthtime: false,
+                copy_specials_as_specials: false,
+                recover: false,
+            },
+        })?;
+
+        let (expected_adapted, _) = ctb_io::file::adapt_relative_path_for_materialization(
+            Path::new(&overlong_name),
+            cfg!(windows),
+        );
+        ensure!(
+            std::fs::read(be_dest.join(&expected_adapted))? == payload_bytes,
+            "Adapted file must exist with intact payload at {}",
+            expected_adapted.display()
+        );
+
+        // `verify_directory_against_manifest` in best-effort mode must locate the adapted file.
+        let mut verify_args = default_verify_args(archive_path, Some(be_dest));
+        verify_args.criteria.best_effort = true;
+        verify_args.criteria.ignore_owner = true;
+        verify_args.criteria.ignore_perms = true;
+        verify_args.criteria.ignore_mtime = true;
+        let report = crate::verifier::verify_directory_against_manifest(&verify_args)?;
+        ensure!(
+            report.is_clean(),
+            "Best-effort verification against archive with adapted filename must pass: {report:?}"
+        );
 
         Ok(())
     }

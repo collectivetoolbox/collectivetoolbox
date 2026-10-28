@@ -242,7 +242,8 @@ pub use apple_single_double::{
 };
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{
-    MAX_FILENAME_BYTES, clean_file_name, clean_file_name_unix,
+    MAX_FILENAME_BYTES, adapt_component_for_materialization,
+    adapt_relative_path_for_materialization, clean_file_name, clean_file_name_unix,
     clean_file_name_windows,
 };
 pub use entity::{File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload};
@@ -254,7 +255,8 @@ pub use filesystem::{
 };
 pub use identity::{
     FileIdentity, FileOrigin, InodeKey, extract_device_id_for_path as extract_identity_device_id,
-    extract_file_identity, query_file_identity, resolve_relative_path_for_os,
+    extract_file_identity, query_file_identity, resolve_relative_path_for_materialization,
+    resolve_relative_path_for_os,
 };
 pub use ctb_formats_dcstring::{Integer, Natural};
 pub use materializer::{
@@ -282,7 +284,8 @@ pub use payload::{
 pub use sandboxable_dir::{ExistingEntryPolicy, SandboxableDir, SandboxedDir};
 pub use streams::{
     AttachedStream, AttachedStreamWithPayload, StreamKind, StreamName, read_and_hash_streams,
-    write_stream_from_reader, write_streams,
+    write_stream_from_reader, write_stream_from_reader_with_warnings, write_streams,
+    write_streams_from_source_with_warnings, write_streams_with_warnings,
 };
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use traversal::{

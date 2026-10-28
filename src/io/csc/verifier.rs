@@ -326,14 +326,34 @@ pub fn audit_entries_against_target(
             continue;
         }
 
-        result.verified_paths.insert(normalize_rel_path(&rel_path));
-        let full_path = target_dir.join(&rel_path);
+        let disk_rel_path = if let Some(mat_rel) = entity.metadata.materialized_relative_path() {
+            mat_rel
+        } else if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&rel_path)).is_err() {
+            let (adapted_host, _) =
+                ctb_io::file::adapt_relative_path_for_materialization(&rel_path, cfg!(windows));
+            if adapted_host != rel_path && std::fs::symlink_metadata(target_dir.join(&adapted_host)).is_ok() {
+                adapted_host
+            } else {
+                let (adapted_win, _) =
+                    ctb_io::file::adapt_relative_path_for_materialization(&rel_path, true);
+                if adapted_win != rel_path && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
+                    adapted_win
+                } else {
+                    rel_path.clone()
+                }
+            }
+        } else {
+            rel_path.clone()
+        };
+
+        result.verified_paths.insert(normalize_rel_path(&disk_rel_path));
+        let full_path = target_dir.join(&disk_rel_path);
 
         match &entity.kind {
             FileEntityKind::Hardlink {
                 target_relative_path,
             } => {
-                let tgt_rel = match target_relative_path
+                let mut tgt_rel = match target_relative_path
                     .to_path_buf_for_materialization(strict_hardlink_paths)
                 {
                     Ok(p) => p,
@@ -347,6 +367,19 @@ pub fn audit_entries_against_target(
                         continue;
                     }
                 };
+                if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&tgt_rel)).is_err() {
+                    let (adapted_tgt, _) =
+                        ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, cfg!(windows));
+                    if adapted_tgt != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_tgt)).is_ok() {
+                        tgt_rel = adapted_tgt;
+                    } else {
+                        let (adapted_win, _) =
+                            ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, true);
+                        if adapted_win != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
+                            tgt_rel = adapted_win;
+                        }
+                    }
+                }
                 let tgt_full = target_dir.join(&tgt_rel);
 
                 match (
@@ -567,17 +600,36 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut expected_entries = Vec::with_capacity(snapshot.committed_entities.len());
 
     for (raw_rel, entity) in &snapshot.committed_entities {
-        let rel_path = match resolve_relative_path_for_os(raw_rel, is_windows) {
-            Ok(p) => p,
-            Err(e) => {
-                let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
-                changed_entries.push(EntryDiff {
-                    relative_path: p,
-                    differences: vec![DiffKind::IncompatiblePath {
-                        reason: e.to_string(),
-                    }],
-                });
-                continue;
+        let rel_path = if let Some(mat_rel) = entity.metadata.materialized_relative_path() {
+            mat_rel
+        } else {
+            match resolve_relative_path_for_os(raw_rel, is_windows) {
+                Ok(p) => p,
+                Err(e) if audit_options.best_effort => {
+                    match ctb_io::file::resolve_relative_path_for_materialization(raw_rel, is_windows, false) {
+                        Ok((p, _)) => p,
+                        Err(e2) => {
+                            let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
+                            changed_entries.push(EntryDiff {
+                                relative_path: p,
+                                differences: vec![DiffKind::IncompatiblePath {
+                                    reason: e2.to_string(),
+                                }],
+                            });
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
+                    changed_entries.push(EntryDiff {
+                        relative_path: p,
+                        differences: vec![DiffKind::IncompatiblePath {
+                            reason: e.to_string(),
+                        }],
+                    });
+                    continue;
+                }
             }
         };
         expected_entries.push((rel_path, entity.clone()));

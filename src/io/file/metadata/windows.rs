@@ -645,8 +645,8 @@ pub fn apply_windows_security_metadata(
             )
         };
         if res2 != 0 {
-            log_fmt!(
-                "Applied partial security descriptor to {} (omitted privileged attributes)",
+            warn_fmt!(
+                "Applied partial security descriptor to {} (omitted privileged attributes; best-effort)",
                 dest.display()
             );
             return Ok(());
