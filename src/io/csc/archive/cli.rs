@@ -244,19 +244,20 @@ pub(crate) fn run_archive_with_stdout(
             validate_members(&reader)?;
             let mut diagnostics = String::new();
             use std::fmt::Write;
-            for error in &reader.errors {
-                writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
-            }
-            for warning in &reader.warnings {
-                writeln!(diagnostics, "Capture warning ({}): {}", warning.code, warning.message)?;
-            }
-            if *recover && (!reader.is_completed() || reader.has_diagnostics()) {
-                writeln!(diagnostics, "Archive verified in recover mode (incomplete: {}; errors: {}; warnings: {}).",
-                    !reader.is_completed(), reader.errors.len(), reader.warnings.len())?;
+            let member_diagnostics = append_reader_diagnostics(&reader, &mut diagnostics)?;
+            if *recover && (!reader.is_completed() || reader.has_diagnostics() || member_diagnostics > 0) {
+                writeln!(
+                    diagnostics,
+                    "Archive verified in recover mode (incomplete: {}; errors: {}; warnings: {}; member_diagnostics: {}). Archive is not a clean capture.",
+                    !reader.is_completed(),
+                    reader.errors.len(),
+                    reader.warnings.len(),
+                    member_diagnostics
+                )?;
                 Ok(ToolResult::Immediate {
                     stdout: b"Archive verified (with diagnostics).\n".to_vec(),
                     stderr: diagnostics.into_bytes(),
-                    exit_code: 0,
+                    exit_code: 1,
                 })
             } else {
                 Ok(ToolResult::immediate_ok(b"Archive verified.\n".to_vec()))
@@ -285,22 +286,27 @@ pub(crate) fn run_archive_with_stdout(
                 copy_specials: *copy_specials_as_specials,
                 ..Default::default()
             };
-            extract_archive(&reader, destination, &options, *recover)?;
+            let extraction_losses = extract_archive(&reader, destination, &options, *recover)?;
             let mut diagnostics = String::new();
             use std::fmt::Write;
-            for error in &reader.errors {
-                writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
+            let member_diagnostics = append_reader_diagnostics(&reader, &mut diagnostics)?;
+            for loss in &extraction_losses {
+                writeln!(diagnostics, "Extraction loss: {loss}")?;
             }
-            for warning in &reader.warnings {
-                writeln!(diagnostics, "Capture warning ({}): {}", warning.code, warning.message)?;
-            }
-            if *recover && (!reader.is_completed() || reader.has_diagnostics()) {
-                writeln!(diagnostics, "Archive extracted in recover mode (incomplete: {}; errors: {}; warnings: {}).",
-                    !reader.is_completed(), reader.errors.len(), reader.warnings.len())?;
+            if *recover && (!reader.is_completed() || reader.has_diagnostics() || member_diagnostics > 0 || !extraction_losses.is_empty()) {
+                writeln!(
+                    diagnostics,
+                    "Archive extracted in recover mode (incomplete: {}; errors: {}; warnings: {}; member_diagnostics: {}; extraction_losses: {}). Archive is not a clean capture.",
+                    !reader.is_completed(),
+                    reader.errors.len(),
+                    reader.warnings.len(),
+                    member_diagnostics,
+                    extraction_losses.len()
+                )?;
                 Ok(ToolResult::Immediate {
                     stdout: b"Archive extracted (with diagnostics).\n".to_vec(),
                     stderr: diagnostics.into_bytes(),
-                    exit_code: 0,
+                    exit_code: 1,
                 })
             } else {
                 Ok(ToolResult::immediate_ok(b"Archive extracted.\n".to_vec()))
@@ -834,12 +840,45 @@ fn validate_members(reader: &JournalReader) -> Result<()> {
     Ok(())
 }
 
-fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions, recover: bool) -> Result<()> {
+fn append_reader_diagnostics(reader: &JournalReader, diagnostics: &mut String) -> Result<usize> {
+    use std::fmt::Write;
+    let mut member_diagnostics = 0_usize;
+    for member in &reader.members {
+        if let Err(error) = crate::journal::stream::ensure_clean_metadata(&member.entity) {
+            writeln!(
+                diagnostics,
+                "Member diagnostics {}: {error:#}",
+                member.entity.identity.display_path()
+            )?;
+            member_diagnostics = member_diagnostics.saturating_add(1);
+        }
+    }
+    for error in &reader.errors {
+        writeln!(
+            diagnostics,
+            "Capture error ({:?}) {}: {}",
+            error.stage,
+            error.path.display(),
+            error.error_message
+        )?;
+    }
+    for warning in &reader.warnings {
+        writeln!(
+            diagnostics,
+            "Capture warning ({}): {}",
+            warning.code, warning.message
+        )?;
+    }
+    Ok(member_diagnostics)
+}
+
+fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions, recover: bool) -> Result<Vec<String>> {
     ensure!(cfg!(any(unix, windows)), "Sandboxed archive extraction is unsupported on this platform");
     if !recover {
         reader.verify_self_contained()?;
     }
     validate_members(reader)?;
+    let mut losses = Vec::new();
     if let Some(metadata) = existing_metadata(destination)? {
         ensure!(metadata.is_dir() && !metadata.file_type().is_symlink(), "Extraction destination is not a real directory");
     }
@@ -857,7 +896,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             }
             FileEntityKind::Socket | FileEntityKind::Door | FileEntityKind::Inaccessible => {
                 if recover {
-                    warn_fmt!("Archive member cannot be restored: {}; skipping in recover mode", relative.display());
+                    let msg = format!("Archive member cannot be restored: {}; skipping in recover mode", relative.display());
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                     continue;
                 }
                 bail!("Archive member cannot be restored: {}", relative.display());
@@ -902,7 +943,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
         sandbox.ensure_dir_all(relative, PathTraversalPolicy::StrictSandboxed)?;
         if let Err(error) = sandbox.authorize_metadata(relative, options.existing_entry_policy) {
             if recover {
-                warn_fmt!("Failed to authorize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+                let msg = format!("Failed to authorize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+                warn_fmt!("{msg}");
+                losses.push(msg);
             } else {
                 return Err(error);
             }
@@ -927,7 +970,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             let receipt = match materialize_res {
                 Ok(receipt) => receipt,
                 Err(error) if recover => {
-                    warn_fmt!("Failed to extract member {}: {error:#}; skipping in recover mode", relative.display());
+                    let msg = format!("Failed to extract member {}: {error:#}; skipping in recover mode", relative.display());
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                     continue;
                 }
                 Err(error) => return Err(error),
@@ -936,7 +981,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             if !hardlinks {
                 if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, options.check_atime, options.check_ctime, options.check_birthtime) {
                     if recover {
-                        warn_fmt!("Materialized member verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                        let msg = format!("Materialized member verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                        warn_fmt!("{msg}");
+                        losses.push(msg);
                     } else {
                         return Err(error);
                     }
@@ -951,7 +998,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
         if relative == Path::new(".") {
             if let Err(error) = sandbox.authorize_metadata(relative, options.existing_entry_policy) {
                 if recover {
-                    warn_fmt!("Failed to authorize root directory metadata: {error:#}; skipping in recover mode");
+                    let msg = format!("Failed to authorize root directory metadata: {error:#}; skipping in recover mode");
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                     continue;
                 } else {
                     return Err(error);
@@ -962,7 +1011,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     let mut stream_reader = match reader.stream_payload(stream) {
                         Ok(r) => r,
                         Err(error) if recover => {
-                            warn_fmt!("Failed to open root stream reader: {error:#}; skipping in recover mode");
+                            let msg = format!("Failed to open root stream reader: {error:#}; skipping in recover mode");
+                            warn_fmt!("{msg}");
+                            losses.push(msg);
                             continue;
                         }
                         Err(error) => return Err(error),
@@ -972,7 +1023,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                             for warning in warnings { warn_fmt!("{warning}"); }
                         }
                         Err(error) if recover => {
-                            warn_fmt!("Failed to write root directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
+                            let msg = format!("Failed to write root directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
+                            warn_fmt!("{msg}");
+                            losses.push(msg);
                         }
                         Err(error) => return Err(error),
                     }
@@ -983,7 +1036,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     for warning in warnings { warn_fmt!("{warning}"); }
                 }
                 Err(error) if recover => {
-                    warn_fmt!("Failed to apply root directory metadata: {error:#}; skipping in recover mode");
+                    let msg = format!("Failed to apply root directory metadata: {error:#}; skipping in recover mode");
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                 }
                 Err(error) => return Err(error),
             }
@@ -992,7 +1047,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 options.check_atime, options.check_ctime, options.check_birthtime,
             ) {
                 if recover {
-                    warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                    let msg = format!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                 } else {
                     return Err(error);
                 }
@@ -1005,7 +1062,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     for warning in receipt.warnings { warn_fmt!("{warning}"); }
                 }
                 Err(error) if recover => {
-                    warn_fmt!("Failed to materialize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+                    let msg = format!("Failed to materialize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                 }
                 Err(error) => return Err(error),
             }
@@ -1014,14 +1073,16 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 options.check_atime, options.check_ctime, options.check_birthtime,
             ) {
                 if recover {
-                    warn_fmt!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                    let msg = format!("Directory verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
                 } else {
                     return Err(error);
                 }
             }
         }
     }
-    Ok(())
+    Ok(losses)
 }
 
 fn existing_metadata(path: &Path) -> Result<Option<std::fs::Metadata>> {
@@ -1683,6 +1744,14 @@ mod tests {
             origin_platform: u32::from(current_platform()), environment: None,
         };
         let mut writer = JournalWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV2)?;
+        let mut committed = FileEntity::from_vec(b"salvaged member payload".to_vec());
+        committed.identity.relative_path = Some(PathBuf::from("salvaged.txt"));
+        let mut payload = ctb_io::file::MemoryPayloadSource::new(b"salvaged member payload".to_vec())?;
+        writer.write_entity(&committed, Some(&mut payload))?;
+        let mut unrestorable = FileEntity::from_vec(Vec::new());
+        unrestorable.identity.relative_path = Some(PathBuf::from("unrestorable.sock"));
+        unrestorable.kind = FileEntityKind::Socket;
+        writer.write_entity(&unrestorable, None)?;
         writer.record_error(&crate::journal::JournalErrorRecord {
             path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
             stage: crate::journal::JournalErrorStage::MetadataRead,
@@ -1700,13 +1769,30 @@ mod tests {
             recover: false,
         } }).is_err());
         ensure!(!destination.exists(), "Failed capture modified extraction destination");
-        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: true } }).is_ok());
-        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+        let verify_recover = run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: true } })?;
+        let ToolResult::Immediate { exit_code: verify_code, stderr: verify_stderr, .. } = verify_recover else {
+            bail!("Expected Immediate ToolResult from archive verify --recover");
+        };
+        let verify_diag = String::from_utf8_lossy(&verify_stderr);
+        ensure!(verify_code == 1, "Recover verify on diagnostic archive must report non-success partial status");
+        ensure!(verify_diag.contains("Injected capture failure") && verify_diag.contains("Archive is not a clean capture."));
+
+        let extract_recover = run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive, destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: true,
-        } }).is_ok());
+        } })?;
+        let ToolResult::Immediate { exit_code: extract_code, stderr: extract_stderr, .. } = extract_recover else {
+            bail!("Expected Immediate ToolResult from archive extract --recover");
+        };
+        let extract_diag = String::from_utf8_lossy(&extract_stderr);
+        ensure!(extract_code == 1, "Recover extract on diagnostic archive must report non-success partial status");
+        ensure!(extract_diag.contains("Injected capture failure"));
+        ensure!(extract_diag.contains("Extraction loss: Archive member cannot be restored: unrestorable.sock"));
+        ensure!(extract_diag.contains("extraction_losses: 1"));
+        ensure!(std::fs::read(destination.join("salvaged.txt"))? == b"salvaged member payload");
+        ensure!(!destination.join("unrestorable.sock").exists());
         Ok(())
     }
 
@@ -1804,12 +1890,27 @@ mod tests {
         } }).is_err());
         ensure!(!destination.exists());
 
-        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+        let verify_recover = run_archive(&ArchiveArgs { command: ArchiveCommand::Verify {
+            archive: archive_path.clone(),
+            recover: true,
+        } })?;
+        ensure!(matches!(
+            verify_recover,
+            ToolResult::Immediate { exit_code: 1, ref stderr, .. }
+                if String::from_utf8_lossy(stderr).contains("incomplete: true")
+        ));
+
+        let extract_recover = run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
             recover: true,
-        } }).is_ok());
+        } })?;
+        ensure!(matches!(
+            extract_recover,
+            ToolResult::Immediate { exit_code: 1, ref stderr, .. }
+                if String::from_utf8_lossy(stderr).contains("incomplete: true")
+        ));
         ensure!(std::fs::read(destination.join("source/first"))? == b"hello first");
         Ok(())
     }

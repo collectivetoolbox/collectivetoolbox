@@ -53,7 +53,10 @@ an archive containing capture errors/warnings, pass `--recover` (aliases:
 `--salvage`, `--allow-archive-errors`, `--allow-journal-errors`). In recover
 mode, readable members are restored, capture errors and warnings are emitted to
 standard error, and damaged members are reported and skipped rather than
-aborting the entire extraction.
+aborting the entire extraction. When an archive is incomplete, contains capture
+diagnostics, or incurs recover-mode extraction losses, `--recover` reports those
+losses on standard error and exits with nonzero status so salvage is never
+presented as a clean, complete archive.
 
 The library's `verify_integrity` checks completed structure and archived bytes
 independently of capture success; this is not an authentication or completeness

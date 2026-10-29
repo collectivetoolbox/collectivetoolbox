@@ -161,10 +161,6 @@ These inbox reports also need reconciliation with current code before changes.
   qualification; native macOS awaits infrastructure.
 - [ ] Audit archive exposure of applicable CSC options: full provenance,
   source-change policy, filesystem boundaries, and Apple stream restoration.
-- [ ] Reconcile `--recover` behavior with the older preflight/reject-diagnostics
-  contract. Test recoverable committed members from incomplete/errored input,
-  explicit loss reporting, and non-success partial status; do not silently
-  present salvage as a complete archive.
 - [ ] Refresh generated CLI references/help and run a fresh executable smoke
   test after the shared-journal and overwrite changes, including stdout create,
   source removal, list/verify/extract, refusal of existing destinations without
