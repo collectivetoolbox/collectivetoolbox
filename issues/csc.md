@@ -197,6 +197,18 @@ These inbox reports also need reconciliation with current code before changes.
 - Windows 7 NTFS results do not qualify every later Windows feature. Inode IDs,
   ctime, and physical layout are source facts, not extraction identity promises.
 
+## 2. Known Gaps & What's Left
+- **Graph-Defined Dc Ontology & Pattern Matcher ([issues/dc-parser-semantic-definition-impl-plan.md](file:///workspaces/ctoolbox/issues/dc-parser-semantic-definition-impl-plan.md) — `Partially Implemented`)**:
+  - **Direct Graph Pattern Evaluation**: [`DatasetRuleResolver::from_seed_graph`](file:///workspaces/ctoolbox/src/formats/dcdata/syntax/resolver.rs#L1187-L1528) still decodes `.Semantic:Pattern` nodes (`Dc 599 "Self reference"`..`Dc 607 "Pattern replacement"`) into intermediate [`SyntaxPattern`](file:///workspaces/ctoolbox/src/formats/dcdata/syntax/ast.rs#L53-L61) ASTs and builds heap `HashMap`s at startup instead of evaluating `.Semantic:Pattern` graph nodes directly against precomputed static tables.
+  - **Remaining `DcDocumentNavigator` Hooks**:
+    - Prefix-rule scanning in [`scan_sibling_stub_with_resolver`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs#L985-L1047) still has explicit checks for `.EL Routines`, `Dc 279 "Routine invocation"` trailing `Dc 258 "Begin parameter"`..`Dc 259 "End parameter"` frames, and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"` list separator checking (`check_equivalent_list_grammar_with_resolver`).
+    - [`eval_list_constraints`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L1899-L1984), [`eval_data_construct`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L1308-L1431), [`eval_typed_data_construct`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L1433-L1471), [`number_satisfies_subtype`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L2518-L2569), and [`type_tokens_satisfy`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L2650-L2691) in [eval.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs) still have construct-specific evaluators rather than unified `Dc 606 "Pattern capture"` / `Dc 607 "Pattern replacement"` binding and graph `Dc 586 "Is an instance of"` / `Dc 587 "Is a subtype of"` evaluation.
+- **`ctb-io-csc` & `ctb-io-file` ([issues/csc.md](file:///workspaces/ctoolbox/issues/csc.md) — `Partially Implemented`)**:
+  - Cross-directory hardlink collision ordering in [`plan_directory_name_resolution`](file:///workspaces/ctoolbox/src/io/file/name_collisions.rs#L168-L195) remains scoped to a single directory.
+  - `check-names` ([src/io/csc/name_checker.rs](file:///workspaces/ctoolbox/src/io/csc/name_checker.rs)) remains a separate simulation engine from [`plan_directory_name_resolution`](file:///workspaces/ctoolbox/src/io/file/name_collisions.rs#L168-L195).
+  - Non-interactive passphrase key-file input (`--passphrase-file` / `--passphrase-fd`) is not yet wired in [src/io/csc/args.rs](file:///workspaces/ctoolbox/src/io/csc/args.rs).
+  - Real privilege-separation/multi-UID integration tests (using VM or user namespaces) for ownership/ACL/suid preservation and unprivileged degradation are still needed.
+
 ## Deferred
 
 - Live ReFS volume testing from the durable-destination-identity review.
