@@ -124,9 +124,6 @@ not as a separate CSC codec task.
 
 These inbox reports also need reconciliation with current code before changes.
 
-- [ ] Qualify resume into deep subtrees containing preexisting uncommitted
-  regular files under `ExistingEntryPolicy::Refuse`, without overwrite. Resuming
-  a previously completed empty subtree does not cover that crash window.
 - [ ] Add durable source inventory and per-source deletion/recovery state for
   interrupted multi-file moves. In-memory `copied_entities` is not a durable
   deletion transaction log.

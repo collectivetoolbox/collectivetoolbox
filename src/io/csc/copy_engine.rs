@@ -69,7 +69,7 @@ struct DeferredSymlink {
     src_path: PathBuf,
     dest_path: PathBuf,
     entity: FileEntity,
-    dest_dir_root: PathBuf,
+    sandbox: std::sync::Arc<SandboxableDir>,
     snapshot: ctb_io::file::payload::SourceSnapshot,
 }
 
@@ -491,7 +491,7 @@ pub fn execute_copy_pipeline(
                             src_path: entry_src,
                             dest_path: entry_tgt,
                             entity: sym_entity,
-                            dest_dir_root: dest_dir.root_path().to_path_buf(),
+                            sandbox: std::sync::Arc::clone(&dest_dir),
                             snapshot,
                         });
                     } else {
@@ -547,11 +547,11 @@ pub fn execute_copy_pipeline(
                 .file_name()
                 .context("Target path has no file name component")?;
 
-            let dest_dir = if args.dry_run {
+            let dest_dir = std::sync::Arc::new(if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?
             } else {
                 SandboxableDir::create_or_open(parent_dest)?
-            };
+            });
 
             let target_rel_path = Path::new(target_file_name);
 
@@ -594,7 +594,7 @@ pub fn execute_copy_pipeline(
                     src_path: src_root.clone(),
                     dest_path: tgt_root.clone(),
                     entity: sym_entity,
-                    dest_dir_root: parent_dest.to_path_buf(),
+                    sandbox: std::sync::Arc::clone(&dest_dir),
                     snapshot,
                 });
             } else {
@@ -630,18 +630,30 @@ pub fn execute_copy_pipeline(
             let _ = handle_item_error(&symlink_item.src_path, JournalErrorStage::PostCheck, error, args, journal, &mut stats)?;
             continue;
         }
-        if !args.dry_run {
+        let dest_dir = &symlink_item.sandbox;
+        let symlink_rel = entity.identity.relative_path.clone().unwrap_or_default();
+        if is_verified_resumed_destination_entry(
+            &symlink_rel,
+            dest_path,
+            &entity,
+            dest_dir,
+            &options,
+            args,
+            journal,
+        ) {
+            record_journal_entry(journal, dest_path, &entity)?;
+            files_to_verify.push((symlink_item.src_path, dest_path.clone(), entity));
+            continue;
+        }
+        if !args.dry_run
+            && !(options.existing_entry_policy == ctb_io::file::ExistingEntryPolicy::Refuse
+                && std::fs::symlink_metadata(dest_path).is_ok())
+        {
             record_journal_entry(journal, dest_path, &entity)?;
             journal.commit_batch()?;
         }
 
-        let dest_dir = if args.dry_run {
-            SandboxableDir::open(".").context("Failed to open current directory in dry run")?
-        } else {
-            SandboxableDir::create_or_open(&symlink_item.dest_dir_root)?
-        };
-
-        let receipt = match materialize_entity(&entity, None, &dest_dir, &options) {
+        let receipt = match materialize_entity(&entity, None, dest_dir, &options) {
             Ok(receipt) => receipt,
             Err(e) => {
                 record_materialization_failure(journal, dest_path, &entity, &e)?;
@@ -1113,7 +1125,10 @@ fn copy_single_item(
         }
     }
 
-    if !args.dry_run {
+    if !args.dry_run
+        && !(options.existing_entry_policy == ctb_io::file::ExistingEntryPolicy::Refuse
+            && std::fs::symlink_metadata(&effective_dest_path).is_ok())
+    {
         record_journal_entry(journal, &effective_dest_path, &entity)?;
         journal.commit_batch()?;
     }
@@ -1143,6 +1158,23 @@ fn copy_single_item(
                 entity.kind = FileEntityKind::Hardlink {
                     target_relative_path: LinkPath::from_relative_path(first_target_rel)?,
                 };
+                if is_verified_resumed_destination_entry(
+                    dest_rel_path,
+                    &effective_dest_path,
+                    &entity,
+                    dest_dir,
+                    options,
+                    args,
+                    journal,
+                ) {
+                    record_journal_entry(journal, &effective_dest_path, &entity)?;
+                    files_to_verify.push((
+                        src_path.to_path_buf(),
+                        effective_dest_path.clone(),
+                        original_entity,
+                    ));
+                    return Ok(Some(effective_dest_path));
+                }
                 let receipt = match materialize_entity(&entity, None, dest_dir, options) {
                     Ok(receipt) => receipt,
                     Err(err) => {
@@ -1174,6 +1206,50 @@ fn copy_single_item(
                 return Ok(Some(final_dest));
             }
         }
+    }
+
+    if is_verified_resumed_destination_entry(
+        dest_rel_path,
+        &effective_dest_path,
+        &entity,
+        dest_dir,
+        options,
+        args,
+        journal,
+    ) {
+        if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
+            return handle_item_error(
+                src_path,
+                JournalErrorStage::PostCheck,
+                error,
+                args,
+                journal,
+                stats,
+            );
+        }
+        if let Some(snap) = journal.snapshot() {
+            if let Some(committed) = entity
+                .identity
+                .path_bytes()
+                .and_then(|b| snap.committed_entities.get(b))
+            {
+                if committed.metadata.used_noatime() {
+                    entity.metadata.set_used_noatime(true);
+                    journal.record_noatime_used(true);
+                }
+            }
+        }
+        if entity.is_regular() {
+            stats.files_skipped_identical = stats.files_skipped_identical.saturating_add(1);
+        }
+        if entity.identity.nlink > 1 && entity.is_regular() {
+            if let Some(ref rel) = entity.identity.relative_path {
+                hardlink_map.commit(&entity, rel, Some(&snapshot));
+            }
+        }
+        record_journal_entry(journal, &effective_dest_path, &entity)?;
+        files_to_verify.push((src_path.to_path_buf(), effective_dest_path.clone(), entity));
+        return Ok(Some(effective_dest_path));
     }
 
     // 4. Special files (FIFOs, device nodes, sockets, doors)
@@ -1484,6 +1560,111 @@ fn copy_single_item(
     files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), entity));
 
     Ok(Some(final_dest))
+}
+
+fn is_verified_resumed_destination_entry(
+    dest_rel_path: &Path,
+    effective_dest_path: &Path,
+    entity: &FileEntity,
+    dest_dir: &SandboxableDir,
+    options: &MaterializeOptions,
+    args: &CscArgs,
+    journal: &StateJournal,
+) -> bool {
+    if args.dry_run
+        || options.existing_entry_policy != ctb_io::file::ExistingEntryPolicy::Refuse
+        || std::fs::symlink_metadata(effective_dest_path).is_err()
+    {
+        return false;
+    }
+    let Some(snap) = journal.snapshot() else {
+        return false;
+    };
+    let rel_bytes = entity.identity.path_bytes();
+    let Some(committed_entity) = rel_bytes
+        .and_then(|bytes| snap.committed_entities.get(bytes))
+        .or_else(|| {
+            snap.materialized_path_for(dest_rel_path)
+                .and_then(|mat_rel| {
+                    snap.committed_entities
+                        .get(mat_rel.as_os_str().as_encoded_bytes())
+                })
+        })
+    else {
+        return false;
+    };
+    if !committed_entity.metadata.errors.is_empty() || committed_entity.is_dir() {
+        return false;
+    }
+    if !snap.applied_directories.is_empty() {
+        // Reason for fallback: top-level relative paths without a parent directory reside in the destination root "."
+        let parent_rel = entity
+            .identity
+            .relative_path
+            .as_deref()
+            .and_then(Path::parent)
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        if dest_dir
+            .authorize_metadata(parent_rel, options.existing_entry_policy)
+            .is_err()
+        {
+            return false;
+        }
+    }
+    match (&entity.kind, &committed_entity.kind) {
+        (
+            FileEntityKind::Regular { size, sha256, .. },
+            FileEntityKind::Regular {
+                size: committed_size,
+                sha256: committed_sha256,
+                ..
+            },
+        ) => {
+            if size != committed_size
+                || *sha256 == [0_u8; 32]
+                || (*committed_sha256 != [0_u8; 32] && sha256 != committed_sha256)
+            {
+                return false;
+            }
+        }
+        (
+            FileEntityKind::Hardlink { target_relative_path },
+            FileEntityKind::Hardlink {
+                target_relative_path: committed_target,
+            },
+        ) => {
+            if target_relative_path != committed_target {
+                return false;
+            }
+        }
+        (FileEntityKind::Hardlink { .. }, FileEntityKind::Regular { .. }) => {}
+        (
+            FileEntityKind::Symlink { target },
+            FileEntityKind::Symlink {
+                target: committed_target,
+            },
+        ) => {
+            if target != committed_target {
+                return false;
+            }
+        }
+        (a, b) if a != b => return false,
+        _ => {}
+    }
+    let check_atime = args.should_check_atime()
+        || (entity.is_regular()
+            && committed_entity.metadata.used_noatime()
+            && !args.best_effort_metadata);
+    verify_materialized_entity_ext(
+        effective_dest_path,
+        entity,
+        options.strict_lossless,
+        check_atime,
+        args.should_check_ctime(),
+        options.check_birthtime,
+    )
+    .is_ok()
 }
 
 fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Result<PathBuf> {
@@ -4374,37 +4555,133 @@ mod tests {
         let src = temp.path().join("src_durable");
         let dest = temp.path().join("dest_durable");
         let state = temp.path().join("state_durable");
-        fs::create_dir_all(src.join("sub"))?;
+        let deep_rel = Path::new("a").join("b").join("c");
+        fs::create_dir_all(src.join(&deep_rel))?;
         fs::create_dir_all(&state)?;
 
-        // Run 1: copies the directory structure
-        let args1 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+        // Preexisting regular files in the deep source subtree before the interrupted run starts:
+        let committed_rel = deep_rel.join("committed.txt");
+        let uncommitted1_rel = deep_rel.join("uncommitted1.txt");
+        let uncommitted2_rel = deep_rel.join("uncommitted2.txt");
+        fs::write(src.join(&committed_rel), b"already committed before crash")?;
+        fs::write(src.join(&uncommitted1_rel), b"preexisting uncommitted file 1")?;
+        fs::write(src.join(&uncommitted2_rel), b"preexisting uncommitted file 2")?;
+
+        // Simulate an interrupted Run 1 crash window:
+        // Directories "", "a", "a/b", "a/b/c" were created on dest with AppliedDirectoryReceipts,
+        // and "a/b/c/committed.txt" was materialized and committed to the journal, while
+        // "a/b/c/uncommitted1.txt" and "a/b/c/uncommitted2.txt" were not yet committed or
+        // materialized when the crash occurred (journal is NOT marked completed).
+        let journal_path = state.join("interrupted_deep.cscjournal");
+        let desc_path = state.join("interrupted_deep.cscdesc");
+        let src_with_slash = PathBuf::from(format!("{}/", src.display()));
+        {
+            let mut journal = StateJournal::create_at_path(
+                &journal_path,
+                &desc_path,
+                std::slice::from_ref(&src_with_slash),
+                &dest,
+            )?;
+            let dest_dir = SandboxableDir::create_or_open(&dest)?;
+            let root_id = dest_dir.query_owned_directory_identity(Path::new(""))?;
+            journal.record_applied_directory(PathBuf::new(), root_id);
+
+            let apple_opts = ctb_io::file::AppleReadOptions::default();
+            for rel_dir in [
+                PathBuf::new(),
+                PathBuf::from("a"),
+                Path::new("a").join("b"),
+                deep_rel.clone(),
+            ] {
+                let dir_src = if rel_dir.as_os_str().is_empty() {
+                    src.clone()
+                } else {
+                    src.join(&rel_dir)
+                };
+                let mut dir_entity = CapturedSource::capture(&dir_src, Some(&src), &apple_opts, false)?.entity;
+                dir_entity.identity.relative_path = Some(rel_dir.clone());
+                let rel_target = if rel_dir.as_os_str().is_empty() {
+                    Path::new(".")
+                } else {
+                    rel_dir.as_path()
+                };
+                dest_dir.ensure_dir_all(rel_target, PathTraversalPolicy::StrictSandboxed)?;
+                let id = dest_dir.query_owned_directory_identity(rel_target)?;
+                journal.record_applied_directory(rel_dir, id);
+                journal.record_entity(&dir_entity);
+            }
+
+            let CapturedSource {
+                entity: mut committed_entity,
+                snapshot: committed_snap,
+            } = CapturedSource::capture(&src.join(&committed_rel), Some(&src), &apple_opts, false)?;
+            committed_entity.identity.relative_path = Some(committed_rel.clone());
+            let mut payload = open_payload(&src.join(&committed_rel), &committed_snap)?;
+            hash_primary(&mut committed_entity, &mut payload, &src.join(&committed_rel))?;
+            let mat_opts = MaterializeOptions {
+                existing_entry_policy: ctb_io::file::ExistingEntryPolicy::Refuse,
+                force_overwrite: false,
+                ..MaterializeOptions::default()
+            };
+            let mut write_payload = open_payload(&src.join(&committed_rel), &committed_snap)?;
+            materialize_entity(&committed_entity, Some(&mut write_payload), &dest_dir, &mat_opts)?;
+            record_journal_entry(&mut journal, &dest.join(&committed_rel), &committed_entity)?;
+            journal.commit_batch()?;
+        }
+
+        let snap_before = crate::journal::read_journal_snapshot(&journal_path)?;
+        assert!(!snap_before.is_completed, "Crash-window fixture must be an incomplete journal");
+        assert!(snap_before.is_committed(committed_rel.as_os_str().as_encoded_bytes()));
+        assert!(!snap_before.is_committed(uncommitted1_rel.as_os_str().as_encoded_bytes()));
+        assert!(!snap_before.is_committed(uncommitted2_rel.as_os_str().as_encoded_bytes()));
+        let committed_id_before =
+            ctb_io::file::identity::query_file_identity(&dest.join(&committed_rel))?;
+
+        let clean_journal_bytes = fs::read(&journal_path)?;
+        let clean_desc_bytes = fs::read(&desc_path)?;
+
+        // Sub-test 1: If a preexisting uncommitted regular file exists on the destination inside
+        // the deep subtree (even with a valid AppliedDirectoryReceipt on dest/a/b/c), resume under
+        // ExistingEntryPolicy::Refuse (overwrite = false) MUST refuse to overwrite or adopt it.
+        fs::write(dest.join(&uncommitted1_rel), b"preexisting on-destination uncommitted payload")?;
+        let mut refuse_args = default_test_args(
+            vec![src_with_slash.clone(), dest.clone()],
             state.clone(),
         );
-        run_csc(args1)?;
+        refuse_args.resume = Some(journal_path.clone());
+        refuse_args.overwrite = false;
+        assert!(
+            run_csc(refuse_args).is_err(),
+            "Resume without --overwrite must refuse preexisting uncommitted regular file in deep destination subtree"
+        );
+        assert_eq!(
+            fs::read(dest.join(&uncommitted1_rel))?,
+            b"preexisting on-destination uncommitted payload"
+        );
+        let snap_after_refuse = crate::journal::read_journal_snapshot(&journal_path)?;
+        assert!(
+            snap_after_refuse
+                .committed_entities
+                .get(uncommitted1_rel.as_os_str().as_encoded_bytes())
+                .is_none_or(|e| !e.metadata.errors.is_empty()),
+            "Refused preexisting uncommitted destination file must not have an error-free committed record"
+        );
 
-        assert!(dest.join("sub").is_dir());
-        let journal_path = find_cscjournal(&state);
+        // Restore the crash-window journal/descriptor and remove the conflicting destination file
+        // so the uncommitted source files can be materialized on resume without overwrite.
+        fs::remove_file(dest.join(&uncommitted1_rel))?;
+        fs::write(&journal_path, &clean_journal_bytes)?;
+        fs::write(&desc_path, &clean_desc_bytes)?;
 
-        // Add a new file to the directory
-        fs::write(src.join("sub").join("file1.txt"), b"resumed payload")?;
-
-        // Run 2: Resume WITHOUT --overwrite (args.overwrite is false by default).
-        // Under Refuse policy, destination directory already exists.
-        // It must succeed by verifying the durable destination identity receipt.
+        // Sub-test 2: Resume WITHOUT --overwrite (ExistingEntryPolicy::Refuse) across the incomplete
+        // deep subtree: must verify and keep committed.txt (same inode), materialize uncommitted1.txt
+        // and uncommitted2.txt, apply directory metadata bottom-up, and mark the journal completed.
         let mut resume_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![src_with_slash.clone(), dest.clone()],
             state.clone(),
         );
         resume_args.resume = Some(journal_path.clone());
-        resume_args.overwrite = false; // explicitly refuse overwrite
+        resume_args.overwrite = false;
 
         let res = run_csc(resume_args)?;
         match res {
@@ -4414,43 +4691,57 @@ mod tests {
             _ => panic!("Expected immediate result"),
         }
 
-        assert_eq!(fs::read(dest.join("sub").join("file1.txt"))?, b"resumed payload");
+        assert_eq!(
+            fs::read(dest.join(&committed_rel))?,
+            b"already committed before crash"
+        );
+        assert_eq!(
+            ctb_io::file::identity::query_file_identity(&dest.join(&committed_rel))?,
+            committed_id_before,
+            "Already-committed regular file must be verified in-place without replacing its inode"
+        );
+        assert_eq!(
+            fs::read(dest.join(&uncommitted1_rel))?,
+            b"preexisting uncommitted file 1"
+        );
+        assert_eq!(
+            fs::read(dest.join(&uncommitted2_rel))?,
+            b"preexisting uncommitted file 2"
+        );
+        let snap_completed = crate::journal::read_journal_snapshot(&journal_path)?;
+        assert!(snap_completed.is_completed);
 
-        // Tampering test: if destination directory is replaced with another directory having a different inode
+        // Sub-test 3: Tampering test on a deep directory (dest/a/b/c replaced with a different inode)
         let tampered_dest = temp.path().join("dest_tampered");
         let tampered_state = temp.path().join("state_tampered");
         fs::create_dir_all(&tampered_state)?;
-        let mut tamper_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                tampered_dest.clone(),
-            ],
+        let tamper_args = default_test_args(
+            vec![src_with_slash.clone(), tampered_dest.clone()],
             tampered_state.clone(),
         );
         run_csc(tamper_args)?;
         let tampered_journal = find_cscjournal(&tampered_state);
 
-        // Recreate sub with a different inode
-        let sub_dir = tampered_dest.join("sub");
+        let sub_dir = tampered_dest.join(&deep_rel);
         fs::remove_dir_all(&sub_dir)?;
         fs::create_dir(&sub_dir)?;
         let new_id = ctb_io::file::identity::query_file_identity(&sub_dir)?;
 
         let mut tamper_resume = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                tampered_dest.clone(),
-            ],
-            tampered_state.clone(),
+            vec![src_with_slash, tampered_dest],
+            tampered_state,
         );
         tamper_resume.resume = Some(tampered_journal);
         tamper_resume.overwrite = false;
 
         let snap = crate::journal::read_journal_snapshot(&tamper_resume.resume.clone().unwrap())?;
-        if let Some(expected_id) = snap.applied_directories.get(Path::new("sub")) {
+        if let Some(expected_id) = snap.applied_directories.get(&deep_rel) {
             if *expected_id != new_id {
                 let err = run_csc(tamper_resume);
-                assert!(err.is_err(), "Resume must refuse when directory identity receipt does not match");
+                assert!(
+                    err.is_err(),
+                    "Resume must refuse when deep directory identity receipt does not match"
+                );
             }
         }
 
