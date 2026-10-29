@@ -327,11 +327,11 @@ impl SharedMemoryBlobs {
         Ok(SharedBlobDescriptor::FilePath(path))
     }
 
-    /// Create a blob backed by memfd (Linux only).
+    /// Create a blob backed by memfd or anonymous shared memory (Unix).
     ///
     /// The returned descriptor contains the raw FD which must be passed to
     /// the receiving process via `SCM_RIGHTS`.
-    #[cfg(all(unix, target_os = "linux"))]
+    #[cfg(unix)]
     #[expect(
         clippy::unused_self,
         reason = "method signature requires self to conform to allocator patterns"

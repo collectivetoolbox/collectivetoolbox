@@ -555,7 +555,22 @@ impl DiskPayloadSource {
                 Vec::new()
             }
         } else {
-            get_file_extents(&file, size)?
+            match get_file_extents(&file, size) {
+                Ok(extents) => extents,
+                Err(_) => {
+                    // Reason for fallback: Filesystems lacking sparse or SEEK_DATA/SEEK_HOLE
+                    // support (such as ISO-9660/cd9660, UDF, or FAT) fail with EINVAL, ENOTTY,
+                    // or EOPNOTSUPP. Fall back to treating the payload as a single dense extent.
+                    if size > 0 {
+                        vec![Extent::Data {
+                            offset: 0,
+                            length: size,
+                        }]
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }
         };
 
         file.seek(SeekFrom::Start(0))?;

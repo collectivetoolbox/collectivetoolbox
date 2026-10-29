@@ -731,7 +731,6 @@ impl SandboxableDir {
     ///
     /// `Refuse` atomically rejects any existing entry, including dangling links.
     /// No immutable flags are cleared. On failure, the temporary file remains.
-    /// Non-Linux Unix platforms currently reject `Refuse` as unsupported.
     #[cfg(unix)]
     pub fn commit_atomic_file(
         &self,
@@ -746,8 +745,8 @@ impl SandboxableDir {
     /// Renames an entry between open parents under explicit authorization.
     ///
     /// Publication is atomic and does not sync either parent. Errors retain
-    /// their native I/O cause, including cross-device errors. `Refuse` fails
-    /// closed on non-Linux Unix. Names follow the caller's traversal policy.
+    /// their native I/O cause, including cross-device errors. `Refuse`
+    /// atomically rejects existing destination entries.
     #[cfg(unix)]
     pub fn rename_from_parent(
         &self,
@@ -759,19 +758,52 @@ impl SandboxableDir {
     ) -> Result<()> {
         let temp_os = temp_name.as_ref();
         let final_os = final_name.as_ref();
-        let result = match existing {
-            ExistingEntryPolicy::Replace => renameat(source_parent, temp_os, destination_parent, final_os),
-            #[cfg(target_os = "linux")]
-            ExistingEntryPolicy::Refuse => rustix::fs::renameat_with(
-                source_parent, temp_os, destination_parent, final_os,
+        let result: std::io::Result<()> = match existing {
+            ExistingEntryPolicy::Replace => {
+                renameat(source_parent, temp_os, destination_parent, final_os)
+                    .map_err(std::io::Error::from)
+            }
+            #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple", target_os = "redox"))]
+            ExistingEntryPolicy::Refuse => match rustix::fs::renameat_with(
+                source_parent,
+                temp_os,
+                destination_parent,
+                final_os,
                 rustix::fs::RenameFlags::NOREPLACE,
+            ) {
+                Ok(()) => Ok(()),
+                Err(rustix::io::Errno::NOSYS | rustix::io::Errno::INVAL | rustix::io::Errno::NOTSUP) => {
+                    renameat_noreplace_fallback(
+                        source_parent,
+                        temp_os,
+                        destination_parent,
+                        final_os,
+                    )
+                }
+                Err(err) => Err(std::io::Error::from(err)),
+            },
+            #[cfg(target_os = "freebsd")]
+            ExistingEntryPolicy::Refuse => renameat_noreplace_freebsd(
+                source_parent,
+                temp_os,
+                destination_parent,
+                final_os,
             ),
-            #[cfg(not(target_os = "linux"))]
-            ExistingEntryPolicy::Refuse => anyhow::bail!(
-                "Atomic no-replace file publication is unsupported on this Unix platform"
+            #[cfg(not(any(
+                target_os = "linux",
+                target_os = "android",
+                target_vendor = "apple",
+                target_os = "redox",
+                target_os = "freebsd"
+            )))]
+            ExistingEntryPolicy::Refuse => renameat_noreplace_fallback(
+                source_parent,
+                temp_os,
+                destination_parent,
+                final_os,
             ),
         };
-        result.map_err(std::io::Error::from).with_context(|| format!(
+        result.with_context(|| format!(
             "Failed to publish {} as {} in sandboxed parent ({existing:?})",
             temp_os.to_string_lossy(), final_os.to_string_lossy()
         ))
@@ -1164,6 +1196,94 @@ fn windows_directory_identity(handle: &std::fs::File) -> Result<crate::identity:
     crate::identity::query_open_file_identity(handle)
 }
 
+#[cfg(target_os = "freebsd")]
+#[expect(unsafe_code, reason = "FreeBSD libc renameat2 FFI call with live CStrings")]
+fn renameat_noreplace_freebsd(
+    source_parent: &DirHandleRef<'_>,
+    temp_name: &std::ffi::OsStr,
+    destination_parent: &DirHandleRef<'_>,
+    final_name: &std::ffi::OsStr,
+) -> std::io::Result<()> {
+    use rustix::fd::AsRawFd;
+
+    let from_c = std::ffi::CString::new(temp_name.as_bytes())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let to_c = std::ffi::CString::new(final_name.as_bytes())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+
+    unsafe extern "C" {
+        fn renameat2(
+            fromfd: nix::libc::c_int,
+            from: *const nix::libc::c_char,
+            tofd: nix::libc::c_int,
+            to: *const nix::libc::c_char,
+            flags: nix::libc::c_uint,
+        ) -> nix::libc::c_int;
+    }
+
+    const AT_RENAME_NOREPLACE: nix::libc::c_uint = 0x0001;
+
+    // Safety: from_c and to_c are valid null-terminated C strings living for the duration of the call.
+    let ret = unsafe {
+        renameat2(
+            source_parent.as_raw_fd(),
+            from_c.as_ptr(),
+            destination_parent.as_raw_fd(),
+            to_c.as_ptr(),
+            AT_RENAME_NOREPLACE,
+        )
+    };
+
+    if ret == 0 {
+        return Ok(());
+    }
+
+    let err = std::io::Error::last_os_error();
+    if matches!(err.raw_os_error(), Some(nix::libc::ENOSYS | nix::libc::EOPNOTSUPP | nix::libc::EINVAL)) {
+        return renameat_noreplace_fallback(source_parent, temp_name, destination_parent, final_name);
+    }
+
+    Err(err)
+}
+
+#[cfg(unix)]
+fn renameat_noreplace_fallback(
+    source_parent: &DirHandleRef<'_>,
+    temp_name: &std::ffi::OsStr,
+    destination_parent: &DirHandleRef<'_>,
+    final_name: &std::ffi::OsStr,
+) -> std::io::Result<()> {
+    match linkat(
+        source_parent,
+        temp_name,
+        destination_parent,
+        final_name,
+        AtFlags::empty(),
+    ) {
+        Ok(()) => {
+            if let Err(e) = unlinkat(source_parent, temp_name, AtFlags::empty()) {
+                let _ = unlinkat(destination_parent, final_name, AtFlags::empty());
+                return Err(std::io::Error::from(e));
+            }
+            Ok(())
+        }
+        Err(rustix::io::Errno::EXIST) => {
+            Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST))
+        }
+        Err(rustix::io::Errno::PERM) | Err(rustix::io::Errno::XDEV) | Err(rustix::io::Errno::NOTSUP) => {
+            match statat(destination_parent, final_name, AtFlags::SYMLINK_NOFOLLOW) {
+                Ok(_) => Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST)),
+                Err(rustix::io::Errno::NOENT) => {
+                    renameat(source_parent, temp_name, destination_parent, final_name)
+                        .map_err(std::io::Error::from)
+                }
+                Err(err) => Err(std::io::Error::from(err)),
+            }
+        }
+        Err(err) => Err(std::io::Error::from(err)),
+    }
+}
+
 #[cfg(unix)]
 fn replace_node_atomically(
     parent: BorrowedFd<'_>,
@@ -1446,7 +1566,7 @@ mod tests {
         assert!(reopened.authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse).is_err());
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_rename_from_sibling_parent_policies() {
         let temp = tempfile::tempdir().unwrap();

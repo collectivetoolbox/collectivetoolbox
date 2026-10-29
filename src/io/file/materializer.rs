@@ -3407,11 +3407,19 @@ mod tests {
         let mut normal_payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let normal = materialize_entity(&entity, Some(&mut normal_payload), &normal_destination,
             &MaterializeOptions::default());
-        if cfg!(windows) {
-            assert!(normal.is_err(), "Normal mode must reject an unrepresentable sparse layout");
-        } else {
-            let receipt = normal.unwrap();
-            assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+        match normal {
+            Ok(receipt) => {
+                assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+            }
+            Err(err) => {
+                // If the underlying filesystem (e.g. NTFS on Windows, or ZFS on FreeBSD)
+                // has an allocation granularity >= 64KB, strict lossless mode must reject
+                // an unrepresentable sub-64KB sparse layout.
+                assert!(
+                    format!("{err:#}").contains("SparseHoleMismatch")
+                        || format!("{err:#}").contains("sparse")
+                );
+            }
         }
 
         // Materialize in best-effort mode

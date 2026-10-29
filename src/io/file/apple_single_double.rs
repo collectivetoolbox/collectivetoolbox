@@ -1614,9 +1614,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_windows_ads_fixture_read_and_write_roundtrip() -> Result<()> {
-        let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("fixtures")
-            .join("windows_ads");
+        let fixture_dir = ctb_utilities::manifest_fixture_path(
+            env!("CARGO_MANIFEST_DIR"),
+            "windows_ads",
+        );
         let pan_path = fixture_dir.join("example2 with lemurs.pan");
         let pan_zone_path = fixture_dir.join("example2 with lemurs.pan:Zone.Identifier");
         let bin_path = fixture_dir.join("example2 with lemurs-edited.bin");
