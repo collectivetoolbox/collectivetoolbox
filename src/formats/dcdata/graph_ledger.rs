@@ -673,6 +673,11 @@ impl LedgerBuilder {
                 seed_key.comment(),
             );
         }
+        for node in &index.nodes {
+            token_labels
+                .entry(DcShorthand::Long(node.id))
+                .or_insert_with(|| node.comment.clone());
+        }
 
         let mut vary_as_to_format_variant = default_vary_as_to_format_variant();
         let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
@@ -797,8 +802,10 @@ impl LedgerBuilder {
         self.nodes.push(LedgerNode {
             id: next_id,
             tokens,
-            comment,
+            comment: comment.clone(),
         });
+        self.token_labels
+            .insert(DcShorthand::Long(next_id), comment);
         self.appended_count = self.appended_count.saturating_add(1);
         Ok(next_id)
     }
@@ -3312,7 +3319,8 @@ mod tests {
         labels.insert(sh(DC_HAS_VALUE), "Has value".to_string());
         labels.insert(DcShorthand::Long(8589934942), "0".to_string());
 
-        let builder = LedgerBuilder::from_existing(Vec::new(), &single_props, labels);
+        let builder =
+            LedgerBuilder::from_existing(Vec::new(), &single_props, labels.clone());
 
         // 1. Literal string in a pattern rule
         let pattern_tokens = vec![
@@ -3365,6 +3373,24 @@ mod tests {
         );
         let stmt_comment = builder.format_tokens_comment(&stmt_tokens);
         assert_eq!(stmt_comment, "Has value (l8589945042, PERCENT SIGN)");
+
+        // 4. Nested statement reference in statement subject
+        labels.insert(
+            DcShorthand::Long(8589937467),
+            "Has a (At, Canonical name)".to_string(),
+        );
+        let nested_builder =
+            LedgerBuilder::from_existing(Vec::new(), &single_props, labels);
+        let nested_tokens = encode_statement_tokens(
+            sh(DC_HAS_VALUE),
+            DcShorthand::Long(8589937467),
+            DcShorthand::Unicode(0x25),
+        );
+        let nested_comment = nested_builder.format_tokens_comment(&nested_tokens);
+        assert_eq!(
+            nested_comment,
+            "Has value (Has a (At, Canonical name), PERCENT SIGN)"
+        );
 
         Ok(())
     }
