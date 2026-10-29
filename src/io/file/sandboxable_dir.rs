@@ -2022,6 +2022,10 @@ mod tests {
         sandbox2.restore_applied_directory_ownership(rel_nested, &identity)?;
         sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)?;
 
+        // Close retained directory handles from earlier sessions so Windows allows deleting the directory
+        drop(sandbox1);
+        drop(sandbox2);
+
         // Tampering: replace directory with another entity or symlink
         let tampered_path = root.join(rel_nested);
         std::fs::remove_dir(&tampered_path)?;

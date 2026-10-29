@@ -584,7 +584,22 @@ impl AttachedStreamSource for FilesystemStreamSource {
 impl AttachedStream {
     /// Hashes a file-backed stream without retaining its body in memory.
     pub fn from_file(name: Option<StreamName>, kind: StreamKind, path: &Path) -> Result<Self> {
-        let canonical_path = std::fs::canonicalize(path)?;
+        // On Windows 7, GetFinalPathNameByHandleW in std::fs::canonicalize fails on
+        // alternate data stream handles with ERROR_INVALID_NAME (123) or ERROR_INVALID_PARAMETER (87).
+        // Falling back to absolute(path) is acceptable domain logic because the stream path was already
+        // verified and resolved during enumeration, and open and identity query validate it below.
+        let canonical_path = match std::fs::canonicalize(path) {
+            Ok(canonical) => canonical,
+            Err(err)
+                if cfg!(windows)
+                    && (err.raw_os_error() == Some(123)
+                        || err.raw_os_error() == Some(87)
+                        || err.raw_os_error() == Some(1)) =>
+            {
+                std::path::absolute(path)?
+            }
+            Err(err) => return Err(err.into()),
+        };
         let key = crate::identity::query_file_identity(&canonical_path)?;
         let file = std::fs::File::open(&canonical_path)?;
         let mut stream = Self::from_stream_reader(name, kind, file, false)?;
