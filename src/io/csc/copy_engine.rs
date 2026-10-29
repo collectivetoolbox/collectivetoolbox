@@ -598,7 +598,8 @@ pub fn execute_copy_pipeline(
                     snapshot,
                 });
             } else {
-                copy_single_item(
+                let skipped_before = stats.special_files_skipped;
+                let created = copy_single_item(
                     src_root,
                     tgt_root,
                     target_rel_path,
@@ -612,6 +613,20 @@ pub fn execute_copy_pipeline(
                     progress,
                     copy_task,
                 )?;
+                if created.is_none() && stats.special_files_skipped > skipped_before {
+                    let err = anyhow::anyhow!(
+                        "Refusing to copy special file '{}' without an explicit special-file policy (pass --copy-specials-as-specials or --copy-fifos-as-regular-files / --copy-block-devices-as-regular-files)",
+                        src_root.display()
+                    );
+                    let _ = handle_item_error(
+                        src_root,
+                        JournalErrorStage::Materialize,
+                        err,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                }
                 if progress.is_enabled() {
                     let detail = format!("{} bytes", stats.bytes_copied);
                     progress.update_task(copy_task, stats.files_copied, Some(&detail));
@@ -1129,7 +1144,18 @@ fn copy_single_item(
         }
     }
 
+    let record_pre_materialization = match &entity.kind {
+        FileEntityKind::Fifo => args.copy_specials_as_specials && !args.copy_fifos_as_regular_files,
+        FileEntityKind::BlockDevice { .. } => {
+            args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files
+        }
+        FileEntityKind::CharDevice { .. } => args.copy_specials_as_specials,
+        FileEntityKind::Socket | FileEntityKind::Door => false,
+        _ => true,
+    };
+
     if !args.dry_run
+        && record_pre_materialization
         && !(options.existing_entry_policy == ctb_io::file::ExistingEntryPolicy::Refuse
             && std::fs::symlink_metadata(&effective_dest_path).is_ok())
     {
@@ -1422,6 +1448,21 @@ fn copy_single_item(
                 record_journal_entry(journal, &final_dest, &entity)?;
                 files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), entity));
                 return Ok(Some(final_dest));
+            } else if matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
+                && args.copy_specials_as_specials
+            {
+                let err = anyhow::anyhow!(
+                    "Unsupported special file cannot be copied as a special node: {}",
+                    src_path.display()
+                );
+                return handle_item_error(
+                    src_path,
+                    JournalErrorStage::Materialize,
+                    err,
+                    args,
+                    journal,
+                    stats,
+                );
             } else {
                 stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
                 return Ok(None);
@@ -2725,8 +2766,37 @@ mod tests {
         }
         let dest_fifo = dest.join("test.fifo");
         assert!(!dest_fifo.exists(), "Default should skip FIFO");
+        let skip_journal = crate::journal::find_cscjournal(&state);
+        let skip_snap = crate::journal::read_journal_snapshot(&skip_journal).expect("read skip journal");
+        assert!(
+            !skip_snap.is_committed(b"test.fifo"),
+            "Skipped FIFO must not be falsely committed to the state journal"
+        );
 
-        // Now test with copy_specials_as_specials = true
+        // Direct single-file FIFO copy without explicit policy must fail without draining/corrupting source FIFO
+        let direct_state = temp.path().join("state_direct");
+        fs::create_dir_all(&direct_state).expect("create direct state");
+        let direct_args = default_test_args(
+            vec![fifo_path.clone(), temp.path().join("direct_out.fifo")],
+            direct_state,
+        );
+        assert!(
+            run_csc(direct_args).is_err(),
+            "Direct FIFO copy without explicit special-file policy must fail"
+        );
+
+        // Now test with copy_specials_as_specials = true while bytes are queued in the source FIFO
+        let fifo_rw = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&fifo_path)
+            .expect("open fifo rw");
+        {
+            use std::io::Write;
+            (&fifo_rw)
+                .write_all(b"preserved queued fifo bytes")
+                .expect("queue bytes in source fifo");
+        }
         let dest_copy = temp.path().join("dest_fifo_copy");
         let state_copy = temp.path().join("state_dir_copy");
         fs::create_dir_all(&state_copy).expect("create state copy");
@@ -2738,11 +2808,44 @@ mod tests {
             state_copy,
         );
         args_copy.copy_specials_as_specials = true;
+        args_copy.best_effort_metadata = true;
         run_csc(args_copy).expect("run csc with copy_specials_as_specials");
 
         let dest_fifo_node = dest_copy.join("test.fifo");
         let meta = fs::symlink_metadata(&dest_fifo_node).expect("fifo metadata");
         assert!(meta.file_type().is_fifo(), "Expected created node to be a FIFO");
+
+        // Verify the queued bytes in the source FIFO were not drained or corrupted
+        let mut buf = [0_u8; 27];
+        {
+            use std::io::Read;
+            (&fifo_rw).read_exact(&mut buf).expect("read queued bytes from source fifo");
+        }
+        assert_eq!(&buf, b"preserved queued fifo bytes");
+
+        // Unsupported special file (Unix domain socket) under --copy-specials-as-specials must fail cleanly
+        let sock_path = src.join("unsupported.sock");
+        let _listener = std::os::unix::net::UnixListener::bind(&sock_path).expect("bind unix socket");
+        let dest_sock = temp.path().join("dest_sock_copy");
+        let state_sock = temp.path().join("state_sock_copy");
+        fs::create_dir_all(&state_sock).expect("create state sock");
+        let mut args_sock = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest_sock,
+            ],
+            state_sock,
+        );
+        args_sock.copy_specials_as_specials = true;
+        args_sock.best_effort_metadata = true;
+        let sock_err = run_csc(args_sock)
+            .err()
+            .expect("Unsupported socket must fail under --copy-specials-as-specials");
+        assert!(
+            format!("{sock_err:#}").contains("Unsupported special file"),
+            "Unexpected error: {sock_err:#}"
+        );
+        assert!(fs::symlink_metadata(&sock_path).unwrap().file_type().is_socket());
     }
 
     #[cfg(unix)]

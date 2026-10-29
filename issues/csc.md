@@ -137,8 +137,6 @@ These inbox reports also need reconciliation with current code before changes.
 - [ ] Use native macOS package classification (`NSURLIsPackageKey` or
   `NSWorkspace::isFilePackageAtPath`, including older GNUstep support) rather
   than a hardcoded bundle-name list where those APIs are available.
-- [ ] Reproduce the old FIFO-copy report with explicit special-file policy;
-  an unsupported special file must fail without corrupting the source.
 
 ### Archive Safety and Recovery
 
