@@ -757,22 +757,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
             if self.spliced_has_unescaped_closer(closer, true, resolver) {
                 self.spliced_tokens.pop_front();
-                if let Some(&first_inner) = self.spliced_tokens.front()
-                    && !first_inner.fills_role_with(DcRole::Escape, resolver)
-                    && first_inner != closer
-                    && !resolver.is_equivalent_to(first_inner.to_u128(), closer.to_u128())
-                {
-                    if first_inner.fills_role_with(DcRole::BeginTypeDef, resolver)
-                        || first_inner.fills_role_with(DcRole::TypeIntersection, resolver)
-                        || first_inner.fills_role_with(DcRole::TypeUnion, resolver)
-                    {
-                        let mut type_ctx = SyntaxEvalContext::new(resolver, None);
-                        type_ctx.policy.clone_from(policy);
-                        let _ = self.eval_type_constructor(&mut type_ctx);
-                    } else if is_single_type_token(first_inner, resolver) {
-                        let _ = self.spliced_tokens.pop_front();
-                    }
-                }
+                let mut type_ctx = SyntaxEvalContext::new(resolver, None);
+                type_ctx.policy.clone_from(policy);
+                let _ = self.try_consume_optional_leading_type(closer, &mut type_ctx);
                 let name = self.pop_spliced_escaped_until(closer, resolver);
                 return Ok(Some(DcFrameStub {
                     head_dc,

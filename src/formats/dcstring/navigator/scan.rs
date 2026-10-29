@@ -1038,34 +1038,30 @@ impl<'a> DcDocumentNavigator<'a> {
         };
         ensure!(first.fills_role_with(DcRole::BeginIdentifier, resolver), "Expected identifier opener (Dc 270), found {first}");
         offset = after_first;
-        if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)?
-            && !ch.fills_role_with(DcRole::Escape, resolver)
-            && !ch.fills_role_with(DcRole::EndIdentifier, resolver)
+        // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+        let closer = CharTarget::from_u128(first.to_u128())
+            .and_then(|t| resolver.closer_for_opener(&t))
+            .map(DcChar::from_u128)
+            .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+        let saved_cursor = self.cursor;
+        let saved_span = self.active_span;
+        self.cursor = offset;
+        self.active_span = span;
+        let mut type_ctx = SyntaxEvalContext::new(resolver, None);
+        type_ctx.policy.clone_from(policy);
+        // Reason for fallback: speculative leading-type evaluation failure leaves offset unchanged.
+        if self
+            .try_consume_optional_leading_type(closer, &mut type_ctx)
+            .unwrap_or(None)
+            .is_some()
+            && !type_ctx.has_errors
+            && self.cursor > offset
+            && self.cursor < span.end
         {
-            if ch.fills_role_with(DcRole::BeginTypeDef, resolver)
-                || ch.fills_role_with(DcRole::TypeIntersection, resolver)
-                || ch.fills_role_with(DcRole::TypeUnion, resolver)
-            {
-                let saved_cursor = self.cursor;
-                let saved_span = self.active_span;
-                self.cursor = offset;
-                self.active_span = span;
-                let mut type_ctx = SyntaxEvalContext::new(resolver, None);
-                type_ctx.policy.clone_from(policy);
-                // Reason for fallback: speculative type constructor evaluation failure is treated as non-match (false).
-                if self.eval_type_constructor(&mut type_ctx).unwrap_or(false)
-                    && !type_ctx.has_errors
-                    && self.cursor > offset
-                    && self.cursor < span.end
-                {
-                    offset = self.cursor;
-                }
-                self.cursor = saved_cursor;
-                self.active_span = saved_span;
-            } else if is_single_type_token(ch, resolver) {
-                offset = next_off;
-            }
+            offset = self.cursor;
         }
+        self.cursor = saved_cursor;
+        self.active_span = saved_span;
         let mut name = DcMstring::new();
         while offset < span.end {
             let Some((mut ch, next_off)) = self.read_token_or_binary_at(offset)? else {

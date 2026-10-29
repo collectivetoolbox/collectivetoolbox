@@ -867,14 +867,13 @@ impl<'a> DcDocumentNavigator<'a> {
                 } else if name == "typed_data" {
                     self.eval_typed_data_construct(subtype.as_deref(), ctx)?
                 } else if matches!(name.as_str(), "script" | "format" | "formats" | "type") {
-                    let is_type_constructor = name == "type"
-                        && (first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
-                            || first_dc.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
-                            || first_dc.fills_role_with(DcRole::TypeUnion, ctx.resolver)
-                            || first_dc.fills_role_with(DcRole::FormatParamApplication, ctx.resolver));
-                    if is_type_constructor {
+                    if name == "type"
+                        && is_compound_type_starter(first_dc, ctx.resolver)
+                        && let Some(target) = CharTarget::from_u128(first)
+                        && ctx.resolver.resolve_rule(&target).is_some()
+                    {
                         if subtype.is_none() {
-                            self.eval_type_constructor(ctx)?
+                            self.eval_term_single(&SyntaxTerm::RuleRef { target }, ctx)?
                         } else if first_dc.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
                             let type_cp = self.save_checkpoint();
                             let _ = self.pop_next_token()?;
@@ -986,8 +985,12 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         if !matched && lookup_name == "value" && subtype.is_none() {
                             if let Some(target) = CharTarget::from_u128(first)
-                                && ctx.resolver.closer_for_opener(&target).is_some()
                                 && !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver)
+                                && (ctx.resolver.closer_for_opener(&target).is_some()
+                                    || ctx
+                                        .resolver
+                                        .resolve_rule(&target)
+                                        .is_some_and(|rule| rule.pattern.starts_with_self()))
                             {
                                 let rule_term = SyntaxTerm::RuleRef { target };
                                 matched = self.eval_term_single(&rule_term, ctx)?;
@@ -1169,18 +1172,6 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    pub(super) fn eval_type_constructor(&mut self, ctx: &mut SyntaxEvalContext<'_>) -> Result<bool> {
-        let elem = SyntaxElement {
-            term: SyntaxTerm::NamedConstruct {
-                name: "type".to_owned(),
-                subtype: None,
-                capture_var: None,
-            },
-            quantifier: Quantifier::ExactOne,
-        };
-        self.eval_pattern(&SyntaxPattern::Sequence(vec![elem]), ctx)
-    }
-
     pub(super) fn enter_list_body_after_header(
         &mut self,
         list_start: u64,
@@ -1290,23 +1281,6 @@ impl<'a> DcDocumentNavigator<'a> {
                 && self.cursor <= list_body_end
             {
                 continue;
-            }
-            self.cursor = elem_start;
-            if let Some(target) = CharTarget::from_u128(tok.to_u128()) {
-                if ctx.resolver.resolve_rule(&target).is_some_and(|rule| rule.pattern.starts_with_self()) {
-                    self.active_span = saved_span;
-                    let mut rule_ctx = sub_ctx.clone();
-                    let rule_ok = self.eval_term_single(&SyntaxTerm::RuleRef { target }, &mut rule_ctx)?;
-                    self.active_span = DcByteSpan::new(after_list_open, list_body_end);
-                    if rule_ok
-                        && !rule_ctx.has_errors
-                        && self.cursor > elem_start
-                        && self.cursor <= list_body_end
-                    {
-                        continue;
-                    }
-                    self.cursor = elem_start;
-                }
             }
             self.active_span = saved_span;
             return Ok(false);
@@ -1618,6 +1592,51 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(false)
     }
 
+    pub(super) fn try_consume_optional_leading_type(
+        &mut self,
+        closer: DcChar,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<Option<Vec<DcChar>>> {
+        let Some(first_inner) = self.peek_next_token()? else {
+            return Ok(None);
+        };
+        if first_inner.fills_role_with(DcRole::Escape, ctx.resolver)
+            || first_inner == closer
+            || ctx.resolver.is_equivalent_to(first_inner.to_u128(), closer.to_u128())
+        {
+            return Ok(None);
+        }
+        if is_compound_type_starter(first_inner, ctx.resolver) {
+            let type_checkpoint = self.save_checkpoint();
+            let mut type_ctx = ctx.clone();
+            let type_term = SyntaxTerm::NamedConstruct {
+                name: "type".to_owned(),
+                subtype: None,
+                capture_var: None,
+            };
+            let type_ok = self.eval_term_single(&type_term, &mut type_ctx)?;
+            let type_toks = self.consumed_tokens_since(&type_checkpoint)?;
+            if !type_ok || type_ctx.has_errors || type_toks.is_empty() {
+                ctx.has_errors = true;
+                ctx.diagnostics.push(SyntaxDiagnostic {
+                    message: format!(
+                        "Invalid leading [type] in identifier at offset {}",
+                        type_checkpoint.cursor
+                    ),
+                    token_offset: type_checkpoint.cursor,
+                    is_error: true,
+                });
+                return Ok(None);
+            }
+            Ok(Some(type_toks))
+        } else if is_single_type_token(first_inner, ctx.resolver) {
+            let _ = self.pop_next_token()?;
+            Ok(Some(vec![first_inner]))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub(super) fn eval_identifier_frame(
         &mut self,
         subtype: Option<&str>,
@@ -1632,37 +1651,15 @@ impl<'a> DcDocumentNavigator<'a> {
             self.restore_checkpoint(term_checkpoint);
             return Ok(false);
         }
-        let mut leading_type_tokens: Option<Vec<DcChar>> = None;
-        if let Some(first_inner) = self.peek_next_token()?
-            && !first_inner.fills_role_with(DcRole::Escape, ctx.resolver)
-            && !first_inner.fills_role_with(DcRole::EndIdentifier, ctx.resolver)
-        {
-            if first_inner.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
-                || first_inner.fills_role_with(DcRole::TypeIntersection, ctx.resolver)
-                || first_inner.fills_role_with(DcRole::TypeUnion, ctx.resolver)
-            {
-                let type_checkpoint = self.save_checkpoint();
-                let mut type_ctx = ctx.clone();
-                let type_ok = self.eval_type_constructor(&mut type_ctx)?;
-                let type_toks = self.consumed_tokens_since(&type_checkpoint)?;
-                if !type_ok || type_ctx.has_errors || type_toks.is_empty() {
-                    ctx.has_errors = true;
-                    ctx.diagnostics.push(SyntaxDiagnostic {
-                        message: format!(
-                            "Invalid leading [type] in identifier at offset {}",
-                            type_checkpoint.cursor
-                        ),
-                        token_offset: type_checkpoint.cursor,
-                        is_error: true,
-                    });
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
-                }
-                leading_type_tokens = Some(type_toks);
-            } else if is_single_type_token(first_inner, ctx.resolver) {
-                let _ = self.pop_next_token()?;
-                leading_type_tokens = Some(vec![first_inner]);
-            }
+        // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
+        let closer = CharTarget::from_u128(first_dc.to_u128())
+            .and_then(|t| ctx.resolver.closer_for_opener(&t))
+            .map(DcChar::from_u128)
+            .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+        let leading_type_tokens = self.try_consume_optional_leading_type(closer, ctx)?;
+        if ctx.has_errors {
+            self.restore_checkpoint(term_checkpoint);
+            return Ok(false);
         }
         let mut char_count = 0usize;
         let mut name_mstr = DcMstring::new();
@@ -2189,15 +2186,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     continue;
                 }
                 self.cursor = start;
-                if let Some(target) = CharTarget::from_u128(head.to_u128()) {
-                    if resolver.resolve_rule(&target).is_some_and(|rule| rule.pattern.starts_with_self()) {
-                        let mut trial = ctx.clone();
-                        if self.eval_term_single(&SyntaxTerm::RuleRef { target }, &mut trial)? && !trial.has_errors && self.cursor > start {
-                            continue;
-                        }
-                        self.cursor = start;
-                    }
-                }
                 if self.next_sibling_stub_with_resolver(policy, resolver)?.is_none() || self.cursor <= start {
                     self.cursor = after;
                 }
@@ -2631,26 +2619,22 @@ pub(super) fn check_term_number_constraint(
     }
 }
 
+pub(crate) fn is_compound_type_starter(tok: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
+    tok.fills_role_with(DcRole::BeginTypeDef, resolver)
+        || tok.fills_role_with(DcRole::TypeIntersection, resolver)
+        || tok.fills_role_with(DcRole::TypeUnion, resolver)
+        || tok.fills_role_with(DcRole::FormatParamApplication, resolver)
+}
+
 pub(crate) fn is_single_type_token(tok: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
-    let first = tok.to_u128();
-    let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-        ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-        .contains(&first);
-    resolver.token_fills_role(first, DcRole::TypeToken)
-        || is_format_token
-        || resolver.matches_script(".EL Types", first)
-        || resolver.matches_script("Formats", first)
+    resolver.token_satisfies_type(tok.to_u128(), "type", None)
 }
 
 pub(crate) fn is_identifier_leading_type_starter(
     tok: DcChar,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    tok.fills_role_with(DcRole::BeginTypeDef, resolver)
-        || tok.fills_role_with(DcRole::TypeIntersection, resolver)
-        || tok.fills_role_with(DcRole::TypeUnion, resolver)
-        || tok.fills_role_with(DcRole::FormatParamApplication, resolver)
-        || is_single_type_token(tok, resolver)
+    is_compound_type_starter(tok, resolver) || is_single_type_token(tok, resolver)
 }
 
 impl DcDocumentNavigator<'_> {
