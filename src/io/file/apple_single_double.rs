@@ -475,15 +475,39 @@ pub(crate) fn write_apple_double_companion_bytes(
     Ok(Some(companion_path))
 }
 
+/// Returns whether the entity has Apple metadata or Mac-specific file flags
+/// that require preservation in an AppleDouble companion file.
+pub(crate) fn has_apple_metadata(entity: &FileEntity) -> bool {
+    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
+    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+    // Reason for fallback: absent flags metadata defaults to empty slice
+    let entity_flags = entity.metadata.flags.as_deref().unwrap_or(&[]);
+    let has_mac_flags = entity_flags.iter().any(|f| matches!(
+        f,
+        crate::metadata::FileFlag::OnDesk
+            | crate::metadata::FileFlag::SharedApp
+            | crate::metadata::FileFlag::NoInits
+            | crate::metadata::FileFlag::Inited
+            | crate::metadata::FileFlag::CustomIcon
+            | crate::metadata::FileFlag::Stationery
+            | crate::metadata::FileFlag::NameLocked
+            | crate::metadata::FileFlag::HasBundle
+            | crate::metadata::FileFlag::Invisible
+            | crate::metadata::FileFlag::Alias
+            | crate::metadata::FileFlag::CustomBadge
+            | crate::metadata::FileFlag::RoutingInfo
+            | crate::metadata::FileFlag::ExtendedFlagsInvalid
+    ));
+    has_apple_meta || has_mac_flags
+}
+
 pub(crate) fn apple_double_companion_path(
     entity: &FileEntity,
     dest_path: &Path,
     dest_dir: &crate::sandboxable_dir::SandboxableDir,
     style: AppleDoubleStyle,
 ) -> Result<Option<PathBuf>> {
-    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-    if entity.streams.is_empty() && !has_apple_meta {
+    if entity.streams.is_empty() && !has_apple_metadata(entity) {
         return Ok(None);
     }
 
@@ -1138,10 +1162,12 @@ pub fn write_windows_ads_companions_with_warnings(
             && existing == crate::sandboxable_dir::ExistingEntryPolicy::Refuse
             && std::fs::symlink_metadata(&item.companion_path).is_ok()
         {
+            // Reason for fallback: companion without an adaptation has no recorded original source stream name
             let orig_suffix = item
                 .adaptation
                 .as_ref()
                 .map_or_else(Vec::new, |a| a.source_stream_name.clone());
+            // Reason for fallback: companion without an adaptation uses lossy original suffix as disambiguation baseline
             let base_cleaned = item
                 .adaptation
                 .as_ref()
