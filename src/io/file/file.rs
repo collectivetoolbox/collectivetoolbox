@@ -253,6 +253,8 @@ pub use clean_name::{
     adapt_component_with_max_bytes, adapt_relative_path_for_materialization,
     clean_file_name, clean_file_name_unix, clean_file_name_windows,
     clean_stream_name_for_companion, disambiguate_cleaned_name,
+    is_windows_disallowed_filename_char,
+    is_windows_disallowed_filename_code_unit,
 };
 pub use entity::{File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload};
 pub use link_path::LinkPath;

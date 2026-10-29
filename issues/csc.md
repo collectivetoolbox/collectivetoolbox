@@ -137,8 +137,6 @@ These inbox reports also need reconciliation with current code before changes.
   environment capture alone does not remove sensitive per-file metadata.
 - [ ] Audit environment capture of all network interfaces/MAC addresses through
   the shared system API, with explicit privacy policy and retained diagnostics.
-- [ ] Deduplicate disallowed Windows filename rules in `file/identity.rs` and
-  `clean-name`; preserve exact native names and destination-specific policy.
 - [ ] Use native macOS package classification (`NSURLIsPackageKey` or
   `NSWorkspace::isFilePackageAtPath`, including older GNUstep support) rather
   than a hardcoded bundle-name list where those APIs are available.

@@ -242,10 +242,12 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
         for component in normalized.components() {
             match component {
                 std::path::Component::Normal(name) => {
-                    anyhow::ensure!(!name.encode_wide().any(|unit| {
-                        [b'\0', b':', b'*', b'?', b'"', b'<', b'>', b'|'].iter()
-                            .any(|byte| unit == u16::from(*byte))
-                    }), "Path contains a character which is incompatible with Windows");
+                    anyhow::ensure!(
+                        !name
+                            .encode_wide()
+                            .any(crate::clean_name::is_windows_disallowed_filename_code_unit),
+                        "Path contains a character which is incompatible with Windows"
+                    );
                 }
                 std::path::Component::Prefix(_) => {
                     anyhow::ensure!(origin_is_windows, "A non-Windows source path contains a Windows path prefix");
