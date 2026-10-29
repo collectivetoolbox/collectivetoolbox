@@ -2002,7 +2002,18 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(rule) = resolver.resolve_rule(target) {
                 let mut ctx = SyntaxEvalContext::new(resolver, Some(target.to_u128()));
                 ctx.policy.clone_from(policy);
-                let matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
+                let matched = if resolver.token_fills_role(target.to_u128(), DcRole::BeginLiteral) {
+                    self.eval_literal_frame(None, None, &mut ctx)?
+                } else if resolver.token_fills_role(target.to_u128(), DcRole::BeginIdentifier) {
+                    self.eval_identifier_frame(None, &mut ctx)?
+                } else if resolver.token_fills_role(target.to_u128(), DcRole::BeginNumber) {
+                    self.eval_number_frame(None, None, &mut ctx)?
+                } else {
+                    self.eval_pattern(&rule.pattern, &mut ctx)?
+                };
+                for diag in ctx.diagnostics {
+                    self.syntax_issue(policy, diag.token_offset, diag.message)?;
+                }
                 if !matched || ctx.has_errors || self.cursor != outer.end {
                     self.syntax_issue(
                         policy,

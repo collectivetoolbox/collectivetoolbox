@@ -28,9 +28,10 @@ use crate::utilities::*;
 
 use crate::apple_double::{
     AppleFormat, AppleWriteMode, StreamAdaptationRecord, apple_double_companion_path,
-    create_apple_archive_from_entity, plan_windows_ads_companions,
-    write_apple_double_companion, write_apple_single_double,
-    write_windows_ads_companions_with_warnings,
+    create_apple_archive_from_entity_with_stream_source, plan_windows_ads_companions,
+    serialize_apple_double_for_entity_with_stream_source,
+    write_apple_double_companion_bytes, write_apple_double_companion_with_stream_source,
+    write_apple_single_double, write_windows_ads_companions_with_warnings,
 };
 use crate::entity::{FileEntity, FileEntityKind};
 use crate::identity::resolve_relative_path_for_os;
@@ -464,13 +465,6 @@ pub fn materialize_entity_with_stream_source(
     options: &MaterializeOptions,
     stream_source: &dyn crate::streams::AttachedStreamSource,
 ) -> Result<MaterializeReceipt> {
-    if matches!(options.apple_write_mode,
-        AppleWriteMode::ForceAppleDouble(_) | AppleWriteMode::MaybeAppleDouble(_)
-        | AppleWriteMode::ForceAppleSingle | AppleWriteMode::MaybeAppleSingle)
-    {
-        ensure!(entity.streams.iter().all(|stream| stream.data.is_some()),
-            "AppleDouble/AppleSingle conversion of nonresident attached bodies is not supported");
-    }
     if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
     }
@@ -1021,8 +1015,7 @@ pub fn materialize_entity_with_stream_source(
             is_sparse,
             extents,
         } => {
-            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite
-                && entity.streams.iter().all(|stream| stream.data.is_some()) {
+            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite {
                 if let Some(mut receipt) = try_update_existing_regular_entity(
                     &dest_path,
                     dest_dir,
@@ -1031,6 +1024,7 @@ pub fn materialize_entity_with_stream_source(
                     expected_sha256,
                     *is_sparse,
                     options,
+                    stream_source,
                 )? {
                     receipt.warnings.splice(0..0, path_warnings);
                     return Ok(receipt);
@@ -1085,10 +1079,11 @@ pub fn materialize_entity_with_stream_source(
                 let source_warnings = source.finish()?;
                 anyhow::ensure!(!options.strict_lossless || source_warnings.is_empty(),
                     "Payload source fidelity failed for {}: {:?}", dest_path.display(), source_warnings);
-                let archive = create_apple_archive_from_entity(
+                let archive = create_apple_archive_from_entity_with_stream_source(
                     entity,
                     AppleFormat::AppleSingle,
                     Some(data_fork),
+                    stream_source,
                 )?;
                 let single_bytes = write_apple_single_double(&archive)?;
                 let mut hasher = Sha256Stream::new();
@@ -1547,17 +1542,32 @@ pub fn materialize_entity_with_stream_source(
                 }
             }
 
-            if write_companion && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
+            let prebuilt_apple_double = if write_companion {
                 if let Some(style) = options.apple_write_mode.double_style() {
                     if let Some(companion) = apple_double_companion_path(entity, &dest_path, dest_dir, style)? {
-                        match std::fs::symlink_metadata(&companion) {
-                            Ok(_) => bail!("AppleDouble companion already exists; explicit overwrite permission required: {}", companion.display()),
-                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-                            Err(error) => return Err(error).context("Cannot inspect AppleDouble companion destination"),
+                        if options.existing_entry_policy == ExistingEntryPolicy::Refuse {
+                            match std::fs::symlink_metadata(&companion) {
+                                Ok(_) => bail!("AppleDouble companion already exists; explicit overwrite permission required: {}", companion.display()),
+                                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                                Err(error) => return Err(error).context("Cannot inspect AppleDouble companion destination"),
+                            }
                         }
+                        Some((
+                            style,
+                            serialize_apple_double_for_entity_with_stream_source(
+                                entity,
+                                stream_source,
+                            )?,
+                        ))
+                    } else {
+                        None
                     }
+                } else {
+                    None
                 }
-            }
+            } else {
+                None
+            };
             if write_windows_ads && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
                 for planned in plan_windows_ads_companions(entity, &dest_path, dest_dir, options.strict_lossless)? {
                     if options.strict_lossless || planned.adaptation.is_none() {
@@ -1680,10 +1690,15 @@ pub fn materialize_entity_with_stream_source(
             }
             cleanup_guard.active = false;
 
-            if write_companion {
-                if let Some(style) = options.apple_write_mode.double_style() {
-                    write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
-                }
+            if let Some((style, ref apple_double_bytes)) = prebuilt_apple_double {
+                write_apple_double_companion_bytes(
+                    entity,
+                    &dest_path,
+                    dest_dir,
+                    style,
+                    options.existing_entry_policy,
+                    apple_double_bytes,
+                )?;
             }
             let mut stream_adaptations = Vec::new();
             if write_windows_ads {
@@ -2010,12 +2025,13 @@ pub fn materialize_directory_streams_and_companions(
 
     if write_companion {
         if let Some(style) = options.apple_write_mode.double_style() {
-            write_apple_double_companion(
+            write_apple_double_companion_with_stream_source(
                 entity,
                 dest_path,
                 companion_sandbox,
                 style,
                 options.existing_entry_policy,
+                stream_source,
             )?;
         }
     }
@@ -2057,6 +2073,7 @@ fn try_update_existing_regular_entity(
     expected_sha256: &[u8; 32],
     is_sparse: bool,
     options: &MaterializeOptions,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
 ) -> Result<Option<MaterializeReceipt>> {
     let dest_meta = match std::fs::symlink_metadata(dest_path) {
         Ok(m) => m,
@@ -2201,7 +2218,14 @@ fn try_update_existing_regular_entity(
     let mut stream_adaptations = Vec::new();
     let mut stream_warnings = Vec::new();
     if let Some(style) = options.apple_write_mode.double_style() {
-        write_apple_double_companion(entity, dest_path, dest_dir, style, options.existing_entry_policy)?;
+        write_apple_double_companion_with_stream_source(
+            entity,
+            dest_path,
+            dest_dir,
+            style,
+            options.existing_entry_policy,
+            stream_source,
+        )?;
     } else if options.apple_write_mode.is_windows_ads() {
         let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
             entity,
@@ -2209,7 +2233,7 @@ fn try_update_existing_regular_entity(
             dest_dir,
             options.existing_entry_policy,
             options.strict_lossless,
-            &crate::streams::FilesystemStreamSource,
+            stream_source,
         )?;
         stream_adaptations = adapts;
         stream_warnings.extend(ads_warnings);
@@ -2233,12 +2257,13 @@ fn try_update_existing_regular_entity(
             });
 
             if !matches_on_disk {
-                write_streams(
+                stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
                     dest_path,
                     Some(dest_path),
                     std::slice::from_ref(stream),
                     options.strict_lossless,
-                )?;
+                    stream_source,
+                )?);
             }
         }
     }
@@ -2399,20 +2424,53 @@ mod tests {
             apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
             ..options.clone()
         };
-        let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &companion_options).is_err());
-        assert!(!temporary.path().join("destination").try_exists()?);
+        let single_options = MaterializeOptions {
+            apple_write_mode: AppleWriteMode::ForceAppleSingle,
+            ..options.clone()
+        };
+
+        // 1. Native materialization of nonresident file-backed stream succeeds
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
         materialize_entity(&entity, Some(&mut payload), &sandbox, &options)?;
         let restored = read_and_hash_streams(&temporary.path().join("destination"))?;
         assert_eq!(restored.len(), 1);
         assert_eq!(restored.first().context("Missing restored stream")?.entity.kind, entity.streams.first().context("Missing expected stream")?.entity.kind);
-        entity.identity.relative_path = Some("must-not-publish".into());
-        std::fs::write(&source, b"changed after capture")?;
+
+        // 2. AppleDouble materialization of nonresident file-backed stream succeeds
+        entity.identity.relative_path = Some("destination-double".into());
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &options).is_err());
-        assert!(!temporary.path().join("must-not-publish").try_exists()?);
-        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 2);
+        materialize_entity(&entity, Some(&mut payload), &sandbox, &companion_options)?;
+        assert!(temporary.path().join("destination-double").is_file());
+        assert!(temporary.path().join("._destination-double").is_file());
+        let parsed_double = crate::apple_double::read_apple_single_double(&std::fs::read(temporary.path().join("._destination-double"))?)?;
+        assert_eq!(parsed_double.extended_attributes.len(), 1);
+        assert_eq!(parsed_double.extended_attributes[0].name, "user.lazy");
+        assert_eq!(parsed_double.extended_attributes[0].data, bytes);
+
+        // 3. AppleSingle materialization of nonresident file-backed stream succeeds
+        entity.identity.relative_path = Some("destination-single".into());
+        let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+        materialize_entity(&entity, Some(&mut payload), &sandbox, &single_options)?;
+        let parsed_single = crate::apple_double::read_apple_single_double(&std::fs::read(temporary.path().join("destination-single"))?)?;
+        assert_eq!(parsed_single.data_fork.as_deref(), Some(&b"primary"[..]));
+        assert_eq!(parsed_single.extended_attributes.len(), 1);
+        assert_eq!(parsed_single.extended_attributes[0].name, "user.lazy");
+        assert_eq!(parsed_single.extended_attributes[0].data, bytes);
+
+        // 4. Modification of file-backed stream after capture rejects publication in all modes
+        std::fs::write(&source, b"changed after capture")?;
+        for (rel_name, mode_opts) in [
+            ("must-not-publish", &options),
+            ("must-not-publish-double", &companion_options),
+            ("must-not-publish-single", &single_options),
+        ] {
+            entity.identity.relative_path = Some(rel_name.into());
+            let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+            assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, mode_opts).is_err());
+            assert!(!temporary.path().join(rel_name).try_exists()?);
+            assert!(!temporary.path().join(format!("._" ) + rel_name).try_exists()?);
+        }
+        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 5);
         Ok(())
     }
 

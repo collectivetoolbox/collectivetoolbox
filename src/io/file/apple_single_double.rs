@@ -106,6 +106,46 @@ impl AppleArchiveExt for AppleArchive {
 }
 
 
+fn read_stream_bytes_from_source(
+    stream: &AttachedStream,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<Vec<u8>> {
+    let FileEntityKind::Regular {
+        size: expected_size,
+        sha256: expected_sha256,
+        ..
+    } = &stream.entity.kind
+    else {
+        bail!("Attached stream is not a regular payload");
+    };
+    let mut reader = stream_source.open(stream)?;
+    let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+    let mut data = Vec::new();
+    data.try_reserve_exact(usize::try_from(*expected_size)?)?;
+    let mut buf = [0_u8; 64 * 1024];
+    let mut total_read = 0_u64;
+    loop {
+        let n = std::io::Read::read(&mut reader, &mut buf)
+            .context("Failed to read attached stream source")?;
+        if n == 0 {
+            break;
+        }
+        let chunk = buf.get(..n).context("Invalid slice range")?;
+        hasher.update(chunk);
+        total_read = total_read
+            .checked_add(u64::try_from(n)?)
+            .context("Stream size overflow")?;
+        ensure!(total_read <= *expected_size, "Stream grew during restoration");
+        data.extend_from_slice(chunk);
+    }
+    ensure!(
+        total_read == *expected_size && hasher.finalize() == *expected_sha256,
+        "Attached stream payload does not match its descriptor: {:?}",
+        stream.to_string_lossy()
+    );
+    Ok(data)
+}
+
 /// Constructs an [`AppleArchive`] representing the metadata, resource fork, and
 /// extended attributes attached to `entity`.
 pub fn create_apple_archive_from_entity(
@@ -113,28 +153,43 @@ pub fn create_apple_archive_from_entity(
     format: AppleFormat,
     data_fork: Option<Vec<u8>>,
 ) -> Result<AppleArchive> {
+    create_apple_archive_from_entity_with_stream_source(
+        entity,
+        format,
+        data_fork,
+        &crate::streams::FilesystemStreamSource,
+    )
+}
+
+/// Constructs an [`AppleArchive`] representing the metadata, resource fork, and
+/// extended attributes attached to `entity`, reading resident or nonresident
+/// attached stream payloads from `stream_source`.
+pub fn create_apple_archive_from_entity_with_stream_source(
+    entity: &FileEntity,
+    format: AppleFormat,
+    data_fork: Option<Vec<u8>>,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<AppleArchive> {
     let mut resource_fork = None;
     let mut extended_attributes = Vec::new();
 
     for stream in &entity.streams {
         match stream.kind {
             StreamKind::MacOsResourceFork => {
-                if let Some(ref data) = stream.data {
-                    resource_fork = Some(data.clone());
-                }
+                let data = read_stream_bytes_from_source(stream, stream_source)?;
+                resource_fork = Some(data);
             }
             StreamKind::ExtendedAttribute | StreamKind::NtfsAlternateDataStream => {
                 let name = match &stream.name {
                     Some(n) => n.to_string_lossy().into_owned(),
                     None => continue,
                 };
-                if let Some(ref data) = stream.data {
-                    extended_attributes.push(AppleExtendedAttribute {
-                        name,
-                        size: data.len(),
-                        data: data.clone(),
-                    });
-                }
+                let data = read_stream_bytes_from_source(stream, stream_source)?;
+                extended_attributes.push(AppleExtendedAttribute {
+                    name,
+                    size: data.len(),
+                    data,
+                });
             }
             _ => {}
         }
@@ -249,7 +304,24 @@ pub fn create_apple_archive_from_entity(
 
 /// Serializes an AppleDouble companion payload for `entity`.
 pub fn serialize_apple_double_for_entity(entity: &FileEntity) -> Result<Vec<u8>> {
-    let archive = create_apple_archive_from_entity(entity, AppleFormat::AppleDouble, None)?;
+    serialize_apple_double_for_entity_with_stream_source(
+        entity,
+        &crate::streams::FilesystemStreamSource,
+    )
+}
+
+/// Serializes an AppleDouble companion payload for `entity`, reading attached
+/// streams from `stream_source`.
+pub fn serialize_apple_double_for_entity_with_stream_source(
+    entity: &FileEntity,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<Vec<u8>> {
+    let archive = create_apple_archive_from_entity_with_stream_source(
+        entity,
+        AppleFormat::AppleDouble,
+        None,
+        stream_source,
+    )?;
     write_apple_single_double(&archive)
 }
 
@@ -311,6 +383,50 @@ pub fn write_apple_double_companion(
     style: AppleDoubleStyle,
     existing: crate::sandboxable_dir::ExistingEntryPolicy,
 ) -> Result<Option<PathBuf>> {
+    write_apple_double_companion_with_stream_source(
+        entity,
+        dest_path,
+        dest_dir,
+        style,
+        existing,
+        &crate::streams::FilesystemStreamSource,
+    )
+}
+
+/// Writes an AppleDouble companion file for `entity` to `dest_path` according to `style`,
+/// reading attached streams from `stream_source`.
+pub fn write_apple_double_companion_with_stream_source(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
+    style: AppleDoubleStyle,
+    existing: crate::sandboxable_dir::ExistingEntryPolicy,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<Option<PathBuf>> {
+    if apple_double_companion_path(entity, dest_path, dest_dir, style)?.is_none() {
+        return Ok(None);
+    }
+    let apple_double_bytes =
+        serialize_apple_double_for_entity_with_stream_source(entity, stream_source)?;
+    write_apple_double_companion_bytes(
+        entity,
+        dest_path,
+        dest_dir,
+        style,
+        existing,
+        &apple_double_bytes,
+    )
+}
+
+/// Writes pre-serialized AppleDouble companion bytes for `entity` to `dest_path` according to `style`.
+pub(crate) fn write_apple_double_companion_bytes(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
+    style: AppleDoubleStyle,
+    existing: crate::sandboxable_dir::ExistingEntryPolicy,
+    apple_double_bytes: &[u8],
+) -> Result<Option<PathBuf>> {
     let times = if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
         Some((
@@ -325,7 +441,6 @@ pub fn write_apple_double_companion(
     let Some(companion_path) = apple_double_companion_path(entity, dest_path, dest_dir, style)? else {
         return Ok(None);
     };
-    let apple_double_bytes = serialize_apple_double_for_entity(entity)?;
     let relative = companion_path.strip_prefix(dest_dir.root_path())
         .context("AppleDouble companion is outside the destination sandbox")?;
     let (parent, final_name) = dest_dir.ensure_parent_dir(
@@ -334,7 +449,7 @@ pub fn write_apple_double_companion(
     let temp_name = format!(".ctb-apple-double-{}", uuid());
     let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
     let result = (|| -> Result<()> {
-        std::io::Write::write_all(&mut staged, &apple_double_bytes)
+        std::io::Write::write_all(&mut staged, apple_double_bytes)
             .context("Failed to stage AppleDouble companion bytes")?;
         if let Some((atime, mtime)) = times {
             filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))

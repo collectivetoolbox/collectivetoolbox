@@ -44,10 +44,6 @@ extension does not establish valid descriptor structure.
 - [ ] Complete bounded-memory capture/projection of large attached streams
   through shared journal batching, materialization, and verification. Primary
   payload streaming alone does not establish payload-independent memory bounds.
-- [ ] Extend AppleDouble/AppleSingle conversion writers to consume nonresident
-  bodies through `AttachedStreamSource`. The earlier implementation rejected
-  these modes before mutation rather than silently omitting streams; native
-  capture, archive writing, and lazy projection already had streaming paths.
 - [ ] Add a repeatable cross-filesystem stream roundtrip: create FreeBSD/ZFS
   files with several streams larger than 512 KiB and odd, non-scalar/native,
   and normalization-distinct file/stream names; archive and retain a fixture;

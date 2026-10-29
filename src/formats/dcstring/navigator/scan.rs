@@ -425,6 +425,39 @@ impl<'a> DcDocumentNavigator<'a> {
         bail!("Unclosed textual binary encapsulation (Dc 203) starting at offset {start_offset}");
     }
 
+    fn advance_past_literal_type_header(
+        &mut self,
+        after_opener: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        if let Some((ch, next_off)) = self.read_token_or_binary_at(after_opener)? {
+            if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                return self.scan_until_token(
+                    next_off,
+                    ctb_formats_dcdata::dc::DC_END_TYPE_DEF,
+                    policy,
+                    resolver,
+                );
+            }
+            self.record_diagnostic(
+                policy,
+                policy.syntax_error,
+                after_opener,
+                format!("Literal at offset {after_opener} is missing Dc 262..263 type header"),
+            )?;
+            Ok(after_opener)
+        } else {
+            self.record_diagnostic(
+                policy,
+                policy.syntax_error,
+                after_opener,
+                format!("Unclosed literal at offset {after_opener}: missing Dc 262..263 type header"),
+            )?;
+            Ok(after_opener)
+        }
+    }
+
     pub(super) fn scan_until_token(
         &mut self,
         start: u64,
@@ -536,6 +569,9 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
         let mut offset = after_opener;
+        if opener.fills_role_with(DcRole::BeginLiteral, resolver) {
+            offset = self.advance_past_literal_type_header(offset, policy, resolver)?;
+        }
 
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             let token_start = offset;
@@ -648,6 +684,10 @@ impl<'a> DcDocumentNavigator<'a> {
                         DcChar::from_u128(inner_closer),
                         resolver.is_opaque_container(ch.to_u128()),
                     ));
+                    if ch.fills_role_with(DcRole::BeginLiteral, resolver) {
+                        offset = self.advance_past_literal_type_header(next_offset, policy, resolver)?;
+                        continue;
+                    }
                 }
             }
             offset = next_offset;
