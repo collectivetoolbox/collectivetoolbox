@@ -2886,7 +2886,8 @@ fn decode_filename_bytes(
     match &node.kind {
         DcSyntaxKind::Container { opener, children, .. }
             if ctx.token_fills_role(*opener, DcRole::EquivalentRepresentations)
-                || ctx.token_fills_role(*opener, DcRole::PartiallyEquivalentRepresentations) =>
+                || ctx.token_fills_role(*opener, DcRole::PartiallyEquivalentRepresentations)
+                || ctx.token_fills_role(*opener, DcRole::BeginList) =>
         {
             if let [single] = children.as_slice() {
                 if let DcSyntaxKind::Container {
