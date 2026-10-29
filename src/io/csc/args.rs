@@ -1174,7 +1174,7 @@ pub struct FsearchArgs {
 }
 
 /// Command-line arguments for the `mv` command.
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Default)]
 #[command(
     name = "mv",
     about = "Move files without copying when possible, or run verified cross-device copy",
@@ -1182,8 +1182,21 @@ pub struct FsearchArgs {
 )]
 pub struct MvArgs {
     /// Source path(s) followed by target destination path.
-    #[arg(value_name = "PATHS", required = true, num_args = 2..)]
+    #[arg(value_name = "PATHS", required_unless_present = "resume", num_args = 2..)]
     pub paths: Vec<PathBuf>,
+
+    /// Path to a state file (.cscjournal or .cscdesc) from which to resume an
+    /// interrupted move.
+    #[arg(long, value_name = "STATE_FILE")]
+    pub resume: Option<PathBuf>,
+
+    /// Explicit path for the state journal file (.cscjournal).
+    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    pub journal_path: Option<PathBuf>,
+
+    /// Directory in which to store state files when cross-device copy occurs.
+    #[arg(long, value_name = "DIR")]
+    pub state_dir: Option<PathBuf>,
 
     /// Enable verbose diagnostic output.
     #[arg(short, long)]

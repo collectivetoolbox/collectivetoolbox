@@ -993,7 +993,11 @@ fn finalize_copy_pipeline(
         Ok(())
     })?;
     if args.should_verify_after() && !args.dry_run {
-        journal.mark_completed()?;
+        if journal.defer_completion() {
+            journal.commit_batch()?;
+        } else {
+            journal.mark_completed()?;
+        }
     }
     Ok(())
 }
@@ -1667,7 +1671,7 @@ fn is_verified_resumed_destination_entry(
     .is_ok()
 }
 
-fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Result<PathBuf> {
+pub(crate) fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Result<PathBuf> {
     // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_dest = dest_path.strip_prefix("./").unwrap_or(dest_path);
     // Reason for fallback: path not prefixed with "./" retains original path unchanged

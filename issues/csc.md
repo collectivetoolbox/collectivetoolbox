@@ -124,9 +124,6 @@ not as a separate CSC codec task.
 
 These inbox reports also need reconciliation with current code before changes.
 
-- [ ] Add durable source inventory and per-source deletion/recovery state for
-  interrupted multi-file moves. In-memory `copied_entities` is not a durable
-  deletion transaction log.
 - [ ] Qualify default, best-effort, and full-strict modes separately. Native
   archive tests using best-effort need at least equally thorough default-mode
   counterparts. Default mode may accommodate properties literally impossible

@@ -428,6 +428,38 @@ pub struct AppliedDirectoryReceipt {
     pub identity: InodeKey,
 }
 
+/// Durable per-source lifecycle state for multi-file and cross-device move operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MoveSourceDisposition {
+    /// Intended source entry discovered before copy/move execution.
+    Pending,
+    /// Source entry was atomically renamed on the same filesystem.
+    Renamed,
+    /// Source entry was copied and verified on the destination, awaiting source deletion.
+    CopiedVerified,
+    /// Source entry was verified and deleted from the source filesystem.
+    Deleted,
+    /// Source root directory was intentionally retained (`copy_contents_only`).
+    RetainedRoot,
+}
+
+/// Durable source inventory and deletion/recovery record persisted in `.cscdesc`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveSourceRecord {
+    pub source_path: PathBuf,
+    pub destination_path: PathBuf,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub committed_relative_path: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_identity: Option<InodeKey>,
+    pub is_dir: bool,
+    #[serde(default)]
+    pub is_task_root: bool,
+    #[serde(default)]
+    pub contents_only_root: bool,
+    pub disposition: MoveSourceDisposition,
+}
+
 /// Summary of an active or completed journal recovered from disk.
 #[derive(Debug, Clone)]
 pub struct JournalSnapshot {
@@ -443,6 +475,7 @@ pub struct JournalSnapshot {
     pub errors: Vec<JournalErrorRecord>,
     pub warnings: Vec<JournalWarningRecord>,
     pub applied_directories: HashMap<PathBuf, InodeKey>,
+    pub move_sources: HashMap<PathBuf, MoveSourceRecord>,
 }
 
 impl JournalSnapshot {
@@ -500,6 +533,7 @@ pub struct StateJournal {
     destination: PathBuf,
     current_batch_id: u64,
     uncommitted_entities: Vec<FileEntity>,
+    committed_entities: HashMap<Vec<u8>, FileEntity>,
     total_committed_files: u64,
     total_committed_bytes: u64,
     noatime_used: bool,
@@ -509,6 +543,8 @@ pub struct StateJournal {
     warnings: Vec<JournalWarningRecord>,
     pending_descriptor_status: Option<String>,
     applied_directories: HashMap<PathBuf, InodeKey>,
+    move_sources: HashMap<PathBuf, MoveSourceRecord>,
+    defer_completion: bool,
 }
 
 impl StateJournal {
@@ -549,6 +585,7 @@ impl StateJournal {
             destination: destination.to_path_buf(),
             current_batch_id: 0,
             uncommitted_entities: Vec::new(),
+            committed_entities: HashMap::new(),
             total_committed_files: 0,
             total_committed_bytes: 0,
             noatime_used: false,
@@ -558,6 +595,8 @@ impl StateJournal {
             warnings: Vec::new(),
             pending_descriptor_status: None,
             applied_directories: HashMap::new(),
+            move_sources: HashMap::new(),
+            defer_completion: false,
         };
 
         jw.update_desc_file("InProgress")?;
@@ -642,6 +681,7 @@ impl StateJournal {
             destination: snapshot.destination.clone(),
             current_batch_id: snapshot.last_batch_id,
             uncommitted_entities: Vec::new(),
+            committed_entities: snapshot.committed_entities.clone(),
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
             noatime_used: snapshot.noatime_used,
@@ -651,7 +691,97 @@ impl StateJournal {
             warnings: snapshot.warnings.clone(),
             pending_descriptor_status: None,
             applied_directories: snapshot.applied_directories.clone(),
+            move_sources: snapshot.move_sources.clone(),
+            defer_completion: false,
         })
+    }
+
+    /// Configures whether `execute_copy_pipeline` should defer marking the journal
+    /// completed (e.g., until source deletion finishes in a move operation).
+    pub fn set_defer_completion(&mut self, defer: bool) {
+        self.defer_completion = defer;
+    }
+
+    /// Whether completion marking is deferred until post-copy move cleanup completes.
+    #[must_use]
+    pub const fn defer_completion(&self) -> bool {
+        self.defer_completion
+    }
+
+    /// Read-only map of all committed entities in this journal session.
+    #[must_use]
+    pub fn committed_entities(&self) -> &HashMap<Vec<u8>, FileEntity> {
+        &self.committed_entities
+    }
+
+    /// Read-only map of all durable move source inventory and disposition records.
+    #[must_use]
+    pub fn move_sources(&self) -> &HashMap<PathBuf, MoveSourceRecord> {
+        &self.move_sources
+    }
+
+    /// Inserts or updates a move source inventory record in memory.
+    pub fn record_move_source(&mut self, record: MoveSourceRecord) {
+        self.move_sources.insert(record.source_path.clone(), record);
+    }
+
+    /// Inserts or updates move source inventory records and flushes `.cscdesc` durably.
+    pub fn record_move_sources_durable(
+        &mut self,
+        records: impl IntoIterator<Item = MoveSourceRecord>,
+    ) -> Result<()> {
+        for record in records {
+            self.move_sources.insert(record.source_path.clone(), record);
+        }
+        self.persist_descriptor("InProgress".to_owned())
+    }
+
+    /// Updates the durable disposition of a move source entry and flushes `.cscdesc` durably.
+    pub fn update_move_source_disposition_durable(
+        &mut self,
+        source_path: &Path,
+        disposition: MoveSourceDisposition,
+    ) -> Result<()> {
+        let record = self.move_sources.get_mut(source_path).with_context(|| {
+            format!(
+                "Missing move source inventory record for {}",
+                source_path.display()
+            )
+        })?;
+        record.disposition = disposition;
+        self.persist_descriptor("InProgress".to_owned())
+    }
+
+    /// Looks up the committed [`FileEntity`] corresponding to a [`MoveSourceRecord`].
+    #[must_use]
+    pub fn committed_entity_for_move_source<'a>(
+        &'a self,
+        record: &MoveSourceRecord,
+    ) -> Option<&'a FileEntity> {
+        if let Some(ref rel) = record.committed_relative_path {
+            let rel_bytes = rel.as_os_str().as_encoded_bytes();
+            if let Some(entity) = self.committed_entities.get(rel_bytes) {
+                return Some(entity);
+            }
+            if let Some(mat_rel) = self.materialized_path_for(rel) {
+                if let Some(entity) = self
+                    .committed_entities
+                    .get(mat_rel.as_os_str().as_encoded_bytes())
+                {
+                    return Some(entity);
+                }
+            }
+        }
+        if let Some(ref expected_key) = record.source_identity {
+            for entity in self.committed_entities.values() {
+                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+                    if key == expected_key && entity.is_dir() == record.is_dir {
+                        return Some(entity);
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// Records an applied destination directory identity receipt for crash recovery.
@@ -708,6 +838,17 @@ impl StateJournal {
                 self.total_committed_files = self.total_committed_files.saturating_add(1);
                 self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
             }
+            let path_key = match entity.identity.path_bytes() {
+                Some(bytes) => bytes.to_vec(),
+                None => Vec::new(),
+            };
+            if let Some(source_rel) = entity.metadata.source_relative_path() {
+                let source_bytes = source_rel.as_os_str().as_encoded_bytes();
+                if source_bytes != path_key.as_slice() {
+                    self.committed_entities.remove(source_bytes);
+                }
+            }
+            self.committed_entities.insert(path_key, entity.clone());
         }
 
         self.uncommitted_entities.clear();
@@ -862,6 +1003,15 @@ impl StateJournal {
                 writeln!(desc_text, "  - {line}")?;
             }
         }
+        if !self.move_sources.is_empty() {
+            writeln!(desc_text, "MoveSources:")?;
+            let mut sorted: Vec<_> = self.move_sources.iter().collect();
+            sorted.sort_by(|a, b| a.0.cmp(b.0));
+            for (_, record) in sorted {
+                let line = serde_json::to_string(record)?;
+                writeln!(desc_text, "  - {line}")?;
+            }
+        }
 
         ctb_io::file::write_file_durable(&self.desc_path, desc_text.as_bytes())
     }
@@ -968,15 +1118,23 @@ pub fn read_journal_snapshot_with_policy(
     file.read_exact(&mut magic).context("Incomplete journal magic")?;
 
     let desc_path = journal_path.with_extension("cscdesc");
-    let (noatime_used, applied_directories) = if desc_path.exists() {
+    let (noatime_used, applied_directories, move_sources) = if desc_path.exists() {
         if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
             let noatime = desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true");
             let mut dirs = HashMap::new();
+            let mut move_srcs = HashMap::new();
             let mut in_applied = false;
+            let mut in_move_sources = false;
             for line in desc_content.lines() {
                 let trimmed = line.trim();
                 if trimmed == "AppliedDirectories:" {
                     in_applied = true;
+                    in_move_sources = false;
+                    continue;
+                }
+                if trimmed == "MoveSources:" {
+                    in_move_sources = true;
+                    in_applied = false;
                     continue;
                 }
                 if in_applied {
@@ -987,14 +1145,22 @@ pub fn read_journal_snapshot_with_policy(
                     } else if !trimmed.is_empty() && !line.starts_with("  ") {
                         in_applied = false;
                     }
+                } else if in_move_sources {
+                    if let Some(entry) = trimmed.strip_prefix("- ") {
+                        if let Ok(record) = serde_json::from_str::<MoveSourceRecord>(entry) {
+                            move_srcs.insert(record.source_path.clone(), record);
+                        }
+                    } else if !trimmed.is_empty() && !line.starts_with("  ") {
+                        in_move_sources = false;
+                    }
                 }
             }
-            (noatime, dirs)
+            (noatime, dirs, move_srcs)
         } else {
-            (false, HashMap::new())
+            (false, HashMap::new(), HashMap::new())
         }
     } else {
-        (false, HashMap::new())
+        (false, HashMap::new(), HashMap::new())
     };
 
     let mut snapshot = match &magic {
@@ -1014,6 +1180,7 @@ pub fn read_journal_snapshot_with_policy(
         }
     };
     snapshot.applied_directories = applied_directories;
+    snapshot.move_sources = move_sources;
     Ok(snapshot)
 }
 
@@ -1190,6 +1357,7 @@ pub fn read_v4_journal_snapshot(
         errors: scanned.errors,
         warnings,
         applied_directories: HashMap::new(),
+        move_sources: HashMap::new(),
     })
 }
 
@@ -2636,6 +2804,9 @@ mod tests {
         fs::write(mv_src.join("mv_test.txt"), b"move with provenance").unwrap();
         let mv_args = MvArgs {
             paths: vec![mv_src.clone(), mv_dest.clone()],
+            resume: None,
+            journal_path: None,
+            state_dir: None,
             verbose: false,
             progress: false,
             no_progress: true,
