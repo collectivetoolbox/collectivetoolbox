@@ -31,8 +31,12 @@ use the shared journal diagnostic representation in checksummed archive sections
 Completion is not a clean-capture guarantee: diagnostic archives return nonzero
 and cannot pass lossless verification or normal extraction. Source-only failures
 can roll back an uncommitted file-output member; stdout cannot roll back an
-emitted member, and sink/persistence failures always abort. Diagnostic-bearing
-archives cannot resume until durable failure-resolution semantics exist.
+emitted member, and sink/persistence failures always abort. Redirected stdout
+shares source/output identity and path-overlap checks with file output before
+emitting any archive bytes, but note that shell output redirection (`>`) truncates
+an existing target file before the program starts and cannot be undone by `ctb`.
+Diagnostic-bearing archives cannot resume until durable failure-resolution
+semantics exist.
 
 Large-stream memory bounds, durable inventory/recovery, replacement policies,
 and platform/security coverage still have gaps. Do not treat checksums as

@@ -374,6 +374,176 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
     }
 }
 
+/// Queries the unique file identity ([`InodeKey`]) of an open [`std::fs::File`] handle.
+#[cfg_attr(
+    windows,
+    expect(
+        unsafe_code,
+        reason = "Native identity query writes into initialized information for a live File handle"
+    )
+)]
+pub fn query_open_file_identity(file: &std::fs::File) -> Result<InodeKey> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = file
+            .metadata()
+            .context("Failed to read metadata for open file handle")?;
+        Ok(InodeKey {
+            device_id: meta.dev(),
+            inode: Natural::from(meta.ino()),
+        })
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, FILE_ID_INFO, FileIdInfo,
+            GetFileInformationByHandle, GetFileInformationByHandleEx,
+        };
+
+        let raw_handle = file.as_raw_handle();
+
+        // 1. Try FileIdInfo (Windows 8 / Server 2012+ / ReFS / modern NTFS) for 128-bit File ID
+        let mut id_info = std::mem::MaybeUninit::<FILE_ID_INFO>::uninit();
+        let size = u32::try_from(std::mem::size_of::<FILE_ID_INFO>())?;
+        // SAFETY: raw_handle is borrowed from a live File, and id_info points to a writable buffer of size bytes matching FILE_ID_INFO.
+        if unsafe {
+            GetFileInformationByHandleEx(
+                raw_handle,
+                FileIdInfo,
+                id_info.as_mut_ptr().cast(),
+                size,
+            )
+        } != 0
+        {
+            // SAFETY: GetFileInformationByHandleEx succeeded, initializing id_info with FILE_ID_INFO.
+            let id_info = unsafe { id_info.assume_init() };
+            let file_id_128 = u128::from_le_bytes(id_info.FileId.Identifier);
+            if file_id_128 != 0 {
+                return Ok(InodeKey::from_file_id_128(
+                    id_info.VolumeSerialNumber,
+                    file_id_128,
+                ));
+            }
+        }
+
+        // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle
+        let mut information = BY_HANDLE_FILE_INFORMATION::default();
+        // SAFETY: raw_handle is borrowed from a live File, and information is a valid, writable BY_HANDLE_FILE_INFORMATION struct.
+        if unsafe { GetFileInformationByHandle(raw_handle, &raw mut information) } == 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("Native open-handle file identity is unsupported or unavailable");
+        }
+        anyhow::ensure!(
+            information.nFileIndexHigh != 0 || information.nFileIndexLow != 0,
+            "Native open-handle file identity is unsupported: filesystem returned no file index"
+        );
+        let volume = u64::from(information.dwVolumeSerialNumber);
+        let file_index =
+            (u128::from(information.nFileIndexHigh) << 32) | u128::from(information.nFileIndexLow);
+        Ok(InodeKey::from_file_id_128(volume, file_index))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = file;
+        anyhow::bail!("query_open_file_identity is not supported on this platform");
+    }
+}
+
+/// Queries the unique file identity ([`InodeKey`]) of an open [`std::fs::File`] handle when it
+/// refers to a filesystem object, returning `Ok(None)` for non-disk handles (such as pipes or
+/// console streams on Windows).
+#[cfg_attr(
+    windows,
+    expect(
+        unsafe_code,
+        reason = "GetFileType queries the handle classification of a live File handle"
+    )
+)]
+pub fn try_query_open_file_identity(file: &std::fs::File) -> Result<Option<InodeKey>> {
+    #[cfg(unix)]
+    {
+        query_open_file_identity(file).map(Some)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{FILE_TYPE_DISK, GetFileType};
+
+        let raw_handle = file.as_raw_handle();
+        // SAFETY: raw_handle is borrowed from a live File.
+        if unsafe { GetFileType(raw_handle) } != FILE_TYPE_DISK {
+            return Ok(None);
+        }
+        query_open_file_identity(file).map(Some)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = file;
+        Ok(None)
+    }
+}
+
+/// Attempts to resolve an open [`std::fs::File`] handle back to its filesystem path if supported
+/// by the operating system and backed by an existing path on disk.
+#[must_use]
+#[cfg_attr(
+    windows,
+    expect(
+        unsafe_code,
+        reason = "GetFinalPathNameByHandleW writes a NUL-terminated UTF-16 path into a caller-allocated buffer"
+    )
+)]
+pub fn try_query_open_file_path(file: &std::fs::File) -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::fd::AsRawFd;
+        let link = std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd())).ok()?;
+        if link.is_absolute() && link.exists() {
+            Some(link)
+        } else {
+            None
+        }
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStringExt;
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_NAME_NORMALIZED, FILE_TYPE_DISK, GetFileType, GetFinalPathNameByHandleW,
+        };
+
+        let raw_handle = file.as_raw_handle();
+        // SAFETY: raw_handle is borrowed from a live File.
+        if unsafe { GetFileType(raw_handle) } != FILE_TYPE_DISK {
+            return None;
+        }
+        let mut buf = vec![0_u16; 1024];
+        // SAFETY: raw_handle is valid and buf is a writable UTF-16 slice of length buf.len().
+        let len = unsafe {
+            GetFinalPathNameByHandleW(
+                raw_handle,
+                buf.as_mut_ptr(),
+                u32::try_from(buf.len()).ok()?,
+                FILE_NAME_NORMALIZED,
+            )
+        };
+        let len_usize = usize::try_from(len).ok()?;
+        if len_usize == 0 || len_usize >= buf.len() {
+            return None;
+        }
+        let slice = buf.get(..len_usize)?;
+        let path = PathBuf::from(std::ffi::OsString::from_wide(slice));
+        if path.exists() { Some(path) } else { None }
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = file;
+        None
+    }
+}
+
 /// Extracts or queries the [`InodeKey`] identity for a path and its metadata.
 ///
 /// On Unix, extracts `st_dev` and `st_ino` directly from `meta`.

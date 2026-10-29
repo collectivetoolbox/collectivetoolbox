@@ -165,9 +165,6 @@ These inbox reports also need reconciliation with current code before changes.
   contract. Test recoverable committed members from incomplete/errored input,
   explicit loss reporting, and non-success partial status; do not silently
   present salvage as a complete archive.
-- [ ] Test redirected stdout source/output identity overlap before emitting
-  bytes, sharing file-output checks. Document that shell-side truncation occurs
-  before the program can intervene and cannot be undone.
 - [ ] Refresh generated CLI references/help and run a fresh executable smoke
   test after the shared-journal and overwrite changes, including stdout create,
   source removal, list/verify/extract, refusal of existing destinations without

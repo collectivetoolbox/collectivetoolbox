@@ -310,8 +310,7 @@ impl SandboxableDir {
                 .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
             let handle = owned.get(normalized.as_os_str())
                 .with_context(|| format!("Directory was not created by this sandbox instance: {}", relative.display()))?;
-            let (volume, file_id) = windows_directory_identity(handle)?;
-            Ok(crate::identity::InodeKey::new(volume, file_id))
+            windows_directory_identity(handle)
         }
         #[cfg(not(any(unix, windows)))]
         {
@@ -392,15 +391,15 @@ impl SandboxableDir {
                     _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
                 }
             }
-            let (volume, actual_file_index) = windows_directory_identity(&current)?;
+            let actual_identity = windows_directory_identity(&current)?;
             anyhow::ensure!(
-                volume == expected_identity.device_id && malachite::Natural::from(actual_file_index) == expected_identity.inode,
+                &actual_identity == expected_identity,
                 "Directory identity mismatch for {}: expected volume={}, file_index={}, got volume={}, file_index={}",
                 relative.display(),
                 expected_identity.device_id,
                 expected_identity.inode,
-                volume,
-                actual_file_index,
+                actual_identity.device_id,
+                actual_identity.inode,
             );
             self.owned_directories.lock()
                 .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
@@ -1161,50 +1160,8 @@ fn open_windows_directory(path: &Path) -> Result<std::fs::File> {
 }
 
 #[cfg(windows)]
-#[expect(unsafe_code, reason = "Native identity query writes into initialized information for a live retained handle")]
-fn windows_directory_identity(handle: &std::fs::File) -> Result<(u64, u128)> {
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Storage::FileSystem::{
-        BY_HANDLE_FILE_INFORMATION, FileIdInfo, GetFileInformationByHandle,
-        GetFileInformationByHandleEx, FILE_ID_INFO,
-    };
-
-    let raw_handle = handle.as_raw_handle();
-
-    // 1. Try FileIdInfo (Windows 8 / Server 2012+ / ReFS / modern NTFS) for 128-bit File ID
-    let mut id_info = std::mem::MaybeUninit::<FILE_ID_INFO>::uninit();
-    let size = u32::try_from(std::mem::size_of::<FILE_ID_INFO>())?;
-    // SAFETY: raw_handle is borrowed from a live File, and id_info points to a writable buffer of size bytes matching FILE_ID_INFO.
-    if unsafe {
-        GetFileInformationByHandleEx(
-            raw_handle,
-            FileIdInfo,
-            id_info.as_mut_ptr().cast(),
-            size,
-        )
-    } != 0 {
-        // SAFETY: GetFileInformationByHandleEx succeeded, initializing id_info with FILE_ID_INFO.
-        let id_info = unsafe { id_info.assume_init() };
-        let file_id_128 = u128::from_le_bytes(id_info.FileId.Identifier);
-        if file_id_128 != 0 {
-            return Ok((id_info.VolumeSerialNumber, file_id_128));
-        }
-    }
-
-    // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle
-    let mut information = BY_HANDLE_FILE_INFORMATION::default();
-    // SAFETY: raw_handle is borrowed from a live File, and information is a valid, writable BY_HANDLE_FILE_INFORMATION struct.
-    if unsafe { GetFileInformationByHandle(raw_handle, &raw mut information) } == 0 {
-        return Err(std::io::Error::last_os_error())
-            .context("Native directory identity is unsupported or unavailable");
-    }
-    anyhow::ensure!(
-        information.nFileIndexHigh != 0 || information.nFileIndexLow != 0,
-        "Native directory identity is unsupported: filesystem returned no file index"
-    );
-    let volume = u64::from(information.dwVolumeSerialNumber);
-    let file_index = (u128::from(information.nFileIndexHigh) << 32) | u128::from(information.nFileIndexLow);
-    Ok((volume, file_index))
+fn windows_directory_identity(handle: &std::fs::File) -> Result<crate::identity::InodeKey> {
+    crate::identity::query_open_file_identity(handle)
 }
 
 #[cfg(unix)]

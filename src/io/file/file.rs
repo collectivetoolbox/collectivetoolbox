@@ -265,8 +265,9 @@ pub use filesystem::{
 };
 pub use identity::{
     FileIdentity, FileOrigin, InodeKey, extract_device_id_for_path as extract_identity_device_id,
-    extract_file_identity, query_file_identity, resolve_relative_path_for_materialization,
-    resolve_relative_path_for_os,
+    extract_file_identity, query_file_identity, query_open_file_identity,
+    resolve_relative_path_for_materialization, resolve_relative_path_for_os,
+    try_query_open_file_identity, try_query_open_file_path,
 };
 pub use ctb_formats_dcstring::{Integer, Natural};
 pub use materializer::{

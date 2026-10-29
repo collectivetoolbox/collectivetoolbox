@@ -48,6 +48,10 @@ pub struct ArchiveArgs {
 #[derive(Debug, Clone, Subcommand)]
 pub enum ArchiveCommand {
     /// Create a self-contained uncompressed CSC archive.
+    ///
+    /// When writing to `-` (stdout) with shell redirection (for example,
+    /// `> archive.cscarchive`), the shell truncates an existing target file
+    /// before `ctb` starts; that truncation cannot be undone by the program.
     Create {
         /// Archive output path, or - for binary stdout.
         archive: PathBuf,
@@ -107,6 +111,13 @@ pub enum ArchiveCommand {
 }
 
 pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
+    run_archive_with_stdout(args, None)
+}
+
+pub(crate) fn run_archive_with_stdout(
+    args: &ArchiveArgs,
+    stdout_override: Option<File>,
+) -> Result<ToolResult> {
     match &args.command {
         ArchiveCommand::Create { archive, sources, resume, continue_on_error, journal } => {
             let _scope = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
@@ -118,16 +129,46 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                     stdout: Vec::new(), stderr: b"Archive resumed and completed.\n".to_vec(), exit_code: 0,
                 });
             }
+            let stdout_handle = if archive == Path::new("-") {
+                if let Some(ref file) = stdout_override {
+                    Some(file.try_clone()?)
+                } else {
+                    clone_stdout_file()?
+                }
+            } else {
+                None
+            };
+            if let Some(ref output) = stdout_handle {
+                validate_output_identity(output, sources, &[])?;
+            }
             let plan = plan_sources(sources, archive)?;
             let (error_count, warning_count, completed) = if archive == Path::new("-") {
-                #[cfg(unix)]
-                {
-                    use std::os::fd::AsFd;
-                    let output = File::from(std::io::stdout().as_fd().try_clone_to_owned()?);
-                    validate_output_identity(&output, &plan.members)?;
+                if let Some(ref output) = stdout_handle {
+                    validate_output_identity(output, sources, &plan.members)?;
                 }
-                let outcome = create_archive(std::io::stdout().lock(), sources, archive, &plan, *continue_on_error, None, *journal)?;
-                (outcome.error_count, outcome.warning_count, outcome.completed)
+                if let Some(file) = stdout_override {
+                    let outcome = create_archive(
+                        ForwardFileOutput(file),
+                        sources,
+                        archive,
+                        &plan,
+                        *continue_on_error,
+                        None,
+                        *journal,
+                    )?;
+                    (outcome.error_count, outcome.warning_count, outcome.completed)
+                } else {
+                    let outcome = create_archive(
+                        std::io::stdout().lock(),
+                        sources,
+                        archive,
+                        &plan,
+                        *continue_on_error,
+                        None,
+                        *journal,
+                    )?;
+                    (outcome.error_count, outcome.warning_count, outcome.completed)
+                }
             } else {
                 let mut options = OpenOptions::new();
                 options.write(true).create_new(true);
@@ -137,6 +178,11 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                     options.mode(0o600);
                 }
                 let file = options.open(archive).with_context(|| format!("Cannot create {}", archive.display()))?;
+                if let Err(error) = validate_output_identity(&file, sources, &plan.members) {
+                    drop(file);
+                    let _ = std::fs::remove_file(archive);
+                    return Err(error);
+                }
                 let outcome = create_archive(FileArchiveOutput::new(file), sources, archive, &plan, *continue_on_error, None, *journal)?;
                 (outcome.error_count, outcome.warning_count, outcome.completed)
             };
@@ -289,19 +335,31 @@ fn archive_apple_read_options() -> AppleReadOptions {
     }
 }
 
+fn validate_output_path_overlap(output_path: &Path, sources: &[PathBuf]) -> Result<()> {
+    let output = resolve_existing_ancestors(output_path)?;
+    let working_directory = std::env::current_dir()?;
+    for source in sources {
+        let absolute = working_directory.join(source);
+        let resolved = resolve_existing_ancestors(&absolute)?;
+        ensure!(
+            output != resolved && !output.starts_with(&resolved),
+            "Archive output overlaps a source: {}",
+            source.display()
+        );
+    }
+    Ok(())
+}
+
 fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
     ensure!(!sources.is_empty(), "At least one source is required");
-    let output = if archive == Path::new("-") { None } else { Some(resolve_existing_ancestors(archive)?) };
+    if archive != Path::new("-") {
+        validate_output_path_overlap(archive, sources)?;
+    }
     let working_directory = std::env::current_dir()?;
     let mut plan = SourcePlan::default();
     let mut names = HashSet::new();
     for source in sources {
         let absolute = working_directory.join(source);
-        if let Some(output) = &output {
-            let resolved = resolve_existing_ancestors(&absolute)?;
-            ensure!(*output != resolved && !output.starts_with(&resolved),
-                "Archive output overlaps a source: {}", source.display());
-        }
         let metadata = match std::fs::symlink_metadata(&absolute) {
             Ok(metadata) => metadata,
             Err(error) => {
@@ -378,21 +436,86 @@ fn normalized_member(path: &Path) -> Result<PathBuf> {
     Ok(normalized)
 }
 
-fn validate_output_identity(output: &File, plan: &[SourceMember]) -> Result<()> {
+fn clone_stdout_file() -> Result<Option<File>> {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::MetadataExt;
-        let output_metadata = output.metadata()?;
-        for member in plan {
-            let source_metadata = std::fs::symlink_metadata(&member.source)?;
-            ensure!(source_metadata.dev() != output_metadata.dev() || source_metadata.ino() != output_metadata.ino(),
-                "Archive output is included in the source tree: {}", member.source.display());
+        use std::os::fd::AsFd;
+        Ok(Some(File::from(
+            std::io::stdout().as_fd().try_clone_to_owned()?,
+        )))
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsHandle;
+        Ok(Some(File::from(
+            std::io::stdout().as_handle().try_clone_to_owned()?,
+        )))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        Ok(None)
+    }
+}
+
+fn ensure_path_not_same_output(path: &Path, output_key: &ctb_io::file::InodeKey) -> Result<()> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    let source_key = ctb_io::file::extract_file_identity(path, &metadata)?;
+    ensure!(
+        &source_key != output_key,
+        "Archive output is included in the source tree: {}",
+        path.display()
+    );
+    if metadata.file_type().is_symlink() {
+        if let Ok(resolved_target) = std::fs::canonicalize(path) {
+            if let Ok(target_key) = ctb_io::file::query_file_identity(&resolved_target) {
+                ensure!(
+                    &target_key != output_key,
+                    "Archive output is included in the source tree: {}",
+                    path.display()
+                );
+            }
         }
     }
-    #[cfg(not(unix))]
-    { let _ = (output, plan); }
     Ok(())
 }
+
+fn validate_output_identity(
+    output: &File,
+    sources: &[PathBuf],
+    plan: &[SourceMember],
+) -> Result<()> {
+    if let Some(output_path) = ctb_io::file::try_query_open_file_path(output) {
+        validate_output_path_overlap(&output_path, sources)?;
+    }
+    if let Some(output_key) = ctb_io::file::try_query_open_file_identity(output)? {
+        let working_directory = std::env::current_dir()?;
+        for source in sources {
+            let absolute = working_directory.join(source);
+            ensure_path_not_same_output(&absolute, &output_key)?;
+        }
+        for member in plan {
+            ensure_path_not_same_output(&member.source, &output_key)?;
+        }
+    }
+    Ok(())
+}
+
+struct ForwardFileOutput(File);
+
+impl Write for ForwardFileOutput {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.write(bytes)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
+}
+
+impl ArchiveOutput for ForwardFileOutput {}
 
 trait ArchiveOutput: Write {
     fn checkpoint(&mut self) -> Result<Option<u64>> { Ok(None) }
@@ -1280,6 +1403,8 @@ mod tests {
         let temporary = tempfile::tempdir()?;
         let source = temporary.path().join("source");
         std::fs::create_dir(&source)?;
+        let source_file = source.join("data.txt");
+        std::fs::write(&source_file, b"important source payload")?;
         for sources in [vec![source.clone()], vec![source.clone(), source.clone()]] {
             let archive = if sources.len() == 1 { source.join("overlap.cscarchive") }
                 else { temporary.path().join("duplicate.cscarchive") };
@@ -1288,6 +1413,101 @@ mod tests {
             } }).is_err());
             ensure!(!archive.exists());
         }
+
+        // Redirected stdout (`-`) overlapping source file, file inside source directory,
+        // hardlink to source file, or symlink source pointing to redirected output must fail
+        // before emitting a single archive byte.
+        let nested_dir = source.join("nested");
+        std::fs::create_dir(&nested_dir)?;
+        let nested_out = nested_dir.join("redirected.cscarchive");
+        std::fs::write(&nested_out, b"")?;
+
+        let hardlink_out = temporary.path().join("hardlink_out.cscarchive");
+        std::fs::hard_link(&source_file, &hardlink_out)?;
+
+        let symlink_target_out = temporary.path().join("symlink_target_out.cscarchive");
+        std::fs::write(&symlink_target_out, b"untouched output")?;
+        let symlink_source = temporary.path().join("symlink_source");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&symlink_target_out, &symlink_source)?;
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&symlink_target_out, &symlink_source)?;
+
+        for continue_on_error in [false, true] {
+            // 1. Redirected stdout is the source file itself (opened without truncation here to
+            //    verify zero bytes are written by ctb; note shell `>` truncates before exec).
+            let out_handle = OpenOptions::new().write(true).open(&source_file)?;
+            ensure!(run_archive_with_stdout(&ArchiveArgs {
+                command: ArchiveCommand::Create {
+                    archive: PathBuf::from("-"),
+                    sources: vec![source_file.clone()],
+                    resume: false,
+                    continue_on_error,
+                    journal: false,
+                },
+            }, Some(out_handle)).is_err());
+            ensure!(std::fs::read(&source_file)? == b"important source payload");
+
+            // 2. Redirected stdout is inside a source directory.
+            let out_handle = OpenOptions::new().write(true).open(&nested_out)?;
+            ensure!(run_archive_with_stdout(&ArchiveArgs {
+                command: ArchiveCommand::Create {
+                    archive: PathBuf::from("-"),
+                    sources: vec![source.clone()],
+                    resume: false,
+                    continue_on_error,
+                    journal: false,
+                },
+            }, Some(out_handle)).is_err());
+            ensure!(std::fs::read(&nested_out)?.is_empty());
+
+            // 3. Redirected stdout is a hardlink to a source file.
+            let out_handle = OpenOptions::new().write(true).open(&hardlink_out)?;
+            ensure!(run_archive_with_stdout(&ArchiveArgs {
+                command: ArchiveCommand::Create {
+                    archive: PathBuf::from("-"),
+                    sources: vec![source_file.clone()],
+                    resume: false,
+                    continue_on_error,
+                    journal: false,
+                },
+            }, Some(out_handle)).is_err());
+            ensure!(std::fs::read(&source_file)? == b"important source payload");
+
+            // 4. Source is a symlink pointing to the redirected stdout file.
+            #[cfg(any(unix, windows))]
+            {
+                let out_handle = OpenOptions::new().write(true).open(&symlink_target_out)?;
+                ensure!(run_archive_with_stdout(&ArchiveArgs {
+                    command: ArchiveCommand::Create {
+                        archive: PathBuf::from("-"),
+                        sources: vec![symlink_source.clone()],
+                        resume: false,
+                        continue_on_error,
+                        journal: false,
+                    },
+                }, Some(out_handle)).is_err());
+                ensure!(std::fs::read(&symlink_target_out)? == b"untouched output");
+            }
+        }
+
+        // Valid redirected stdout to an external file succeeds and produces a verifiable archive.
+        let valid_stdout_archive = temporary.path().join("valid_stdout.cscarchive");
+        let valid_handle = File::create(&valid_stdout_archive)?;
+        let res = run_archive_with_stdout(&ArchiveArgs {
+            command: ArchiveCommand::Create {
+                archive: PathBuf::from("-"),
+                sources: vec![source_file.clone()],
+                resume: false,
+                continue_on_error: false,
+                journal: false,
+            },
+        }, Some(valid_handle))?;
+        ensure!(matches!(res, ToolResult::Immediate { exit_code: 0, .. }));
+        let reader = JournalReader::new(File::open(&valid_stdout_archive)?)?;
+        reader.verify_self_contained()?;
+        ensure!(reader.members.len() == 1);
+
         Ok(())
     }
 
