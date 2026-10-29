@@ -1035,55 +1035,6 @@ impl<'a> DcDocumentNavigator<'a> {
                             header_info: DcFrameHeaderInfo::None,
                         }));
                     }
-                    if resolver.is_representation_set(first_dc.to_u128())
-                        && after_first < self.active_span.end {
-                        if let Some((tok, _)) = self.read_token_or_binary_at(after_first)? {
-                            if tok.fills_role_with(DcRole::BeginList, resolver) {
-                                self.cursor = after_first;
-                                if let Some(arg_stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
-                                    return Ok(Some(DcFrameStub {
-                                        head_dc: first_dc,
-                                        closer_dc: None,
-                                        outer_span: DcByteSpan::new(start_offset, arg_stub.outer_span.end),
-                                        inner_span: Some(DcByteSpan::new(after_first, arg_stub.outer_span.end)),
-                                        header_info: DcFrameHeaderInfo::None,
-                                    }));
-                                }
-                            }
-                        }
-                    }
-                    if first_dc.fills_role_with(DcRole::OptionalPresent, resolver) && after_first < self.active_span.end {
-                        let mut probe = after_first;
-                        let mut depth = 0usize;
-                        while probe < self.active_span.end && depth < policy.max_depth {
-                            let Some((tok, next_off)) = self.read_token_or_binary_at(probe)? else {
-                                break;
-                            };
-                            if tok.fills_role_with(DcRole::OptionalPresent, resolver) {
-                                probe = next_off;
-                                depth = depth.saturating_add(1);
-                            } else {
-                                break;
-                            }
-                        }
-                        if let Some((tok, _)) = self.read_token_or_binary_at(probe)? {
-                            if resolver.closing_opener_for(tok.to_u128()).is_none() {
-                                self.cursor = probe;
-                                if let Some(arg_stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
-                                    let last_end = arg_stub.outer_span.end;
-                                    self.cursor = last_end;
-                                    return Ok(Some(DcFrameStub {
-                                        head_dc: first_dc,
-                                        closer_dc: None,
-                                        outer_span: DcByteSpan::new(start_offset, last_end),
-                                        inner_span: (last_end > after_first)
-                                            .then(|| DcByteSpan::new(after_first, last_end)),
-                                        header_info: DcFrameHeaderInfo::None,
-                                    }));
-                                }
-                            }
-                        }
-                    }
                     self.syntax_issue(
                         policy,
                         start_offset,

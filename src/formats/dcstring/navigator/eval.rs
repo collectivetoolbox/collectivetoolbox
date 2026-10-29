@@ -984,6 +984,20 @@ impl<'a> DcDocumentNavigator<'a> {
                                 }
                             }
                         }
+                        if !matched && lookup_name == "value" && subtype.is_none() {
+                            if let Some(target) = CharTarget::from_u128(first)
+                                && ctx.resolver.closer_for_opener(&target).is_some()
+                                && !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver)
+                            {
+                                let rule_term = SyntaxTerm::RuleRef { target };
+                                matched = self.eval_term_single(&rule_term, ctx)?;
+                            } else if first_dc.fills_role_with(DcRole::DomainValueAtom, ctx.resolver)
+                                || first_dc.fills_role_with(DcRole::PrimitiveValueAtom, ctx.resolver)
+                            {
+                                let _ = self.pop_next_token()?;
+                                matched = true;
+                            }
+                        }
                         if !matched {
                             self.restore_checkpoint(term_checkpoint.clone());
                         }
