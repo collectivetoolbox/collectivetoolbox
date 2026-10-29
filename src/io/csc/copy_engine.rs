@@ -646,6 +646,7 @@ pub fn execute_copy_pipeline(
             continue;
         }
         let dest_dir = &symlink_item.sandbox;
+        // Reason for fallback: entity at root of destination sandbox has no explicit relative path, defaulting to empty path
         let symlink_rel = entity.identity.relative_path.clone().unwrap_or_default();
         if is_verified_resumed_destination_entry(
             &symlink_rel,
@@ -697,6 +698,7 @@ pub fn execute_copy_pipeline(
                     orig_rel
                 };
                 let mat_rel = if actual_rel.as_os_str().is_empty() {
+                    // Reason for fallback: single-file copy uses destination filename when relative path is empty, falling back to empty path if no filename
                     actual_dest_path.file_name().map_or(actual_rel.clone(), PathBuf::from)
                 } else {
                     actual_rel.clone()

@@ -840,6 +840,7 @@ pub fn audit_entity_detailed(
         let mut expected_map = HashMap::new();
         let base_len = path
             .file_name()
+            // Reason for fallback: path lacking a file name component has zero base name length
             .map_or(0, |f| f.as_encoded_bytes().len());
         let max_suffix_bytes = crate::clean_name::MAX_FILENAME_BYTES
             .saturating_sub(base_len.saturating_add(1))

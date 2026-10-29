@@ -74,6 +74,7 @@ static ALL_EITE_ROWS: LazyLock<Vec<Vec<String>>> = LazyLock::new(|| {
             } else {
                 defn.name.clone()
             };
+            // Reason for fallback: absent casing partner formats as empty column in EITE table
             let casing = defn
                 .casing_partner
                 .map_or_else(String::new, |c| c.to_string());

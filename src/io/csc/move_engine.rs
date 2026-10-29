@@ -376,6 +376,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
         }
 
         let norm_task_src = normalize_move_source_path(&task.source_root);
+        // Reason for fallback: move execution without an active state journal has no recorded source move records
         let existing_task_records: Vec<MoveSourceRecord> = journal
             .as_ref()
             .map(|jw| {
@@ -710,6 +711,7 @@ pub(crate) fn remove_copied_sources(
 ) -> Result<()> {
     let temp_dir = tempfile::tempdir()
         .context("Failed to create temporary directory for move source deletion journal")?;
+    // Reason for fallback: when entries slice is empty, destination root for temporary move journal defaults to current directory
     let dest_root = entries
         .iter()
         .find(|(src, _, _)| normalize_move_source_path(src) == normalize_move_source_path(source_root))

@@ -499,6 +499,7 @@ pub fn materialize_entity_with_stream_source(
                 .streams
                 .iter()
                 .map(|s| {
+                    // Reason for fallback: unnamed stream (e.g. Mac resource fork) reserves 7 bytes for companion suffix
                     s.name
                         .as_ref()
                         .map_or(7, |n| n.as_bytes().len().clamp(8, 64))

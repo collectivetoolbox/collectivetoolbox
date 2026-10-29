@@ -146,10 +146,42 @@ Arguments:
   [SOURCES]...  
 
 Options:
-      --resume             Resume an interrupted file-output archive using its recorded sources
-      --continue-on-error  Retain source failures, continue capture, and report nonzero status
-      --journal            Write as journal format (different magic bytes, omits stream or file bodies)
-  -h, --help               Print help
+      --resume
+          Resume an interrupted file-output archive using its recorded sources
+      --continue-on-error
+          Retain source failures, continue capture, and report nonzero status
+      --journal
+          Write as journal format (different magic bytes, omits stream or file bodies)
+      --full-provenance
+          Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
+      --on-source-change <ON_SOURCE_CHANGE>
+          Behavior when a source file is modified during capture [default: error] [possible values: error, best-effort]
+  -x, --one-file-system
+          Stay on the current filesystem and do not cross mount boundaries
+      --read-apple-double [<STYLE>]
+          Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --read-apple-double-alongside
+          Read alongside (._<filename>) AppleDouble companion files
+      --no-read-apple-double-alongside
+          Disable reading alongside (._<filename>) AppleDouble companion files
+      --read-apple-double-zip
+          Read __MACOSX/ directory AppleDouble companion files
+      --read-apple-double-netatalk
+          Read Netatalk .AppleDouble companion files
+      --read-apple-single
+          Read AppleSingle files and decode data fork, resource fork, and Apple metadata
+      --read-apple-single-without-extension
+          Read bare AppleSingle files without extension (alias for --read-apple-single)
+      --no-read-apple-single
+          Disable reading bare AppleSingle files without extension
+      --read-apple-single-with-extension <EXT>
+          Read AppleSingle files with the specified extension ('as' or 'asf'), automatically stripping the extension upon successful decode [possible values: without-extension, as, asf]
+      --read-windows-ads
+          Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --no-read-windows-ads
+          Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+  -h, --help
+          Print help (see more with '--help')
 ```
 
 ### `ctoolbox archive extract`
@@ -164,16 +196,42 @@ Arguments:
   <DESTINATION>  
 
 Options:
-      --overwrite                  Replace existing regular files atomically; merge existing directories
-      --trust-symlink-targets      Preserve link targets verbatim, including targets outside destination
-      --best-effort-metadata       Report filesystem metadata losses instead of requiring exact restoration
-      --strict                     Require every timestamp check, including hard platform limits
-      --check-atime                Verify restored access times
-      --check-ctime                Verify change times even where the platform cannot restore them
-      --check-birthtime            Verify birth times even where the platform cannot restore them
-      --copy-specials-as-specials  Permit restoration of FIFOs and device nodes as special files
-      --recover                    Extract committed members from incomplete archives or archives containing capture errors
-  -h, --help                       Print help
+      --overwrite
+          Replace existing regular files atomically; merge existing directories
+      --trust-symlink-targets
+          Preserve link targets verbatim, including targets outside destination
+      --best-effort-metadata
+          Report filesystem metadata losses instead of requiring exact restoration
+      --strict
+          Require every timestamp check, including hard platform limits
+      --check-atime
+          Verify restored access times
+      --check-ctime
+          Verify change times even where the platform cannot restore them
+      --check-birthtime
+          Verify birth times even where the platform cannot restore them
+      --copy-specials-as-specials
+          Permit restoration of FIFOs and device nodes as special files
+      --recover
+          Extract committed members from incomplete archives or archives containing capture errors
+      --maybe-write-apple-double [<STYLE>]
+          Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --force-write-apple-double [<STYLE>]
+          Force writing AppleDouble companion files even if native streams are supported. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --maybe-write-apple-single
+          Write AppleSingle archive files if native filesystem streams or Apple metadata cannot be preserved
+      --force-write-apple-single
+          Force writing destination files as AppleSingle archives
+      --write-apple-single-with-extension <EXT>
+          Write AppleSingle archive files with specified extension: 'as' or 'asf' [possible values: without-extension, as, asf]
+      --write-apple-single-without-extension
+          Write AppleSingle archive files without extension (default)
+      --maybe-write-windows-ads
+          Write alongside `<filename>:<stream_name>` Windows alternate data stream companion files if native streams cannot be preserved
+      --force-write-windows-ads
+          Force writing attached streams as alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+  -h, --help
+          Print help (see more with '--help')
 ```
 
 ### `ctoolbox archive list`
@@ -390,13 +448,13 @@ Supported compression formats:
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
-  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
-  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
   rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   lz4: LZ4
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
   szip: szip (Michael Schindler)
   szip111, szip-1.11: szip (Michael Schindler) version 1.11+
 ```
@@ -489,7 +547,7 @@ Options:
       --read-apple-double [<STYLE>]
           Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
       --read-apple-double-alongside
-          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+          Read alongside (._<filename>) AppleDouble companion files
       --no-read-apple-double-alongside
           Disable reading alongside (._<filename>) AppleDouble companion files
       --read-apple-double-zip
@@ -516,6 +574,14 @@ Options:
           Write AppleSingle archive files with specified extension: 'as' or 'asf' [possible values: without-extension, as, asf]
       --write-apple-single-without-extension
           Write AppleSingle archive files without extension (default)
+      --read-windows-ads
+          Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --no-read-windows-ads
+          Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --maybe-write-windows-ads
+          Write alongside `<filename>:<stream_name>` Windows alternate data stream companion files if native streams cannot be preserved
+      --force-write-windows-ads
+          Force writing attached streams as alongside `<filename>:<stream_name>` Windows alternate data stream companion files
       --full-provenance
           Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
       --continue-on-error
@@ -588,7 +654,7 @@ Options:
       --read-apple-double [<STYLE>]
           Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
       --read-apple-double-alongside
-          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+          Read alongside (._<filename>) AppleDouble companion files
       --no-read-apple-double-alongside
           Disable reading alongside (._<filename>) AppleDouble companion files
       --read-apple-double-zip
@@ -615,6 +681,14 @@ Options:
           Write AppleSingle archive files with specified extension: 'as' or 'asf' [possible values: without-extension, as, asf]
       --write-apple-single-without-extension
           Write AppleSingle archive files without extension (default)
+      --read-windows-ads
+          Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --no-read-windows-ads
+          Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --maybe-write-windows-ads
+          Write alongside `<filename>:<stream_name>` Windows alternate data stream companion files if native streams cannot be preserved
+      --force-write-windows-ads
+          Force writing attached streams as alongside `<filename>:<stream_name>` Windows alternate data stream companion files
       --full-provenance
           Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
       --continue-on-error
@@ -678,7 +752,7 @@ Options:
       --read-apple-double [<STYLE>]
           Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
       --read-apple-double-alongside
-          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+          Read alongside (._<filename>) AppleDouble companion files
       --no-read-apple-double-alongside
           Disable reading alongside (._<filename>) AppleDouble companion files
       --read-apple-double-zip
@@ -693,6 +767,10 @@ Options:
           Disable reading bare AppleSingle files without extension
       --read-apple-single-with-extension <EXT>
           Read AppleSingle files with the specified extension ('as' or 'asf') [possible values: without-extension, as, asf]
+      --read-windows-ads
+          Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files
+      --no-read-windows-ads
+          Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files
       --full-provenance
           Record full provenance environment information using slow environment detection
   -h, --help
@@ -978,13 +1056,13 @@ Supported compression formats:
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
-  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
-  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
   rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   lz4: LZ4
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
   szip: szip (Michael Schindler)
   szip111, szip-1.11: szip (Michael Schindler) version 1.11+
 ```
@@ -1685,14 +1763,17 @@ Options:
 ```text
 Read file metadata JSON and rematerialize the file to the given path
 
-Usage: ctoolbox metadatajson2file <METADATA_FILE> <PATH>
+Usage: ctoolbox metadatajson2file [OPTIONS] <METADATA_FILE> <PATH>
 
 Arguments:
   <METADATA_FILE>  Path to metadata JSON file (or - for stdin)
   <PATH>           Destination path to rematerialize the file to
 
 Options:
-  -h, --help  Print help
+      --overwrite                  Overwrite existing destination file or directory metadata
+      --copy-specials-as-specials  Permit creating special files (FIFOs, character/block devices)
+      --best-effort-metadata       Proceed best-effort if destination filesystem cannot reproduce all metadata
+  -h, --help                       Print help
 ```
 
 ### `ctoolbox mv`
@@ -1700,23 +1781,26 @@ Options:
 ```text
 Move files or directories without copying when possible, or run verified cross-device copy
 
-Usage: ctoolbox mv [OPTIONS] <PATHS> <PATHS>...
+Usage: ctoolbox mv [OPTIONS] [PATHS] [PATHS]...
 
 Arguments:
-  <PATHS> <PATHS>...  Source path(s) followed by target destination path
+  [PATHS] [PATHS]...  Source path(s) followed by target destination path
 
 Options:
-  -v, --verbose               Enable verbose diagnostic output
-      --progress              Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
-      --no-progress           Disable progress display unconditionally
-      --verify-after          Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
-      --no-verify-after       Skip the post-flush verification pass on cross-device moves
-      --best-effort-metadata  Relax strict metadata requirements when cross-device copy occurs
-      --allow-unknown-fs      Allow operation even if the filesystem type cannot be detected
-  -f, --force                 Force overwrite destination without prompt (accepted for mv compatibility)
-  -n, --dry-run               Perform a dry run without moving or deleting files
-      --full-provenance       Record full provenance environment information using slow environment detection when falling back to verified copy
-  -h, --help                  Print help
+      --resume <STATE_FILE>          Path to a state file (.cscjournal or .cscdesc) from which to resume an interrupted move
+      --journal-path <JOURNAL_PATH>  Explicit path for the state journal file (.cscjournal)
+      --state-dir <DIR>              Directory in which to store state files when cross-device copy occurs
+  -v, --verbose                      Enable verbose diagnostic output
+      --progress                     Display real-time progress indicators (default: enabled when standard error is connected to an interactive terminal)
+      --no-progress                  Disable progress display unconditionally
+      --verify-after                 Recalculate checksums after flushing OS caches when cross-device copy occurs (default: enabled)
+      --no-verify-after              Skip the post-flush verification pass on cross-device moves
+      --best-effort-metadata         Relax strict metadata requirements when cross-device copy occurs
+      --allow-unknown-fs             Allow operation even if the filesystem type cannot be detected
+  -f, --force                        Force overwrite destination without prompt (accepted for mv compatibility)
+  -n, --dry-run                      Perform a dry run without moving or deleting files
+      --full-provenance              Record full provenance environment information using slow environment detection when falling back to verified copy
+  -h, --help                         Print help
 ```
 
 ### `ctoolbox pan2csv`
