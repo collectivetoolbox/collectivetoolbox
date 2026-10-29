@@ -14,7 +14,8 @@
 - **Phase 4 (`DcDocumentNavigator` Simplification — Partially Implemented in `src/formats/dcstring/navigator/`)**:
   - Split `navigator.rs` into focused submodules (`navigator.rs`, `policy.rs`, `resolver.rs`, `arena.rs`, `scan.rs`, `eval.rs`, `tests.rs`).
   - Unified `spliced_tokens` and byte-backed token scanning across `scan_sibling_stub_with_resolver`, `eval_literal_frame`, `eval_identifier_frame`, `eval_number_frame`, and `eval_term_single`, and collapsed `eval_type_constructor` into the iterative `eval_pattern` frame machine.
-  - Added `: [number:...]` and `@implies(...)` rules for numeric format types (`Natural0`, `Positive`, `Negative`, `U8`..`I128`, `Natural1`) to the system graph ledger (`85899_34592.ctbnbdl`), indexed `Dc 587` (`Is a subtype of`) in `DatasetRuleResolver`, and replaced `eval_format_number_bounds` with `SyntaxRuleResolver` subtype/pattern queries.
+  - Unified paired container scanning in `scan_sibling_stub_with_resolver` and `scan_balanced_container` via `Dc 590` (`Is a closing delimiter of syntactic block for`) + `SyntaxRuleResolver::is_opaque_container`, removing the separate `BeginLiteral`, `BeginIdentifier`, and `BeginNumber` scanner branches and `scan_escaped_text_frame`.
+  - Added `: [number:...]` and `@implies(...)` rules for numeric format types (`Natural0`, `Positive`, `Negative`, `U8`..`I128`, `Natural1`) to the system graph ledger (`85899_34592.ctbnbdl`), indexed `Dc 587` (`Is a subtype of`) in `DatasetRuleResolver`, and consolidated `type_tokens_satisfy`, `number_satisfies_subtype`, and `enter_list_body_after_header` in `eval.rs`.
 
 ## Remaining Gaps / Pending Work
 
@@ -23,8 +24,8 @@
 - [ ] Precompute static active-statement, equivalence (`Dc 611` `Canonical decomposition`), and transitive `Dc 586` (`Is an instance of`) / `Dc 587` (`Is a subtype of`) closures at build time so startup does not need to replay and re-index `.ctbnbdl` into heap `HashMap`s in `SeedGraphIndex` and `DatasetRuleResolver`.
 
 ### 2. `DcDocumentNavigator` Graph-Driven Scanning & Evaluation (`src/formats/dcstring/navigator/`)
-- [ ] Simplify `scan_sibling_stub_with_resolver` (`src/formats/dcstring/navigator.rs`) so it uses generic `Dc 590` (`Is a closing delimiter of syntactic block for`) opener/closer balancing and `Dc 594` (`Syntax rule`) pattern scanning rather than dispatching on hardcoded `DcRole` categories (`BeginLiteral`, `BeginIdentifier`, `BeginNumber`, `BeginList`, `OptionalPresent`, `EquivalentRepresentations`).
-- [ ] Replace the remaining procedural type/number compatibility helpers in `src/formats/dcstring/navigator/eval.rs` (`check_type_compatibility`, `type_statically_satisfies_subtype`, `number_satisfies_subtype`, `check_single_number_subtype`) with unified graph subtype/instance reachability (`Dc 586` / `Dc 587`) and `.Semantic:Pattern` rule evaluation (`Dc 594`).
+- [ ] Replace the remaining prefix/wrapper role branches in `scan_sibling_stub_with_resolver` (`src/formats/dcstring/navigator.rs`: `OptionalPresent`, `EquivalentRepresentations`, and prefix-rule scanning) with generic `Dc 594` (`Syntax rule`) pattern scanning.
+- [ ] Replace `number_satisfies_subtype` and `type_tokens_satisfy` in `src/formats/dcstring/navigator/eval.rs` with unified graph subtype/instance reachability (`Dc 586` / `Dc 587`) and `.Semantic:Pattern` rule evaluation (`Dc 594`).
 - [ ] Replace bespoke evaluators in `src/formats/dcstring/navigator/eval.rs` (`eval_list_constraints`, `check_equivalent_list_grammar_with_resolver`, `eval_data_construct`, and `eval_typed_data_construct`) with general `Dc 606` (`Pattern capture`) and `Dc 607` (`Pattern replacement`) binding evaluation (`$length`, `$keyType`, `$valType`, and `[data:...]` / `[typed_data:...]`).
 
 ---

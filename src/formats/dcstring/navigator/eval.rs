@@ -1023,7 +1023,12 @@ impl<'a> DcDocumentNavigator<'a> {
                             };
 
                             if let Some(type_tokens) = explicit_type {
-                                if !check_type_compatibility(type_tokens, name, subtype.as_deref(), ctx.resolver) {
+                                if !Self::type_tokens_satisfy(
+                                    type_tokens,
+                                    name,
+                                    subtype.as_deref(),
+                                    ctx.resolver,
+                                ) {
                                     self.restore_checkpoint(checkpoint);
                                     return Ok(false);
                                 }
@@ -1042,7 +1047,9 @@ impl<'a> DcDocumentNavigator<'a> {
                                     }
                                 }
                                 if !evaluated {
-                                    if subtype.is_none() || type_statically_satisfies_subtype(type_tokens, subtype.as_deref(), ctx.resolver) {
+                                    if subtype.as_deref().is_none_or(|sub| {
+                                        Self::type_tokens_satisfy(type_tokens, sub, None, ctx.resolver)
+                                    }) {
                                         self.cursor = stub.outer_span.end;
                                         return Ok(true);
                                     }
@@ -1160,6 +1167,43 @@ impl<'a> DcDocumentNavigator<'a> {
         self.eval_pattern(&SyntaxPattern::Sequence(vec![elem]), ctx)
     }
 
+    pub(super) fn enter_list_body_after_header(
+        &mut self,
+        list_start: u64,
+        list_end: u64,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<Option<(u64, u64)>> {
+        let Some((list_open, after_list_open)) = self.read_token_or_binary_at(list_start)? else {
+            return Ok(None);
+        };
+        if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
+            return Ok(None);
+        }
+        let list_target =
+            CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?;
+        // Reason for fallback: default closer for BeginList is DC_END_LIST.
+        let list_closer = ctx
+            .resolver
+            .closer_for_opener(&list_target)
+            .map(DcChar::from_u128)
+            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+        let close_len = self.char_encoded_len(list_closer);
+        if list_end < after_list_open.saturating_add(close_len) {
+            return Ok(None);
+        }
+        let list_body_end = list_end.saturating_sub(close_len);
+        self.active_span = DcByteSpan::new(after_list_open, list_body_end);
+        self.cursor = after_list_open;
+        if !self.eval_pattern(
+            &SyntaxPattern::Sequence(ctx.resolver.container_header_elements(&list_target).to_vec()),
+            ctx,
+        )? || ctx.has_errors
+        {
+            return Ok(None);
+        }
+        Ok(Some((after_list_open, list_body_end)))
+    }
+
     pub(super) fn eval_constrained_equivalent_list(
         &mut self,
         after_wrapper_tag: u64,
@@ -1176,39 +1220,15 @@ impl<'a> DcDocumentNavigator<'a> {
             });
             return Ok(false);
         }
-        let Some((list_open, after_list_open)) = self.read_token_or_binary_at(after_wrapper_tag)?
-        else {
-            return Ok(false);
-        };
-        if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
-            return Ok(false);
-        }
-        // Reason for fallback: default closer for BeginList is DC_END_LIST.
-        let list_closer = CharTarget::from_u128(list_open.to_u128())
-            .and_then(|t| ctx.resolver.closer_for_opener(&t))
-            .map(DcChar::from_u128)
-            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-        let close_len = self.char_encoded_len(list_closer);
-        if wrapper_end < after_list_open.saturating_add(close_len) {
-            return Ok(false);
-        }
-        let list_body_end = wrapper_end.saturating_sub(close_len);
         let saved_span = self.active_span;
-        self.active_span = DcByteSpan::new(after_list_open, list_body_end);
-        self.cursor = after_list_open;
-
         let mut sub_ctx = ctx.clone();
         sub_ctx.depth = sub_ctx.depth.saturating_add(1);
-        let list_target = CharTarget::from_u128(list_open.to_u128())
-            .context("Missing list target")?;
-        if !self.eval_pattern(
-            &SyntaxPattern::Sequence(ctx.resolver.container_header_elements(&list_target).to_vec()),
-            &mut sub_ctx,
-        )? || sub_ctx.has_errors
-        {
+        let Some((after_list_open, list_body_end)) =
+            self.enter_list_body_after_header(after_wrapper_tag, wrapper_end, &mut sub_ctx)?
+        else {
             self.active_span = saved_span;
             return Ok(false);
-        }
+        };
 
         let value_term = SyntaxTerm::NamedConstruct {
             name: "value".to_owned(),
@@ -1659,12 +1679,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 if let Some(sub) = subtype {
                     let type_ok = if let Some(ref type_tokens) = leading_type_tokens {
-                        check_type_compatibility(type_tokens, sub, None, ctx.resolver)
-                            || type_statically_satisfies_subtype(
-                                type_tokens,
-                                Some(sub),
-                                ctx.resolver,
-                            )
+                        Self::type_tokens_satisfy(type_tokens, sub, None, ctx.resolver)
                     } else {
                         self.identifier_bound_to_type_in_scope(&name_mstr, start_offset, sub, ctx)?
                     };
@@ -1868,42 +1883,20 @@ impl<'a> DcDocumentNavigator<'a> {
         len_arg: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
-        let Some((list_open, after_list_open)) = self.read_token_or_binary_at(list_start)? else {
-            return Ok(false);
-        };
-        if !list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
-            return Ok(false);
-        }
-        // Reason for fallback: default closer for BeginList is DC_END_LIST.
-        let list_closer = CharTarget::from_u128(list_open.to_u128())
-            .and_then(|t| ctx.resolver.closer_for_opener(&t))
-            .map(DcChar::from_u128)
-            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-        let close_len = self.char_encoded_len(list_closer);
-        if list_end < after_list_open.saturating_add(close_len) {
-            return Ok(false);
-        }
-        let list_body_end = list_end.saturating_sub(close_len);
-
         let expected_len: Option<malachite::Integer> = if let Some(raw_len) = len_arg {
             let trimmed = raw_len.trim();
-            if let Some(var_name) = trimmed.strip_prefix('$') {
-                let Some(val) = ctx.captured_numbers.get(var_name).cloned() else {
-                    return Ok(false);
-                };
-                if val < malachite::Integer::from(0) {
-                    return Ok(false);
-                }
-                Some(val)
+            let val = if let Some(var_name) = trimmed.strip_prefix('$') {
+                ctx.captured_numbers.get(var_name).cloned()
             } else {
-                let Some(val) = parse_bound(trimmed) else {
-                    return Ok(false);
-                };
-                if val < malachite::Integer::from(0) {
-                    return Ok(false);
-                }
-                Some(val)
+                parse_bound(trimmed)
+            };
+            let Some(val) = val else {
+                return Ok(false);
+            };
+            if val < malachite::Integer::from(0) {
+                return Ok(false);
             }
+            Some(val)
         } else {
             None
         };
@@ -1913,21 +1906,14 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         let saved_span = self.active_span;
-        self.active_span = DcByteSpan::new(after_list_open, list_body_end);
-        self.cursor = after_list_open;
-
         let mut sub_ctx = ctx.clone();
         sub_ctx.captured_numbers.remove("length");
-        let list_target = CharTarget::from_u128(list_open.to_u128())
-            .context("Missing list target")?;
-        if !self.eval_pattern(
-            &SyntaxPattern::Sequence(ctx.resolver.container_header_elements(&list_target).to_vec()),
-            &mut sub_ctx,
-        )? || sub_ctx.has_errors
-        {
+        let Some((_, list_body_end)) =
+            self.enter_list_body_after_header(list_start, list_end, &mut sub_ctx)?
+        else {
             self.active_span = saved_span;
             return Ok(false);
-        }
+        };
         let header_count = sub_ctx.captured_numbers.remove("length");
 
         // 3. Elements separated by Dc 312
@@ -2024,6 +2010,9 @@ impl<'a> DcDocumentNavigator<'a> {
                         format!("Syntax rule mismatch for {target} at offset {}", outer.start),
                     )?;
                 }
+            }
+            if resolver.is_opaque_container(target.to_u128()) {
+                return Ok(());
             }
             self.active_span = inner;
             self.cursor = inner.start;
@@ -2145,26 +2134,17 @@ impl<'a> DcDocumentNavigator<'a> {
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
         let result = (|| -> Result<()> {
-            let Some((list_open, after_open)) = self.read_token_or_binary_at(span.start)? else {
-                return self.syntax_issue(policy, span.start, "Equivalent representations require a list".to_owned());
-            };
-            if !list_open.fills_role_with(DcRole::BeginList, resolver) {
-                return self.syntax_issue(policy, span.start, "Equivalent representations require a list".to_owned());
-            }
-            // Reason for fallback: default closer for BeginList is DC_END_LIST.
-            let list_closer = resolver
-                .closer_for_opener(&CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?)
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-            let body_end = span.end.checked_sub(self.char_encoded_len(list_closer)).context("Invalid equivalent list span")?;
-            self.active_span = DcByteSpan::new(after_open, body_end);
-            self.cursor = after_open;
-            let target = CharTarget::from_u128(list_open.to_u128()).context("Missing list target")?;
-            let mut ctx = SyntaxEvalContext::new(resolver, Some(list_open.to_u128()));
+            let mut ctx = SyntaxEvalContext::new(resolver, None);
             ctx.policy.clone_from(policy);
-            if !self.eval_pattern(&SyntaxPattern::Sequence(resolver.container_header_elements(&target).to_vec()), &mut ctx)? || ctx.has_errors {
-                return self.syntax_issue(policy, after_open, "Equivalent list header mismatch".to_owned());
-            }
+            let Some((_, body_end)) =
+                self.enter_list_body_after_header(span.start, span.end, &mut ctx)?
+            else {
+                return self.syntax_issue(
+                    policy,
+                    span.start,
+                    "Equivalent representations require a valid list header".to_owned(),
+                );
+            };
             let value = SyntaxTerm::NamedConstruct { name: "value".to_owned(), subtype: None, capture_var: None };
             let mut previous_was_separator = true;
             while self.cursor < body_end {
@@ -2527,50 +2507,43 @@ pub(super) fn number_satisfies_subtype(
         if part.is_empty() {
             return false;
         }
-        if !check_single_number_subtype(val, part, resolver) {
+        let fmt = FormatId::from_shorthand(part)
+            .or_else(|| FormatId::from_ident(part))
+            .or_else(|| match part {
+                "NonNegative" => Some(FormatId::Natural0),
+                "Natural" => Some(FormatId::Natural1),
+                _ => None,
+            });
+        let matched = if let Some(fmt) = fmt {
+            if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt))
+                && let Some(ok) = check_pattern_number_constraint(&rule.pattern, val, resolver)
+            {
+                ok
+            } else {
+                fmt.dc_id().is_some_and(|dc_id| {
+                    resolver.matches_script("Formats:number", dc_id)
+                        || resolver.matches_script("Formats:number_abstract", dc_id)
+                })
+            }
+        } else if let Some(rule) = resolver.resolve_named_type(part) {
+            // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
+            check_pattern_number_constraint(rule, val, resolver).unwrap_or(false)
+        } else if let Some(rest) = part.strip_prefix("<=") {
+            parse_bound(rest).is_some_and(|b| val <= &b)
+        } else if let Some(rest) = part.strip_prefix('<') {
+            parse_bound(rest).is_some_and(|b| val < &b)
+        } else if let Some(rest) = part.strip_prefix(">=") {
+            parse_bound(rest).is_some_and(|b| val >= &b)
+        } else if let Some(rest) = part.strip_prefix('>') {
+            parse_bound(rest).is_some_and(|b| val > &b)
+        } else {
+            false
+        };
+        if !matched {
             return false;
         }
     }
     true
-}
-
-pub(super) fn check_single_number_subtype(
-    val: &malachite::Integer,
-    part: &str,
-    resolver: &dyn SyntaxRuleResolver,
-) -> bool {
-    let fmt = FormatId::from_shorthand(part)
-        .or_else(|| FormatId::from_ident(part))
-        .or_else(|| match part {
-            "NonNegative" => Some(FormatId::Natural0),
-            "Natural" => Some(FormatId::Natural1),
-            _ => None,
-        });
-
-    if let Some(fmt) = fmt {
-        if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt)) {
-            if let Some(ok) = check_pattern_number_constraint(&rule.pattern, val, resolver) {
-                return ok;
-            }
-        }
-        fmt.dc_id().is_some_and(|dc_id| {
-            resolver.matches_script("Formats:number", dc_id)
-                || resolver.matches_script("Formats:number_abstract", dc_id)
-        })
-    } else if let Some(rule) = resolver.resolve_named_type(part) {
-        // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
-        check_pattern_number_constraint(rule, val, resolver).unwrap_or(false)
-    } else if let Some(rest) = part.strip_prefix("<=") {
-        parse_bound(rest).is_some_and(|b| val <= &b)
-    } else if let Some(rest) = part.strip_prefix('<') {
-        parse_bound(rest).is_some_and(|b| val < &b)
-    } else if let Some(rest) = part.strip_prefix(">=") {
-        parse_bound(rest).is_some_and(|b| val >= &b)
-    } else if let Some(rest) = part.strip_prefix('>') {
-        parse_bound(rest).is_some_and(|b| val > &b)
-    } else {
-        false
-    }
 }
 
 pub(super) fn check_pattern_number_constraint(
@@ -2655,51 +2628,49 @@ pub(crate) fn is_identifier_leading_type_starter(
         || is_single_type_token(tok, resolver)
 }
 
-pub(super) fn check_type_compatibility(
-    type_tokens: &[DcChar],
-    req_name: &str,
-    req_subtype: Option<&str>,
-    resolver: &dyn SyntaxRuleResolver,
-) -> bool {
-    let tokens = if type_tokens.len() >= 2
-        && type_tokens.first().is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
-        && type_tokens.last().is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
-    {
-        let end_idx = type_tokens.len().saturating_sub(1);
-        // Reason for fallback: slice range out of bounds defaults to empty slice.
-        type_tokens.get(1..end_idx).unwrap_or(&[])
-    } else {
-        type_tokens
-    };
-
-    if let [tok] = tokens {
-        resolver.token_satisfies_type(tok.to_u128(), req_name, req_subtype)
-    } else if !tokens.is_empty() && req_name == "type" {
-        let mut mstr = DcMstring::new();
-        for &t in tokens {
-            mstr.push_char(t);
-        }
-        let mut nav = DcDocumentNavigator::from_mstr(&mstr);
-        let mut ctx = SyntaxEvalContext::new(resolver, None);
-        let type_term = SyntaxTerm::NamedConstruct {
-            name: "type".to_owned(),
-            subtype: req_subtype.map(str::to_owned),
-            capture_var: None,
+impl DcDocumentNavigator<'_> {
+    pub(super) fn type_tokens_satisfy(
+        type_tokens: &[DcChar],
+        req_name: &str,
+        req_subtype: Option<&str>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        let tokens = if type_tokens.len() >= 2
+            && type_tokens
+                .first()
+                .is_some_and(|c| c.fills_role_with(DcRole::BeginTypeDef, resolver))
+            && type_tokens
+                .last()
+                .is_some_and(|c| c.fills_role_with(DcRole::EndTypeDef, resolver))
+        {
+            let end_idx = type_tokens.len().saturating_sub(1);
+            // Reason for fallback: slice range out of bounds defaults to empty slice.
+            type_tokens.get(1..end_idx).unwrap_or(&[])
+        } else {
+            type_tokens
         };
-        // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).
-        nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
-            && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
-    } else {
-        false
-    }
-}
 
-pub(super) fn type_statically_satisfies_subtype(
-    type_tokens: &[DcChar],
-    subtype: Option<&str>,
-    resolver: &dyn SyntaxRuleResolver,
-) -> bool {
-    subtype.is_none_or(|sub| check_type_compatibility(type_tokens, sub, None, resolver))
+        if let [tok] = tokens {
+            resolver.token_satisfies_type(tok.to_u128(), req_name, req_subtype)
+        } else if !tokens.is_empty() && req_name == "type" {
+            let mut mstr = DcMstring::new();
+            for &t in tokens {
+                mstr.push_char(t);
+            }
+            let mut nav = DcDocumentNavigator::from_mstr(&mstr);
+            let mut ctx = SyntaxEvalContext::new(resolver, None);
+            let type_term = SyntaxTerm::NamedConstruct {
+                name: "type".to_owned(),
+                subtype: req_subtype.map(str::to_owned),
+                capture_var: None,
+            };
+            // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).
+            nav.eval_term_single(&type_term, &mut ctx).unwrap_or(false)
+                && u64::try_from(mstr.len()).is_ok_and(|len| nav.cursor == len)
+        } else {
+            false
+        }
+    }
 }
 
 pub(super) fn encapsulated_byte_length(stream: &[u128], resolver: &dyn SyntaxRuleResolver) -> Result<usize> {

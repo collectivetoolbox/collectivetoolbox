@@ -425,63 +425,6 @@ impl<'a> DcDocumentNavigator<'a> {
         bail!("Unclosed textual binary encapsulation (Dc 203) starting at offset {start_offset}");
     }
 
-    pub(super) fn scan_escaped_text_frame(
-        &mut self,
-        after_opener: u64,
-        closer: DcChar,
-        policy: &DcProjectionPolicy,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<u64> {
-        let mut offset = after_opener;
-        if closer.fills_role_with(DcRole::EndLiteral, resolver) {
-            if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-                if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                    offset = self.scan_until_token(next_off, ctb_formats_dcdata::dc::DC_END_TYPE_DEF, policy, resolver)?;
-                } else {
-                    self.record_diagnostic(
-                        policy,
-                        policy.syntax_error,
-                        after_opener,
-                        format!("Literal at offset {after_opener} is missing Dc 262..263 type header"),
-                    )?;
-                }
-            } else {
-                self.record_diagnostic(
-                    policy,
-                    policy.syntax_error,
-                    after_opener,
-                    format!("Unclosed literal at offset {after_opener}: missing Dc 262..263 type header"),
-                )?;
-                return Ok(offset);
-            }
-        }
-        while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
-            offset = next_offset;
-            if ch.fills_role_with(DcRole::Escape, resolver) {
-                if let Some((_, after_escaped)) = self.read_token_or_binary_at(offset)? {
-                    offset = after_escaped;
-                } else {
-                    self.record_diagnostic(
-                        policy,
-                        policy.syntax_error,
-                        offset,
-                        format!("Dangling escape Dc 255 at offset {offset}"),
-                    )?;
-                    return Ok(offset);
-                }
-            } else if ch == closer || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128()) {
-                return Ok(offset);
-            }
-        }
-        self.record_diagnostic(
-            policy,
-            policy.syntax_error,
-            after_opener,
-            format!("Unclosed text frame: missing closer {closer:?}"),
-        )?;
-        Ok(offset)
-    }
-
     pub(super) fn scan_until_token(
         &mut self,
         start: u64,
@@ -554,8 +497,9 @@ impl<'a> DcDocumentNavigator<'a> {
             hdr_close.fills_role_with(DcRole::EndTypeDef, resolver),
             "Expected Dc 263 after type in lang.say"
         );
-        let lit_end = self.scan_escaped_text_frame(
+        let (_, lit_end, _) = self.scan_balanced_container(
             after_lit_open,
+            lit_open,
             ctb_formats_dcdata::dc::DC_END_LITERAL,
             policy,
             resolver,
@@ -639,49 +583,6 @@ impl<'a> DcDocumentNavigator<'a> {
                                 }
                                 continue;
                             }
-                            if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
-                                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
-                                let lit_closer = resolver
-                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(260)))
-                                    .map(DcChar::from_u128)
-                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
-                                while let Some(inner_tok) = spliced_iter.next() {
-                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
-                                        let _ = spliced_iter.next();
-                                    } else if inner_tok == lit_closer || resolver.is_equivalent_to(inner_tok.to_u128(), lit_closer.to_u128()) {
-                                        break;
-                                    }
-                                }
-                                continue;
-                            }
-                            if tok.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-                                let id_closer = resolver
-                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(270)))
-                                    .map(DcChar::from_u128)
-                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
-                                while let Some(inner_tok) = spliced_iter.next() {
-                                    if inner_tok.fills_role_with(DcRole::Escape, resolver) {
-                                        let _ = spliced_iter.next();
-                                    } else if inner_tok == id_closer || resolver.is_equivalent_to(inner_tok.to_u128(), id_closer.to_u128()) {
-                                        break;
-                                    }
-                                }
-                                continue;
-                            }
-                            if tok.fills_role_with(DcRole::BeginNumber, resolver) {
-                                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
-                                let num_closer = resolver
-                                    .closer_for_opener(&CharTarget::from_u128(tok.to_u128()).unwrap_or(CharTarget::Dc(6)))
-                                    .map(DcChar::from_u128)
-                                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
-                                for inner_tok in spliced_iter.by_ref() {
-                                    if inner_tok == num_closer || resolver.is_equivalent_to(inner_tok.to_u128(), num_closer.to_u128()) {
-                                        break;
-                                    }
-                                }
-                                continue;
-                            }
                             if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
                                 closer_stack.pop();
                                 if closer_stack.is_empty() {
@@ -701,30 +602,6 @@ impl<'a> DcDocumentNavigator<'a> {
             if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
                 let (after_bin, _) = self.scan_binary_at(token_start, policy, resolver)?;
                 offset = after_bin;
-                continue;
-            }
-            if ch.fills_role_with(DcRole::BeginLiteral, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
-                let lit_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(260)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
-                offset = self.scan_escaped_text_frame(next_offset, lit_closer, policy, resolver)?;
-                continue;
-            }
-            if ch.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-                let id_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(270)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
-                offset = self.scan_escaped_text_frame(next_offset, id_closer, policy, resolver)?;
-                continue;
-            }
-            if ch.fills_role_with(DcRole::BeginNumber, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
-                let num_closer = resolver.closer_for_opener(&CharTarget::from_u128(ch.to_u128()).unwrap_or(CharTarget::Dc(6)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
-                offset = self.scan_until_token(next_offset, num_closer, policy, resolver)?;
                 continue;
             }
             if closer_stack.last().is_some_and(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {

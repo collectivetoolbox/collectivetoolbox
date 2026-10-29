@@ -918,64 +918,6 @@ impl<'a> DcDocumentNavigator<'a> {
             return self.scan_sibling_stub_with_resolver(policy, resolver);
         }
 
-        // 2. Check if this is a literal (260..261) or identifier (270..271)
-        if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) || first_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
-            let closer = if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
-                // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
-                resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(260)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL)
-            } else {
-                // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-                resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(270)))
-                    .map(DcChar::from_u128)
-                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER)
-            };
-            let end_offset = self.scan_escaped_text_frame(after_first, closer, policy, resolver)?;
-            self.cursor = start_offset;
-            let mut ctx = SyntaxEvalContext::new(resolver, None);
-            ctx.policy.clone_from(policy);
-            let matched = if first_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
-                self.eval_literal_frame(None, None, &mut ctx)?
-            } else {
-                self.eval_identifier_frame(None, &mut ctx)?
-            };
-            if !matched || ctx.has_errors {
-                self.syntax_issue(policy, start_offset, format!("Invalid text frame {first_dc:?} at offset {start_offset}"))?;
-            }
-            self.cursor = end_offset;
-            return Ok(Some(DcFrameStub {
-                head_dc: first_dc,
-                closer_dc: Some(closer),
-                outer_span: DcByteSpan::new(start_offset, end_offset),
-                inner_span: Some(DcByteSpan::new(after_first, end_offset)),
-                header_info: DcFrameHeaderInfo::None,
-            }));
-        }
-
-        // 3. Check if this is a number (6..7)
-        if first_dc.fills_role_with(DcRole::BeginNumber, resolver) {
-            // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
-            let closer = resolver.closer_for_opener(&CharTarget::from_u128(first_dc.to_u128()).unwrap_or(CharTarget::Dc(6)))
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
-            let end_offset = self.scan_until_token(after_first, closer, policy, resolver)?;
-            self.cursor = start_offset;
-            let mut ctx = SyntaxEvalContext::new(resolver, None);
-            ctx.policy.clone_from(policy);
-            if !self.eval_number_frame(None, None, &mut ctx)? || ctx.has_errors {
-                self.syntax_issue(policy, start_offset, format!("Invalid number frame at offset {start_offset}"))?;
-            }
-            self.cursor = end_offset;
-            return Ok(Some(DcFrameStub {
-                head_dc: first_dc,
-                closer_dc: Some(closer),
-                outer_span: DcByteSpan::new(start_offset, end_offset),
-                inner_span: None,
-                header_info: DcFrameHeaderInfo::None,
-            }));
-        }
-
         // Reject dangling closing delimiters
         if let Some(opener) = resolver.closing_opener_for(first_dc.to_u128()) {
             self.syntax_issue(
