@@ -485,6 +485,18 @@ pub enum Command {
     /// Read file metadata JSON and rematerialize the file to the given path
     #[command(name = "metadatajson2file")]
     MetadataJson2File {
+        /// Overwrite existing destination file or directory metadata
+        #[arg(long)]
+        overwrite: bool,
+
+        /// Permit creating special files (FIFOs, character/block devices)
+        #[arg(long = "copy-specials-as-specials")]
+        copy_specials_as_specials: bool,
+
+        /// Proceed best-effort if destination filesystem cannot reproduce all metadata
+        #[arg(long = "best-effort-metadata")]
+        best_effort_metadata: bool,
+
         /// Path to metadata JSON file (or - for stdin)
         metadata_file: PathBuf,
 
@@ -1167,15 +1179,30 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             Ok(ToolResult::immediate_ok(json.into_bytes()))
         }
         Command::MetadataJson2File {
+            overwrite,
+            copy_specials_as_specials,
+            best_effort_metadata,
             metadata_file,
             path,
         } => {
             let data = read_file_or_stdin(metadata_file.as_path())?;
             let json_str = std::str::from_utf8(&data)
                 .context("Metadata JSON input is not valid UTF-8")?;
+            let options = ctb_io_file::MaterializeOptions {
+                strict_lossless: !*best_effort_metadata,
+                copy_specials: *copy_specials_as_specials,
+                force_overwrite: *overwrite,
+                existing_entry_policy: if *overwrite {
+                    ctb_io_file::ExistingEntryPolicy::Replace
+                } else {
+                    ctb_io_file::ExistingEntryPolicy::Refuse
+                },
+                ..ctb_io_file::MaterializeOptions::default()
+            };
             ctb_io_file::rematerialize_from_metadata_json(
                 json_str,
                 path.as_path(),
+                &options,
             )?;
             Ok(ToolResult::immediate_ok(Vec::new()))
         }

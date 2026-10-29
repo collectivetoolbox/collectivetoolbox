@@ -64,6 +64,10 @@ assuming the current code still has the reported fault.
 - [ ] Update Guix packaging and regenerate it in CI. Retain/export the oldest
   supported container image for compatibility reproduction.
 - [ ] Confirm Homebrew packaging works.
+- [ ] Address cross-platform full-suite test blockers:
+  - Headless Linux doctest failure in the software-renderer GUI example when `WAYLAND_DISPLAY`, `WAYLAND_SOCKET`, and `DISPLAY` are unset.
+  - WINE `build-support` `initrd` test failure attempting to execute uninstalled guest `rustc`.
+  - Native Windows 7 full-workspace test suite 1,800-second timeout during JavaScript tests.
 - [ ] Decide how to lint JavaScript licensing for LibreJS, including vendor
   files, and report newer versions of vendored dependencies.
 - [ ] Remove duplicate exclude-path configuration in Deno.

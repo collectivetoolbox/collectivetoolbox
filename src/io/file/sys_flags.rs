@@ -1329,12 +1329,16 @@ fn apply_file_flags_native(
         if current.as_ref().is_none_or(|record| record.raw_value != u64::from(target_mask)) {
             let c_path = CString::new(path.as_os_str().as_bytes())?;
             #[cfg(target_vendor = "apple")]
+            // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
             #[cfg(target_os = "freebsd")]
+            // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
             #[cfg(target_os = "openbsd")]
+            // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
             #[cfg(target_os = "dragonfly")]
+            // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
 
             if res != 0 {
@@ -1354,16 +1358,20 @@ fn apply_file_flags_native(
 
                     if settable_mask != target_mask && settable_mask != 0 {
                         #[cfg(target_vendor = "apple")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res =
                             unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
                         #[cfg(target_os = "freebsd")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res = unsafe {
                             libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
                         };
                         #[cfg(target_os = "openbsd")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res =
                             unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
                         #[cfg(target_os = "dragonfly")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res = unsafe {
                             libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
                         };
@@ -1391,16 +1399,20 @@ fn apply_file_flags_native(
 
                     if user_mask != settable_mask && user_mask != 0 {
                         #[cfg(target_vendor = "apple")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry =
                             unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
                         #[cfg(target_os = "freebsd")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry = unsafe {
                             libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
                         };
                         #[cfg(target_os = "openbsd")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry =
                             unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
                         #[cfg(target_os = "dragonfly")]
+                        // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry = unsafe {
                             libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
                         };
@@ -1467,14 +1479,18 @@ fn apply_file_flags_native(
                         let candidate = (current_mask & !bit) | (target_mask & bit);
                         if candidate != current_mask {
                             #[cfg(target_vendor = "apple")]
+                            // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
                             #[cfg(target_os = "freebsd")]
+                            // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe {
                                 libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
                             };
                             #[cfg(target_os = "openbsd")]
+                            // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
                             #[cfg(target_os = "dragonfly")]
+                            // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe {
                                 libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
                             };

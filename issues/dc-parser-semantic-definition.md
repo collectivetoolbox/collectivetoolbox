@@ -50,7 +50,7 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 
 ## 2. Seed Ontology Dcs Added to the CSVs (Assigned via `validate-data-tables`)
 
-### A. `.Semantic` Nouns & Qualifiers (`src/formats/dcdata/data/categories/semantic.csv`)
+### A. `.Semantic` Nouns & Qualifiers (`src/formats/dcdata/fixtures/categories/semantic.csv`)
 - `Dc 565` (`1114677`): `Type` (`@ident("EntityType")`, `@roleDef("TypeToken")`)
 - `Dc 566` (`1114678`): `Relationship type` (`@ident("RelationshipType")`, `@roleDef("TypeToken")`)
 - `Dc 567` (`1114679`): `Relationship` (`@ident("Relationship")`, `@roleDef("TypeToken")`)
@@ -78,7 +78,7 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 - `Dc 595` (`1114707`): `Data format or type description` (`@ident("DataFormatDescription")`)
 - `Dc 597` (`1114709`): `Operating system` (`@ident("OperatingSystem")`)
 
-### B. `.Semantic:Relationship` Verbs (`src/formats/dcdata/data/categories/semantic.csv`)
+### B. `.Semantic:Relationship` Verbs (`src/formats/dcdata/fixtures/categories/semantic.csv`)
 - `Dc 584` (`1114696`): `Has a` (`@ident("HasA")`)
 - `Dc 585` (`1114697`): `Is equal to` (`@ident("IsEqualTo")`)
 - `Dc 586` (`1114698`): `Is an instance of` (`@ident("IsInstanceOf")`)
@@ -89,9 +89,9 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 - `Dc 591` (`1114703`): `Supersedes` (`@ident("Supersedes")`)
 - `Dc 592` (`1114704`): `Retracts` (`@ident("Retracts")`)
 - `Dc 598` (`1114710`): `Is associated with` (`@ident("IsAssociatedWith")`)
-- `Has value` (`@ident("HasValue")` — pending ID assignment)
+- `Dc 610` (`1114722`): `Has value` (`@ident("HasValue")`)
 
-### C. `.Semantic:Pattern` Pattern-Matching Primitives (`src/formats/dcdata/data/categories/semantic.csv`)
+### C. `.Semantic:Pattern` Pattern-Matching Primitives (`src/formats/dcdata/fixtures/categories/semantic.csv`)
 - `Dc 599` (`1114711`): `Self reference` (`@ident("SelfReference")`)
 - `Dc 600` (`1114712`): `Wildcard pattern` (`@ident("WildcardPattern")`)
 - `Dc 601` (`1114713`): `Pattern conjunction` (`@ident("PatternConjunction")`)
@@ -102,7 +102,7 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 - `Dc 606` (`1114718`): `Pattern capture` (`@ident("PatternCapture")`)
 - `Dc 607` (`1114719`): `Pattern replacement` (`@ident("PatternReplacement")`)
 
-### D. `.Formats:identifier` Format Nouns (`src/formats/dcdata/data/categories/formats/identifier.csv`)
+### D. `.Formats:identifier` Format Nouns (`src/formats/dcdata/fixtures/categories/formats/identifier.csv`)
 - Existing `f264` (`2228488`): `FileExtension` (`File extension`)
 - `f636` (`2228860`): `MediaType` (`Media type identifier`)
 - `f637` (`2228861`): `UniformTypeIdentifier` (`Uniform Type Identifier`)
@@ -110,19 +110,15 @@ The pattern-matching Dcs in `.Semantic:Pattern` are defined generally so they se
 
 ---
 
-## 3. Git-Tracked System Block Ledger & Migration Order
+## 3. Git-Tracked System Block Ledger
 
-### A. Immutable System Block Ledger (`8589934592..=12884901887`)
-- Stored in Git in a human-readable, line-oriented format (one 1-statement System node per line).
-- When the CSV-to-graph generator runs:
+### Immutable System Block Ledger (`8589934592..=12884901887`)
+- Stored in Git in `assets/data/graph/85899_*.ctbnodes` and `assets/data/graph/85899_34592.ctbnbdl` (one 1-statement System node per line).
+- When the CSV-to-graph generator (`src/formats/dcdata/graph_ledger.rs`) runs:
   1. **Literal & Enum Entity Nodes**: String literals, numbers, scripts (`.Symbols`, `.Semantic`, etc.), Unicode General Categories, Bidi classes, named syntax types, and decomposition tags are interned as System nodes.
   2. **Unchanged statements** retain their existing System node IDs (`8589934592 + k`).
   3. **Added statements** receive the next sequential System node IDs (`max_id + 1`, ...).
-  4. **Modified statements** allocate a new System node for the updated statement plus a `Supersedes` statement node referencing the prior System node ID.
-  5. **Removed statements** allocate a `Retracts` statement node referencing the prior System node ID.
+  4. **Modified statements** allocate a new System node for the updated statement plus a `Dc 591` (`Supersedes`) statement node referencing the prior System node ID.
+  5. **Removed statements** allocate a `Dc 592` (`Retracts`) statement node referencing the prior System node ID.
 
-### B. Next Implementation Steps
-1. **Assign IDs via `./scripts/validate-data-tables`**: Run the validator/updater to assign permanent `Dc` and `Short` IDs to the new rows in `semantic.csv` and `identifier.csv`.
-2. **Build the CSV $\to$ System-block compiler & Git ledger**: Emit the interned string/value nodes, enum entity nodes (scripts, categories, bidi classes, etc.), and 1-statement-per-node System block (`8589934592+`) from the CSVs, including `:<syntax>` pattern ASTs and append-only `Supersedes`/`Retracts` revision tracking.
-3. **Build the lightweight seed graph loader & index**: Resolve active statements and index types, equivalences, container openers/closers, and pattern rules.
-4. **Replace `SyntaxRuleResolver` and simplify [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs)**: Replace `syntax_table.generated.rs` and the procedural role/constraint tables in [navigator.rs](file:///workspaces/ctoolbox/src/formats/dcstring/navigator.rs) with queries against the indexed graph statements.
+See [dc-parser-semantic-definition-impl-plan.md](dc-parser-semantic-definition-impl-plan.md) for current implementation status and remaining gaps.

@@ -217,16 +217,15 @@ pub fn export_file_metadata_json(
     record.to_json_string()
 }
 
-/// Reads file metadata JSON and rematerializes the file to the given destination path.
+/// Reads file metadata JSON and rematerializes the file to the given destination path
+/// using the caller-provided [`MaterializeOptions`].
 pub fn rematerialize_from_metadata_json(
     json_str: &str,
     dest_path: &Path,
+    options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
     let record = FileMetadataJson::from_json_str(json_str)?;
-    let mut options = MaterializeOptions::default();
-    options.force_overwrite = true;
-    options.copy_specials = true;
-    record.rematerialize(dest_path, &options)
+    record.rematerialize(dest_path, options)
 }
 
 #[cfg(test)]
@@ -261,11 +260,20 @@ mod tests {
 
         // Rematerialize to new location
         let dst_file = temp.path().join("rematerialized.txt");
+        let options = MaterializeOptions::default();
         let receipt =
-            rematerialize_from_metadata_json(&json_str, &dst_file).unwrap();
+            rematerialize_from_metadata_json(&json_str, &dst_file, &options).unwrap();
         assert_eq!(receipt.bytes_written, u64::try_from(content.len()).unwrap());
         assert!(dst_file.exists());
         assert_eq!(fs::read(&dst_file).unwrap(), content);
+
+        // Existing destination must be refused unless ExistingEntryPolicy::Replace is set
+        let err = rematerialize_from_metadata_json(&json_str, &dst_file, &options).unwrap_err();
+        assert!(err.to_string().contains("overwrite") || err.to_string().contains("already exists"));
+        let mut overwrite_opts = MaterializeOptions::default();
+        overwrite_opts.existing_entry_policy = crate::sandboxable_dir::ExistingEntryPolicy::Replace;
+        overwrite_opts.force_overwrite = true;
+        rematerialize_from_metadata_json(&json_str, &dst_file, &overwrite_opts).unwrap();
     }
 
     #[crate::ctb_test]
@@ -286,7 +294,8 @@ mod tests {
 
         // Rematerializing non-empty regular file without body must fail with informative error
         let dst_file = temp.path().join("output.bin");
-        let err = rematerialize_from_metadata_json(&json_str, &dst_file)
+        let options = MaterializeOptions::default();
+        let err = rematerialize_from_metadata_json(&json_str, &dst_file, &options)
             .unwrap_err();
         assert!(err.to_string().contains("does not contain file body payload"));
     }
@@ -301,8 +310,9 @@ mod tests {
         let json_str =
             export_file_metadata_json(&src_file, false, true).unwrap();
         let dst_file = temp.path().join("empty_restored.txt");
+        let options = MaterializeOptions::default();
         let receipt =
-            rematerialize_from_metadata_json(&json_str, &dst_file).unwrap();
+            rematerialize_from_metadata_json(&json_str, &dst_file, &options).unwrap();
         assert_eq!(receipt.bytes_written, 0);
         assert!(dst_file.exists());
         assert_eq!(fs::read(&dst_file).unwrap(), b"");
@@ -319,8 +329,9 @@ mod tests {
         assert!(json_str.contains("\"Directory\""));
 
         let dst_dir = temp.path().join("test_dir_restored");
+        let options = MaterializeOptions::default();
         let receipt =
-            rematerialize_from_metadata_json(&json_str, &dst_dir).unwrap();
+            rematerialize_from_metadata_json(&json_str, &dst_dir, &options).unwrap();
         assert_eq!(
             std::fs::canonicalize(&receipt.destination_path).unwrap(),
             std::fs::canonicalize(&dst_dir).unwrap()
@@ -343,7 +354,8 @@ mod tests {
         assert!(json_str.contains("some_relative_target.txt"));
 
         let dst_link = temp.path().join("my_link_restored");
-        rematerialize_from_metadata_json(&json_str, &dst_link).unwrap();
+        let options = MaterializeOptions::default();
+        rematerialize_from_metadata_json(&json_str, &dst_link, &options).unwrap();
         assert!(dst_link.is_symlink());
         assert_eq!(fs::read_link(&dst_link).unwrap(), target_path);
 
@@ -352,7 +364,7 @@ mod tests {
         std::os::unix::fs::symlink(raw_target, &raw_link).unwrap();
         let json_str = export_file_metadata_json(&raw_link, false, true).unwrap();
         let dst_link = temp.path().join("raw_link_restored");
-        rematerialize_from_metadata_json(&json_str, &dst_link).unwrap();
+        rematerialize_from_metadata_json(&json_str, &dst_link, &options).unwrap();
         assert_eq!(fs::read_link(&dst_link).unwrap().as_os_str().as_encoded_bytes(),
             raw_target.as_bytes());
     }

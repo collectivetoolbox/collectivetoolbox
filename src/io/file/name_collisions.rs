@@ -338,7 +338,8 @@ pub fn validate_and_order_directory_entries(
     }
 
     // Dependency Graph for Topological Sorting:
-    // If action A's dest_path matches action B's source path, B must be processed before A.
+    // If action A's dest_path matches action B's original filename in the destination directory,
+    // B must be processed before A so A does not clobber B's unadapted destination slot.
     let n = planned_actions.len();
     let mut in_degree = vec![0_usize; n];
     let mut dependents: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -346,8 +347,8 @@ pub fn validate_and_order_directory_entries(
     for (i, action_a) in planned_actions.iter().enumerate() {
         for (j, action_b) in planned_actions.iter().enumerate() {
             if i != j {
-                let src_b = curr_src.join(&action_b.entry.file_name);
-                if action_a.dest_path == src_b {
+                let tgt_b = curr_tgt.join(&action_b.entry.file_name);
+                if action_a.dest_path == tgt_b {
                     dependents.entry(j).or_default().push(i);
                     if let Some(deg) = in_degree.get_mut(i) {
                         *deg = deg.saturating_add(1);
@@ -357,18 +358,11 @@ pub fn validate_and_order_directory_entries(
         }
     }
 
-    // Kahn's algorithm for topological sorting.
-    // Since `queue.pop()` pops from the back, place entries whose names require
-    // best-effort adaptation earlier in `queue` so unadapted entries are popped
-    // and materialized first, allowing adapted siblings that collide with them
-    // to disambiguate cleanly.
-    let mut queue = Vec::new();
-    for (i, &deg) in in_degree.iter().enumerate() {
-        if deg == 0 {
-            queue.push(i);
-        }
-    }
-    queue.sort_by_key(|&i| {
+    // Kahn's algorithm for deterministic topological sorting.
+    // Unadapted entries are materialized before entries requiring best-effort name
+    // adaptation so adapted siblings that collide with them disambiguate cleanly;
+    // remaining ties are broken deterministically by original filename bytes.
+    let priority_key = |i: usize| {
         let needs_adaptation = planned_actions
             .get(i)
             .is_some_and(|a| {
@@ -379,11 +373,23 @@ pub fn validate_and_order_directory_entries(
                 .1
                 .is_some()
             });
-        (!needs_adaptation, i)
-    });
+        // Reason for fallback: valid index into planned_actions always yields Some
+        let name_bytes = planned_actions
+            .get(i)
+            .map_or(&[][..], |a| a.entry.file_name.as_encoded_bytes())
+            .to_vec();
+        (needs_adaptation, name_bytes, i)
+    };
+
+    let mut queue = std::collections::BinaryHeap::new();
+    for (i, &deg) in in_degree.iter().enumerate() {
+        if deg == 0 {
+            queue.push(std::cmp::Reverse((priority_key(i), i)));
+        }
+    }
 
     let mut ordered = Vec::with_capacity(n);
-    while let Some(u) = queue.pop() {
+    while let Some(std::cmp::Reverse((_, u))) = queue.pop() {
         if let Some(action) = planned_actions.get(u) {
             ordered.push(action.entry.clone());
         }
@@ -392,7 +398,7 @@ pub fn validate_and_order_directory_entries(
                 if let Some(deg) = in_degree.get_mut(v) {
                     *deg = deg.saturating_sub(1);
                     if *deg == 0 {
-                        queue.push(v);
+                        queue.push(std::cmp::Reverse((priority_key(v), v)));
                     }
                 }
             }
@@ -517,9 +523,12 @@ mod tests {
     fn test_name_collision_dependency_ordering() -> Result<()> {
         let temp = tempdir()?;
         let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
         fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
 
-        // Foo.as and Foo.as.as
+        // Foo, Foo.as, and Foo.as.as across separate source and destination directories
+        fs::write(src.join("Foo"), b"content 0")?;
         fs::write(src.join("Foo.as"), b"content 1")?;
         fs::write(src.join("Foo.as.as"), b"content 2")?;
 
@@ -531,19 +540,20 @@ mod tests {
             let ordered = validate_and_order_directory_entries(
                 input_entries,
                 &src,
-                &src,
-                &src,
+                &dest,
+                &dest,
                 Path::new(""),
                 &read_opts,
                 AppleWriteMode::ForceAppleSingle,
                 AppleSingleExtension::As,
             )?;
 
-            // Foo.as maps to Foo.as.as; Foo.as.as maps to Foo.as.as.as.
-            // Therefore Foo.as.as must be ordered BEFORE Foo.as!
-            ensure!(ordered.len() == 2);
+            // Foo -> Foo.as, Foo.as -> Foo.as.as, Foo.as.as -> Foo.as.as.as.
+            // Therefore Foo.as.as must be ordered BEFORE Foo.as, which must be ordered BEFORE Foo!
+            ensure!(ordered.len() == 3);
             ensure!(ordered.first().map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as.as")));
             ensure!(ordered.get(1).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as")));
+            ensure!(ordered.get(2).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo")));
         }
 
         Ok(())

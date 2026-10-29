@@ -275,8 +275,10 @@ pub fn execute_copy_pipeline(
             });
 
             if let Some(snap) = journal.snapshot() {
-                for (rel_dir, expected_identity) in &snap.applied_directories {
-                    let _ = dest_dir.restore_applied_directory_ownership(rel_dir, expected_identity);
+                let mut applied_dirs: Vec<_> = snap.applied_directories.iter().collect();
+                applied_dirs.sort_by(|a, b| a.0.cmp(b.0));
+                for (rel_dir, expected_identity) in applied_dirs {
+                    dest_dir.restore_applied_directory_ownership(rel_dir, expected_identity)?;
                 }
             }
             if let Ok(root_id) = dest_dir.query_owned_directory_identity(Path::new("")) {
