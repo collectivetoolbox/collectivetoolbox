@@ -342,60 +342,234 @@ impl CscArgs {
 
     /// Resolves AppleSingle / AppleDouble / Windows ADS write mode, ensuring mutual exclusivity.
     pub fn resolve_apple_write_mode(&self) -> Result<(AppleWriteMode, AppleSingleExtension)> {
-        let mut count = 0_usize;
-        if self.maybe_write_apple_double.is_some() {
-            count = count.saturating_add(1);
-        }
-        if self.force_write_apple_double.is_some() {
-            count = count.saturating_add(1);
-        }
-        if self.maybe_write_apple_single {
-            count = count.saturating_add(1);
-        }
-        let is_explicit_force_single = self.force_write_apple_single
-            || self.write_apple_single_without_extension
-            || self.write_apple_single_with_extension.is_some();
-        if is_explicit_force_single {
-            count = count.saturating_add(1);
-        }
-        if self.maybe_write_windows_ads {
-            count = count.saturating_add(1);
-        }
-        if self.force_write_windows_ads {
-            count = count.saturating_add(1);
-        }
-
-        if count > 1 {
-            anyhow::bail!(
-                "Cannot specify more than one AppleDouble, AppleSingle, or Windows ADS write mode simultaneously"
-            );
-        }
-
-        // Reason for fallback: default write extension is WithoutExtension
-        let write_ext = self
-            .write_apple_single_with_extension
-            .unwrap_or(AppleSingleExtension::WithoutExtension);
-
-        let mode = if let Some(style) = self.force_write_apple_double {
-            AppleWriteMode::ForceAppleDouble(style)
-        } else if let Some(style) = self.maybe_write_apple_double {
-            AppleWriteMode::MaybeAppleDouble(style)
-        } else if is_explicit_force_single {
-            AppleWriteMode::ForceAppleSingle
-        } else if self.maybe_write_apple_single {
-            AppleWriteMode::MaybeAppleSingle
-        } else if self.force_write_windows_ads {
-            AppleWriteMode::ForceWindowsAds
-        } else if self.maybe_write_windows_ads {
-            AppleWriteMode::MaybeWindowsAds
-        } else if self.best_effort_metadata {
-            AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside)
-        } else {
-            AppleWriteMode::NativeOnly
-        };
-
-        Ok((mode, write_ext))
+        resolve_apple_write_mode_from_flags(
+            self.maybe_write_apple_double,
+            self.force_write_apple_double,
+            self.maybe_write_apple_single,
+            self.force_write_apple_single,
+            self.write_apple_single_with_extension,
+            self.write_apple_single_without_extension,
+            self.maybe_write_windows_ads,
+            self.force_write_windows_ads,
+            self.best_effort_metadata,
+        )
     }
+}
+
+/// Shared CLI flags for AppleSingle, AppleDouble, and Windows ADS companion reading.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+pub struct AppleReadCliArgs {
+    /// Read AppleDouble companion files and join them into file entities.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub read_apple_double: Option<AppleDoubleStyle>,
+
+    /// Read alongside (._<filename>) AppleDouble companion files.
+    #[arg(long, overrides_with = "no_read_apple_double_alongside")]
+    pub read_apple_double_alongside: bool,
+
+    /// Disable reading alongside (._<filename>) AppleDouble companion files.
+    #[arg(long, overrides_with = "read_apple_double_alongside")]
+    pub no_read_apple_double_alongside: bool,
+
+    /// Read __MACOSX/ directory AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_zip: bool,
+
+    /// Read Netatalk .AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_netatalk: bool,
+
+    /// Read AppleSingle files and decode data fork, resource fork, and Apple metadata.
+    #[arg(long, overrides_with = "no_read_apple_single")]
+    pub read_apple_single: bool,
+
+    /// Read bare AppleSingle files without extension (alias for --read-apple-single).
+    #[arg(long, overrides_with = "no_read_apple_single")]
+    pub read_apple_single_without_extension: bool,
+
+    /// Disable reading bare AppleSingle files without extension.
+    #[arg(long, overrides_with = "read_apple_single")]
+    pub no_read_apple_single: bool,
+
+    /// Read AppleSingle files with the specified extension ('as' or 'asf'),
+    /// automatically stripping the extension upon successful decode.
+    #[arg(long, value_name = "EXT", action = clap::ArgAction::Append)]
+    pub read_apple_single_with_extension: Vec<AppleSingleExtension>,
+
+    /// Read alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, overrides_with = "no_read_windows_ads")]
+    pub read_windows_ads: bool,
+
+    /// Disable reading alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, overrides_with = "read_windows_ads")]
+    pub no_read_windows_ads: bool,
+}
+
+impl AppleReadCliArgs {
+    /// Resolves these CLI flags into an [`AppleReadOptions`] configuration.
+    #[must_use]
+    pub fn resolve(&self) -> AppleReadOptions {
+        let mut opts = resolve_apple_read_options_from_flags(
+            self.read_apple_double,
+            self.read_apple_double_alongside,
+            self.no_read_apple_double_alongside,
+            self.read_apple_double_zip,
+            self.read_apple_double_netatalk,
+            self.read_apple_single,
+            self.read_apple_single_without_extension,
+            self.no_read_apple_single,
+            &self.read_apple_single_with_extension,
+        );
+        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
+        opts
+    }
+}
+
+/// Shared CLI flags for AppleSingle, AppleDouble, and Windows ADS stream restoration.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+pub struct AppleWriteCliArgs {
+    /// Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub maybe_write_apple_double: Option<AppleDoubleStyle>,
+
+    /// Force writing AppleDouble companion files even if native streams are supported.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub force_write_apple_double: Option<AppleDoubleStyle>,
+
+    /// Write AppleSingle archive files if native filesystem streams or Apple metadata cannot be preserved.
+    #[arg(long)]
+    pub maybe_write_apple_single: bool,
+
+    /// Force writing destination files as AppleSingle archives.
+    #[arg(long)]
+    pub force_write_apple_single: bool,
+
+    /// Write AppleSingle archive files with specified extension: 'as' or 'asf'.
+    #[arg(long, value_name = "EXT")]
+    pub write_apple_single_with_extension: Option<AppleSingleExtension>,
+
+    /// Write AppleSingle archive files without extension (default).
+    #[arg(long, alias = "write-apple-single")]
+    pub write_apple_single_without_extension: bool,
+
+    /// Write alongside `<filename>:<stream_name>` Windows alternate data stream companion files if native streams cannot be preserved.
+    #[arg(long)]
+    pub maybe_write_windows_ads: bool,
+
+    /// Force writing attached streams as alongside `<filename>:<stream_name>` Windows alternate data stream companion files.
+    #[arg(long, alias = "write-windows-ads")]
+    pub force_write_windows_ads: bool,
+}
+
+impl AppleWriteCliArgs {
+    /// Resolves these CLI flags into an [`AppleWriteMode`] and [`AppleSingleExtension`].
+    pub fn resolve(
+        &self,
+        best_effort_fallback: bool,
+    ) -> Result<(AppleWriteMode, AppleSingleExtension)> {
+        resolve_apple_write_mode_from_flags(
+            self.maybe_write_apple_double,
+            self.force_write_apple_double,
+            self.maybe_write_apple_single,
+            self.force_write_apple_single,
+            self.write_apple_single_with_extension,
+            self.write_apple_single_without_extension,
+            self.maybe_write_windows_ads,
+            self.force_write_windows_ads,
+            best_effort_fallback,
+        )
+    }
+}
+
+/// Helper to resolve AppleSingle / AppleDouble / Windows ADS write mode from raw CLI flags.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Maps distinct CLI flags to canonical write mode"
+)]
+pub fn resolve_apple_write_mode_from_flags(
+    maybe_write_apple_double: Option<AppleDoubleStyle>,
+    force_write_apple_double: Option<AppleDoubleStyle>,
+    maybe_write_apple_single: bool,
+    force_write_apple_single: bool,
+    write_apple_single_with_extension: Option<AppleSingleExtension>,
+    write_apple_single_without_extension: bool,
+    maybe_write_windows_ads: bool,
+    force_write_windows_ads: bool,
+    best_effort_metadata: bool,
+) -> Result<(AppleWriteMode, AppleSingleExtension)> {
+    let mut count = 0_usize;
+    if maybe_write_apple_double.is_some() {
+        count = count.saturating_add(1);
+    }
+    if force_write_apple_double.is_some() {
+        count = count.saturating_add(1);
+    }
+    if maybe_write_apple_single {
+        count = count.saturating_add(1);
+    }
+    let is_explicit_force_single = force_write_apple_single
+        || write_apple_single_without_extension
+        || write_apple_single_with_extension.is_some();
+    if is_explicit_force_single {
+        count = count.saturating_add(1);
+    }
+    if maybe_write_windows_ads {
+        count = count.saturating_add(1);
+    }
+    if force_write_windows_ads {
+        count = count.saturating_add(1);
+    }
+
+    if count > 1 {
+        anyhow::bail!(
+            "Cannot specify more than one AppleDouble, AppleSingle, or Windows ADS write mode simultaneously"
+        );
+    }
+
+    // Reason for fallback: default write extension is WithoutExtension
+    let write_ext = write_apple_single_with_extension
+        .unwrap_or(AppleSingleExtension::WithoutExtension);
+
+    let mode = if let Some(style) = force_write_apple_double {
+        AppleWriteMode::ForceAppleDouble(style)
+    } else if let Some(style) = maybe_write_apple_double {
+        AppleWriteMode::MaybeAppleDouble(style)
+    } else if is_explicit_force_single {
+        AppleWriteMode::ForceAppleSingle
+    } else if maybe_write_apple_single {
+        AppleWriteMode::MaybeAppleSingle
+    } else if force_write_windows_ads {
+        AppleWriteMode::ForceWindowsAds
+    } else if maybe_write_windows_ads {
+        AppleWriteMode::MaybeWindowsAds
+    } else if best_effort_metadata {
+        AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside)
+    } else {
+        AppleWriteMode::NativeOnly
+    };
+
+    Ok((mode, write_ext))
 }
 
 /// Helper to resolve AppleSingle / AppleDouble read options from raw CLI flags.

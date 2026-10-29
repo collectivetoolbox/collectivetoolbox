@@ -45,6 +45,23 @@ pub struct ArchiveArgs {
     pub command: ArchiveCommand,
 }
 
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+pub struct ArchiveCreateOptions {
+    /// Record full provenance environment information using slow environment detection
+    /// (e.g. network discovery for public IP addresses and server time synchronization).
+    #[arg(long)]
+    pub full_provenance: bool,
+    /// Behavior when a source file is modified during capture.
+    #[arg(long, value_enum, default_value_t = crate::args::SourceChangePolicy::Error)]
+    pub on_source_change: crate::args::SourceChangePolicy,
+    /// Stay on the current filesystem and do not cross mount boundaries.
+    #[arg(short = 'x', long = "one-file-system")]
+    pub one_file_system: bool,
+    /// Optional AppleDouble, AppleSingle, and Windows ADS companion reading flags.
+    #[command(flatten)]
+    pub apple_read: crate::args::AppleReadCliArgs,
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum ArchiveCommand {
     /// Create a self-contained uncompressed CSC archive.
@@ -66,6 +83,8 @@ pub enum ArchiveCommand {
         /// Write as journal format (different magic bytes, omits stream or file bodies).
         #[arg(long)]
         journal: bool,
+        #[command(flatten)]
+        options: ArchiveCreateOptions,
     },
     /// List committed members and capture diagnostics.
     List { archive: PathBuf },
@@ -107,6 +126,9 @@ pub enum ArchiveCommand {
         /// Extract committed members from incomplete archives or archives containing capture errors.
         #[arg(long, alias = "salvage", alias = "allow-archive-errors", alias = "allow-journal-errors")]
         recover: bool,
+        /// Optional AppleDouble, AppleSingle, and Windows ADS stream restoration flags.
+        #[command(flatten)]
+        apple_write: crate::args::AppleWriteCliArgs,
     },
 }
 
@@ -119,12 +141,16 @@ pub(crate) fn run_archive_with_stdout(
     stdout_override: Option<File>,
 ) -> Result<ToolResult> {
     match &args.command {
-        ArchiveCommand::Create { archive, sources, resume, continue_on_error, journal } => {
-            let _scope = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
+        ArchiveCommand::Create { archive, sources, resume, continue_on_error, journal, options: create_options } => {
+            let _scope = if create_options.full_provenance {
+                ctb_io_environment::GlobalEnvironmentScope::enter_full()
+            } else {
+                ctb_io_environment::GlobalEnvironmentScope::enter_fresh()
+            };
             if *resume {
                 ensure!(!continue_on_error, "Cannot combine --resume with --continue-on-error; capture diagnostics cannot be resolved by resume");
                 ensure!(archive != Path::new("-"), "Cannot resume archive output on stdout");
-                resume_archive(archive, *journal)?;
+                resume_archive_with_options(archive, *journal, create_options)?;
                 return Ok(ToolResult::Immediate {
                     stdout: Vec::new(), stderr: b"Archive resumed and completed.\n".to_vec(), exit_code: 0,
                 });
@@ -141,13 +167,13 @@ pub(crate) fn run_archive_with_stdout(
             if let Some(ref output) = stdout_handle {
                 validate_output_identity(output, sources, &[])?;
             }
-            let plan = plan_sources(sources, archive)?;
+            let plan = plan_sources_with_options(sources, archive, create_options)?;
             let (error_count, warning_count, completed) = if archive == Path::new("-") {
                 if let Some(ref output) = stdout_handle {
                     validate_output_identity(output, sources, &plan.members)?;
                 }
                 if let Some(file) = stdout_override {
-                    let outcome = create_archive(
+                    let outcome = create_archive_with_options(
                         ForwardFileOutput(file),
                         sources,
                         archive,
@@ -155,10 +181,11 @@ pub(crate) fn run_archive_with_stdout(
                         *continue_on_error,
                         None,
                         *journal,
+                        create_options,
                     )?;
                     (outcome.error_count, outcome.warning_count, outcome.completed)
                 } else {
-                    let outcome = create_archive(
+                    let outcome = create_archive_with_options(
                         std::io::stdout().lock(),
                         sources,
                         archive,
@@ -166,6 +193,7 @@ pub(crate) fn run_archive_with_stdout(
                         *continue_on_error,
                         None,
                         *journal,
+                        create_options,
                     )?;
                     (outcome.error_count, outcome.warning_count, outcome.completed)
                 }
@@ -183,7 +211,16 @@ pub(crate) fn run_archive_with_stdout(
                     let _ = std::fs::remove_file(archive);
                     return Err(error);
                 }
-                let outcome = create_archive(FileArchiveOutput::new(file), sources, archive, &plan, *continue_on_error, None, *journal)?;
+                let outcome = create_archive_with_options(
+                    FileArchiveOutput::new(file),
+                    sources,
+                    archive,
+                    &plan,
+                    *continue_on_error,
+                    None,
+                    *journal,
+                    create_options,
+                )?;
                 (outcome.error_count, outcome.warning_count, outcome.completed)
             };
             let clean = completed && error_count == 0 && warning_count == 0;
@@ -264,7 +301,7 @@ pub(crate) fn run_archive_with_stdout(
             }
         }
         ArchiveCommand::Extract { archive, destination, overwrite, trust_symlink_targets,
-            best_effort_metadata, strict, check_atime, check_ctime, check_birthtime, copy_specials_as_specials, recover } => {
+            best_effort_metadata, strict, check_atime, check_ctime, check_birthtime, copy_specials_as_specials, recover, apple_write } => {
             let reader = if *recover {
                 JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
             } else if *best_effort_metadata && !*strict {
@@ -272,6 +309,8 @@ pub(crate) fn run_archive_with_stdout(
             } else {
                 JournalReader::new(File::open(archive)?)?
             };
+            let (apple_write_mode, apple_single_write_extension) =
+                apple_write.resolve(*best_effort_metadata && !*strict)?;
             let options = MaterializeOptions {
                 strict_lossless: *strict || !best_effort_metadata,
                 check_atime: *strict || *check_atime,
@@ -284,6 +323,8 @@ pub(crate) fn run_archive_with_stdout(
                     else { SymlinkValidationPolicy::RejectEscapingSymlinks },
                 path_policy: PathTraversalPolicy::StrictSandboxed,
                 copy_specials: *copy_specials_as_specials,
+                apple_write_mode,
+                apple_single_write_extension,
                 ..Default::default()
             };
             let extraction_losses = extract_archive(&reader, destination, &options, *recover)?;
@@ -357,11 +398,22 @@ fn validate_output_path_overlap(output_path: &Path, sources: &[PathBuf]) -> Resu
 }
 
 fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
+    plan_sources_with_options(sources, archive, &ArchiveCreateOptions::default())
+}
+
+fn plan_sources_with_options(
+    sources: &[PathBuf],
+    archive: &Path,
+    options: &ArchiveCreateOptions,
+) -> Result<SourcePlan> {
     ensure!(!sources.is_empty(), "At least one source is required");
     if archive != Path::new("-") {
         validate_output_path_overlap(archive, sources)?;
     }
     let working_directory = std::env::current_dir()?;
+    let apple_read_options = options.apple_read.resolve();
+    let best_effort_source_change =
+        options.on_source_change == crate::args::SourceChangePolicy::BestEffort;
     let mut plan = SourcePlan::default();
     let mut names = HashSet::new();
     for source in sources {
@@ -384,7 +436,8 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
             plan.members.push(SourceMember { source: absolute.clone(), relative });
             let traversal_options = TraversalOptions::new()
                 .error_policy(ctb_io::file::OnTraversalError::Capture)
-                .apple_read_options(archive_apple_read_options());
+                .one_file_system(options.one_file_system)
+                .apple_read_options(apple_read_options.clone());
             let mut directories = ctb_io::file::traverse_dir(&absolute, traversal_options)?.directories()?;
             while let Some(directory) = directories.next() {
                 let directory = directory?;
@@ -394,7 +447,7 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
                     plan.members.retain(|member| member.source != directory.path);
                     continue;
                 }
-                let snapshot = ctb_io::file::payload::SourceSnapshot::capture(&directory.path, false)?;
+                let snapshot = ctb_io::file::payload::SourceSnapshot::capture(&directory.path, best_effort_source_change)?;
                 plan.tree.retain(&snapshot);
                 let entries = match directories.read_directory(&directory, Ok) {
                     Ok(entries) => entries,
@@ -405,17 +458,17 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
                     }
                 };
                 for item in entries {
-                if !item.errors.is_empty() {
-                    let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
-                    plan.diagnostics.push(JournalErrorRecord::from_error(&item.path, JournalErrorStage::Traversal, &error));
-                    plan.members.retain(|member| member.source != item.path);
-                    continue;
+                    if !item.errors.is_empty() {
+                        let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
+                        plan.diagnostics.push(JournalErrorRecord::from_error(&item.path, JournalErrorStage::Traversal, &error));
+                        plan.members.retain(|member| member.source != item.path);
+                        continue;
+                    }
+                    let relative = normalized_member(&prefix.join(item.path.strip_prefix(&absolute)?))?;
+                    ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
+                    plan.members.push(SourceMember { source: item.path, relative });
                 }
-                let relative = normalized_member(&prefix.join(item.path.strip_prefix(&absolute)?))?;
-                ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
-                plan.members.push(SourceMember { source: item.path, relative });
-                }
-                snapshot.validate()?;
+                snapshot.retain_changes(snapshot.validate()?)?;
             }
         } else {
             let relative = normalized_member(&prefix)?;
@@ -601,8 +654,34 @@ trait CaptureSource {
     fn open(&mut self, path: &Path) -> Result<Box<dyn PayloadSource>> { Ok(Box::new(DiskPayloadSource::open(path)?)) }
 }
 
-struct FilesystemCapture;
-impl CaptureSource for FilesystemCapture {}
+#[derive(Default)]
+struct FilesystemCapture {
+    apple_read_options: AppleReadOptions,
+    best_effort_source_change: bool,
+}
+
+impl FilesystemCapture {
+    fn from_options(options: &ArchiveCreateOptions) -> Self {
+        Self {
+            apple_read_options: options.apple_read.resolve(),
+            best_effort_source_change: options.on_source_change
+                == crate::args::SourceChangePolicy::BestEffort,
+        }
+    }
+}
+
+impl CaptureSource for FilesystemCapture {
+    fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
+        let mut source = CapturedSource::capture(
+            path,
+            None,
+            &self.apple_read_options,
+            self.best_effort_source_change,
+        )?;
+        source.hash(path)?;
+        Ok(source)
+    }
+}
 
 struct CaptureRequest<'a> {
     sources: &'a [PathBuf],
@@ -611,11 +690,48 @@ struct CaptureRequest<'a> {
     continue_on_error: bool,
     recovered: Option<&'a JournalReader>,
     journal: bool,
+    options: &'a ArchiveCreateOptions,
 }
 
+#[cfg(test)]
 fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Path, plan: &SourcePlan,
     continue_on_error: bool, recovered: Option<&JournalReader>, journal: bool) -> Result<CaptureOutcome<W>> {
-    capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered, journal }, &mut FilesystemCapture)
+    create_archive_with_options(
+        output,
+        sources,
+        archive,
+        plan,
+        continue_on_error,
+        recovered,
+        journal,
+        &ArchiveCreateOptions::default(),
+    )
+}
+
+fn create_archive_with_options<W: ArchiveOutput>(
+    output: W,
+    sources: &[PathBuf],
+    archive: &Path,
+    plan: &SourcePlan,
+    continue_on_error: bool,
+    recovered: Option<&JournalReader>,
+    journal: bool,
+    options: &ArchiveCreateOptions,
+) -> Result<CaptureOutcome<W>> {
+    let mut capture = FilesystemCapture::from_options(options);
+    capture_archive(
+        output,
+        CaptureRequest {
+            sources,
+            archive,
+            plan,
+            continue_on_error,
+            recovered,
+            journal,
+            options,
+        },
+        &mut capture,
+    )
 }
 
 fn persist_source_error<W: ArchiveOutput>(writer: &mut JournalWriter<W>, record: &JournalErrorRecord) -> Result<()> {
@@ -624,31 +740,66 @@ fn persist_source_error<W: ArchiveOutput>(writer: &mut JournalWriter<W>, record:
     writer.output_mut().sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
 }
 
+fn persist_warning_record<W: ArchiveOutput>(
+    writer: &mut JournalWriter<W>,
+    code: &str,
+    message: String,
+    count: &mut usize,
+) -> Result<()> {
+    let warning = JournalWarningRecord {
+        code: code.to_owned(),
+        message,
+        timestamp_sec: i64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs(),
+        )?,
+    };
+    writer
+        .record_warning(&warning)
+        .with_context(|| format!("Cannot persist metadata warning: {}", warning.message))?;
+    writer
+        .output_mut()
+        .flush()
+        .with_context(|| format!("Cannot flush metadata warning: {}", warning.message))?;
+    writer
+        .output_mut()
+        .sync()
+        .with_context(|| format!("Cannot sync metadata warning: {}", warning.message))?;
+    *count = count.saturating_add(1);
+    Ok(())
+}
+
 fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut JournalWriter<W>, entity: &FileEntity,
     path: &Path, count: &mut usize) -> Result<()> {
     crate::journal::capture::visit_warnings(entity, &mut |_entity, message| {
-        let warning = JournalWarningRecord {
-            code: "FileReadWarning".to_owned(), message: format!("{}: {message}", path.display()),
-            timestamp_sec: i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs())?,
-        };
-        writer.record_warning(&warning).with_context(|| format!("Cannot persist metadata warning: {message}"))?;
-        writer.output_mut().flush().with_context(|| format!("Cannot flush metadata warning: {message}"))?;
-        writer.output_mut().sync().with_context(|| format!("Cannot sync metadata warning: {message}"))?;
-        *count = count.saturating_add(1);
-        Ok(())
+        persist_warning_record(
+            writer,
+            "FileReadWarning",
+            format!("{}: {message}", path.display()),
+            count,
+        )
     })
 }
 
 fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, capture: &mut impl CaptureSource) -> Result<CaptureOutcome<W>> {
-    let CaptureRequest { sources, archive, plan, continue_on_error, recovered, journal } = request;
+    let CaptureRequest { sources, archive, plan, continue_on_error, recovered, journal, options } = request;
+    let best_effort_source_change =
+        options.on_source_change == crate::args::SourceChangePolicy::BestEffort;
+    let apple_read_options = options.apple_read.resolve();
     let session = if let Some(recovered) = recovered {
         recovered.session.clone()
     } else {
         let working_directory = std::env::current_dir()?;
+        let environment = if options.full_provenance {
+            std::sync::Arc::new(ctb_io_environment::capture())
+        } else {
+            ctb_io_environment::capture_quick_arc()
+        };
         JournalSessionRecord {
             sources: sources.iter().map(|source| working_directory.join(source)).collect(),
             destination: archive.to_path_buf(), origin_platform: u32::from(current_platform()),
-            environment: Some(ctb_io_environment::capture_quick_arc()),
+            environment: Some(environment),
         }
     };
     let magic = if journal {
@@ -691,8 +842,38 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             }
         };
         tree.retain(&snapshot);
+        let mut effective_relative = member.relative.clone();
+        if let Some(name) = member.relative.file_name() {
+            for (enabled, extension) in [
+                (apple_read_options.read_apple_single_as, ctb_io::file::apple_double::AppleSingleExtension::As),
+                (apple_read_options.read_apple_single_asf, ctb_io::file::apple_double::AppleSingleExtension::Asf),
+            ] {
+                if enabled {
+                    if let Some(stem) = extension.strip_from_name(name) {
+                        if entity.identity.filename_bytes() == Some(stem.as_encoded_bytes()) {
+                            effective_relative = member.relative.with_file_name(stem);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         crate::journal::capture::finalize_warnings(&snapshot, &mut entity, &mut |_, _| Ok(()))?;
-        entity.identity.relative_path = Some(member.relative.clone());
+        let change_warnings = if best_effort_source_change {
+            snapshot.change_warnings()?
+        } else {
+            Vec::new()
+        };
+        if !change_warnings.is_empty() {
+            entity
+                .metadata
+                .warnings
+                .retain(|w| !change_warnings.contains(w));
+        }
+        tree.visit_pending_warnings(&mut |code, message| {
+            persist_warning_record(&mut writer, code, message.to_owned(), &mut warning_count)
+        })?;
+        entity.identity.relative_path = Some(effective_relative.clone());
         entity.identity.enclosing_path = None;
         if let Some(environment) = &session.environment { attach_environment(&mut entity, environment); }
         persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
@@ -703,7 +884,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
         }
         if matches!(entity.kind, FileEntityKind::Regular { .. }) && entity.identity.nlink > 1 {
-            match hardlinks.lookup(&entity, &member.relative) {
+            match hardlinks.lookup(&entity, &effective_relative) {
                 Ok(Some(target)) => entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_relative_path(target)? },
                 Ok(None) => {},
                 Err(error) => {
@@ -715,7 +896,19 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             }
         }
         let mut payload = if matches!(entity.kind, FileEntityKind::Regular { .. }) && !journal {
-            match capture.open(&member.source).and_then(|mut payload| { payload.bind_snapshot(&snapshot)?; Ok(payload) }) {
+            let opened: Result<Box<dyn PayloadSource>> = match snapshot.interpreted_payload() {
+                Ok(Some(interpreted)) => {
+                    let mut mem = ctb_io::file::MemoryPayloadSource::new(interpreted)?;
+                    mem.bind_snapshot(&snapshot)?;
+                    Ok(Box::new(mem))
+                }
+                Ok(None) => capture.open(&member.source).and_then(|mut payload| {
+                    payload.bind_snapshot(&snapshot)?;
+                    Ok(payload)
+                }),
+                Err(err) => Err(err),
+            };
+            match opened {
                 Ok(payload) => Some(payload),
                 Err(error) => {
                     persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PayloadOpen, &error))?;
@@ -728,8 +921,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         let checkpoint = writer.output_mut().checkpoint()?;
         let precommit = || {
             tree.validate()?;
-            let warnings = snapshot.validate()?;
-            ensure!(warnings.is_empty(), "Source changed before commit: {}", warnings.join("; "));
+            snapshot.retain_changes(snapshot.validate()?)?;
             Ok(())
         };
         let bodies = if journal { ctb_io::file::encoding::BodyPolicy::Omit } else { ctb_io::file::encoding::BodyPolicy::Include };
@@ -755,7 +947,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         writer.output_mut().flush()?;
         writer.output_mut().sync()?;
         if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-            hardlinks.commit(&entity, &member.relative, Some(&snapshot));
+            hardlinks.commit(&entity, &effective_relative, Some(&snapshot));
         }
     }
     if let Err(error) = tree.validate() {
@@ -765,12 +957,24 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
         }
     }
+    tree.visit_pending_warnings(&mut |code, message| {
+        persist_warning_record(&mut writer, code, message.to_owned(), &mut warning_count)
+    })?;
     let mut output = writer.finish()?;
     output.sync()?;
     Ok(CaptureOutcome { output, error_count, warning_count, completed: true })
 }
 
+#[cfg(test)]
 fn resume_archive(path: &Path, journal: bool) -> Result<()> {
+    resume_archive_with_options(path, journal, &ArchiveCreateOptions::default())
+}
+
+fn resume_archive_with_options(
+    path: &Path,
+    journal: bool,
+    options: &ArchiveCreateOptions,
+) -> Result<()> {
     let mut file = OpenOptions::new().read(true).write(true).open(path)?;
     let mut magic = [0_u8; 8];
     file.seek(SeekFrom::Start(0))?;
@@ -791,7 +995,7 @@ fn resume_archive(path: &Path, journal: bool) -> Result<()> {
         recovered.verify_self_contained_prefix()?;
     }
     validate_members(&recovered)?;
-    let plan = plan_sources(&recovered.session.sources, path)?;
+    let plan = plan_sources_with_options(&recovered.session.sources, path, options)?;
     ensure!(plan.diagnostics.is_empty(), "Cannot resume with source planning diagnostics");
     let planned: HashMap<_, _> = plan.members.iter().map(|member| (member.relative.as_path(), member.source.as_path())).collect();
     for committed in &recovered.members {
@@ -809,7 +1013,16 @@ fn resume_archive(path: &Path, journal: bool) -> Result<()> {
     file.set_len(recovered.valid_length)?;
     file.sync_all()?;
     file.seek(SeekFrom::End(0))?;
-    let outcome = create_archive(FileArchiveOutput::new(file), &recovered.session.sources, path, &plan, false, Some(&recovered), is_journal)?;
+    let outcome = create_archive_with_options(
+        FileArchiveOutput::new(file),
+        &recovered.session.sources,
+        path,
+        &plan,
+        false,
+        Some(&recovered),
+        is_journal,
+        options,
+    )?;
     ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0, "Resumed archive has capture diagnostics");
     Ok(())
 }
@@ -977,9 +1190,11 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 }
                 Err(error) => return Err(error),
             };
-            for warning in receipt.warnings { warn_fmt!("{warning}"); }
+            for warning in &receipt.warnings { warn_fmt!("{warning}"); }
             if !hardlinks {
-                if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, options.check_atime, options.check_ctime, options.check_birthtime) {
+                let mut expected = member.entity.clone();
+                receipt.apply_stream_adaptations(&mut expected);
+                if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &expected, options.strict_lossless, options.check_atime, options.check_ctime, options.check_birthtime) {
                     if recover {
                         let msg = format!("Materialized member verification failed for {}: {error:#}; continuing in recover mode", relative.display());
                         warn_fmt!("{msg}");
@@ -1006,30 +1221,34 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     return Err(error);
                 }
             }
-            for stream in &member.entity.streams {
-                if stream.payload.is_some() || stream.data.is_some() {
-                    let mut stream_reader = match reader.stream_payload(stream) {
-                        Ok(r) => r,
-                        Err(error) if recover => {
-                            let msg = format!("Failed to open root stream reader: {error:#}; skipping in recover mode");
-                            warn_fmt!("{msg}");
-                            losses.push(msg);
-                            continue;
-                        }
-                        Err(error) => return Err(error),
-                    };
-                    match ctb_io::file::write_stream_from_reader_with_warnings(destination, stream, &mut stream_reader, options.strict_lossless) {
-                        Ok(warnings) => {
-                            for warning in warnings { warn_fmt!("{warning}"); }
-                        }
-                        Err(error) if recover => {
-                            let msg = format!("Failed to write root directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
-                            warn_fmt!("{msg}");
-                            losses.push(msg);
-                        }
-                        Err(error) => return Err(error),
+            let mut expected = member.entity.clone();
+            match ctb_io::file::materialize_directory_streams_and_companions(
+                &member.entity,
+                destination,
+                &sandbox,
+                options,
+                reader,
+            ) {
+                Ok((stream_adaptations, warnings)) => {
+                    ctb_io::file::MaterializeReceipt {
+                        destination_path: destination.to_path_buf(),
+                        bytes_written: 0,
+                        sha256: None,
+                        skipped_identical: false,
+                        warnings: Vec::new(),
+                        stream_adaptations,
+                    }
+                    .apply_stream_adaptations(&mut expected);
+                    for warning in warnings {
+                        warn_fmt!("{warning}");
                     }
                 }
+                Err(error) if recover => {
+                    let msg = format!("Failed to materialize root directory streams: {error:#}; skipping in recover mode");
+                    warn_fmt!("{msg}");
+                    losses.push(msg);
+                }
+                Err(error) => return Err(error),
             }
             match ctb_io::file::apply_entity_metadata(destination, None, &member.entity.metadata, false, true, options.strict_lossless, options.check_birthtime) {
                 Ok(warnings) => {
@@ -1043,7 +1262,7 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 Err(error) => return Err(error),
             }
             if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
-                destination, &member.entity, options.strict_lossless,
+                destination, &expected, options.strict_lossless,
                 options.check_atime, options.check_ctime, options.check_birthtime,
             ) {
                 if recover {
@@ -1056,8 +1275,10 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             }
         } else {
             let mut verify_path = destination.join(relative);
+            let mut expected = member.entity.clone();
             match ctb_io::file::materialize_entity_with_stream_source(&member.entity, None, &sandbox, options, reader) {
                 Ok(receipt) => {
+                    receipt.apply_stream_adaptations(&mut expected);
                     verify_path = receipt.destination_path;
                     for warning in receipt.warnings { warn_fmt!("{warning}"); }
                 }
@@ -1069,7 +1290,7 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 Err(error) => return Err(error),
             }
             if let Err(error) = ctb_io::file::verify_materialized_entity_ext(
-                &verify_path, &member.entity, options.strict_lossless,
+                &verify_path, &expected, options.strict_lossless,
                 options.check_atime, options.check_ctime, options.check_birthtime,
             ) {
                 if recover {
@@ -1125,7 +1346,7 @@ mod tests {
             if path == self.path && matches!(self.fault, CaptureFault::Capture) {
                 bail!("injected metadata capture failure");
             }
-            let mut source = FilesystemCapture.capture(path)?;
+            let mut source = FilesystemCapture::default().capture(path)?;
             if path == self.path && matches!(self.fault, CaptureFault::Warning) {
                 let mut stream = ctb_io::file::AttachedStream::from_data(None,
                     ctb_io::file::StreamKind::infer_from_name(b"fixture"), Vec::new())?;
@@ -1240,9 +1461,28 @@ mod tests {
         }
     }
 
+    static DEFAULT_CREATE_OPTIONS: ArchiveCreateOptions = ArchiveCreateOptions {
+        full_provenance: false,
+        on_source_change: crate::args::SourceChangePolicy::Error,
+        one_file_system: false,
+        apple_read: crate::args::AppleReadCliArgs {
+            read_apple_double: None,
+            read_apple_double_alongside: false,
+            no_read_apple_double_alongside: false,
+            read_apple_double_zip: false,
+            read_apple_double_netatalk: false,
+            read_apple_single: false,
+            read_apple_single_without_extension: false,
+            no_read_apple_single: false,
+            read_apple_single_with_extension: Vec::new(),
+            read_windows_ads: false,
+            no_read_windows_ads: false,
+        },
+    };
+
     fn capture_request<'a>(sources: &'a [PathBuf], archive: &'a Path, plan: &'a SourcePlan,
         continue_on_error: bool) -> CaptureRequest<'a> {
-        CaptureRequest { sources, archive, plan, continue_on_error, recovered: None, journal: false }
+        CaptureRequest { sources, archive, plan, continue_on_error, recovered: None, journal: false, options: &DEFAULT_CREATE_OPTIONS }
     }
 
     #[crate::ctb_test]
@@ -1310,7 +1550,7 @@ mod tests {
         let companion = temporary.path().join("._main");
         std::fs::write(&path, b"primary")?;
         std::fs::write(&companion, b"malformed")?;
-        let raw = FilesystemCapture.capture(&path)?;
+        let raw = FilesystemCapture::default().capture(&path)?;
         let read_alongside = AppleReadOptions {
             read_apple_double_alongside: true,
             ..Default::default()
@@ -1327,7 +1567,7 @@ mod tests {
         {
             std::fs::remove_file(&companion)?;
             std::os::unix::fs::symlink("missing", &companion)?;
-            FilesystemCapture.capture(&path)?;
+            FilesystemCapture::default().capture(&path)?;
             ensure!(CapturedSource::capture(&path, None, &read_alongside, false).is_err());
             ensure!(std::fs::read_link(&companion)? == Path::new("missing"));
             ensure!(std::fs::read(&path)? == b"primary");
@@ -1377,7 +1617,7 @@ mod tests {
         struct CleanupCapture;
         impl CaptureSource for CleanupCapture {
             fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
-                let source = FilesystemCapture.capture(path)?;
+                let source = FilesystemCapture::default().capture(path)?;
                 source.snapshot.retain_cleanup_warnings(vec!["injected symlink cleanup warning".to_owned()])?;
                 Ok(source)
             }
@@ -1406,7 +1646,7 @@ mod tests {
         impl CaptureSource for AddChild {
             fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
                 if path != self.root { std::fs::write(self.root.join("added"), b"new")?; }
-                FilesystemCapture.capture(path)
+                FilesystemCapture::default().capture(path)
             }
         }
         for during_capture in [false, true] {
@@ -1442,6 +1682,7 @@ mod tests {
             let path = temporary.path().join(format!("{continue_on_error}.cscarchive"));
             let result = run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
                 archive: path.clone(), sources: vec![missing.clone(), good.clone()], resume: false, continue_on_error, journal: false,
+                options: ArchiveCreateOptions::default(),
             } })?;
             ensure!(matches!(result, ToolResult::Immediate { exit_code: 1, stderr, stdout }
                 if stdout.is_empty() && !String::from_utf8_lossy(&stderr).contains("Archive created.")));
@@ -1471,6 +1712,7 @@ mod tests {
                 else { temporary.path().join("duplicate.cscarchive") };
             ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
                 archive: archive.clone(), sources, resume: false, continue_on_error: true, journal: false,
+                options: ArchiveCreateOptions::default(),
             } }).is_err());
             ensure!(!archive.exists());
         }
@@ -1505,6 +1747,7 @@ mod tests {
                     resume: false,
                     continue_on_error,
                     journal: false,
+                    options: ArchiveCreateOptions::default(),
                 },
             }, Some(out_handle)).is_err());
             ensure!(std::fs::read(&source_file)? == b"important source payload");
@@ -1518,6 +1761,7 @@ mod tests {
                     resume: false,
                     continue_on_error,
                     journal: false,
+                    options: ArchiveCreateOptions::default(),
                 },
             }, Some(out_handle)).is_err());
             ensure!(std::fs::read(&nested_out)?.is_empty());
@@ -1531,6 +1775,7 @@ mod tests {
                     resume: false,
                     continue_on_error,
                     journal: false,
+                    options: ArchiveCreateOptions::default(),
                 },
             }, Some(out_handle)).is_err());
             ensure!(std::fs::read(&source_file)? == b"important source payload");
@@ -1546,6 +1791,7 @@ mod tests {
                         resume: false,
                         continue_on_error,
                         journal: false,
+                        options: ArchiveCreateOptions::default(),
                     },
                 }, Some(out_handle)).is_err());
                 ensure!(std::fs::read(&symlink_target_out)? == b"untouched output");
@@ -1562,6 +1808,7 @@ mod tests {
                 resume: false,
                 continue_on_error: false,
                 journal: false,
+                options: ArchiveCreateOptions::default(),
             },
         }, Some(valid_handle))?;
         ensure!(matches!(res, ToolResult::Immediate { exit_code: 0, .. }));
@@ -1766,7 +2013,7 @@ mod tests {
             archive: archive.clone(), destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
-            recover: false,
+            recover: false, apple_write: Default::default(),
         } }).is_err());
         ensure!(!destination.exists(), "Failed capture modified extraction destination");
         let verify_recover = run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: true } })?;
@@ -1781,7 +2028,7 @@ mod tests {
             archive, destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
-            recover: true,
+            recover: true, apple_write: Default::default(),
         } })?;
         let ToolResult::Immediate { exit_code: extract_code, stderr: extract_stderr, .. } = extract_recover else {
             bail!("Expected Immediate ToolResult from archive extract --recover");
@@ -1799,7 +2046,7 @@ mod tests {
     #[crate::ctb_test]
     fn archive_stdout_argument_parsing() -> Result<()> {
         let args = ArchiveArgs::try_parse_from(["archive", "create", "-", "source/"])?;
-        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false, continue_on_error: false, journal: false }
+        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false, continue_on_error: false, journal: false, .. }
             if archive == Path::new("-") && sources == vec![PathBuf::from("source/")]));
         ensure!(ArchiveArgs::try_parse_from(["archive", "create", "output", "--resume", "--continue-on-error"]).is_err());
         let stdout_resume = ArchiveArgs::try_parse_from(["archive", "create", "-", "--resume"])?;
@@ -1886,7 +2133,7 @@ mod tests {
             archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
-            recover: false,
+            recover: false, apple_write: Default::default(),
         } }).is_err());
         ensure!(!destination.exists());
 
@@ -1904,7 +2151,7 @@ mod tests {
             archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: false, copy_specials_as_specials: false,
             strict: false, check_atime: false, check_ctime: false, check_birthtime: false,
-            recover: true,
+            recover: true, apple_write: Default::default(),
         } })?;
         ensure!(matches!(
             extract_recover,
@@ -1937,6 +2184,7 @@ mod tests {
         }
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
             archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false, journal: false,
+            options: ArchiveCreateOptions::default(),
         } })?;
         for name in &names {
             std::fs::remove_file(source.join(name).join(name))?;
@@ -1996,6 +2244,7 @@ mod tests {
         std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o755))?;
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
             archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false, journal: false,
+            options: ArchiveCreateOptions::default(),
         } })?;
         let reader = JournalReader::new(File::open(archive)?)?;
         let options = MaterializeOptions::default();
@@ -2347,6 +2596,7 @@ mod tests {
                 resume: false,
                 continue_on_error: false,
                 journal: true,
+                options: ArchiveCreateOptions::default(),
             },
         })?;
         ensure!(matches!(result, ToolResult::Immediate { exit_code: 0, .. }));
@@ -2392,6 +2642,7 @@ mod tests {
                 resume: false,
                 continue_on_error: false,
                 journal: false,
+                options: ArchiveCreateOptions::default(),
             },
         })?;
         ensure!(matches!(result, ToolResult::Immediate { exit_code: 0, .. }));
@@ -2417,6 +2668,7 @@ mod tests {
                 check_birthtime: false,
                 copy_specials_as_specials: false,
                 recover: false,
+                apple_write: Default::default(),
             },
         })?;
         ensure!(matches!(extract_res, ToolResult::Immediate { exit_code: 0, .. }));
@@ -2509,6 +2761,7 @@ mod tests {
                     resume: true,
                     continue_on_error: false,
                     journal: journal_flag,
+                    options: ArchiveCreateOptions::default(),
                 },
             })
             .err()
@@ -2631,6 +2884,7 @@ mod tests {
                     check_birthtime: false,
                     copy_specials_as_specials: false,
                     recover: false,
+                    apple_write: Default::default(),
                 },
             })
             .is_err(),
@@ -2652,6 +2906,7 @@ mod tests {
                 check_birthtime: false,
                 copy_specials_as_specials: false,
                 recover: false,
+                apple_write: Default::default(),
             },
         })?;
 
@@ -2676,6 +2931,189 @@ mod tests {
             report.is_clean(),
             "Best-effort verification against archive with adapted filename must pass: {report:?}"
         );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_csc_option_exposure_apple_streams_and_source_change() -> Result<()> {
+        let create_parsed = ArchiveArgs::try_parse_from([
+            "archive",
+            "create",
+            "out.cscarchive",
+            "src/",
+            "--full-provenance",
+            "--on-source-change",
+            "best-effort",
+            "-x",
+            "--read-apple-double-alongside",
+            "--read-apple-single-with-extension",
+            "as",
+            "--read-windows-ads",
+        ])?;
+        let ArchiveCommand::Create { options, .. } = create_parsed.command else {
+            bail!("Expected ArchiveCommand::Create");
+        };
+        ensure!(options.full_provenance);
+        ensure!(options.on_source_change == crate::args::SourceChangePolicy::BestEffort);
+        ensure!(options.one_file_system);
+        let resolved_read = options.apple_read.resolve();
+        ensure!(resolved_read.read_apple_double_alongside);
+        ensure!(resolved_read.read_apple_single_as);
+        ensure!(resolved_read.read_windows_ads_alongside);
+
+        let extract_parsed = ArchiveArgs::try_parse_from([
+            "archive",
+            "extract",
+            "out.cscarchive",
+            "dest/",
+            "--force-write-apple-double",
+            "alongside",
+        ])?;
+        let ArchiveCommand::Extract { apple_write, .. } = extract_parsed.command else {
+            bail!("Expected ArchiveCommand::Extract");
+        };
+        ensure!(
+            apple_write.force_write_apple_double
+                == Some(ctb_io::file::apple_double::AppleDoubleStyle::Alongside)
+        );
+
+        // End-to-end AppleDouble + AppleSingle (.as) capture and AppleDouble alongside extraction
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        std::fs::write(source.join("doc.txt"), b"primary doc")?;
+        let double_archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: None,
+            comment: Some("doc comment".to_owned()),
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"doc rsrc".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(8),
+            unrecognized_entries: Vec::new(),
+            entries: Vec::new(),
+        };
+        std::fs::write(
+            source.join("._doc.txt"),
+            ctb_io::file::write_apple_single_double(&double_archive)?,
+        )?;
+
+        let mut single_archive = double_archive.clone();
+        single_archive.format = ctb_io::file::AppleFormat::AppleSingle;
+        single_archive.comment = Some("single comment".to_owned());
+        single_archive.data_fork = Some(b"single data fork".to_vec());
+        std::fs::write(
+            source.join("note.txt.as"),
+            ctb_io::file::write_apple_single_double(&single_archive)?,
+        )?;
+
+        let archive_path = temporary.path().join("apple.cscarchive");
+        let create_res = run_archive(&ArchiveArgs::try_parse_from([
+            "archive",
+            "create",
+            archive_path.to_str().context("Non-UTF8 path")?,
+            source.to_str().context("Non-UTF8 path")?,
+            "--read-apple-double-alongside",
+            "--read-apple-single-with-extension",
+            "as",
+        ])?)?;
+        ensure!(matches!(create_res, ToolResult::Immediate { exit_code: 0, .. }));
+
+        let reader = JournalReader::new(File::open(&archive_path)?)?;
+        reader.verify_self_contained()?;
+        // `._doc.txt` companion is absorbed into `source/doc.txt` and `note.txt.as` is stripped to `source/note.txt`
+        let rel_paths: HashSet<_> = reader
+            .members
+            .iter()
+            .filter_map(|m| m.entity.identity.relative_path.clone())
+            .collect();
+        ensure!(rel_paths.contains(Path::new("source/doc.txt")));
+        ensure!(rel_paths.contains(Path::new("source/note.txt")));
+        ensure!(!rel_paths.contains(Path::new("source/._doc.txt")));
+        ensure!(!rel_paths.contains(Path::new("source/note.txt.as")));
+
+        let extracted = temporary.path().join("extracted");
+        let extract_res = run_archive(&ArchiveArgs::try_parse_from([
+            "archive",
+            "extract",
+            archive_path.to_str().context("Non-UTF8 path")?,
+            extracted.to_str().context("Non-UTF8 path")?,
+            "--force-write-apple-double",
+            "alongside",
+        ])?)?;
+        ensure!(matches!(extract_res, ToolResult::Immediate { exit_code: 0, .. }));
+        ensure!(std::fs::read(extracted.join("source/doc.txt"))? == b"primary doc");
+        ensure!(extracted.join("source/._doc.txt").is_file());
+        ensure!(std::fs::read(extracted.join("source/note.txt"))? == b"single data fork");
+        ensure!(extracted.join("source/._note.txt").is_file());
+
+        // Verify `--on-source-change best-effort` records `SourceModifiedDuringCopy` warning while committing member
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            struct ChmodOnCapture {
+                target: PathBuf,
+                options: ArchiveCreateOptions,
+            }
+            impl CaptureSource for ChmodOnCapture {
+                fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
+                    let best_effort =
+                        self.options.on_source_change == crate::args::SourceChangePolicy::BestEffort;
+                    let mut source = CapturedSource::capture(
+                        path,
+                        None,
+                        &self.options.apple_read.resolve(),
+                        best_effort,
+                    )?;
+                    if path == self.target {
+                        let mode = std::fs::metadata(path)?.permissions().mode() ^ 0o100;
+                        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
+                    }
+                    source.hash(path)?;
+                    Ok(source)
+                }
+            }
+
+            let sc_dir = temporary.path().join("sc_source");
+            std::fs::create_dir(&sc_dir)?;
+            let sc_sources = vec![sc_dir.clone()];
+            let sc_archive = temporary.path().join("sc_best_effort.cscarchive");
+            let sc_options = ArchiveCreateOptions {
+                on_source_change: crate::args::SourceChangePolicy::BestEffort,
+                ..Default::default()
+            };
+            let sc_plan = plan_sources_with_options(&sc_sources, &sc_archive, &sc_options)?;
+            let outcome = capture_archive(
+                FileArchiveOutput::new(File::create(&sc_archive)?),
+                CaptureRequest {
+                    sources: &sc_sources,
+                    archive: &sc_archive,
+                    plan: &sc_plan,
+                    continue_on_error: false,
+                    recovered: None,
+                    journal: false,
+                    options: &sc_options,
+                },
+                &mut ChmodOnCapture {
+                    target: sc_dir,
+                    options: sc_options.clone(),
+                },
+            )?;
+            ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 1);
+            drop(outcome.output);
+            let sc_reader = JournalReader::recover(File::open(&sc_archive)?)?;
+            ensure!(sc_reader.is_completed() && sc_reader.members.len() == 1);
+            ensure!(sc_reader
+                .warnings
+                .iter()
+                .any(|w| w.code == "SourceModifiedDuringCopy"));
+        }
 
         Ok(())
     }

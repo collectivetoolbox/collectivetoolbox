@@ -22,6 +22,9 @@ slash retain their basename; directory sources with a trailing slash contribute
 their contents and root metadata. Duplicate member paths are errors. The archive
 must not be included in its source tree. Shell redirection can truncate an
 existing file before the command starts; the command cannot undo that damage.
+`create` also accepts `-x` / `--one-file-system`, `--full-provenance`,
+`--on-source-change <error|best-effort>`, and the AppleDouble, AppleSingle, and
+Windows ADS companion reading flags (`--read-apple-*`, `--read-windows-ads-alongside`).
 
 Stdout creation uses the same forward-only record encoder as file creation.
 Stdout contains binary archive data only; creation summaries and errors go to
@@ -82,6 +85,9 @@ atomic regular-file replacement and directory merging, not replacement of every
 entry type. `--trust-symlink-targets` preserves raw symlink targets, including
 targets outside the destination; it does not authorize archive writes outside it.
 `--copy-specials-as-specials` opts into restoring FIFOs and device nodes.
+`extract` also accepts the AppleDouble, AppleSingle, and Windows ADS stream
+restoration flags (`--write-apple-*`, `--maybe-write-apple-*`,
+`--write-windows-ads-alongside`, `--maybe-write-windows-ads-alongside`).
 
 Existing directory metadata and attached streams are protected too. In
 particular, extracting a contents-only root into an existing directory requires

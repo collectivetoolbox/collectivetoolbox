@@ -159,8 +159,6 @@ These inbox reports also need reconciliation with current code before changes.
   authorization. Earlier archive extraction was Unix-only; Windows test
   compilation does not establish runtime support. Follow with FreeBSD runtime
   qualification; native macOS awaits infrastructure.
-- [ ] Audit archive exposure of applicable CSC options: full provenance,
-  source-change policy, filesystem boundaries, and Apple stream restoration.
 - [ ] Refresh generated CLI references/help and run a fresh executable smoke
   test after the shared-journal and overwrite changes, including stdout create,
   source removal, list/verify/extract, refusal of existing destinations without
