@@ -1708,6 +1708,7 @@ mod tests {
         tampered.name = Some(StreamName::from_str(":tampered:$DATA"));
         tampered.data = Some(b"tampered".to_vec());
         let mut missing = valid.clone();
+        missing.name = Some(StreamName::from_str(":missing:$DATA"));
         missing.data = None;
         let mut unnamed = valid.clone();
         unnamed.name = Some(StreamName::from_str("::$DATA"));
@@ -1719,9 +1720,9 @@ mod tests {
         alias.name = Some(StreamName::from_str("SAFE"));
         for (invalid, expected, strict_only) in [
             (tampered, "payload does not match its descriptor", false),
-            (missing, "has no payload data", false),
+            (missing, "has no payload source", false),
             (unnamed, "cannot overwrite the unnamed data fork", false),
-            (traversal, "Invalid Windows alternate data stream name", false),
+            (traversal, "Invalid Windows alternate data stream name", true),
             (nul.clone(), "Stream name contains a NUL", true),
             (valid.clone(), "Stream names collide", false),
             (alias, "Stream names collide", false),

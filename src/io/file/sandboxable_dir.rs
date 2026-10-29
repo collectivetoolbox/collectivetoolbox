@@ -1318,14 +1318,10 @@ fn staged_node_name() -> String {
 #[cfg(windows)]
 #[expect(unsafe_code, reason = "MoveFileExW receives validated NUL-terminated path buffers kept alive until it returns")]
 fn publish_windows(temp: &Path, destination: &Path, existing: ExistingEntryPolicy) -> Result<()> {
-    use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_REPLACE_EXISTING};
 
-    let mut source: Vec<u16> = temp.as_os_str().encode_wide().collect();
-    let mut target: Vec<u16> = destination.as_os_str().encode_wide().collect();
-    anyhow::ensure!(!source.contains(&0) && !target.contains(&0), "Publication path contains NUL");
-    source.push(0);
-    target.push(0);
+    let source = crate::metadata::windows::path_to_wide(temp)?;
+    let target = crate::metadata::windows::path_to_wide(destination)?;
     let flags = match existing {
         ExistingEntryPolicy::Refuse => 0,
         ExistingEntryPolicy::Replace => MOVEFILE_REPLACE_EXISTING,

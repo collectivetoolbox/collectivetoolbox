@@ -1461,8 +1461,13 @@ mod tests {
             let expected = serialize_apple_double_for_entity(&entity)?;
             assert_eq!(write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Replace)?, Some(companion.clone()));
             let after = std::fs::metadata(&companion)?;
-            assert_eq!(filetime::FileTime::from_last_access_time(&after), filetime::FileTime::from_unix_time(1_700_000_000, 123_456_789));
-            assert_eq!(filetime::FileTime::from_last_modification_time(&after), filetime::FileTime::from_unix_time(1_700_000_001, 987_654_321));
+            let (expected_atime_nsec, expected_mtime_nsec) = if cfg!(windows) {
+                ((123_456_789 / 100) * 100, (987_654_321 / 100) * 100)
+            } else {
+                (123_456_789, 987_654_321)
+            };
+            assert_eq!(filetime::FileTime::from_last_access_time(&after), filetime::FileTime::from_unix_time(1_700_000_000, expected_atime_nsec));
+            assert_eq!(filetime::FileTime::from_last_modification_time(&after), filetime::FileTime::from_unix_time(1_700_000_001, expected_mtime_nsec));
             assert_eq!(std::fs::read(&companion)?, expected);
             assert_eq!(std::fs::read(&path)?, b"primary");
             #[cfg(unix)]
@@ -1612,6 +1617,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_windows_ads_fixture_read_and_write_roundtrip() -> Result<()> {
         let fixture_dir = ctb_utilities::manifest_fixture_path(
@@ -1715,6 +1721,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_windows_ads_stream_name_cleaning_collisions_and_directory_companions() -> Result<()> {
         let temp = tempfile::tempdir()?;
