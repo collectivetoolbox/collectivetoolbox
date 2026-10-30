@@ -585,29 +585,37 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let term_checkpoint = self.save_checkpoint();
+        let mut pre_read = if self.spliced_tokens.is_empty() && self.cursor < self.active_span.end {
+            self.read_token_or_binary_at(self.cursor)?
+        } else {
+            None
+        };
         if !ctx.unescaped_literal_payload
-            && self.spliced_tokens.is_empty()
-            && self.cursor < self.active_span.end
+            && let Some((ch, _)) = pre_read
+            && ch.fills_role_with(DcRole::LangSay, ctx.resolver)
         {
-            if let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? {
-                if ch.fills_role_with(DcRole::LangSay, ctx.resolver) {
-                    let term_targets_say = match term {
-                        SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| ctx.token_fills_role(t, DcRole::LangSay)),
-                        SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => {
-                            ctx.token_fills_role(target.to_u128(), DcRole::LangSay)
-                        }
-                        SyntaxTerm::CharSet { negated: false, members } => {
-                            members.iter().any(|target| ctx.token_fills_role(target.to_u128(), DcRole::LangSay))
-                        }
-                        _ => false,
+            let term_targets_say = match term {
+                SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| ctx.token_fills_role(t, DcRole::LangSay)),
+                SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => {
+                    ctx.token_fills_role(target.to_u128(), DcRole::LangSay)
+                }
+                SyntaxTerm::CharSet { negated: false, members } => {
+                    members.iter().any(|target| ctx.token_fills_role(target.to_u128(), DcRole::LangSay))
+                }
+                _ => false,
+            };
+            if !term_targets_say {
+                let spliced = if let Some(evaluator) = &ctx.evaluator {
+                    self.splice_stream_invocation(evaluator.as_ref(), ctx.resolver, &ctx.policy)?
+                } else {
+                    self.splice_stream_invocation(&DefaultDcExpressionEvaluator, ctx.resolver, &ctx.policy)?
+                };
+                if spliced {
+                    pre_read = if self.spliced_tokens.is_empty() && self.cursor < self.active_span.end {
+                        self.read_token_or_binary_at(self.cursor)?
+                    } else {
+                        None
                     };
-                    if !term_targets_say {
-                        if let Some(evaluator) = &ctx.evaluator {
-                            let _ = self.splice_stream_invocation(evaluator.as_ref(), ctx.resolver, &ctx.policy)?;
-                        } else {
-                            let _ = self.splice_stream_invocation(&DefaultDcExpressionEvaluator, ctx.resolver, &ctx.policy)?;
-                        }
-                    }
                 }
             }
         }
@@ -619,7 +627,7 @@ impl<'a> DcDocumentNavigator<'a> {
             };
             (ch, self.cursor)
         } else {
-            let Some((dc, after)) = self.read_token_or_binary_at(self.cursor)? else {
+            let Some((dc, after)) = pre_read else {
                 return Ok(false);
             };
             (dc, after)
@@ -1662,7 +1670,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         }
         let mut char_count = 0usize;
-        let mut name_mstr = DcMstring::new();
+        let mut name_mstr = subtype.is_some().then(DcMstring::new);
         while let Some(ch) = self.pop_next_token()? {
             if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
                 let Some(escaped) = self.pop_next_token()? else {
@@ -1675,7 +1683,9 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.restore_checkpoint(term_checkpoint);
                     return Ok(false);
                 };
-                name_mstr.push_char(escaped);
+                if let Some(ref mut mstr) = name_mstr {
+                    mstr.push_char(escaped);
+                }
                 char_count = char_count.saturating_add(1);
             } else if ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver) {
                 if char_count == 0 {
@@ -1691,8 +1701,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 if let Some(sub) = subtype {
                     let type_ok = if let Some(ref type_tokens) = leading_type_tokens {
                         Self::type_tokens_satisfy(type_tokens, sub, None, ctx.resolver)
+                    } else if let Some(ref mstr) = name_mstr {
+                        self.identifier_bound_to_type_in_scope(mstr, start_offset, sub, ctx)?
                     } else {
-                        self.identifier_bound_to_type_in_scope(&name_mstr, start_offset, sub, ctx)?
+                        false
                     };
                     if !type_ok {
                         self.restore_checkpoint(term_checkpoint);
@@ -1701,7 +1713,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 return Ok(true);
             } else {
-                name_mstr.push_char(ch);
+                if let Some(ref mut mstr) = name_mstr {
+                    mstr.push_char(ch);
+                }
                 char_count = char_count.saturating_add(1);
             }
         }

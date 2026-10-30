@@ -90,6 +90,7 @@ pub(super) enum NavBackend<'a> {
     MemoryText(&'a DcStr),
     SeekableFile {
         reader: BufReader<File>,
+        reader_pos: Option<u64>,
         base_offset: u64,
         end_offset: u64,
         is_v1: bool,
@@ -121,7 +122,10 @@ impl<'b> DcBinaryResolver for DcDocumentNavigator<'b> {
         payload: &BinaryPayloadRef<'a>,
     ) -> Result<Cow<'a, [u8]>> {
         match &mut self.backend {
-            NavBackend::SeekableFile { reader, .. } => payload.materialize(Some(reader)),
+            NavBackend::SeekableFile { reader, reader_pos, .. } => {
+                *reader_pos = None;
+                payload.materialize(Some(reader))
+            }
             NavBackend::MemoryMstr(_) | NavBackend::MemoryText(_) => payload.materialize_bytes(),
         }
     }
@@ -370,6 +374,7 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(Self {
             backend: NavBackend::SeekableFile {
                 reader,
+                reader_pos: Some(header_end),
                 base_offset,
                 end_offset: file_len,
                 is_v1,
@@ -408,8 +413,8 @@ impl<'a> DcDocumentNavigator<'a> {
             self.active_span
         );
         self.cursor = offset;
-        if let NavBackend::SeekableFile { reader, .. } = &mut self.backend {
-            reader.seek(SeekFrom::Start(offset))?;
+        if let NavBackend::SeekableFile { reader, reader_pos, .. } = &mut self.backend {
+            seek_buffered_file(reader, reader_pos, offset)?;
         }
         Ok(())
     }
@@ -429,8 +434,8 @@ impl<'a> DcDocumentNavigator<'a> {
         self.level_stack.push((self.active_span, stub.outer_span.end, stub.closer_dc));
         self.active_span = inner;
         self.cursor = inner.start;
-        if let NavBackend::SeekableFile { reader, .. } = &mut self.backend {
-            reader.seek(SeekFrom::Start(inner.start))?;
+        if let NavBackend::SeekableFile { reader, reader_pos, .. } = &mut self.backend {
+            seek_buffered_file(reader, reader_pos, inner.start)?;
         }
         Ok(())
     }
@@ -466,15 +471,17 @@ impl<'a> DcDocumentNavigator<'a> {
                     .context("Span out of bounds in DcStr")?;
                 Ok(Cow::Borrowed(slice))
             }
-            NavBackend::SeekableFile { reader, .. } => {
+            NavBackend::SeekableFile { reader, reader_pos, .. } => {
                 let len = usize::try_from(span.len())
                     .context("Span length exceeds usize")?;
-                reader.seek(SeekFrom::Start(span.start))?;
+                seek_buffered_file(reader, reader_pos, span.start)?;
                 let mut buf = vec![0_u8; len];
-                reader
-                    .read_exact(&mut buf)
-                    .context("Failed to read span bytes from file")?;
-                reader.seek(SeekFrom::Start(self.cursor))?;
+                if let Err(err) = reader.read_exact(&mut buf) {
+                    *reader_pos = None;
+                    return Err(err).context("Failed to read span bytes from file");
+                }
+                *reader_pos = Some(span.end);
+                seek_buffered_file(reader, reader_pos, self.cursor)?;
                 Ok(Cow::Owned(buf))
             }
         }
@@ -519,8 +526,8 @@ impl<'a> DcDocumentNavigator<'a> {
                     .context("Span out of bounds for SHA-256")?;
                 Ok(ctb_formats_checksum::sha256(slice))
             }
-            NavBackend::SeekableFile { reader, .. } => {
-                reader.seek(SeekFrom::Start(span.start))?;
+            NavBackend::SeekableFile { reader, reader_pos, .. } => {
+                seek_buffered_file(reader, reader_pos, span.start)?;
                 let mut hasher = Sha256::new();
                 let mut remaining = span.len();
                 let mut buf = [0_u8; 65536];
@@ -529,11 +536,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     let slice = buf
                         .get_mut(..to_read)
                         .context("Buffer slice bounds invalid")?;
-                    reader.read_exact(slice)?;
+                    if let Err(err) = reader.read_exact(slice) {
+                        *reader_pos = None;
+                        return Err(err.into());
+                    }
                     hasher.update(&*slice);
                     remaining = remaining.saturating_sub(u64::try_from(to_read)?);
                 }
-                reader.seek(SeekFrom::Start(self.cursor))?;
+                *reader_pos = Some(span.end);
+                seek_buffered_file(reader, reader_pos, self.cursor)?;
                 Ok(hasher.finalize().into())
             }
         }
@@ -947,9 +958,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     DcFrameHeaderInfo::None
                 };
 
+                let is_closed = closer_start < after_closer || is_spliced;
+
                 // Handle trailing elements after closer (e.g. [545:] after 544 for Dc 543)
                 let trailing_elems = resolver.trailing_after_closer(&target);
-                if !trailing_elems.is_empty() && first_dc.fills_role_with(DcRole::BeginChecksummedSection, resolver) {
+                if is_closed && !trailing_elems.is_empty() && first_dc.fills_role_with(DcRole::BeginChecksummedSection, resolver) {
                     let (final_end, seq_id, digest_ok) =
                         self.verify_checksummed_section(inner_span, after_closer, policy, resolver)?;
                     outer_end = final_end;
@@ -964,13 +977,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                 }
 
-                self.check_container_grammar_with_resolver(
-                    &target,
-                    DcByteSpan::new(start_offset, outer_end),
-                    inner_span,
-                    policy,
-                    resolver,
-                )?;
+                if is_closed {
+                    self.check_container_grammar_with_resolver(
+                        &target,
+                        DcByteSpan::new(start_offset, outer_end),
+                        inner_span,
+                        policy,
+                        resolver,
+                    )?;
+                }
                 self.cursor = outer_end;
                 return Ok(Some(DcFrameStub {
                     head_dc: first_dc,

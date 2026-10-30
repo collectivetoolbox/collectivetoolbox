@@ -29,6 +29,31 @@ use crate::utilities::*;
 
 use super::*;
 
+pub(super) fn seek_buffered_file(
+    reader: &mut BufReader<File>,
+    reader_pos: &mut Option<u64>,
+    target: u64,
+) -> std::io::Result<()> {
+    if let Some(current) = *reader_pos {
+        if current == target {
+            return Ok(());
+        }
+        if let (Ok(target_i64), Ok(current_i64)) = (i64::try_from(target), i64::try_from(current))
+            && let Some(delta) = target_i64.checked_sub(current_i64)
+        {
+            if let Err(err) = reader.seek_relative(delta) {
+                *reader_pos = None;
+                return Err(err);
+            }
+            *reader_pos = Some(target);
+            return Ok(());
+        }
+    }
+    reader.seek(SeekFrom::Start(target))?;
+    *reader_pos = Some(target);
+    Ok(())
+}
+
 impl<'a> DcDocumentNavigator<'a> {
     pub(super) fn read_token_or_binary_at(&mut self, offset: u64) -> Result<Option<(DcChar, u64)>> {
         if offset >= self.active_span.end {
@@ -69,11 +94,18 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 Ok(Some((DcChar::from_u128(val), next_offset)))
             }
-            NavBackend::SeekableFile { reader, is_v1, .. } => {
-                reader.seek(SeekFrom::Start(offset))?;
+            NavBackend::SeekableFile { reader, reader_pos, is_v1, .. } => {
+                seek_buffered_file(reader, reader_pos, offset)?;
                 let mut first = [0_u8; 1];
-                if reader.read(&mut first)? == 0 {
-                    return Ok(None);
+                match reader.read(&mut first) {
+                    Ok(0) => return Ok(None),
+                    Ok(_) => {
+                        *reader_pos = offset.checked_add(1);
+                    }
+                    Err(err) => {
+                        *reader_pos = None;
+                        return Err(err.into());
+                    }
                 }
                 let mut buf = [0_u8; 32];
                 buf[0] = first[0];
@@ -88,9 +120,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         4usize
                     } else if first[0] == 0xFF {
                         let mut second = [0_u8; 1];
-                        reader
-                            .read_exact(&mut second)
-                            .with_context(|| format!("Truncated UTF-8e128 header at offset {offset}"))?;
+                        if let Err(err) = reader.read_exact(&mut second) {
+                            *reader_pos = None;
+                            return Err(err)
+                                .with_context(|| format!("Truncated UTF-8e128 header at offset {offset}"));
+                        }
                         buf[1] = second[0];
                         ensure!(
                             (second[0] & 0xC0) == 0x80,
@@ -106,9 +140,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         let tail = buf
                             .get_mut(2..total)
                             .context("UTF-8e128 sequence length exceeds buffer")?;
-                        reader
-                            .read_exact(tail)
-                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        if let Err(err) = reader.read_exact(tail) {
+                            *reader_pos = None;
+                            return Err(err)
+                                .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"));
+                        }
                         total
                     } else {
                         bail!(
@@ -120,15 +156,18 @@ impl<'a> DcDocumentNavigator<'a> {
                         let tail = buf
                             .get_mut(1..seq_len)
                             .context("UTF-8e128 sequence length exceeds buffer")?;
-                        reader
-                            .read_exact(tail)
-                            .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"))?;
+                        if let Err(err) = reader.read_exact(tail) {
+                            *reader_pos = None;
+                            return Err(err)
+                                .with_context(|| format!("Truncated UTF-8e128 sequence at offset {offset}"));
+                        }
                     }
+                    let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
+                    *reader_pos = Some(next_offset);
                     let slice = buf.get(..seq_len).context("UTF-8e128 slice bounds")?;
                     let Some((val, _)) = decode_utf_8e_128_buf(slice) else {
                         bail!("Invalid UTF-8e128 sequence at offset {offset}");
                     };
-                    let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
                     if next_offset > self.active_span.end {
                         return Ok(None);
                     }
@@ -150,9 +189,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     7usize
                 } else if first[0] == 0xFF {
                     let mut second = [0_u8; 1];
-                    reader
-                        .read_exact(&mut second)
-                        .with_context(|| format!("Truncated DcTF header at offset {offset}"))?;
+                    if let Err(err) = reader.read_exact(&mut second) {
+                        *reader_pos = None;
+                        return Err(err)
+                            .with_context(|| format!("Truncated DcTF header at offset {offset}"));
+                    }
                     buf[1] = second[0];
                     ensure!(
                         (second[0] & 0xC0) == 0x80,
@@ -164,9 +205,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     let tail = buf
                         .get_mut(2..total)
                         .context("DcTF sequence length exceeds buffer")?;
-                    reader
-                        .read_exact(tail)
-                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
+                    if let Err(err) = reader.read_exact(tail) {
+                        *reader_pos = None;
+                        return Err(err)
+                            .with_context(|| format!("Truncated DcTF sequence at offset {offset}"));
+                    }
                     total
                 } else {
                     bail!(
@@ -178,15 +221,18 @@ impl<'a> DcDocumentNavigator<'a> {
                     let tail = buf
                         .get_mut(1..seq_len)
                         .context("DcTF sequence length exceeds buffer")?;
-                    reader
-                        .read_exact(tail)
-                        .with_context(|| format!("Truncated DcTF sequence at offset {offset}"))?;
+                    if let Err(err) = reader.read_exact(tail) {
+                        *reader_pos = None;
+                        return Err(err)
+                            .with_context(|| format!("Truncated DcTF sequence at offset {offset}"));
+                    }
                 }
+                let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
+                *reader_pos = Some(next_offset);
                 let slice = buf.get(..seq_len).context("DcTF slice bounds")?;
                 let Some((val, _)) = decode_dctf_buf(slice) else {
                     bail!("Invalid DcTF sequence at offset {offset}");
                 };
-                let next_offset = offset.saturating_add(u64::try_from(seq_len)?);
                 if next_offset > self.active_span.end {
                     return Ok(None);
                 }
@@ -253,6 +299,7 @@ impl<'a> DcDocumentNavigator<'a> {
             NavBackend::MemoryText(_) => Ok(None),
             NavBackend::SeekableFile {
                 reader,
+                reader_pos,
                 base_offset,
                 end_offset,
                 is_v1,
@@ -266,15 +313,20 @@ impl<'a> DcDocumentNavigator<'a> {
                     .checked_add(u64::try_from(dc203_len)?)
                     .context("Binary encapsulation offset overflow")?;
                 let source_end = self.active_span.end.min(*end_offset);
+                let after_header = after_dc203
+                    .checked_add(17)
+                    .context("Binary header offset overflow")?;
                 ensure!(
-                    after_dc203.checked_add(17).context("Binary header offset overflow")? <= source_end,
+                    after_header <= source_end,
                     std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm binary header")
                 );
-                reader.seek(SeekFrom::Start(after_dc203))?;
+                seek_buffered_file(reader, reader_pos, after_dc203)?;
                 let mut type_byte = [0_u8; 1];
-                reader
-                    .read_exact(&mut type_byte)
-                    .context("Truncated .dcmm binary encapsulation type")?;
+                if let Err(err) = reader.read_exact(&mut type_byte) {
+                    *reader_pos = None;
+                    return Err(err).context("Truncated .dcmm binary encapsulation type");
+                }
+                *reader_pos = after_dc203.checked_add(1);
                 let encap_type = type_byte[0];
                 let rel_offset = usize::try_from(after_dc203.saturating_sub(*base_offset))?;
                 if matches!(encap_type, 1 | 4) {
@@ -285,9 +337,12 @@ impl<'a> DcDocumentNavigator<'a> {
                     .into());
                 }
                 let mut len_buf = [0_u8; 16];
-                reader
-                    .read_exact(&mut len_buf)
-                    .context("Truncated .dcmm binary data length")?;
+                if let Err(err) = reader.read_exact(&mut len_buf) {
+                    *reader_pos = None;
+                    return Err(err).context("Truncated .dcmm binary data length");
+                }
+                let mut cur_pos = after_header;
+                *reader_pos = Some(cur_pos);
                 let data_len = u64::try_from(u128::from_be_bytes(len_buf))
                     .context("Binary data length exceeds u64")?;
                 let mut data_type = None;
@@ -295,18 +350,24 @@ impl<'a> DcDocumentNavigator<'a> {
                 match encap_type {
                     crate::dc_mixed::TYPE_BINARY => {}
                     crate::dc_mixed::TYPE_BINARY_METADATA => {
+                        let after_meta_len = cur_pos
+                            .checked_add(16)
+                            .context("Metadata header offset overflow")?;
                         ensure!(
-                            reader.stream_position()?.checked_add(16)
-                                .context("Metadata header offset overflow")? <= source_end,
+                            after_meta_len <= source_end,
                             std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm metadata length")
                         );
                         let mut meta_len_buf = [0_u8; 16];
-                        reader
-                            .read_exact(&mut meta_len_buf)
-                            .context("Truncated .dcmm metadata length")?;
+                        if let Err(err) = reader.read_exact(&mut meta_len_buf) {
+                            *reader_pos = None;
+                            return Err(err).context("Truncated .dcmm metadata length");
+                        }
+                        cur_pos = after_meta_len;
+                        *reader_pos = Some(cur_pos);
                         let meta_len = u64::try_from(u128::from_be_bytes(meta_len_buf))
                             .context("Metadata length exceeds u64")?;
-                        let metadata_end = reader.stream_position()?.checked_add(meta_len)
+                        let metadata_end = cur_pos
+                            .checked_add(meta_len)
                             .context("Metadata end offset overflow")?;
                         let payload_end = metadata_end.checked_add(data_len)
                             .context("Binary payload offset overflow")?;
@@ -322,9 +383,12 @@ impl<'a> DcDocumentNavigator<'a> {
                         let mut meta_bytes = Vec::new();
                         meta_bytes.try_reserve_exact(meta_len_usize)?;
                         meta_bytes.resize(meta_len_usize, 0);
-                        reader
-                            .read_exact(&mut meta_bytes)
-                            .context("Truncated .dcmm metadata payload")?;
+                        if let Err(err) = reader.read_exact(&mut meta_bytes) {
+                            *reader_pos = None;
+                            return Err(err).context("Truncated .dcmm metadata payload");
+                        }
+                        cur_pos = metadata_end;
+                        *reader_pos = Some(cur_pos);
                         if *is_v1 {
                             let meta_owned = crate::DcString::from_dcutf(meta_bytes)?;
                             let parsed = crate::encapsulation::parse_metadata_with_policy_and_resolver(&meta_owned, policy, resolver)?;
@@ -338,14 +402,22 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                     }
                     crate::dc_mixed::TYPE_BINARY_SHA256 => {
-                        let payload_end = reader.stream_position()?.checked_add(32)
-                            .and_then(|start| start.checked_add(data_len))
+                        let after_digest = cur_pos
+                            .checked_add(32)
+                            .context("Binary payload offset overflow")?;
+                        let payload_end = after_digest
+                            .checked_add(data_len)
                             .context("Binary payload offset overflow")?;
                         ensure!(payload_end <= source_end, std::io::Error::new(
                             std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm SHA256 encapsulation",
                         ));
                         let mut digest = vec![0_u8; 32];
-                        reader.read_exact(&mut digest).context("Truncated .dcmm SHA256 digest")?;
+                        if let Err(err) = reader.read_exact(&mut digest) {
+                            *reader_pos = None;
+                            return Err(err).context("Truncated .dcmm SHA256 digest");
+                        }
+                        cur_pos = after_digest;
+                        *reader_pos = Some(cur_pos);
                         checksum = Some(BinaryChecksum {
                             algorithm: SupportedHashFormat::Sha256,
                             expected_digest: digest,
@@ -359,7 +431,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         .into());
                     }
                 }
-                let payload_start = reader.stream_position()?;
+                let payload_start = cur_pos;
                 let payload_end = payload_start
                     .checked_add(data_len)
                     .context("Binary payload offset overflow")?;
@@ -370,7 +442,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.active_span.end,
                     ))
                 );
-                reader.seek(SeekFrom::Start(payload_end))?;
+                seek_buffered_file(reader, reader_pos, payload_end)?;
                 Ok(Some((
                     payload_end,
                     DcFrameHeaderInfo::Binary {
@@ -808,13 +880,21 @@ impl<'a> DcDocumentNavigator<'a> {
                     .context("Section body span out of bounds")?;
                 checksum.matches_reader(&mut body, body_span.len())?
             }
-            NavBackend::SeekableFile { reader, .. } => {
-                let saved_position = reader.stream_position()?;
+            NavBackend::SeekableFile { reader, reader_pos, .. } => {
+                let saved_position = match *reader_pos {
+                    Some(pos) => pos,
+                    None => reader.stream_position()?,
+                };
                 let result = (|| -> Result<bool> {
-                    reader.seek(SeekFrom::Start(body_span.start))?;
-                    checksum.matches_reader(reader, body_span.len())
+                    seek_buffered_file(reader, reader_pos, body_span.start)?;
+                    let ok = checksum.matches_reader(reader, body_span.len())?;
+                    *reader_pos = Some(body_span.end);
+                    Ok(ok)
                 })();
-                reader.seek(SeekFrom::Start(saved_position))?;
+                if result.is_err() {
+                    *reader_pos = None;
+                }
+                seek_buffered_file(reader, reader_pos, saved_position)?;
                 result?
             }
         };
@@ -904,15 +984,23 @@ impl<'a> DcDocumentNavigator<'a> {
                 };
                 let checksum_format = data_type.as_ref().and_then(|d| d.chars().next());
                 if let Some(checksum) = &checksum {
-                    let NavBackend::SeekableFile { reader, .. } = &mut self.backend else {
+                    let NavBackend::SeekableFile { reader, reader_pos, .. } = &mut self.backend else {
                         bail!("Expected seekable binary source");
                     };
-                    let saved_pos = reader.stream_position()?;
+                    let saved_pos = match *reader_pos {
+                        Some(pos) => pos,
+                        None => reader.stream_position()?,
+                    };
                     let result = (|| -> Result<bool> {
-                        reader.seek(SeekFrom::Start(pspan.start))?;
-                        checksum.matches_reader(reader, payload_len)
+                        seek_buffered_file(reader, reader_pos, pspan.start)?;
+                        let ok = checksum.matches_reader(reader, payload_len)?;
+                        *reader_pos = Some(pspan.end);
+                        Ok(ok)
                     })();
-                    reader.seek(SeekFrom::Start(saved_pos))
+                    if result.is_err() {
+                        *reader_pos = None;
+                    }
+                    seek_buffered_file(reader, reader_pos, saved_pos)
                         .context("Failed to restore checksum reader position")?;
                     if !result? {
                         self.syntax_issue(policy, span.start, "Encapsulation checksum mismatch".to_owned())?;
