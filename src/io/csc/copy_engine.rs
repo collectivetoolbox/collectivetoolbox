@@ -3880,7 +3880,6 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_directory_windows_ads_and_best_effort_stream_adaptation_journal_verify() {
         let temp = tempdir().expect("tempdir");

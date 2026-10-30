@@ -1236,68 +1236,142 @@ pub fn write_windows_ads_companions_with_warnings(
         let relative = companion_path
             .strip_prefix(dest_dir.root_path())
             .context("Windows ADS companion is outside the destination sandbox")?;
-        let (parent, final_name) = dest_dir.ensure_parent_dir(
-            relative,
-            crate::path_policy::PathTraversalPolicy::StrictSandboxed,
-        )?;
-        let temp_name = format!(".ctb-windows-ads-{}", uuid());
-        let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
-        let result = (|| -> Result<()> {
-            let mut reader = stream_source.open(&stream)?;
-            let mut hasher = ctb_formats_checksum::Sha256Stream::new();
-            let mut total_written = 0_u64;
-            let mut buf = [0_u8; 64 * 1024];
-            loop {
-                let n = std::io::Read::read(&mut reader, &mut buf)
-                    .context("Failed to read Windows ADS stream source")?;
-                if n == 0 {
-                    break;
+        #[cfg(unix)]
+        {
+            let (parent, final_name) = dest_dir.ensure_parent_dir(
+                relative,
+                crate::path_policy::PathTraversalPolicy::StrictSandboxed,
+            )?;
+            let temp_name = format!(".ctb-windows-ads-{}", uuid());
+            let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
+            let result = (|| -> Result<()> {
+                let mut reader = stream_source.open(&stream)?;
+                let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+                let mut total_written = 0_u64;
+                let mut buf = [0_u8; 64 * 1024];
+                loop {
+                    let n = std::io::Read::read(&mut reader, &mut buf)
+                        .context("Failed to read Windows ADS stream source")?;
+                    if n == 0 {
+                        break;
+                    }
+                    let chunk = buf.get(..n).context("Invalid slice range")?;
+                    hasher.update(chunk);
+                    total_written = total_written
+                        .checked_add(u64::try_from(n)?)
+                        .context("Stream size overflow")?;
+                    std::io::Write::write_all(&mut staged, chunk)
+                        .context("Failed to stage Windows ADS companion bytes")?;
                 }
-                let chunk = buf.get(..n).context("Invalid slice range")?;
-                hasher.update(chunk);
-                total_written = total_written
-                    .checked_add(u64::try_from(n)?)
-                    .context("Stream size overflow")?;
-                std::io::Write::write_all(&mut staged, chunk)
-                    .context("Failed to stage Windows ADS companion bytes")?;
+                ensure!(
+                    total_written == *expected_size && hasher.finalize() == *expected_sha256,
+                    "Attached stream payload does not match its descriptor: {:?}",
+                    stream.to_string_lossy()
+                );
+                if let Some((atime, mtime)) = times {
+                    filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))
+                        .context("Failed to stage Windows ADS companion timestamps")?;
+                }
+                staged
+                    .sync_all()
+                    .context("Failed to sync staged Windows ADS companion")?;
+                dest_dir.commit_atomic_file(&parent.as_fd(), &temp_name, &final_name, existing)
+            })();
+            drop(staged);
+            if let Err(error) = result {
+                let cleanup = rustix::fs::unlinkat(
+                    parent.as_fd(),
+                    temp_name.as_str(),
+                    rustix::fs::AtFlags::empty(),
+                );
+                if let Err(cleanup) = cleanup {
+                    return Err(error).context(format!(
+                        "Failed to remove staged Windows ADS companion: {cleanup}"
+                    ));
+                }
+                return Err(error);
             }
-            ensure!(
-                total_written == *expected_size && hasher.finalize() == *expected_sha256,
-                "Attached stream payload does not match its descriptor: {:?}",
-                stream.to_string_lossy()
-            );
-            if let Some((atime, mtime)) = times {
-                filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))
-                    .context("Failed to stage Windows ADS companion timestamps")?;
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = dest_dir.ensure_parent_dir(
+                relative,
+                crate::path_policy::PathTraversalPolicy::StrictSandboxed,
+            )?;
+            #[cfg(windows)]
+            let open_path = {
+                use std::os::windows::ffi::OsStringExt;
+                let wide = crate::metadata::windows::path_to_wide(&companion_path)?;
+                let without_nul = wide
+                    .get(..wide.len().saturating_sub(1))
+                    .context("Invalid wide path slice")?;
+                PathBuf::from(std::ffi::OsString::from_wide(without_nul))
+            };
+            #[cfg(not(windows))]
+            let open_path = companion_path.clone();
+
+            let mut open_opts = std::fs::OpenOptions::new();
+            open_opts.write(true);
+            match existing {
+                crate::sandboxable_dir::ExistingEntryPolicy::Refuse => {
+                    open_opts.create_new(true);
+                }
+                crate::sandboxable_dir::ExistingEntryPolicy::Replace => {
+                    open_opts.create(true).truncate(true);
+                }
             }
-            staged
-                .sync_all()
-                .context("Failed to sync staged Windows ADS companion")?;
-            dest_dir.commit_atomic_file(&parent.as_fd(), &temp_name, &final_name, existing)
-        })();
-        drop(staged);
-        if let Err(error) = result {
-            #[cfg(unix)]
-            let cleanup = rustix::fs::unlinkat(
-                parent.as_fd(),
-                temp_name.as_str(),
-                rustix::fs::AtFlags::empty(),
-            );
-            #[cfg(not(unix))]
-            let cleanup = std::fs::remove_file(
-                companion_path
-                    .parent()
-                    .context("Windows ADS companion has no parent")?
-                    .join(&temp_name),
-            );
-            if let Err(cleanup) = cleanup {
-                return Err(error).context(format!(
-                    "Failed to remove staged Windows ADS companion: {cleanup}"
-                ));
+            let mut staged = open_opts.open(&open_path).with_context(|| {
+                format!(
+                    "Failed to open Windows ADS companion {} ({existing:?})",
+                    companion_path.display()
+                )
+            })?;
+            let result = (|| -> Result<()> {
+                let mut reader = stream_source.open(&stream)?;
+                let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+                let mut total_written = 0_u64;
+                let mut buf = [0_u8; 64 * 1024];
+                loop {
+                    let n = std::io::Read::read(&mut reader, &mut buf)
+                        .context("Failed to read Windows ADS stream source")?;
+                    if n == 0 {
+                        break;
+                    }
+                    let chunk = buf.get(..n).context("Invalid slice range")?;
+                    hasher.update(chunk);
+                    total_written = total_written
+                        .checked_add(u64::try_from(n)?)
+                        .context("Stream size overflow")?;
+                    std::io::Write::write_all(&mut staged, chunk)
+                        .context("Failed to write Windows ADS companion bytes")?;
+                }
+                ensure!(
+                    total_written == *expected_size && hasher.finalize() == *expected_sha256,
+                    "Attached stream payload does not match its descriptor: {:?}",
+                    stream.to_string_lossy()
+                );
+                staged
+                    .sync_all()
+                    .context("Failed to sync Windows ADS companion")?;
+                Ok(())
+            })();
+            drop(staged);
+            if let Err(error) = result {
+                let _ = std::fs::remove_file(&open_path);
+                return Err(error);
             }
-            return Err(error);
         }
         written_paths.push(companion_path);
+    }
+
+    #[cfg(windows)]
+    if !written_paths.is_empty() {
+        if let Some((atime, mtime)) = times {
+            if !entity.is_symlink() {
+                filetime::set_file_times(dest_path, atime, mtime)
+                    .context("Failed to restore host timestamps after writing Windows ADS streams")?;
+            }
+        }
     }
 
     Ok((written_paths, adaptations, warnings))
@@ -1721,9 +1795,9 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_windows_ads_stream_name_cleaning_collisions_and_directory_companions() -> Result<()> {
+        use crate::streams::AttachedStreamSource;
         let temp = tempfile::tempdir()?;
         let src_dir = temp.path().join("src");
         let dest_dir_path = temp.path().join("dest");
@@ -1755,10 +1829,13 @@ mod tests {
             .find(|s| {
                 s.name
                     .as_ref()
-                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+                    .is_some_and(|n| n.to_string_lossy().contains("Zone.Identifier"))
             })
             .context("Directory must join my_folder:Zone.Identifier stream")?;
-        ensure!(dir_stream.data.as_deref() == Some(dir_zone_bytes.as_slice()));
+        let mut dir_stream_reader = crate::streams::FilesystemStreamSource.open(dir_stream)?;
+        let mut actual_dir_zone = Vec::new();
+        std::io::Read::read_to_end(&mut dir_stream_reader, &mut actual_dir_zone)?;
+        ensure!(actual_dir_zone.as_slice() == dir_zone_bytes);
 
         // Materialize directory with ForceWindowsAds
         let dest_sandbox = SandboxableDir::open(&dest_dir_path)?;

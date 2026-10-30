@@ -301,7 +301,8 @@ mod tests {
             environment: None,
         };
         let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
-        let entity = FileEntity::from_vec(b"contents".to_vec());
+        let mut entity = FileEntity::from_vec(b"contents".to_vec());
+        entity.metadata.environment = None;
         writer.write_batch(&[], |_| Ok(()))?;
         writer.write_batch(&[entity.clone(), entity.clone()], |_| Ok(()))?;
         let mut payload = MemoryPayloadSource::new(b"contents".to_vec())?;

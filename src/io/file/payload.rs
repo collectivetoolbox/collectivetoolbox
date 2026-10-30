@@ -262,6 +262,35 @@ pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
     }])
 }
 
+fn is_unsupported_extent_query_error(error: &anyhow::Error) -> bool {
+    let Some(io_err) = error.downcast_ref::<std::io::Error>() else {
+        return false;
+    };
+    let Some(raw) = io_err.raw_os_error() else {
+        return false;
+    };
+    #[cfg(unix)]
+    {
+        matches!(
+            raw,
+            nix::libc::EINVAL
+                | nix::libc::ENOTTY
+                | nix::libc::EOPNOTSUPP
+                | nix::libc::ENOSYS
+        )
+    }
+    #[cfg(windows)]
+    {
+        // ERROR_INVALID_FUNCTION (1), ERROR_NOT_SUPPORTED (50), ERROR_INVALID_PARAMETER (87)
+        matches!(raw, 1 | 50 | 87)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = raw;
+        false
+    }
+}
+
 /// Abstract streaming provider for file payload data and extents.
 pub trait PayloadSource: Read + Seek + Send {
     /// Binds this reader to the physical state observed before metadata capture.
@@ -557,10 +586,10 @@ impl DiskPayloadSource {
         } else {
             match get_file_extents(&file, size) {
                 Ok(extents) => extents,
-                Err(_) => {
+                Err(err) if is_unsupported_extent_query_error(&err) => {
                     // Reason for fallback: Filesystems lacking sparse or SEEK_DATA/SEEK_HOLE
                     // support (such as ISO-9660/cd9660, UDF, or FAT) fail with EINVAL, ENOTTY,
-                    // or EOPNOTSUPP. Fall back to treating the payload as a single dense extent.
+                    // EOPNOTSUPP, or ENOSYS. Fall back to treating the payload as a single dense extent.
                     if size > 0 {
                         vec![Extent::Data {
                             offset: 0,
@@ -570,6 +599,7 @@ impl DiskPayloadSource {
                         Vec::new()
                     }
                 }
+                Err(err) => return Err(err),
             }
         };
 

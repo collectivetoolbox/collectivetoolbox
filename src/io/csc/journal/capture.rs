@@ -236,8 +236,7 @@ mod tests {
             ensure!(!destination.join("output").exists());
 
             // Also verify Windows ADS companion mutation is caught by snapshot
-            #[cfg(unix)]
-            {
+            if !replace || cfg!(unix) {
                 let ads_temp = tempfile::tempdir()?;
                 let ads_path = ads_temp.path().join("source");
                 let ads_companion = ads_temp.path().join("source:Zone.Identifier");

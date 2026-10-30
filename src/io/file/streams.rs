@@ -165,14 +165,16 @@ impl StreamName {
         Self::Bytes(s.as_bytes().to_vec())
     }
 
-    /// Returns raw bytes, using little-endian units for decoded UTF-16.
+    /// Returns raw bytes, using WTF-8 for decoded UTF-16.
     /// Uninterpreted encoded names retain their exact source payload.
     #[must_use]
     pub fn as_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         match self {
             Self::Bytes(bytes) => std::borrow::Cow::Borrowed(bytes),
             Self::WindowsUtf16(units) => std::borrow::Cow::Owned(
-                units.iter().flat_map(|unit| unit.to_le_bytes()).collect(),
+                // Reason for fallback: UTF-16 code units that fail WTF-8 encoding fall back to lossy UTF-8 bytes
+                ctb_formats_wtf8::encode_wtf8_from_ucs2(units)
+                    .unwrap_or_else(|_| String::from_utf16_lossy(units).into_bytes()),
             ),
             Self::Encoded { bytes, .. } => std::borrow::Cow::Borrowed(bytes),
         }
