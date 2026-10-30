@@ -105,3 +105,25 @@ assuming the current code still has the reported fault.
 - [ ] Allow the local client to authenticate to a registered remote account;
   remote account registration is not currently enabled. This remains outside
   the personal MVP.
+
+## This should work:
+
+$ ctb character_description -f ctoolbox/built/linux-x64/system_graph_history.rsrc
+Error: Unable to autodetect document format for input. Specify --from with one of: [DcIntegerList, Sems, DcText, DcUtf, Dcal, Dcts, DcMixed, DcTf, DcMixed1, DcMixed2, Utf8, AsciiSafeSubset, Ascii, CscJournal]
+$ ctb character_description --from DcMixed -f ctoolbox/built/linux-x64/system_graph_history.rsrc
+error: invalid value 'DcMixed' for '--from <FROM>'
+  [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii, cscjournal]
+
+For more information, try '--help'.
+$ ctb character_description --from dcmm -f ctoolbox/built/linux-x64/system_graph_history.rsrc
+Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
+
+Caused by:
+    Invalid DcMixed magic header: [67, 84, 66, 82, 83]
+
+- Bugs/to-dos observed in the above:
+
+- It doesn't offer a permissive/forgiving parser for the document format (that should be available for any command that parses documents; they should share CLI logic). I guess it should still be strict by default probably when running these lightweight CLI commands, unlike in the yet-to-implement full workspace editor where warnings can be shown more easily/prominently and so it should default to permissive.
+- Supported formats are missing a bunch of formats, including some that should be easy to support like .ctbnodes (which should parse into its respective Dc statements, essentially the same as loading the .ctbnodes file's slice of the corresponding .ctbnbdl), csc archives, and .ctbnbdl.
+- Autodetection instructions give wrong instructions of what format names are accepted (it could accept either the nickname or the Rust name probably).
+- Lists of possible values are not sorted. They should probably be sorted and categorized in a nice list with the description from the format database beside them.
