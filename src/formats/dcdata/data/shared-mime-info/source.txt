@@ -4,6 +4,6 @@ https://gitlab.freedesktop.org/xdg/shared-mime-info/-/raw/master/COPYING?ref_typ
 
 Commit: 93706a8b92311c1694f767b86aa53cecab2f53ba
 
-While not all files in that repository have a GPL "version 2 or later" note, freedesktop.org.xml.in does.
+While not all files in that repository have a GPL "version 2 or later" note, the `freedesktop.org.xml.in` file in specific does.
 
 I thus exercise the "or later" option and use that file here under GPLv3. Per the section 13 of GPLv3 and section 13 of AGPLv3, that particular file may then be used in combination with this AGPLv3+ application.
