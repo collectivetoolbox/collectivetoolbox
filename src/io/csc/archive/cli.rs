@@ -2722,7 +2722,8 @@ mod tests {
 
         let context = SharedValueContext::default();
         let mut entity = FileEntity::from_filesystem(&file_path, None)?;
-        entity.identity.relative_path = Some("source/alpha.txt".into());
+        let expected_rel = Path::new("source").join("alpha.txt");
+        entity.identity.relative_path = Some(expected_rel.clone());
         let mut encoded = Vec::new();
         write_entity_payload(&mut encoded, &entity, &context)?;
 
@@ -2789,7 +2790,9 @@ mod tests {
         let ToolResult::Immediate { stdout, exit_code: 0, .. } = list_res else {
             bail!("Expected archive list on completed v1 journal to succeed");
         };
-        ensure!(String::from_utf8_lossy(&stdout).contains("source/alpha.txt"));
+        ensure!(
+            String::from_utf8_lossy(&stdout).contains(&expected_rel.display().to_string())
+        );
 
         // Strict verify requires self-contained file payloads, so it errors on nonempty journal members
         ensure!(

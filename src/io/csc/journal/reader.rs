@@ -446,7 +446,7 @@ mod tests {
     }
 
     fn error_record() -> JournalErrorRecord {
-        let path = std::path::PathBuf::from("unread/source");
+        let path = std::path::Path::new("unread").join("source");
         JournalErrorRecord {
             raw_path: path.as_os_str().as_encoded_bytes().to_vec(), path,
             stage: crate::journal::JournalErrorStage::PayloadRead,

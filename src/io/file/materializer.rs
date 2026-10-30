@@ -855,6 +855,12 @@ pub fn materialize_entity_with_stream_source(
                     return Err(err);
                 }
             }
+            #[cfg(windows)]
+            warnings.extend(apply_windows_change_time(
+                &dest_path,
+                &entity.metadata,
+                options.strict_lossless,
+            )?);
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: 0,
@@ -1171,6 +1177,40 @@ pub fn materialize_entity_with_stream_source(
 
                 #[cfg(unix)]
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
+
+                let has_flags = entity.metadata.flags.is_some()
+                    || entity.metadata.platform_raw_flags.is_some();
+                if has_flags {
+                    // Reason for fallback: absent flags metadata defaults to empty slice
+                    let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]);
+                    // Reason for fallback: absent environment metadata defaults to compile-target OS family
+                    let source_os = entity
+                        .metadata
+                        .environment
+                        .as_ref()
+                        .map(|env| env.os_family())
+                        .unwrap_or(OsFamily::CURRENT);
+                    apply_file_flags_with_source(
+                        &actual_dest_path,
+                        flags_slice,
+                        entity.metadata.platform_raw_flags.as_ref(),
+                        source_os,
+                        options.strict_lossless,
+                    )?;
+                }
+                #[cfg(windows)]
+                warnings.extend(apply_windows_change_time(
+                    &actual_dest_path,
+                    &entity.metadata,
+                    options.strict_lossless,
+                )?);
+                warnings.extend(crate::metadata::check_metadata_replication(
+                    &actual_dest_path,
+                    &entity.metadata,
+                    options.strict_lossless,
+                    false,
+                    options.check_birthtime,
+                )?);
 
                 return Ok(MaterializeReceipt {
                     destination_path: actual_dest_path,

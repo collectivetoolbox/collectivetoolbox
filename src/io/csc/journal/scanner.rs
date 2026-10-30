@@ -450,12 +450,21 @@ mod tests {
     fn recovery_and_completion_policy_are_independent_of_magic() -> Result<()> {
         for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let bytes = fixture(magic)?;
-            for length in 8..bytes.len() {
-                let Some(prefix) = bytes.get(..length) else {
-                    bail!("Invalid fixture prefix");
-                };
-                ensure!(read(prefix, ReadMode::Complete).is_err());
-                if let Ok(scanned) = read(prefix, ReadMode::Recover) {
+            let mut file = tempfile::tempfile()?;
+            file.write_all(&bytes)?;
+            for length in (8..bytes.len()).rev() {
+                file.set_len(u64::try_from(length)?)?;
+                ensure!(scan(
+                    file.try_clone()?,
+                    ReadMode::Complete,
+                    &DcProjectionPolicy::strict(),
+                )
+                .is_err());
+                if let Ok(scanned) = scan(
+                    file.try_clone()?,
+                    ReadMode::Recover,
+                    &DcProjectionPolicy::strict(),
+                ) {
                     ensure!(
                         !scanned.completed
                             && scanned.valid_length <= u64::try_from(length)?

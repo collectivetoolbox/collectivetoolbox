@@ -6,7 +6,7 @@
 - **Fresh dev container setup**: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
 - **Build & test scope**: Prefer building or testing individual workspace crates (e.g., `cargo test -p ctb-renderer`); a full build takes 5–10 minutes.
 - **Linux target**: Always use the `musl` build in the dev container. Do not install extra host packages for a `glibc` build.
-- **Disk space**: Keep at least 25 GB of disk space free (the filesystem slows down sharply below that and can lock up the computer). A full single-target build consumes most available space, so run `cargo clean` when switching targets.
+- **Disk space**: Keep at least 25 GB of disk space free (the filesystem slows down sharply below that and can lock up the computer). A full single-target build consumes 40+GB, so you may need to run `cargo clean` when switching targets.
 - **Asset bundle test failures**: If `get_test_help_bytes` or other asset-loading tests fail, inspect the failure first. When stale or missing build assets are confirmed, run `cargo clean` and re-test, but never clean while other builds or tests are running.
 - **No network ports in tests**: Tests must never listen on ports; use mocks or in-memory/socketpair transports instead.
 - **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.

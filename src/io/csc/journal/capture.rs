@@ -236,19 +236,22 @@ mod tests {
             ensure!(!destination.join("output").exists());
 
             // Also verify Windows ADS companion mutation is caught by snapshot
-            let ads_temp = tempfile::tempdir()?;
-            let ads_path = ads_temp.path().join("source");
-            let ads_companion = ads_temp.path().join("source:Zone.Identifier");
-            std::fs::write(&ads_path, b"primary")?;
-            std::fs::write(&ads_companion, b"[ZoneTransfer]\r\nZoneId=3\r\n")?;
-            let ads_options = AppleReadOptions { read_windows_ads_alongside: true, ..Default::default() };
-            let mut ads_source = CapturedSource::capture(&ads_path, None, &ads_options, false)?;
-            ads_source.hash(&ads_path)?;
-            ads_source.entity.identity.relative_path = Some(PathBuf::from("output"));
-            let mut ads_payload = ads_source.open(&ads_path)?;
-            if replace { std::fs::rename(&ads_companion, ads_temp.path().join("old"))?; }
-            std::fs::write(&ads_companion, b"changed ads companion")?;
-            ensure!(ads_payload.finish().is_err());
+            #[cfg(unix)]
+            {
+                let ads_temp = tempfile::tempdir()?;
+                let ads_path = ads_temp.path().join("source");
+                let ads_companion = ads_temp.path().join("source:Zone.Identifier");
+                std::fs::write(&ads_path, b"primary")?;
+                std::fs::write(&ads_companion, b"[ZoneTransfer]\r\nZoneId=3\r\n")?;
+                let ads_options = AppleReadOptions { read_windows_ads_alongside: true, ..Default::default() };
+                let mut ads_source = CapturedSource::capture(&ads_path, None, &ads_options, false)?;
+                ads_source.hash(&ads_path)?;
+                ads_source.entity.identity.relative_path = Some(PathBuf::from("output"));
+                let mut ads_payload = ads_source.open(&ads_path)?;
+                if replace { std::fs::rename(&ads_companion, ads_temp.path().join("old"))?; }
+                std::fs::write(&ads_companion, b"changed ads companion")?;
+                ensure!(ads_payload.finish().is_err());
+            }
         }
         Ok(())
     }

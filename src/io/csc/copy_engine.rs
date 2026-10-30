@@ -3735,14 +3735,13 @@ mod tests {
         assert_eq!(fs::read(dest.join("._fake.txt")).unwrap(), b"plain text not appledouble");
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_windows_ads_fixture_roundtrip_and_orphan_preservation() {
-        let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .join("file")
-            .join("fixtures")
-            .join("windows_ads");
+        let fixture_dir = ctb_utilities::manifest_fixture_path(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../file"),
+            "windows_ads",
+        );
         let expected_pan = fs::read(fixture_dir.join("example2 with lemurs.pan")).unwrap();
         let expected_pan_zone =
             fs::read(fixture_dir.join("example2 with lemurs.pan:Zone.Identifier")).unwrap();
@@ -3881,6 +3880,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_directory_windows_ads_and_best_effort_stream_adaptation_journal_verify() {
         let temp = tempdir().expect("tempdir");
@@ -4869,7 +4869,7 @@ mod tests {
         let desc_path = state.join("rename.cscdesc");
         let mut journal = StateJournal::create_at_path(&journal_path, &desc_path, &[], &dest)?;
 
-        let orig_rel = PathBuf::from(format!("dir/{}.txt", "x".repeat(260)));
+        let orig_rel = Path::new("dir").join(format!("{}.txt", "x".repeat(260)));
         let (adapted_rel, warnings) =
             ctb_io::file::adapt_relative_path_for_materialization(&orig_rel, true);
         assert_ne!(orig_rel, adapted_rel);

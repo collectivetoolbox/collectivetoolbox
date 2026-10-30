@@ -488,6 +488,18 @@ impl JournalSnapshot {
                     .metadata
                     .source_relative_path()
                     .is_some_and(|src| src.as_os_str().as_encoded_bytes() == rel_bytes)
+                    || entity
+                        .metadata
+                        .native
+                        .as_ref()
+                        .and_then(|native| native.values.get("source.relative_path"))
+                        .is_some_and(|val| {
+                            matches!(
+                                val,
+                                ctb_io::file::metadata::NativeMetadataValue::Bytes(bytes)
+                                    if bytes.as_slice() == rel_bytes
+                            )
+                        })
             })
     }
 
@@ -2210,7 +2222,11 @@ mod tests {
 
         if let Some(ref mut ts) = file_entity.metadata.timestamps {
             ts.birthtime_sec = Some(-123);
-            ts.birthtime_nsec = Some(987_654_321);
+            ts.birthtime_nsec = Some(if cfg!(windows) {
+                987_654_300
+            } else {
+                987_654_321
+            });
         }
         file_entity.metadata.native = Some(ctb_io::file::metadata::NativeMetadata {
             source_os: ctb_io::file::OsFamily::Darwin,

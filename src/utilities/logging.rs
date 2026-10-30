@@ -254,6 +254,13 @@ pub fn setup_logger(
     subprocess_index: String,
     service_name: String,
 ) -> Result<()> {
+    static LOGGER_INIT: OnceLock<()> = OnceLock::new();
+    if LOGGER_INIT.get().is_some() {
+        return Err(anyhow!(
+            "Failed to initialize logging in release mode: a global default trace dispatcher has already been set"
+        ));
+    }
+
     let pid = u64::from(std::process::id());
 
     /*
@@ -313,6 +320,7 @@ pub fn setup_logger(
     layers.push(stderr_layer);
 
     let result = tracing_subscriber::registry().with(layers).try_init();
+    let _ = LOGGER_INIT.set(());
     match result {
         Ok(()) => Ok(()),
         Err(err) => Err(anyhow!(
@@ -373,7 +381,7 @@ where
         get_workspace_filter("trace")
     }; */
     // println!("Using filter directives for mock writer: {filter_directives}");
-    let filter_directives = "trace";
+    let filter_directives = "trace,turso_core=info";
     let env_filter = EnvFilter::builder()
         .with_default_directive(Level::TRACE.into())
         .parse_lossy(filter_directives);
