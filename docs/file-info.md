@@ -619,11 +619,7 @@ literals is separate from treating quoted payloads as executable code.
     tool to compile libmagic's extensive `Magdir/` rule database (15,000+ rules)
     into binary or Dc-keyed rule tables, mapping libmagic format outputs to
     authoritative Dc format IDs.
-  - **Priority Weighting & MIME Inheritance:** Implement an explicit 0–100 priority/weight
-    scale for resolving signature conflicts between general and specific formats, as well
-    as MIME inheritance graphs (`sub-class-of`). Implementation must be strictly
-    clean-room using our own format schema; do not reuse existing implementations
-    of this idea.
+  - **Priority Weighting & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving signature conflicts between general and specific formats, as well as MIME inheritance graphs (`sub-class-of`). Implementation must be strictly clean-room based *only* on the input data file `src/formats/dcdata/data/shared-mime-info/freedesktop.org.xml.in`; do *not* reuse any existing implementation of the format as there are some other files (not in this repository) without the GPL 2 "or later" option, making them incompatible.
   - **DROID / PRONOM (`old/filedetect/droid/`, BSD-3-Clause):** Adopt dual-anchored
     byte patterns: BOF (Beginning of File) and EOF (End of File) anchored signatures
     with variable offset windows. Adopt its declarative **container signature model**
