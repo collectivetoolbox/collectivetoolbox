@@ -1562,6 +1562,7 @@ mod tests {
                 second.metadata.read_time = Some(UNIX_EPOCH.checked_sub(std::time::Duration::from_secs(1)).context("Test time underflow")?);
             }
             writer.record_entity(&second);
+            let mut _sync_pipe_reader = None;
             match fault {
                 "write" => {
                     let output = File::open(&journal)?;
@@ -1572,7 +1573,9 @@ mod tests {
                     writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
                 }
                 "sync" => {
-                    let output = OpenOptions::new().write(true).open("/dev/null")?;
+                    let (reader_pipe, writer_pipe) = std::io::pipe()?;
+                    _sync_pipe_reader = Some(reader_pipe);
+                    let output = File::from(std::os::fd::OwnedFd::from(writer_pipe));
                     writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
                 }
                 _ => {}
