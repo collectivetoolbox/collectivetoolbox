@@ -478,6 +478,24 @@ If you don't understand why that diff is missing the point of this lint, re-read
         }
     }
 
+    // --- Section 9: Append-Only Graph Ledger Integrity ---
+    println!("\n=== Checking append-only graph ledger integrity ===");
+    let graph_dir = workspace_root.join("assets").join("data").join("graph");
+    if graph_dir.is_dir() {
+        match crate::ctbnbdl::load_ledger_nodes_from_dir(&graph_dir) {
+            Ok(nodes) => {
+                println!(
+                    "graph ledger append-only lint passed ({} nodes verified against HEAD and high-water shadow ledgers).",
+                    nodes.len()
+                );
+            }
+            Err(err) => {
+                any_failure = true;
+                eprintln!("graph ledger append-only lint failed: {err:#}");
+            }
+        }
+    }
+
     if !ast_results.io_errors.is_empty() {
         any_failure = true;
         eprintln!("\n=== I/O Errors ===");

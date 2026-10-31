@@ -18,9 +18,8 @@
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set -euo pipefail
-
-SCRIPT_DIR="$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+REPO_ROOT="$(pwd)"
 GRAPH_DIR="${REPO_ROOT}/assets/data/graph"
 
 run_chattr() {

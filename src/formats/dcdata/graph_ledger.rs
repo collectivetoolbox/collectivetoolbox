@@ -58,9 +58,12 @@ pub use crate::ctbnbdl::{
     encode_nodes_to_ctbnbdl_bytes_with, format_chunk_bundle_filename,
     format_chunk_filename, is_relationship_verb_with, list_chunk_files,
     load_ledger_nodes_from_dir, load_ledger_nodes_from_file,
-    parse_chunk_bundle_filename_start_id, parse_chunk_filename_start_id,
-    parse_statement_tokens_with, partition_active_and_inactive_nodes_with,
-    push_atom_dc_with, sanitize_comment,
+    load_ledger_nodes_from_str, parse_chunk_bundle_filename_start_id,
+    parse_chunk_filename_start_id, parse_statement_tokens_with,
+    partition_active_and_inactive_nodes_with, push_atom_dc_with,
+    sanitize_comment, sync_highwater_shadow_ledgers,
+    verify_nodes_append_only_against_baseline, verify_repo_graph_append_only,
+    write_chunk_file_append_only, write_ledger_nodes_to_dir,
 };
 
 use crate::dc::{
@@ -561,33 +564,6 @@ fn build_initial_token_labels(
         map.entry(sh(dc)).or_insert_with(|| label.to_string());
     }
     map
-}
-
-/// Writes `nodes` into 100-node chunk files (`85899_34592.ctbnodes`, ...) in `graph_dir`,
-/// updating only files whose contents changed. Returns the number of files written.
-pub fn write_ledger_nodes_to_dir(
-    graph_dir: &Path,
-    nodes: &[LedgerNode],
-) -> Result<usize> {
-    std::fs::create_dir_all(graph_dir).with_context(|| {
-        format!("Failed to create graph directory {}", graph_dir.display())
-    })?;
-    let mut files_written = 0usize;
-    for chunk in nodes.chunks(MAX_NODES_PER_CHUNK) {
-        let Some(first_node) = chunk.first() else {
-            continue;
-        };
-        let file_path = graph_dir.join(format_chunk_filename(first_node.id));
-        let mut content = String::new();
-        for node in chunk {
-            content.push_str(&node.format_line());
-            content.push('\n');
-        }
-        if crate::updater::write_if_changed(&file_path, &content)? {
-            files_written = files_written.saturating_add(1);
-        }
-    }
-    Ok(files_written)
 }
 
 /// Encodes a single `LedgerNode` (`id` + `tokens`) into its `Dc 617 .. Dc 618` token sequence:
@@ -2642,14 +2618,21 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
     })?;
 
     let existing_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+    verify_repo_graph_append_only(repo_root, &existing_nodes)?;
     let (updated_nodes, mut stats) = update_ledger_in_memory(
-        existing_nodes,
+        existing_nodes.clone(),
         &dc_defns,
         &format_defns,
         &known_scripts,
         Some(&named_types_bytes),
     )?;
+    verify_nodes_append_only_against_baseline(
+        "existing working-tree ledger",
+        &existing_nodes,
+        &updated_nodes,
+    )?;
     stats.files_written = write_ledger_nodes_to_dir(&graph_dir, &updated_nodes)?;
+    sync_highwater_shadow_ledgers(repo_root, &updated_nodes)?;
     let framing = default_ctbnbdl_framing_dcs();
     compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &graph_dir, framing)
         .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
@@ -3506,6 +3489,85 @@ mod tests {
         assert!(resolver.token_satisfies_type(dc9_gid, "format", Some("calendar")));
         assert!(resolver.token_satisfies_type(dc9_gid, "type", None));
         assert!(resolver.token_satisfies_type(dc9_gid, "type", Some("calendar")));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_append_only_chunk_writer_and_baseline_guards() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let start_id = SYSTEM_REGION_START;
+        let base_node_1 = LedgerNode {
+            id: start_id,
+            tokens: vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(590)],
+            comment: "Is instance of (Enclosing document, Graph statement)".to_string(),
+        };
+        let base_node_2 = LedgerNode {
+            id: start_id.saturating_add(1),
+            tokens: vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(650)],
+            comment: "Is instance of (Enclosing document, Document format)".to_string(),
+        };
+
+        // Initial write creates the first chunk file via O_CREAT | O_EXCL.
+        let written_1 = write_ledger_nodes_to_dir(
+            dir.path(),
+            std::slice::from_ref(&base_node_1),
+        )?;
+        assert_eq!(written_1, 1);
+
+        // Appending a second node writes only the delta suffix via O_APPEND.
+        let both_nodes = vec![base_node_1.clone(), base_node_2.clone()];
+        let written_2 = write_ledger_nodes_to_dir(dir.path(), &both_nodes)?;
+        assert_eq!(written_2, 1);
+
+        // Re-writing identical nodes is a no-op.
+        let written_noop = write_ledger_nodes_to_dir(dir.path(), &both_nodes)?;
+        assert_eq!(written_noop, 0);
+
+        // Attempting to truncate back to 1 node must fail cleanly.
+        let rollback_err = write_ledger_nodes_to_dir(
+            dir.path(),
+            std::slice::from_ref(&base_node_1),
+        );
+        assert!(
+            rollback_err.is_err(),
+            "Expected write_ledger_nodes_to_dir to reject rollback/truncation"
+        );
+
+        // Attempting to alter tokens or comments of an already-written node must fail.
+        let mut mutated_node_1 = base_node_1.clone();
+        mutated_node_1.tokens = vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(1)];
+        let mutate_err = write_ledger_nodes_to_dir(
+            dir.path(),
+            &[mutated_node_1.clone(), base_node_2.clone()],
+        );
+        assert!(
+            mutate_err.is_err(),
+            "Expected write_ledger_nodes_to_dir to reject mutation of existing node"
+        );
+
+        // Baseline verification passes when current is a superset of baseline, and fails on rollback or token change.
+        crate::ctbnbdl::verify_nodes_append_only_against_baseline(
+            "test-baseline",
+            std::slice::from_ref(&base_node_1),
+            &both_nodes,
+        )?;
+        assert!(
+            crate::ctbnbdl::verify_nodes_append_only_against_baseline(
+                "test-baseline",
+                &both_nodes,
+                std::slice::from_ref(&base_node_1),
+            )
+            .is_err()
+        );
+        assert!(
+            crate::ctbnbdl::verify_nodes_append_only_against_baseline(
+                "test-baseline",
+                &both_nodes,
+                &[mutated_node_1, base_node_2],
+            )
+            .is_err()
+        );
 
         Ok(())
     }

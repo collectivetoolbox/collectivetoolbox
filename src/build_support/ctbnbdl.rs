@@ -272,15 +272,11 @@ pub fn list_chunk_files(graph_dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(keyed_files.into_iter().map(|(_, p)| p).collect())
 }
 
-/// Loads all `LedgerNode` entries from a single `.ctbnodes` file.
-pub fn load_ledger_nodes_from_file(path: &Path) -> Result<Vec<LedgerNode>> {
-    let file_label = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(".ctbnodes");
-    let content = std::fs::read_to_string(path).with_context(|| {
-        format!("Failed to read .ctbnodes file {}", path.display())
-    })?;
+/// Loads all `LedgerNode` entries from a `.ctbnodes` text string.
+pub fn load_ledger_nodes_from_str(
+    content: &str,
+    file_label: &str,
+) -> Result<Vec<LedgerNode>> {
     let mut nodes = Vec::new();
     for (idx, line) in content.lines().enumerate() {
         if line.trim().is_empty() {
@@ -293,16 +289,30 @@ pub fn load_ledger_nodes_from_file(path: &Path) -> Result<Vec<LedgerNode>> {
     Ok(nodes)
 }
 
-/// Loads all existing `LedgerNode` entries from `.ctbnodes` chunk files in `graph_dir`.
-pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
+/// Loads all `LedgerNode` entries from a single `.ctbnodes` file.
+pub fn load_ledger_nodes_from_file(path: &Path) -> Result<Vec<LedgerNode>> {
+    // Reason for fallback: paths without a terminal filename component use the generic ".ctbnodes" diagnostic label
+    let file_label = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(".ctbnodes");
+    let content = std::fs::read_to_string(path).with_context(|| {
+        format!("Failed to read .ctbnodes file {}", path.display())
+    })?;
+    load_ledger_nodes_from_str(&content, file_label)
+}
+
+fn load_ledger_nodes_from_dir_raw(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
     let files = list_chunk_files(graph_dir)?;
     let mut nodes = Vec::new();
     for (chunk_idx, path) in files.iter().enumerate() {
+        // Reason for fallback: chunk_idx * 100 easily fits in u128 on any 64-bit platform
         let chunk_start_id = SYSTEM_REGION_START.saturating_add(
             u128::try_from(chunk_idx.saturating_mul(MAX_NODES_PER_CHUNK))
                 .unwrap_or(0),
         );
         let expected_name = format_chunk_filename(chunk_start_id);
+        // Reason for fallback: non-UTF-8 filenames fail the equality check against expected_name immediately below
         let actual_name = path
             .file_name()
             .and_then(|s| s.to_str())
@@ -315,6 +325,7 @@ pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
         let chunk_count = file_nodes.len();
         for (line_idx, node) in file_nodes.into_iter().enumerate() {
             let line_no = line_idx.saturating_add(1);
+            // Reason for fallback: nodes.len() fits in u128 on any platform
             let expected_id = SYSTEM_REGION_START
                 .saturating_add(u128::try_from(nodes.len()).unwrap_or(0));
             ensure!(
@@ -331,8 +342,331 @@ pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
         if chunk_idx.saturating_add(1) < files.len() {
             ensure!(
                 chunk_count == MAX_NODES_PER_CHUNK,
-                "{actual_name}: non-final chunk has {chunk_count} nodes, expected {MAX_NODES_PER_CHUNK}"
+                "{actual_name}: non-final chunk has {chunk_count} nodes, expected {MAX_NODES_PER_CHUNK}. \
+                 CRITICAL: This indicates {actual_name} was truncated or reverted (e.g. via 'git checkout') \
+                 after later chunk files were created. NEVER delete or revert .ctbnodes files!"
             );
+        }
+    }
+    Ok(nodes)
+}
+
+/// Verifies that `current_nodes` is a strict append-only extension of `baseline_nodes`
+/// (every node in `baseline_nodes` must appear at the same index in `current_nodes`
+/// with the exact same `id` and `tokens`).
+pub fn verify_nodes_append_only_against_baseline(
+    baseline_label: &str,
+    baseline_nodes: &[LedgerNode],
+    current_nodes: &[LedgerNode],
+) -> Result<()> {
+    // Reason for fallback: empty baseline has no last node ID
+    let last_base_id = baseline_nodes.last().map_or(0, |n| n.id);
+    ensure!(
+        current_nodes.len() >= baseline_nodes.len(),
+        "CRITICAL: Append-only graph ledger rollback detected against {baseline_label}! \
+         Working tree has {} nodes, but {baseline_label} has {} nodes (up to l{last_base_id}). \
+         Graph files in assets/data/graph/ are strictly append-only and must NEVER be reverted or deleted.",
+        current_nodes.len(),
+        baseline_nodes.len()
+    );
+    for (idx, base_node) in baseline_nodes.iter().enumerate() {
+        let Some(cur_node) = current_nodes.get(idx) else {
+            bail!(
+                "CRITICAL: Missing node at index {idx} (expected l{}) when verifying against {baseline_label}",
+                base_node.id
+            );
+        };
+        ensure!(
+            cur_node.id == base_node.id && cur_node.tokens == base_node.tokens,
+            "CRITICAL: Append-only graph ledger mutation detected at node l{} against {baseline_label}! \
+             Existing node IDs and Dc statements are immutable (expected tokens {:?}, found {:?}).",
+            base_node.id,
+            base_node.tokens,
+            cur_node.tokens
+        );
+    }
+    Ok(())
+}
+
+fn find_repo_root_for_main_graph_dir(graph_dir: &Path) -> Option<PathBuf> {
+    let data_dir = graph_dir.parent()?;
+    if data_dir.file_name().and_then(|s| s.to_str()) != Some("data") {
+        return None;
+    }
+    let assets_dir = data_dir.parent()?;
+    if assets_dir.file_name().and_then(|s| s.to_str()) != Some("assets") {
+        return None;
+    }
+    let repo_root = assets_dir.parent()?;
+    if repo_root.file_name().and_then(|s| s.to_str()) == Some("built") {
+        return None;
+    }
+    if repo_root.join(".git").exists() {
+        Some(repo_root.to_path_buf())
+    } else {
+        None
+    }
+}
+
+fn highwater_shadow_dirs(repo_root: &Path) -> Vec<(String, PathBuf)> {
+    let mut dirs = Vec::new();
+    let git_dir = repo_root.join(".git");
+    if git_dir.is_dir() {
+        dirs.push((
+            "high-water ledger (.git/ctb-graph-ledger-highwater)".to_string(),
+            git_dir.join("ctb-graph-ledger-highwater"),
+        ));
+    }
+    let gemini_dir = Path::new("/root/.gemini");
+    if gemini_dir.is_dir() {
+        dirs.push((
+            "high-water ledger (/root/.gemini/ctb-graph-ledger-highwater)"
+                .to_string(),
+            gemini_dir.join("ctb-graph-ledger-highwater"),
+        ));
+    }
+    dirs
+}
+
+/// Verifies `current_nodes` against both high-water shadow ledgers and `git HEAD`
+/// (when `.git` and `git` are available).
+pub fn verify_repo_graph_append_only(
+    repo_root: &Path,
+    current_nodes: &[LedgerNode],
+) -> Result<()> {
+    for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
+        if shadow_dir.is_dir() {
+            let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)
+                .with_context(|| {
+                    format!("Failed to load {label} from {}", shadow_dir.display())
+                })?;
+            if !shadow_nodes.is_empty() {
+                verify_nodes_append_only_against_baseline(
+                    &label,
+                    &shadow_nodes,
+                    current_nodes,
+                )?;
+            }
+        }
+    }
+
+    if repo_root.join(".git").exists() {
+        if let Ok(ls_out) = std::process::Command::new("/usr/bin/git")
+            .arg("-C")
+            .arg(repo_root)
+            .args(["ls-tree", "--name-only", "HEAD", "assets/data/graph/"])
+            .output()
+            && ls_out.status.success()
+        {
+            let stdout = String::from_utf8_lossy(&ls_out.stdout);
+            let mut keyed_paths: Vec<(u128, String)> = Vec::new();
+            for line in stdout.lines() {
+                let rel = line.trim();
+                let Some(fname) = Path::new(rel).file_name().and_then(|s| s.to_str())
+                else {
+                    continue;
+                };
+                if let Some(start_id) = parse_chunk_filename_start_id(fname) {
+                    keyed_paths.push((start_id, rel.to_string()));
+                }
+            }
+            keyed_paths.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+            let mut head_nodes = Vec::new();
+            for (_, rel) in keyed_paths {
+                let show_out = std::process::Command::new("/usr/bin/git")
+                    .arg("-C")
+                    .arg(repo_root)
+                    .arg("show")
+                    .arg(format!("HEAD:{rel}"))
+                    .output()
+                    .with_context(|| {
+                        format!("Failed to read HEAD:{rel} from git")
+                    })?;
+                if show_out.status.success() {
+                    let text = String::from_utf8(show_out.stdout)
+                        .with_context(|| format!("Invalid UTF-8 in HEAD:{rel}"))?;
+                    let chunk_nodes = load_ledger_nodes_from_str(&text, &rel)?;
+                    head_nodes.extend(chunk_nodes);
+                }
+            }
+            if !head_nodes.is_empty() {
+                verify_nodes_append_only_against_baseline(
+                    "git HEAD (assets/data/graph/*.ctbnodes)",
+                    &head_nodes,
+                    current_nodes,
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Writes or appends a single `.ctbnodes` chunk file using strictly append-only semantics:
+/// - If `path` already exists and equals `content`, does not open the file for writing (`Ok(false)`).
+/// - If `path` already exists and is a strict byte prefix of `content`, opens `path` with
+///   `O_WRONLY | O_APPEND` (compatible with kernel `chattr +a`) and writes only the newly appended tail.
+/// - If `path` already exists and is NOT a strict byte prefix of `content`, fails loudly (`Err`).
+/// - If `path` does not exist yet, creates it with `O_WRONLY | O_CREAT | O_EXCL`.
+pub fn write_chunk_file_append_only(path: &Path, content: &str) -> Result<bool> {
+    use std::io::Write;
+
+    if path.exists() {
+        let existing = std::fs::read_to_string(path).with_context(|| {
+            format!("Failed to read existing .ctbnodes chunk {}", path.display())
+        })?;
+        if existing == content {
+            return Ok(false);
+        }
+        ensure!(
+            content.starts_with(&existing),
+            "CRITICAL: Append-only invariant violated for {}: existing file content ({} bytes) \
+             is not a strict byte prefix of new content ({} bytes). Existing .ctbnodes entries must never be modified or truncated!",
+            path.display(),
+            existing.len(),
+            content.len()
+        );
+        let tail = content.as_bytes().get(existing.len()..).unwrap_or_default();
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(path)
+            .with_context(|| {
+                format!("Failed to open {} in O_APPEND mode", path.display())
+            })?;
+        file.write_all(tail).with_context(|| {
+            format!("Failed to append {} bytes to {}", tail.len(), path.display())
+        })?;
+        return Ok(true);
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create directory {}", parent.display())
+        })?;
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .with_context(|| {
+            format!("Failed to create new .ctbnodes chunk {}", path.display())
+        })?;
+    file.write_all(content.as_bytes()).with_context(|| {
+        format!("Failed to write new .ctbnodes chunk {}", path.display())
+    })?;
+    Ok(true)
+}
+
+/// Writes `nodes` into 100-node chunk files (`85899_34592.ctbnodes`, ...) in `graph_dir`
+/// using strictly append-only file operations (`O_APPEND` on partial tail chunks, `O_CREAT | O_EXCL`
+/// on new chunks, and no-op on unchanged full chunks). Returns the number of files written.
+pub fn write_ledger_nodes_to_dir(
+    graph_dir: &Path,
+    nodes: &[LedgerNode],
+) -> Result<usize> {
+    std::fs::create_dir_all(graph_dir).with_context(|| {
+        format!("Failed to create graph directory {}", graph_dir.display())
+    })?;
+    let existing_files = list_chunk_files(graph_dir)?;
+    let expected_chunks = if nodes.is_empty() {
+        0
+    } else {
+        nodes
+            .len()
+            .saturating_add(MAX_NODES_PER_CHUNK.saturating_sub(1))
+            / MAX_NODES_PER_CHUNK
+    };
+    ensure!(
+        expected_chunks >= existing_files.len(),
+        "CRITICAL: Append-only invariant violated in {}: new node list has {} chunks, \
+         fewer than the {} existing chunk files on disk!",
+        graph_dir.display(),
+        expected_chunks,
+        existing_files.len()
+    );
+
+    let mut files_written = 0usize;
+    for chunk in nodes.chunks(MAX_NODES_PER_CHUNK) {
+        let Some(first_node) = chunk.first() else {
+            continue;
+        };
+        let file_path = graph_dir.join(format_chunk_filename(first_node.id));
+        let mut content = String::new();
+        for node in chunk {
+            content.push_str(&node.format_line());
+            content.push('\n');
+        }
+        if write_chunk_file_append_only(&file_path, &content)? {
+            files_written = files_written.saturating_add(1);
+        }
+    }
+    Ok(files_written)
+}
+
+/// Synchronizes the append-only high-water shadow ledgers with `nodes`.
+pub fn sync_highwater_shadow_ledgers(
+    repo_root: &Path,
+    nodes: &[LedgerNode],
+) -> Result<()> {
+    for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
+        std::fs::create_dir_all(&shadow_dir).with_context(|| {
+            format!("Failed to create {label} at {}", shadow_dir.display())
+        })?;
+        if let Ok(existing_files) = list_chunk_files(&shadow_dir) {
+            if let Some(last_file) = existing_files.last() {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = std::fs::set_permissions(
+                        last_file,
+                        std::fs::Permissions::from_mode(0o644),
+                    );
+                }
+            }
+        }
+        write_ledger_nodes_to_dir(&shadow_dir, nodes)
+            .with_context(|| format!("Failed to update {label}"))?;
+        if let Ok(updated_files) = list_chunk_files(&shadow_dir) {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                for file in updated_files {
+                    let _ = std::fs::set_permissions(
+                        &file,
+                        std::fs::Permissions::from_mode(0o444),
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Loads all existing `LedgerNode` entries from `.ctbnodes` chunk files in `graph_dir`.
+///
+/// When `graph_dir` is `<repo_root>/assets/data/graph`, this also automatically verifies
+/// that the loaded nodes have not been rolled back or mutated relative to the high-water
+/// shadow ledgers.
+pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
+    let nodes = load_ledger_nodes_from_dir_raw(graph_dir)?;
+    if let Some(repo_root) = find_repo_root_for_main_graph_dir(graph_dir) {
+        for (label, shadow_dir) in highwater_shadow_dirs(&repo_root) {
+            if shadow_dir.is_dir() {
+                let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)
+                    .with_context(|| {
+                        format!(
+                            "Failed to load {label} from {}",
+                            shadow_dir.display()
+                        )
+                    })?;
+                if !shadow_nodes.is_empty() {
+                    verify_nodes_append_only_against_baseline(
+                        &label,
+                        &shadow_nodes,
+                        &nodes,
+                    )?;
+                }
+            }
         }
     }
     Ok(nodes)
