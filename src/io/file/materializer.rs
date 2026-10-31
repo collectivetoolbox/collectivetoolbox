@@ -1175,6 +1175,9 @@ pub fn materialize_entity_with_stream_source(
                 dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name, options.existing_entry_policy)?;
                 cleanup_guard.active = false;
 
+                #[cfg(windows)]
+                apply_windows_birthtime(&actual_dest_path, &entity.metadata)?;
+
                 #[cfg(unix)]
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
@@ -1730,6 +1733,9 @@ pub fn materialize_entity_with_stream_source(
                 }
             }
             cleanup_guard.active = false;
+
+            #[cfg(windows)]
+            apply_windows_birthtime(&dest_path, &entity.metadata)?;
 
             if let Some((style, ref apple_double_bytes)) = prebuilt_apple_double {
                 write_apple_double_companion_bytes(
