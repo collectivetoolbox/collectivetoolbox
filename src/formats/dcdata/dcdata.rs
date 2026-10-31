@@ -174,45 +174,29 @@ const _: &[u8] = include_bytes!("data/magic/ctoolbox.magic");
 static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Returns the raw bytes of an embedded data file within the `dc_data` asset directory,
-/// or a source data file from `src/formats/dcdata/data-src/` when running in test mode.
+/// or a test fixture from `src/formats/dcdata/fixtures/` when running in test mode.
 pub fn get_dc_data_file(key: &str) -> Option<Vec<u8>> {
-    let data_src_dir =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data-src");
-    if let Some(rel) = key
-        .strip_prefix("data-src/")
-        .or_else(|| key.strip_prefix("fixtures/"))
-    {
-        let rel = rel.trim_start_matches('/');
-        if !rel.contains("..") {
-            return std::fs::read(data_src_dir.join(rel)).ok();
-        }
+    if key.starts_with("fixtures/") {
+        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
     }
     if let Some(bytes) = get_embedded_asset(&DC_DATA_DIR, key) {
         return Some(bytes);
     }
     if ctb_utilities::testing::is_in_test() {
-        let clean = key.trim_start_matches('/');
-        if !clean.contains("..") {
-            if let Ok(bytes) = std::fs::read(data_src_dir.join(clean)) {
-                return Some(bytes);
-            }
-        }
-        return ctb_utilities::load_manifest_fixture(
-            env!("CARGO_MANIFEST_DIR"),
-            key,
-        );
+        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
     }
     None
 }
 
 pub(crate) fn get_dc_categories_dir_path() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("data-src/categories")
+    ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "categories")
 }
 
 pub(crate) fn get_formats_categories_dir_path() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("data-src/categories/formats")
+    ctb_utilities::manifest_fixture_path(
+        env!("CARGO_MANIFEST_DIR"),
+        "categories/formats",
+    )
 }
 
 /// Returns the embedded Magdir directory containing upstream libmagic rule files.

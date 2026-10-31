@@ -76,7 +76,7 @@ impl DatasetRuleResolver {
     }
 
     /// Builds a resolver by indexing the CSV fixture dataset
-    /// in `src/formats/dcdata/data-src/`.
+    /// in `src/formats/dcdata/fixtures/`.
     ///
     /// Used by the consistency test verifying that the seed graph
     /// syntax resolver is up to date with the CSV dataset.
