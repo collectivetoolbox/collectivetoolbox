@@ -51,24 +51,19 @@ This plan implements a permanent, auditable, strictly append-only recovery and m
 
 ---
 
-## Open Questions
+## Confirmed Design Decisions
 
-> [!WARNING]
-> Please confirm your preference on these 3 design details before we begin execution:
->
-> 1. **23 Unambiguous Nodes in `l8589951799`..`l8589951823`**:
->    - In `l8589951799`..`l8589951823` (the first 25 nodes appended after `l8589951798`), **23 nodes** (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) received **bit-for-bit identical token sequences and identical transitive targets** in both Run 1 and Run 2.
->    - Only `l8589951802` (`f95` `Dc 573 "Description"` string), `l8589951813` (`610 l8589951812 l8589951802`, which references `l8589951802`), and `l8589951824`..`l8589952424` (`601` nodes shifted by the 19 invented extensions) differed between Run 1 and Run 2.
->    - **Recommendation**: Leave the 23 bit-for-bit identical, unambiguously referenced nodes untouched, and apply Step 2a/2b to the `602` nodes with distinct bodies (`l8589951802` and `l8589951824`..`l8589952424`) plus `l8589951813` (whose target `l8589951802` is ambiguous). Should we skip the 23 identical nodes or mark all 626 as ambiguous?
->
-> 2. **Restoring the 57 Erased Run 1 Tail Nodes (`l8589952425`..`l8589952481`) First**:
->    - Currently `assets/data/graph/85899_52392.ctbnodes` ends at `l8589952424` (626 nodes). In Run 1, IDs `l8589952425`..`l8589952481` (57 nodes) were also minted before `rm` deleted them.
->    - **Recommendation**: Before allocating any new Step 2a recovery nodes, first append Run 1's 57 tail nodes at `l8589952425`..`l8589952481` via `nodes/inbox/` so those 57 IDs hold their single original Run 1 definitions (never double-assigned!) and all new recovery nodes start cleanly at `l8589952482`. Does that sound right?
->
-> 3. **Duplicate-Node Check Policy in `data-src/nodes/inbox/`**:
->    - By default, when processing a `.dcsh` (`f635 "Dc shorthand ASCII list"`) file in `nodes/inbox/`, we check whether any currently **active** (non-superseded, non-retracted), non-empty node in the ledger already has the exact same token sequence (and is not a seed-entity declaration `586 615 <class_dc>` using `Dc 586 "Is an instance of"` and `Dc 615 "Enclosing document"`).
->    - However, in Step 2a, the new copy of each overwritten node must be allocated *immediately before* the `Dc 348 "Ambiguous values"` and `Dc 591 "Supersedes"` nodes that mark the old node inactive.
->    - **Recommendation**: Allow a `.dcsh` file in `nodes/inbox/` to carry an optional header comment `# @allow-duplicate-of: l<old_id>` (which explicitly documents and permits duplicating `l<old_id>` prior to superseding it), while rejecting any accidental duplicate of an active node.
+1. **Leave the 23 Unambiguous Identical Nodes in `l8589951799`..`l8589951823` As-Is**:
+   - In `l8589951799`..`l8589951823` (the first 25 nodes appended after `l8589951798`), **23 nodes** (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) received bit-for-bit, meaning-for-meaning identical token sequences and identical transitive targets in both Run 1 and Run 2.
+   - These 23 nodes will be left as-is. Step 2a will be applied to the `602` nodes with distinct token bodies (`l8589951802` and `l8589951824`..`l8589952424`), and Step 2b will disambiguate `l8589951813` (which references `l8589951802`) along with all other Run 1 and Run 2 statements referencing ambiguous nodes.
+
+2. **Restore the 57 Erased Run 1 Tail Nodes (`l8589952425`..`l8589952481`) First**:
+   - Currently `assets/data/graph/85899_52392.ctbnodes` ends at `l8589952424` (626 nodes). In Run 1, IDs `l8589952425`..`l8589952481` (57 nodes) were also allocated before `rm` deleted them.
+   - Before allocating any new Step 2a recovery nodes, Run 1's 57 tail nodes will be restored at their original IDs `l8589952425`..`l8589952481` via `nodes/inbox/` so those 57 IDs hold their single original Run 1 definitions (never double-assigned), and all new recovery nodes start cleanly at `l8589952482`.
+
+3. **Duplicate-Node Check Policy in `data-src/nodes/inbox/` (`# @allow-duplicate-of: l<old_id>`)**:
+   - By default, when processing a `.dcsh` (`f635 "Dc shorthand ASCII list"`) file in `nodes/inbox/`, `process_inbox_nodes` checks whether any currently **active** (non-superseded, non-retracted), non-empty node in the ledger already has the exact same token sequence (excluding `586 615 <class_dc>` seed entity declarations using `Dc 586 "Is an instance of"` and `Dc 615 "Enclosing document"`).
+   - A `.dcsh` file in `nodes/inbox/` may include an explicit header comment `# @allow-duplicate-of: l<old_id>` to document and permit intentionally duplicating `l<old_id>` immediately prior to superseding it, while rejecting any accidental duplicate of an active node.
 
 ---
 
