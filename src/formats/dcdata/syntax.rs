@@ -41,9 +41,10 @@ pub mod validator;
 mod data_constraint;
 
 pub use ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
+    ActionArg, CharTarget, DcSyntaxRule, FramingShape,
+    MAX_LEGACY_FRAMING_SHORT_DC_ID, Quantifier, SyntaxAction,
     SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
-    normalize_syntax_pattern,
+    classify_rule_framing_shape, normalize_syntax_pattern,
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{

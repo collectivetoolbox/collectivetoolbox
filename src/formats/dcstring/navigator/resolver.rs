@@ -469,6 +469,65 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         self.base
             .is_subtype_of(self.canonical_token(sub_token), self.canonical_token(super_token))
     }
+
+    fn framing_shape(&self, token: u128) -> ctb_formats_dcdata::syntax::FramingShape {
+        if self.custom_rules.is_empty()
+            && self.opener_to_closer.is_empty()
+            && self.closing_delimiters.is_empty()
+        {
+            let canon = if self.canonical_overlay.is_empty() {
+                token
+            } else {
+                self.canonical_token(token)
+            };
+            return self.base.framing_shape(canon);
+        }
+        if let Some(target) = CharTarget::from_u128(token) {
+            let closer = self.closer_for_opener(&target);
+            let has_trailing = !self.trailing_after_closer(&target).is_empty();
+            let closing_opener = self.closing_opener_for(token).cloned();
+            let rule = self.resolve_rule(&target);
+            // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
+            ctb_formats_dcdata::syntax::classify_rule_framing_shape(
+                &target,
+                rule,
+                closer,
+                has_trailing,
+                closing_opener,
+            )
+            .unwrap_or(ctb_formats_dcdata::syntax::FramingShape::Atom)
+        } else {
+            ctb_formats_dcdata::syntax::FramingShape::Atom
+        }
+    }
+
+    fn is_special_wrapper_token(&self, token: u128) -> bool {
+        if self.canonical_overlay.is_empty() && self.roles_overlay.is_empty() {
+            return self.base.is_special_wrapper_token(token);
+        }
+        let canon = self.canonical_token(token);
+        self.base.is_special_wrapper_token(canon)
+            || self.roles_overlay.get(&token).is_some_and(|roles| {
+                roles.contains(&DcRole::LangSay)
+                    || roles.contains(&DcRole::OptionalPresent)
+                    || roles.contains(&DcRole::OptionalAbsent)
+            })
+            || (canon != token
+                && self.roles_overlay.get(&canon).is_some_and(|roles| {
+                    roles.contains(&DcRole::LangSay)
+                        || roles.contains(&DcRole::OptionalPresent)
+                        || roles.contains(&DcRole::OptionalAbsent)
+                }))
+    }
+
+    fn is_plain_atom_dc(&self, token: u128) -> bool {
+        let canon = if self.canonical_overlay.is_empty() {
+            token
+        } else {
+            self.canonical_token(token)
+        };
+        self.base.is_plain_atom_dc(canon)
+    }
 }
 
 /// Global runtime registry for Document Character syntax rules and resolvers.
@@ -631,6 +690,22 @@ impl SyntaxRuleResolver for SyntaxRuntimeRegistry {
 
     fn is_opaque_container(&self, opener_token: u128) -> bool {
         self.resolver.is_opaque_container(opener_token)
+    }
+
+    fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
+        self.resolver.is_subtype_of(sub_token, super_token)
+    }
+
+    fn framing_shape(&self, token: u128) -> ctb_formats_dcdata::syntax::FramingShape {
+        self.resolver.framing_shape(token)
+    }
+
+    fn is_special_wrapper_token(&self, token: u128) -> bool {
+        self.resolver.is_special_wrapper_token(token)
+    }
+
+    fn is_plain_atom_dc(&self, token: u128) -> bool {
+        self.resolver.is_plain_atom_dc(token)
     }
 }
 

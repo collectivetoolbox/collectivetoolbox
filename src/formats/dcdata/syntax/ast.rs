@@ -584,3 +584,352 @@ pub fn normalize_syntax_pattern(
         ),
     }
 }
+
+/// Highest Short Dc ID permitted to use legacy framing shapes (`PrefixVariableArity`,
+/// `Infix`, or `LegacySourceWhitespace`). Any newly allocated Short Dc (`> 634`)
+/// that defines a syntax rule must use deterministic `Paired`, `Closer`,
+/// `PrefixAtomArity`, or `PrefixArity` framing.
+pub const MAX_LEGACY_FRAMING_SHORT_DC_ID: u32 = 634;
+
+/// Physical framing classification of a Document Character or Format syntax rule.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FramingShape {
+    /// Atomic character with no framing rule (consumes only itself).
+    Atom,
+    /// Paired opening delimiter closed by `closer`, optionally followed by
+    /// trailing elements after the closer (e.g. `543..544 [545:]`).
+    Paired {
+        closer: u128,
+        has_trailing_after_closer: bool,
+    },
+    /// Closing delimiter that terminates a paired block opened by `opener`.
+    Closer {
+        opener: CharTarget,
+    },
+    /// Fixed-arity prefix construct `:~ [atom_dc]{N}` where each argument is an
+    /// `[atom_dc]` (either 1 atomic token or `Dc 616` + `[value]`).
+    PrefixAtomArity(u8),
+    /// Fixed-arity prefix construct `:~ <arg_1> ... <arg_N>` consuming `N` child frames.
+    PrefixArity(u8),
+    /// Legacy variable-arity prefix construct (e.g. `Dc 276` optional leading `[type]`,
+    /// `Dc 300`/`516` `([type] [type]) | [list:type]`, `Dc 279` trailing parameter blocks,
+    /// `Dc 407` `(511 [f523:] 512 | [f523:])`, or `Dc 535` `:~ [type] (258 ... 259)+`).
+    PrefixVariableArity,
+    /// Legacy infix operator where `~` is preceded by an LHS construct and followed
+    /// by an RHS construct (`Dc 269`, `Dc 277`).
+    Infix,
+    /// Legacy source whitespace rule (`Dc 267`: `:([statement] ~) | (~ ~) | (~ [statement])`).
+    LegacySourceWhitespace,
+    /// Self-less format value constraint pattern (e.g. `f200`: `:[number:>=0]`).
+    ValueConstraint,
+}
+
+impl FramingShape {
+    /// Returns true if this framing shape is allowed for newly defined Document Characters (`> 634`).
+    #[must_use]
+    pub const fn is_allowed_for_new_dc(&self) -> bool {
+        matches!(
+            self,
+            Self::Atom
+                | Self::Paired { .. }
+                | Self::Closer { .. }
+                | Self::PrefixAtomArity(_)
+                | Self::PrefixArity(_)
+        )
+    }
+}
+
+fn pattern_contains_self(pattern: &SyntaxPattern) -> bool {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => elements.iter().any(|el| match &el.term {
+            SyntaxTerm::SelfChar => true,
+            SyntaxTerm::Group(sub) => pattern_contains_self(sub),
+            _ => false,
+        }),
+        SyntaxPattern::Alternation(branches) => branches.iter().any(pattern_contains_self),
+    }
+}
+
+fn is_legacy_whitespace_pattern(pattern: &SyntaxPattern) -> bool {
+    let SyntaxPattern::Alternation(branches) = pattern else {
+        return false;
+    };
+    branches.len() >= 2
+        && branches.iter().all(|b| {
+            let SyntaxPattern::Sequence(outer) = b else {
+                return false;
+            };
+            let elems = if let [
+                SyntaxElement {
+                    term: SyntaxTerm::Group(SyntaxPattern::Sequence(inner)),
+                    quantifier: Quantifier::ExactOne,
+                },
+            ] = outer.as_slice()
+            {
+                inner.as_slice()
+            } else {
+                outer.as_slice()
+            };
+            elems.len() == 2
+                && elems.iter().all(|e| {
+                    e.quantifier == Quantifier::ExactOne
+                        && (matches!(&e.term, SyntaxTerm::SelfChar)
+                            || matches!(
+                                &e.term,
+                                SyntaxTerm::NamedConstruct { name, .. } if name == "statement"
+                            ))
+                })
+        })
+}
+
+fn is_inline_paired_subframe(elements: &[SyntaxElement]) -> bool {
+    if elements.len() < 2 {
+        return false;
+    }
+    let (Some(first), Some(last)) = (elements.first(), elements.last()) else {
+        return false;
+    };
+    if first.quantifier != Quantifier::ExactOne || last.quantifier != Quantifier::ExactOne {
+        return false;
+    }
+    matches!(
+        (&first.term, &last.term),
+        (
+            SyntaxTerm::CharRef(CharTarget::Dc(511)),
+            SyntaxTerm::CharRef(CharTarget::Dc(512))
+        ) | (
+            SyntaxTerm::CharRef(CharTarget::Dc(388)),
+            SyntaxTerm::CharRef(CharTarget::Dc(389))
+        ) | (
+            SyntaxTerm::CharRef(CharTarget::Dc(258)),
+            SyntaxTerm::CharRef(CharTarget::Dc(259))
+        )
+    )
+}
+
+fn term_fixed_frame_arity(term: &SyntaxTerm) -> Option<u8> {
+    match term {
+        SyntaxTerm::NamedConstruct { .. }
+        | SyntaxTerm::CharRef(_)
+        | SyntaxTerm::CharSet { .. }
+        | SyntaxTerm::CharRange { .. }
+        | SyntaxTerm::RuleRef {
+            target: CharTarget::Dc(_),
+        } => Some(1),
+        SyntaxTerm::Group(SyntaxPattern::Sequence(sub_elems)) => {
+            sequence_fixed_frame_arity(sub_elems)
+        }
+        SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => {
+            let first = branches.first()?;
+            let first_arity = match first {
+                SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(s)?,
+                SyntaxPattern::Alternation(_) => return None,
+            };
+            for branch in branches.get(1..)? {
+                let branch_arity = match branch {
+                    SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(s)?,
+                    SyntaxPattern::Alternation(_) => return None,
+                };
+                if branch_arity != first_arity {
+                    return None;
+                }
+            }
+            Some(first_arity)
+        }
+        SyntaxTerm::SelfChar | SyntaxTerm::RuleRef { .. } => None,
+    }
+}
+
+fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
+    if elements.is_empty() {
+        return Some(0);
+    }
+    if is_inline_paired_subframe(elements) {
+        return Some(1);
+    }
+    let mut total = 0u8;
+    let mut idx = 0usize;
+    while idx < elements.len() {
+        if let (Some(e0), Some(e1), Some(e2)) = (
+            elements.get(idx),
+            elements.get(idx.saturating_add(1)),
+            elements.get(idx.saturating_add(2)),
+        ) {
+            if e0.quantifier == Quantifier::ExactOne
+                && e1.quantifier == Quantifier::ExactOne
+                && e2.quantifier == Quantifier::ExactOne
+                && e0.term == SyntaxTerm::CharRef(CharTarget::Dc(258))
+                && e2.term == SyntaxTerm::CharRef(CharTarget::Dc(259))
+            {
+                total = total.checked_add(1)?;
+                idx = idx.saturating_add(3);
+                continue;
+            }
+        }
+        if let (Some(e0), Some(e1)) = (elements.get(idx), elements.get(idx.saturating_add(1))) {
+            if e0.quantifier == Quantifier::ExactOne
+                && e1.quantifier == Quantifier::ExactOne
+                && matches!(
+                    e0.term,
+                    SyntaxTerm::CharRef(CharTarget::Dc(376 | 377))
+                )
+                && matches!(e1.term, SyntaxTerm::NamedConstruct { .. })
+            {
+                total = total.checked_add(1)?;
+                idx = idx.saturating_add(2);
+                continue;
+            }
+        }
+        let el = elements.get(idx)?;
+        if el.quantifier != Quantifier::ExactOne {
+            return None;
+        }
+        let term_arity = term_fixed_frame_arity(&el.term)?;
+        total = total.checked_add(term_arity)?;
+        idx = idx.saturating_add(1);
+    }
+    Some(total)
+}
+
+/// Classifies the physical framing shape of a Document Character or Format rule.
+///
+/// Returns `None` if `rule` does not conform to any recognized framing shape.
+#[must_use]
+pub fn classify_rule_framing_shape(
+    target: &CharTarget,
+    rule: Option<&DcSyntaxRule>,
+    closer: Option<u128>,
+    has_trailing_after_closer: bool,
+    closing_opener: Option<CharTarget>,
+) -> Option<FramingShape> {
+    if let Some(closer) = closer {
+        return Some(FramingShape::Paired {
+            closer,
+            has_trailing_after_closer,
+        });
+    }
+    if let Some(opener) = closing_opener {
+        return Some(FramingShape::Closer { opener });
+    }
+    let Some(rule) = rule else {
+        return Some(FramingShape::Atom);
+    };
+
+    if is_legacy_whitespace_pattern(&rule.pattern) {
+        return Some(FramingShape::LegacySourceWhitespace);
+    }
+
+    if let SyntaxPattern::Sequence(elements) = &rule.pattern {
+        if let Some(self_idx) = elements
+            .iter()
+            .position(|el| matches!(el.term, SyntaxTerm::SelfChar))
+        {
+            if self_idx > 0 && self_idx.saturating_add(1) < elements.len() {
+                return Some(FramingShape::Infix);
+            }
+            if self_idx > 0
+                && self_idx.saturating_add(1) == elements.len()
+                && elements.last().is_some_and(|el| el.quantifier == Quantifier::ExactOne)
+            {
+                if let Some(first) = elements.first() {
+                    if first.quantifier == Quantifier::ExactOne {
+                        match &first.term {
+                            SyntaxTerm::CharRef(opener) => {
+                                return Some(FramingShape::Closer {
+                                    opener: opener.clone(),
+                                });
+                            }
+                            SyntaxTerm::CharSet {
+                                negated: false,
+                                members,
+                            } => {
+                                if let Some(opener) = members.first() {
+                                    return Some(FramingShape::Closer {
+                                        opener: opener.clone(),
+                                    });
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    match &rule.pattern {
+        SyntaxPattern::Sequence(elements)
+            if elements.first().is_some_and(|el| {
+                el.quantifier == Quantifier::ExactOne
+                    && matches!(el.term, SyntaxTerm::SelfChar)
+            }) =>
+        {
+            let tail = elements.get(1..)?;
+            if tail.is_empty() {
+                return Some(FramingShape::PrefixArity(0));
+            }
+            if target == &CharTarget::Dc(279) {
+                return Some(FramingShape::PrefixVariableArity);
+            }
+            if tail.iter().all(|el| {
+                el.quantifier == Quantifier::ExactOne
+                    && matches!(
+                        &el.term,
+                        SyntaxTerm::NamedConstruct {
+                            name,
+                            subtype: None,
+                            ..
+                        } if name == "atom_dc"
+                    )
+            }) {
+                let arity = u8::try_from(tail.len()).ok()?;
+                return Some(FramingShape::PrefixAtomArity(arity));
+            }
+            if let Some(arity) = sequence_fixed_frame_arity(tail) {
+                return Some(FramingShape::PrefixArity(arity));
+            }
+            return Some(FramingShape::PrefixVariableArity);
+        }
+        SyntaxPattern::Alternation(branches)
+            if branches
+                .first()
+                .is_some_and(SyntaxPattern::starts_with_self) =>
+        {
+            let mut common_arity: Option<u8> = None;
+            for branch in branches {
+                let SyntaxPattern::Sequence(elems) = branch else {
+                    return Some(FramingShape::PrefixVariableArity);
+                };
+                let branch_tail = if elems
+                    .first()
+                    .is_some_and(|e| matches!(e.term, SyntaxTerm::SelfChar))
+                {
+                    elems.get(1..)?
+                } else if matches!(target, CharTarget::Dc(406 | 562)) {
+                    elems.as_slice()
+                } else {
+                    return None;
+                };
+                let Some(branch_arity) = sequence_fixed_frame_arity(branch_tail) else {
+                    return Some(FramingShape::PrefixVariableArity);
+                };
+                if let Some(prev) = common_arity {
+                    if prev != branch_arity {
+                        return Some(FramingShape::PrefixVariableArity);
+                    }
+                } else {
+                    common_arity = Some(branch_arity);
+                }
+            }
+            return Some(common_arity.map_or(FramingShape::PrefixVariableArity, FramingShape::PrefixArity));
+        }
+        _ => {}
+    }
+
+    if matches!(target, CharTarget::Format(_)) && !pattern_contains_self(&rule.pattern) {
+        return Some(FramingShape::ValueConstraint);
+    }
+
+    None
+}
+

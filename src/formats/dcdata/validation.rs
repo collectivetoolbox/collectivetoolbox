@@ -1861,6 +1861,37 @@ where
         }
     };
 
+    let mut opener_to_closer: HashMap<u32, u128> = HashMap::new();
+    let mut closing_delimiters: HashMap<u32, crate::syntax::CharTarget> = HashMap::new();
+    for row in &all_rows {
+        let Some(short_id) = row.short_id.and_then(|id| u32::try_from(id).ok()) else {
+            continue;
+        };
+        let Some(closes) = &row.closes else {
+            continue;
+        };
+        let closer_u128 = DcChar::from_short(short_id).to_u128();
+        let opener_target = match closes {
+            ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
+                u32::try_from(*id).ok().map(|sid| {
+                    opener_to_closer.insert(sid, closer_u128);
+                    crate::syntax::CharTarget::Dc(sid)
+                })
+            }
+            ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
+                ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{id}"))
+                    .map(crate::syntax::CharTarget::Format)
+            }
+            ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
+                Some(crate::syntax::CharTarget::Unicode(*cp))
+            }
+            _ => None,
+        };
+        if let Some(target) = opener_target {
+            closing_delimiters.insert(short_id, target);
+        }
+    }
+
     // Second pass: Validate cross-references, decompositions, and syntax rules
     for row in &all_rows {
         for xref in &row.cross_references {
@@ -2171,6 +2202,53 @@ where
                 &row.source_file,
                 row.line_number,
             );
+
+            let target = crate::syntax::CharTarget::Dc(short_id_u32);
+            let closer = opener_to_closer.get(&short_id_u32).copied();
+            let has_trailing = closer.is_some_and(|c| {
+                !crate::syntax::extract_trailing_after_closer(&syntax_rule.pattern, c).is_empty()
+            });
+            let closing_opener = closing_delimiters.get(&short_id_u32).cloned();
+            let shape = crate::syntax::classify_rule_framing_shape(
+                &target,
+                Some(syntax_rule),
+                closer,
+                has_trailing,
+                closing_opener,
+            );
+            match shape {
+                None | Some(crate::syntax::FramingShape::ValueConstraint) => {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Syntax"),
+                        format!(
+                            "Document Character Dc {short_id_u32} syntax rule '{}' does not conform to a valid framing shape (Paired, Closer, PrefixArity, PrefixAtomArity, PrefixVariableArity, or Infix)",
+                            syntax_rule.raw
+                        ),
+                        Some("Ensure syntax rule starts with '~' (or defines a paired delimiter with @closes)"),
+                    );
+                }
+                Some(ref valid_shape) => {
+                    let is_equiv_alias = equiv_sources.contains(&row.dc_id);
+                    if short_id_u32 > crate::syntax::MAX_LEGACY_FRAMING_SHORT_DC_ID
+                        && !is_equiv_alias
+                        && !valid_shape.is_allowed_for_new_dc()
+                    {
+                        report.add_error(
+                            &row.source_file,
+                            Some(row.line_number),
+                            Some("Syntax"),
+                            format!(
+                                "New Document Character Dc {short_id_u32} (> {}) uses legacy non-deterministic framing shape {valid_shape:?} in syntax rule '{}'",
+                                crate::syntax::MAX_LEGACY_FRAMING_SHORT_DC_ID,
+                                syntax_rule.raw
+                            ),
+                            Some("New Document Characters with syntax rules must use deterministic Paired (@closes) or fixed-arity prefix (':~ <arg1> ... <argN>') framing"),
+                        );
+                    }
+                }
+            }
         }
 
         for imp in &row.implies {
@@ -3958,6 +4036,135 @@ mod tests {
         assert_eq!(
             invoke_rule.raw,
             ":~ 258 ([Routine $routine] | [Routine name $routineName]) 259"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_new_dc_framing_shape_validation() {
+        let known_formats: HashSet<usize> = HashSet::new();
+        let known_named_types: HashSet<String> = [
+            "string".to_string(),
+            "number".to_string(),
+            "identifier".to_string(),
+            "value".to_string(),
+            "atom_dc".to_string(),
+        ]
+        .into_iter()
+        .collect();
+
+        // 1. New Dc (> 634) with deterministic fixed-arity prefix rule passes
+        let mut report_ok_prefix = ValidationReport::default();
+        let csv_ok_prefix = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114747,635,NewFixedPrefix,0,BN,,!Cx,.Semantic,:~ [string] [number],\n";
+        validate_dc_files_data(
+            [("semantic.csv", &csv_ok_prefix[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_ok_prefix,
+        );
+        assert!(
+            !report_ok_prefix
+                .diagnostics
+                .iter()
+                .any(|d| d.column_name.as_deref() == Some("Syntax")),
+            "Expected new fixed-arity prefix Dc to have no syntax/framing errors: {}",
+            report_ok_prefix.format_report()
+        );
+
+        // 2. New Dc (> 634) with Paired (@closes) delimiter passes
+        let mut report_ok_paired = ValidationReport::default();
+        let csv_ok_paired = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114747,635,NewBeginBlock,0,BN,,Ps,.Semantic,:~ [^636]* 636,\n1114748,636,NewEndBlock,0,BN,,Pe,.Semantic,@closes(635),\n";
+        validate_dc_files_data(
+            [("semantic.csv", &csv_ok_paired[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_ok_paired,
+        );
+        assert!(
+            !report_ok_paired
+                .diagnostics
+                .iter()
+                .any(|d| d.column_name.as_deref() == Some("Syntax")),
+            "Expected new paired Dc with @closes to have no syntax/framing errors: {}",
+            report_ok_paired.format_report()
+        );
+
+        // 3. New Dc (> 634) with infix rule is rejected
+        let mut report_err_infix = ValidationReport::default();
+        let csv_err_infix = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114747,635,NewInfixOp,0,BN,,!Cx,.Semantic,:[identifier] ~ [value],\n";
+        validate_dc_files_data(
+            [("semantic.csv", &csv_err_infix[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_err_infix,
+        );
+        assert!(report_err_infix.has_errors());
+        assert!(
+            report_err_infix
+                .format_report()
+                .contains("uses legacy non-deterministic framing shape Infix"),
+            "Got: {}",
+            report_err_infix.format_report()
+        );
+
+        // 4. New Dc (> 634) with variable-arity prefix rule (without @closes) is rejected
+        let mut report_err_var = ValidationReport::default();
+        let csv_err_var = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114747,635,NewVarPrefix,0,BN,,!Cx,.Semantic,:~ [string]+,\n";
+        validate_dc_files_data(
+            [("semantic.csv", &csv_err_var[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_err_var,
+        );
+        assert!(report_err_var.has_errors());
+        assert!(
+            report_err_var
+                .format_report()
+                .contains("uses legacy non-deterministic framing shape PrefixVariableArity"),
+            "Got: {}",
+            report_err_var.format_report()
+        );
+
+        // 5. Dc with self-less rule is rejected
+        let mut report_err_selfless = ValidationReport::default();
+        let csv_err_selfless = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114747,635,NewSelfless,0,BN,,!Cx,.Semantic,:[string],\n";
+        validate_dc_files_data(
+            [("semantic.csv", &csv_err_selfless[..])],
+            "test",
+            &known_formats,
+            None,
+            Some(&known_named_types),
+            None,
+            None,
+            None,
+            &mut report_err_selfless,
+        );
+        assert!(report_err_selfless.has_errors());
+        assert!(
+            report_err_selfless
+                .format_report()
+                .contains("does not conform to a valid framing shape"),
+            "Got: {}",
+            report_err_selfless.format_report()
         );
     }
 }

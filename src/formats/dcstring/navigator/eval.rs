@@ -332,6 +332,44 @@ impl<'r> SyntaxEvalContext<'r> {
     pub fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
         self.resolver.token_fills_role(token, role)
     }
+
+    fn save_checkpoint(&self) -> EvalContextCheckpoint {
+        EvalContextCheckpoint {
+            self_dc: self.self_dc,
+            depth: self.depth,
+            call_stack_len: self.call_stack.len(),
+            diagnostics_len: self.diagnostics.len(),
+            has_errors: self.has_errors,
+            unescaped_literal_payload: self.unescaped_literal_payload,
+            captured_numbers: (!self.captured_numbers.is_empty())
+                .then(|| self.captured_numbers.clone()),
+        }
+    }
+
+    fn restore_checkpoint(&mut self, saved: &EvalContextCheckpoint) {
+        self.self_dc = saved.self_dc;
+        self.depth = saved.depth;
+        self.call_stack.truncate(saved.call_stack_len);
+        self.diagnostics.truncate(saved.diagnostics_len);
+        self.has_errors = saved.has_errors;
+        self.unescaped_literal_payload = saved.unescaped_literal_payload;
+        if let Some(ref nums) = saved.captured_numbers {
+            self.captured_numbers.clone_from(nums);
+        } else if !self.captured_numbers.is_empty() {
+            self.captured_numbers.clear();
+        }
+    }
+}
+
+#[derive(Clone)]
+struct EvalContextCheckpoint {
+    self_dc: Option<u128>,
+    depth: usize,
+    call_stack_len: usize,
+    diagnostics_len: usize,
+    has_errors: bool,
+    unescaped_literal_payload: bool,
+    captured_numbers: Option<std::collections::HashMap<String, malachite::Integer>>,
 }
 
 impl<'a> DcDocumentNavigator<'a> {
@@ -345,15 +383,15 @@ impl<'a> DcDocumentNavigator<'a> {
         pattern: &'p SyntaxPattern,
         ctx: &mut SyntaxEvalContext<'r>,
     ) -> Result<bool> {
-        enum Frame<'p, 'r> {
+        enum Frame<'p> {
             Pattern(&'p SyntaxPattern),
             Sequence(&'p [SyntaxElement], usize, NavigatorCheckpoint),
             Alternation {
                 branches: &'p [SyntaxPattern],
                 index: usize,
                 branch_start: NavigatorCheckpoint,
-                saved_ctx: SyntaxEvalContext<'r>,
-                zero_match: Option<(SyntaxEvalContext<'r>, NavigatorCheckpoint)>,
+                saved_ctx: EvalContextCheckpoint,
+                zero_match: Option<(EvalContextCheckpoint, NavigatorCheckpoint)>,
             },
             Element(&'p SyntaxElement, usize, NavigatorCheckpoint, NavigatorCheckpoint),
             Term(&'p SyntaxTerm),
@@ -381,10 +419,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         });
                         let has_term_wrapper = !ctx.unescaped_literal_payload
                             && token.is_some_and(|ch| {
-                                ch.fills_role_with(DcRole::LangSay, ctx.resolver)
-                                    || ch.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
-                                    || ch.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
-                                    || ctx.resolver.is_representation_set(ch.to_u128())
+                                ctx.resolver.is_special_wrapper_token(ch.to_u128())
                             });
                         if constructor {
                             let Some(rule) = token
@@ -436,7 +471,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                 branches,
                                 index: 1,
                                 branch_start: self.save_checkpoint(),
-                                saved_ctx: ctx.clone(),
+                                saved_ctx: ctx.save_checkpoint(),
                                 zero_match: None,
                             });
                             frames.push(Frame::Pattern(branch));
@@ -485,11 +520,11 @@ impl<'a> DcDocumentNavigator<'a> {
                                 continue;
                             }
                             if zero_match.is_none() {
-                                zero_match = Some((ctx.clone(), self.save_checkpoint()));
+                                zero_match = Some((ctx.save_checkpoint(), self.save_checkpoint()));
                             }
                         }
                         self.restore_checkpoint(branch_start.clone());
-                        *ctx = saved_ctx.clone();
+                        ctx.restore_checkpoint(&saved_ctx);
                         if let Some(branch) = branches.get(index) {
                             frames.push(Frame::Alternation {
                                 branches,
@@ -501,7 +536,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             frames.push(Frame::Pattern(branch));
                         } else if let Some((zm_ctx, zm_cp)) = zero_match {
                             self.restore_checkpoint(zm_cp);
-                            *ctx = zm_ctx;
+                            ctx.restore_checkpoint(&zm_ctx);
                             matched = true;
                         } else {
                             matched = false;
@@ -591,6 +626,7 @@ impl<'a> DcDocumentNavigator<'a> {
         };
         if !ctx.unescaped_literal_payload
             && let Some((ch, _)) = pre_read
+            && ctx.resolver.is_special_wrapper_token(ch.to_u128())
             && ch.fills_role_with(DcRole::LangSay, ctx.resolver)
         {
             let term_targets_say = match term {
@@ -632,101 +668,100 @@ impl<'a> DcDocumentNavigator<'a> {
             (dc, after)
         };
 
-        // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
-        let term_targets_opt_present = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
-            }
-            _ => false,
-        };
-        if !ctx.unescaped_literal_payload
-            && first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
-            && !term_targets_opt_present
-        {
-            let opt_checkpoint = self.save_checkpoint();
-            let _ = self.pop_next_token()?;
-            while let Some(next_tok) = self.peek_next_token()? {
-                if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
-                    let _ = self.pop_next_token()?;
-                } else {
-                    break;
-                }
-            }
-            if self.eval_term_single(term, ctx)? {
-                return Ok(true);
-            }
-            ctx.has_errors = false;
-            self.restore_checkpoint(opt_checkpoint);
-        }
-        let term_targets_opt_absent = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
-            }
-            _ => false,
-        };
-        if !ctx.unescaped_literal_payload
-            && first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
-            && !term_targets_opt_absent
-        {
-            let _ = self.pop_next_token()?;
-            return Ok(true);
-        }
-
         let start_offset = self.cursor;
         let first = first_dc.to_u128();
 
-        // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
-        let is_equiv_wrapper =
-            !ctx.unescaped_literal_payload && ctx.resolver.is_representation_set(first);
-        let term_targets_equiv = match term {
-            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-            SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
-            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
-                ctx.resolver.is_representation_set(t.to_u128())
-            }
-            _ => false,
-        };
-        if is_equiv_wrapper && !term_targets_equiv {
-            let equiv_checkpoint = self.save_checkpoint();
-            if let Some((list_open, after_list_open)) = self.read_token_or_binary_at(after_first)? {
-                if list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
-                    // Reason for fallback: default closer for BeginList is DC_END_LIST.
-                    let list_closer = CharTarget::from_u128(list_open.to_u128())
-                        .and_then(|t| ctx.resolver.closer_for_opener(&t))
-                        .map(DcChar::from_u128)
-                        .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
-                    if let Ok((_, wrapper_end, _)) = self.scan_balanced_container(
-                        after_list_open,
-                        list_open,
-                        list_closer,
-                        &ctx.policy,
-                        ctx.resolver,
-                    ) {
-                        let old_self = ctx.self_dc;
-                        ctx.self_dc = Some(first);
-                        let ok = self.eval_constrained_equivalent_list(
-                            after_first,
-                            wrapper_end,
-                            term,
-                            ctx,
-                        )?;
-                        ctx.self_dc = old_self;
-                        if ok {
-                            self.cursor = wrapper_end;
-                            return Ok(true);
-                        }
-                        ctx.has_errors = false;
-                        self.restore_checkpoint(equiv_checkpoint);
-                        return Ok(false);
+        if !ctx.unescaped_literal_payload && ctx.resolver.is_special_wrapper_token(first) {
+            // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
+            let term_targets_opt_present = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
+                }
+                _ => false,
+            };
+            if first_dc.fills_role_with(DcRole::OptionalPresent, ctx.resolver)
+                && !term_targets_opt_present
+            {
+                let opt_checkpoint = self.save_checkpoint();
+                let _ = self.pop_next_token()?;
+                while let Some(next_tok) = self.peek_next_token()? {
+                    if next_tok.fills_role_with(DcRole::OptionalPresent, ctx.resolver) {
+                        let _ = self.pop_next_token()?;
+                    } else {
+                        break;
                     }
                 }
+                if self.eval_term_single(term, ctx)? {
+                    return Ok(true);
+                }
+                ctx.has_errors = false;
+                self.restore_checkpoint(opt_checkpoint);
             }
-            ctx.has_errors = false;
-            self.restore_checkpoint(equiv_checkpoint);
+            let term_targets_opt_absent = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
+                }
+                _ => false,
+            };
+            if first_dc.fills_role_with(DcRole::OptionalAbsent, ctx.resolver)
+                && !term_targets_opt_absent
+            {
+                let _ = self.pop_next_token()?;
+                return Ok(true);
+            }
+
+            // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
+            let is_equiv_wrapper = ctx.resolver.is_representation_set(first);
+            let term_targets_equiv = match term {
+                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
+                SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                    ctx.resolver.is_representation_set(t.to_u128())
+                }
+                _ => false,
+            };
+            if is_equiv_wrapper && !term_targets_equiv {
+                let equiv_checkpoint = self.save_checkpoint();
+                if let Some((list_open, after_list_open)) = self.read_token_or_binary_at(after_first)? {
+                    if list_open.fills_role_with(DcRole::BeginList, ctx.resolver) {
+                        // Reason for fallback: default closer for BeginList is DC_END_LIST.
+                        let list_closer = CharTarget::from_u128(list_open.to_u128())
+                            .and_then(|t| ctx.resolver.closer_for_opener(&t))
+                            .map(DcChar::from_u128)
+                            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+                        if let Ok((_, wrapper_end, _)) = self.scan_balanced_container(
+                            after_list_open,
+                            list_open,
+                            list_closer,
+                            &ctx.policy,
+                            ctx.resolver,
+                        ) {
+                            let old_self = ctx.self_dc;
+                            ctx.self_dc = Some(first);
+                            let ok = self.eval_constrained_equivalent_list(
+                                after_first,
+                                wrapper_end,
+                                term,
+                                ctx,
+                            )?;
+                            ctx.self_dc = old_self;
+                            if ok {
+                                self.cursor = wrapper_end;
+                                return Ok(true);
+                            }
+                            ctx.has_errors = false;
+                            self.restore_checkpoint(equiv_checkpoint);
+                            return Ok(false);
+                        }
+                    }
+                }
+                ctx.has_errors = false;
+                self.restore_checkpoint(equiv_checkpoint);
+            }
         }
 
         match term {
@@ -937,6 +972,12 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.eval_identifier_frame(subtype.as_deref(), ctx)?
                 } else if name == "number" || name == "Number" {
                     self.eval_number_frame(subtype.as_deref(), capture_var.as_deref(), ctx)?
+                } else if name == "atom_dc"
+                    && subtype.is_none()
+                    && ctx.resolver.is_plain_atom_dc(first)
+                {
+                    let _ = self.pop_next_token()?;
+                    true
                 } else {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;

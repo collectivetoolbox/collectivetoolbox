@@ -260,18 +260,25 @@ impl<'a> DcDocumentNavigator<'a> {
         if self.cursor >= self.active_span.end {
             return Ok(None);
         }
-        let resolver = default_syntax_resolver();
-        let policy = DcProjectionPolicy::forgiving_quiet();
-        if self.splice_stream_invocation(&DefaultDcExpressionEvaluator, &**resolver, &policy)? {
-            if let Some(ch) = self.spliced_tokens.front() {
-                return Ok(Some(*ch));
+        let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? else {
+            return Ok(None);
+        };
+        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
+            || default_syntax_resolver().is_special_wrapper_token(ch.to_u128())
+        {
+            let resolver = default_syntax_resolver();
+            let policy = DcProjectionPolicy::forgiving_quiet();
+            if self.splice_stream_invocation(&DefaultDcExpressionEvaluator, &**resolver, &policy)? {
+                if let Some(spliced) = self.spliced_tokens.front() {
+                    return Ok(Some(*spliced));
+                }
+                if let Some((next_ch, _)) = self.read_token_or_binary_at(self.cursor)? {
+                    return Ok(Some(next_ch));
+                }
+                return Ok(None);
             }
         }
-        if let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? {
-            Ok(Some(ch))
-        } else {
-            Ok(None)
-        }
+        Ok(Some(ch))
     }
 
     /// Consumes and returns the next token from the spliced buffer or backend stream.
@@ -285,18 +292,27 @@ impl<'a> DcDocumentNavigator<'a> {
         if self.cursor >= self.active_span.end {
             return Ok(None);
         }
-        let resolver = default_syntax_resolver();
-        let policy = DcProjectionPolicy::forgiving_quiet();
-        if self.splice_stream_invocation(&DefaultDcExpressionEvaluator, &**resolver, &policy)? {
-            if let Some(ch) = self.spliced_tokens.pop_front() {
-                return Ok(Some(ch));
+        let Some((ch, next_offset)) = self.read_token_or_binary_at(self.cursor)? else {
+            return Ok(None);
+        };
+        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
+            || default_syntax_resolver().is_special_wrapper_token(ch.to_u128())
+        {
+            let resolver = default_syntax_resolver();
+            let policy = DcProjectionPolicy::forgiving_quiet();
+            if self.splice_stream_invocation(&DefaultDcExpressionEvaluator, &**resolver, &policy)? {
+                if let Some(spliced) = self.spliced_tokens.pop_front() {
+                    return Ok(Some(spliced));
+                }
+                if let Some((next_ch, after_next)) = self.read_token_or_binary_at(self.cursor)? {
+                    self.cursor = after_next;
+                    return Ok(Some(next_ch));
+                }
+                return Ok(None);
             }
         }
-        if let Some((ch, next_offset)) = self.read_token_or_binary_at(self.cursor)? {
-            self.cursor = next_offset;
-            return Ok(Some(ch));
-        }
-        Ok(None)
+        self.cursor = next_offset;
+        Ok(Some(ch))
     }
 
     /// Splices tokens into the navigator's stream buffer.
@@ -383,7 +399,9 @@ impl<'a> DcDocumentNavigator<'a> {
     pub fn restore_checkpoint(&mut self, checkpoint: NavigatorCheckpoint) {
         self.cursor = checkpoint.cursor;
         self.active_span = checkpoint.active_span;
-        self.spliced_tokens = checkpoint.spliced_tokens;
+        if !self.spliced_tokens.is_empty() || !checkpoint.spliced_tokens.is_empty() {
+            self.spliced_tokens = checkpoint.spliced_tokens;
+        }
     }
 
     /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
@@ -1046,6 +1064,55 @@ impl<'a> DcDocumentNavigator<'a> {
             // 5. Check if `first_dc` has a prefix syntax rule (`:~ ...`)
             if let Some(rule) = resolver.resolve_rule(&target) {
                 if rule.pattern.starts_with_self() {
+                    if self.spliced_tokens.is_empty() {
+                        if let Some(&(cached_end, true)) = self
+                            .scan_cache
+                            .validated_rule_spans
+                            .get(&(first_dc.to_u128(), start_offset))
+                        {
+                            if cached_end <= self.active_span.end {
+                                self.cursor = cached_end;
+                                return Ok(Some(DcFrameStub {
+                                    head_dc: first_dc,
+                                    closer_dc: None,
+                                    outer_span: DcByteSpan::new(start_offset, cached_end),
+                                    inner_span: (cached_end > after_first)
+                                        .then(|| DcByteSpan::new(after_first, cached_end)),
+                                    header_info: DcFrameHeaderInfo::None,
+                                }));
+                            }
+                        }
+                        if resolver.framing_shape(first_dc.to_u128())
+                            == ctb_formats_dcdata::syntax::FramingShape::PrefixAtomArity(2)
+                        {
+                            if let Some((arg1, after_arg1)) =
+                                self.read_token_or_binary_at(after_first)?
+                            {
+                                if resolver.is_plain_atom_dc(arg1.to_u128()) {
+                                    if let Some((arg2, after_arg2)) =
+                                        self.read_token_or_binary_at(after_arg1)?
+                                    {
+                                        if resolver.is_plain_atom_dc(arg2.to_u128()) {
+                                            self.scan_cache
+                                                .validated_rule_spans
+                                                .insert((first_dc.to_u128(), start_offset), (after_arg2, true));
+                                            self.cursor = after_arg2;
+                                            return Ok(Some(DcFrameStub {
+                                                head_dc: first_dc,
+                                                closer_dc: None,
+                                                outer_span: DcByteSpan::new(start_offset, after_arg2),
+                                                inner_span: Some(DcByteSpan::new(
+                                                    after_first,
+                                                    after_arg2,
+                                                )),
+                                                header_info: DcFrameHeaderInfo::None,
+                                            }));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if after_first >= self.active_span.end {
                         self.syntax_issue(
                             policy,
@@ -1073,6 +1140,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         if resolver.is_representation_set(first_dc.to_u128()) {
                             self.check_equivalent_list_grammar_with_resolver(DcByteSpan::new(after_first, last_end), policy, resolver)?;
+                        }
+                        if self.spliced_tokens.is_empty() {
+                            self.scan_cache
+                                .validated_rule_spans
+                                .insert((first_dc.to_u128(), start_offset), (last_end, true));
                         }
                         self.cursor = last_end;
                         return Ok(Some(DcFrameStub {
@@ -2871,6 +2943,79 @@ mod tests {
         );
         assert_eq!(parse_bound("1.5e0"), None);
         assert_eq!(parse_bound("15e-1"), None);
+    }
+
+    #[crate::ctb_test]
+    fn test_framing_shape_fast_path_and_splicing_parity() -> Result<()> {
+        use ctb_formats_dcdata::syntax::FramingShape;
+
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+        let resolver = default_syntax_resolver();
+        assert_eq!(
+            resolver.framing_shape(sdc(310)),
+            FramingShape::Paired {
+                closer: sdc(311),
+                has_trailing_after_closer: false,
+            }
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(543)),
+            FramingShape::Paired {
+                closer: sdc(544),
+                has_trailing_after_closer: true,
+            }
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(311)),
+            FramingShape::Closer {
+                opener: CharTarget::Dc(310),
+            }
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(584)),
+            FramingShape::PrefixAtomArity(2)
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(610)),
+            FramingShape::PrefixAtomArity(2)
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(616)),
+            FramingShape::PrefixArity(1)
+        );
+        assert_eq!(
+            resolver.framing_shape(sdc(276)),
+            FramingShape::PrefixVariableArity
+        );
+        assert_eq!(resolver.framing_shape(sdc(269)), FramingShape::Infix);
+        assert_eq!(resolver.framing_shape(sdc(517)), FramingShape::Atom);
+
+        // Plain atom_dc triple (584 567 596) + inline-value atom_dc triple (610 568 616 <lit>)
+        let mut doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(584),
+            DcChar::from_short(567),
+            DcChar::from_short(596),
+            DcChar::from_short(610),
+            DcChar::from_short(568),
+            DcChar::from_short(616),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from_u128(65),
+            DcChar::from_short(261),
+        ] {
+            doc.push_char(tok);
+        }
+        let strict = DcProjectionPolicy::strict();
+        validate_dc_mixed_strict(&doc)?;
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &strict)?;
+        assert_eq!(arena.roots().len(), 2);
+
+        Ok(())
     }
 
 }

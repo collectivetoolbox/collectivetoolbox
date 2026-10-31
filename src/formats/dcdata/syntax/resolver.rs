@@ -31,8 +31,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    CharTarget, DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern,
-    SyntaxTerm,
+    CharTarget, DcSyntaxRule, FramingShape, Quantifier, SyntaxElement,
+    SyntaxPattern, SyntaxTerm, classify_rule_framing_shape,
 };
 use super::data_constraint::parse_data_constraint;
 use super::parser::parse_dc_syntax;
@@ -178,6 +178,51 @@ pub trait SyntaxRuleResolver {
     /// Returns true if `sub_token` is equivalent to or a transitive subtype (`Dc 587`) of `super_token`.
     fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
         self.is_equivalent_to(sub_token, super_token)
+    }
+    /// Returns the physical framing shape classification for `token`.
+    fn framing_shape(&self, token: u128) -> FramingShape {
+        let Some(target) = CharTarget::from_u128(token) else {
+            return FramingShape::Atom;
+        };
+        let closer = self.closer_for_opener(&target);
+        let has_trailing = !self.trailing_after_closer(&target).is_empty();
+        let closing_opener = self.closing_opener_for(token).cloned();
+        let rule = self.resolve_rule(&target);
+        // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
+        classify_rule_framing_shape(
+            &target,
+            rule,
+            closer,
+            has_trailing,
+            closing_opener,
+        )
+        .unwrap_or(FramingShape::Atom)
+    }
+    /// Returns true if `token` is a wrapper construct (`LangSay`, `OptionalPresent`,
+    /// `OptionalAbsent`, or `is_representation_set`) handled transparently by pattern evaluation.
+    fn is_special_wrapper_token(&self, token: u128) -> bool {
+        self.token_fills_role(token, DcRole::LangSay)
+            || self.token_fills_role(token, DcRole::OptionalPresent)
+            || self.token_fills_role(token, DcRole::OptionalAbsent)
+            || self.is_representation_set(token)
+    }
+    /// Returns true if `token` matches the single-token branch of `[atom_dc]`
+    /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
+    fn is_plain_atom_dc(&self, token: u128) -> bool {
+        if let Some(SyntaxPattern::Alternation(branches)) = self.resolve_named_type("atom_dc") {
+            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
+                if let Some(SyntaxElement {
+                    term: SyntaxTerm::CharSet { negated: true, members },
+                    ..
+                }) = elems.first()
+                {
+                    return !members
+                        .iter()
+                        .any(|m| self.is_equivalent_to(token, m.to_u128()));
+                }
+            }
+        }
+        false
     }
     /// Returns true if `token` is an assignment construct (`DcRole::LangAssign`, an infix assignment
     /// operator, or a syntax rule whose action is `lang.assign`).
@@ -660,6 +705,9 @@ pub struct DatasetRuleResolver {
     pub(super) opaque_containers: HashSet<u128>,
     pub(super) canonical_map: HashMap<u128, u128>,
     pub(super) subtypes: HashMap<u128, HashSet<u128>>,
+    pub(super) framing_shapes: HashMap<u128, FramingShape>,
+    pub(super) special_wrapper_tokens: HashSet<u128>,
+    pub(super) excluded_atom_dc_tokens: HashSet<u128>,
 }
 
 impl DatasetRuleResolver {
@@ -917,6 +965,93 @@ impl DatasetRuleResolver {
                 &mut visited_named,
             );
             self.named_type_starters.insert(name, starters);
+        }
+
+        self.rebuild_framing_and_wrapper_tables();
+    }
+
+    pub(super) fn rebuild_framing_and_wrapper_tables(&mut self) {
+        self.framing_shapes.clear();
+        self.special_wrapper_tokens.clear();
+        self.excluded_atom_dc_tokens.clear();
+
+        let mut candidate_targets: HashSet<CharTarget> = self.rules.keys().cloned().collect();
+        candidate_targets.extend(self.opener_to_closer.keys().cloned());
+        for (&closer_tok, _) in &self.closing_delimiters {
+            if let Some(target) = CharTarget::from_u128(closer_tok) {
+                candidate_targets.insert(target);
+            }
+        }
+        for (&alias_tok, _) in &self.canonical_map {
+            if let Some(target) = CharTarget::from_u128(alias_tok) {
+                candidate_targets.insert(target);
+            }
+        }
+
+        for target in candidate_targets {
+            let tok = target.to_u128();
+            let closer = self.opener_to_closer.get(&target).copied();
+            let has_trailing = self
+                .trailing_after_closer
+                .get(&target)
+                .is_some_and(|t| !t.is_empty());
+            let closing_opener = self.closing_delimiters.get(&tok).cloned();
+            let rule = self.rules.get(&target);
+            if let Some(shape) = classify_rule_framing_shape(
+                &target,
+                rule,
+                closer,
+                has_trailing,
+                closing_opener,
+            ) {
+                if shape != FramingShape::Atom {
+                    self.framing_shapes.insert(tok, shape);
+                }
+            }
+        }
+
+        let base_wrappers = [
+            crate::dc::DC_LANG_SAY.to_u128(),
+            DC_OPTIONAL_PRESENT.to_u128(),
+            DC_OPTIONAL_ABSENT.to_u128(),
+            DC_EQUIVALENT_REPRESENTATIONS.to_u128(),
+            DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128(),
+        ];
+        for base in base_wrappers {
+            self.special_wrapper_tokens.insert(base);
+            if let Some(equivs) = self.semantic_equivalents.get(&base) {
+                self.special_wrapper_tokens.extend(equivs.iter().copied());
+            }
+        }
+        for (&alias, &canon) in &self.canonical_map {
+            if self.special_wrapper_tokens.contains(&canon) {
+                self.special_wrapper_tokens.insert(alias);
+            }
+        }
+
+        if let Some(SyntaxPattern::Alternation(branches)) = self.named_types.get("atom_dc") {
+            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
+                if let Some(SyntaxElement {
+                    term: SyntaxTerm::CharSet { negated: true, members },
+                    ..
+                }) = elems.first()
+                {
+                    for member in members {
+                        let m_tok = member.to_u128();
+                        self.excluded_atom_dc_tokens.insert(m_tok);
+                        let canon = self.canonical_token(m_tok);
+                        self.excluded_atom_dc_tokens.insert(canon);
+                        if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                            self.excluded_atom_dc_tokens.extend(equivs.iter().copied());
+                        }
+                    }
+                    for (&alias, &canon) in &self.canonical_map {
+                        if self.excluded_atom_dc_tokens.contains(&canon) {
+                            self.excluded_atom_dc_tokens.insert(alias);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1925,6 +2060,7 @@ impl DatasetRuleResolver {
                 break;
             }
         }
+        self.rebuild_framing_and_wrapper_tables();
         Ok(())
     }
 }
@@ -2073,6 +2209,64 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 
     fn is_opaque_container(&self, opener_token: u128) -> bool {
         self.opaque_containers.contains(&opener_token)
+    }
+
+    fn framing_shape(&self, token: u128) -> FramingShape {
+        if let Some(shape) = self.framing_shapes.get(&token) {
+            return shape.clone();
+        }
+        if self.framing_shapes.is_empty()
+            && (!self.rules.is_empty()
+                || !self.opener_to_closer.is_empty()
+                || !self.closing_delimiters.is_empty())
+        {
+            if let Some(target) = CharTarget::from_u128(token) {
+                let closer = self.closer_for_opener(&target);
+                let has_trailing = !self.trailing_after_closer(&target).is_empty();
+                let closing_opener = self.closing_opener_for(token).cloned();
+                let rule = self.resolve_rule(&target);
+                // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
+                return classify_rule_framing_shape(
+                    &target,
+                    rule,
+                    closer,
+                    has_trailing,
+                    closing_opener,
+                )
+                .unwrap_or(FramingShape::Atom);
+            }
+        }
+        FramingShape::Atom
+    }
+
+    fn is_special_wrapper_token(&self, token: u128) -> bool {
+        if !self.special_wrapper_tokens.is_empty() {
+            return self.special_wrapper_tokens.contains(&token);
+        }
+        self.token_fills_role(token, DcRole::LangSay)
+            || self.token_fills_role(token, DcRole::OptionalPresent)
+            || self.token_fills_role(token, DcRole::OptionalAbsent)
+            || self.is_representation_set(token)
+    }
+
+    fn is_plain_atom_dc(&self, token: u128) -> bool {
+        if !self.excluded_atom_dc_tokens.is_empty() {
+            return !self.excluded_atom_dc_tokens.contains(&token);
+        }
+        if let Some(SyntaxPattern::Alternation(branches)) = self.resolve_named_type("atom_dc") {
+            if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
+                if let Some(SyntaxElement {
+                    term: SyntaxTerm::CharSet { negated: true, members },
+                    ..
+                }) = elems.first()
+                {
+                    return !members
+                        .iter()
+                        .any(|m| self.is_equivalent_to(token, m.to_u128()));
+                }
+            }
+        }
+        false
     }
 }
 
@@ -2423,6 +2617,15 @@ mod tests {
         );
         assert_eq!(from_graph.opaque_containers, from_csv.opaque_containers);
         assert_eq!(from_graph.canonical_map, from_csv.canonical_map);
+        assert_eq!(from_graph.framing_shapes, from_csv.framing_shapes);
+        assert_eq!(
+            from_graph.special_wrapper_tokens,
+            from_csv.special_wrapper_tokens
+        );
+        assert_eq!(
+            from_graph.excluded_atom_dc_tokens,
+            from_csv.excluded_atom_dc_tokens
+        );
 
         assert_eq!(from_graph.rules.len(), from_csv.rules.len());
         for (target, csv_rule) in &from_csv.rules {
