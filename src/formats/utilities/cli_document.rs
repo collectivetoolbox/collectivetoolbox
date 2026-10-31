@@ -27,8 +27,35 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::cli_io::CliInputSourceArgs;
+use crate::format_info::format_categorized_help_table;
 use anyhow::Result;
 use std::path::Path;
+
+/// Parses a CLI `--from` value into [`SupportedDcInputFormat`], accepting
+/// short nicknames, Rust `FormatId` names, or `f<N>` shorthands case-insensitively.
+/// On failure, returns a categorized, sorted list of supported formats with descriptions.
+pub fn parse_supported_dc_input_format(s: &str) -> std::result::Result<SupportedDcInputFormat, String> {
+    if let Ok(fmt) = s.parse::<SupportedDcInputFormat>() {
+        return Ok(fmt);
+    }
+    Err(format_categorized_help_table(
+        &format!("Invalid input format '{s}'. Specify --from with one of:"),
+        SupportedDcInputFormat::ALL_FORMAT_IDS,
+    ))
+}
+
+/// Parses a CLI `--to` value into [`SupportedDcOutputFormat`], accepting
+/// short nicknames, Rust `FormatId` names, or `f<N>` shorthands case-insensitively.
+/// On failure, returns a categorized, sorted list of supported formats with descriptions.
+pub fn parse_supported_dc_output_format(s: &str) -> std::result::Result<SupportedDcOutputFormat, String> {
+    if let Ok(fmt) = s.parse::<SupportedDcOutputFormat>() {
+        return Ok(fmt);
+    }
+    Err(format_categorized_help_table(
+        &format!("Invalid output format '{s}'. Specify --to with one of:"),
+        SupportedDcOutputFormat::ALL_FORMAT_IDS,
+    ))
+}
 
 /// CLI document input arguments defaulting to UTF-8 input format.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
@@ -40,10 +67,14 @@ pub struct CliDocumentInputArgs {
     /// Input serialization format
     #[arg(
         long = "from",
-        value_enum,
-        default_value_t = SupportedDcInputFormat::Utf8
+        value_parser = parse_supported_dc_input_format,
+        default_value = "utf8"
     )]
     pub from: SupportedDcInputFormat,
+
+    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    #[arg(long = "permissive")]
+    pub permissive: bool,
 }
 
 impl Default for CliDocumentInputArgs {
@@ -51,6 +82,7 @@ impl Default for CliDocumentInputArgs {
         Self {
             source: CliInputSourceArgs::default(),
             from: SupportedDcInputFormat::Utf8,
+            permissive: false,
         }
     }
 }
@@ -74,8 +106,12 @@ pub struct CliAutoDocumentInputArgs {
     pub source: CliInputSourceArgs,
 
     /// Input serialization format (autodetected if omitted)
-    #[arg(long = "from", value_enum)]
+    #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
+
+    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    #[arg(long = "permissive")]
+    pub permissive: bool,
 }
 
 impl CliAutoDocumentInputArgs {

@@ -52,9 +52,11 @@ pub use dc_writer::{DcBinaryReader, DcBinarySource, DcBinarySourceError, DcWrite
 pub use dc_mixed::{
     DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DCMM_UUID_V1, DcmmStreamOptions, DcMixed,
     DcMixedChunk, DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,
-    dcmm1_to_dcmstring, dcmm2_to_dcmstring, dcmm_to_dcmstring, dcmstring_to_dcmm,
-    dcmstring_to_dcmm1, dcmstring_to_dcmm2, validate_and_copy_dcmm_stream,
-    validate_and_copy_dcmm_stream_with_options, validate_dcmst,
+    dcmm1_to_dcmstring, dcmm1_to_dcmstring_with_options, dcmm2_to_dcmstring,
+    dcmm2_to_dcmstring_with_options, dcmm_to_dcmstring, dcmm_to_dcmstring_with_options,
+    dcmstring_to_dcmm, dcmstring_to_dcmm1, dcmstring_to_dcmm2,
+    validate_and_copy_dcmm_stream, validate_and_copy_dcmm_stream_with_options,
+    validate_dcmst,
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{

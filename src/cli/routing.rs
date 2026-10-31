@@ -320,13 +320,13 @@ pub enum Command {
         name = "character_description",
         alias = "character-description",
         alias = "chardesc",
-        after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
+        after_help = ctb_formats_conversion::cli::CHARACTER_DESCRIPTION_AFTER_HELP.as_str()
     )]
     CharacterDescription(ctb_formats_conversion::cli::CharacterDescriptionArgs),
     /// Convert documents or text between supported formats
     #[command(
         name = "convert",
-        after_help = "Examples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal"
+        after_help = ctb_formats_conversion::cli::CONVERT_AFTER_HELP.as_str()
     )]
     Convert(ctb_formats_conversion::cli::ConvertArgs),
     /// Generate GDB instructions from symbols

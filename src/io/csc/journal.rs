@@ -1234,7 +1234,26 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
     bytes: &[u8],
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
-    anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
+    convert_cscjournal_to_dcmstring_with_options(bytes, policy, !policy.is_strict())
+}
+
+/// Converts journal bytes using `policy` for legacy Dc identity projection and
+/// `best_effort` for permissive header/payload recovery.
+pub fn convert_cscjournal_to_dcmstring_with_options(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    best_effort: bool,
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
+    if bytes.len() < 8 {
+        if !best_effort {
+            anyhow::bail!("CscJournal data is too short (< 8 bytes)");
+        }
+        let (doc, mut log) =
+            ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+        log.warn("CscJournal data is too short (< 8 bytes); decoded in permissive mode");
+        return Ok((doc, log));
+    }
     let magic = bytes
         .get(..8)
         .context("Slice bounds invalid for journal magic")?;
@@ -1252,19 +1271,129 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
     } else {
         let is_legacy = magic == JOURNAL_MAGIC_V1
             || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4));
-        anyhow::ensure!(
-            is_legacy,
-            "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
-        );
+        if !is_legacy {
+            if !best_effort {
+                anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
+            }
+            let (doc, mut log) =
+                ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+            log.warn(&format!(
+                "Unrecognized cscjournal magic bytes {magic:?}; decoded in permissive mode"
+            ));
+            return Ok((doc, log));
+        }
         let converted_bytes = legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)?;
-        return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(
+        return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
             converted_bytes
                 .get(8..)
                 .context("Slice bounds invalid for converted journal payload")?,
+            &opts,
         );
     };
 
-    ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(dcmm_bytes)
+    ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(dcmm_bytes, &opts)
+}
+
+/// Converts in-memory cscarchive bytes (v1 or v2) to a `DcMstring` document.
+pub fn convert_cscarchive_to_dcmstring_with_policy(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    let best_effort = !policy.is_strict();
+    let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
+    if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V2) {
+        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts);
+    }
+    if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V1) {
+        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts);
+    }
+    if !best_effort {
+        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x01 or CTBCSCA\\x02 magic header");
+    }
+    let (doc, mut log) =
+        ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+    log.warn("Missing or invalid CTBCSCA magic header; decoded payload in permissive mode");
+    Ok((doc, log))
+}
+
+/// Converts in-memory cscarchive v1 (`CTBCSCA\x01` + `DcMixed1`) bytes to a `DcMstring` document.
+pub fn convert_cscarchive1_to_dcmstring_with_policy(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    let best_effort = !policy.is_strict();
+    let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
+    if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V1) {
+        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts);
+    }
+    if !best_effort {
+        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x01 magic header");
+    }
+    // Reason for fallback: in permissive mode, if the input has a v2 archive magic header instead of v1, strip it; otherwise decode the raw bytes as payload.
+    let payload = bytes.strip_prefix(ARCHIVE_MAGIC_V2).unwrap_or(bytes);
+    let (doc, mut log) =
+        ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts)?;
+    log.warn("Missing or mismatched CTBCSCA\\x01 magic header; decoded payload in permissive mode");
+    Ok((doc, log))
+}
+
+/// Converts in-memory cscarchive v2 (`CTBCSCA\x02` + `DcMixed2`) bytes to a `DcMstring` document.
+pub fn convert_cscarchive2_to_dcmstring_with_policy(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    let best_effort = !policy.is_strict();
+    let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
+    if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V2) {
+        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts);
+    }
+    if !best_effort {
+        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x02 magic header");
+    }
+    // Reason for fallback: in permissive mode, if the input has a v1 archive magic header instead of v2, strip it; otherwise decode the raw bytes as payload.
+    let payload = bytes.strip_prefix(ARCHIVE_MAGIC_V1).unwrap_or(bytes);
+    let (doc, mut log) =
+        ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts)?;
+    log.warn("Missing or mismatched CTBCSCA\\x02 magic header; decoded payload in permissive mode");
+    Ok((doc, log))
+}
+
+/// Encodes a `DcMstring` into `CscJournal5` (`CTBCSCJ\x05` + `DcMixed2`) bytes.
+pub fn dcmstring_to_cscjournal(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
+    let mut out = Vec::with_capacity(JOURNAL_MAGIC_V5.len().saturating_add(doc.len()));
+    out.extend_from_slice(JOURNAL_MAGIC_V5);
+    out.extend_from_slice(doc.as_bytes());
+    Ok((out, ctb_formats_utilities::FormatLog::default()))
+}
+
+/// Encodes a `DcMstring` into `CscArchive2` (`CTBCSCA\x02` + `DcMixed2`) bytes.
+pub fn dcmstring_to_cscarchive(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
+    dcmstring_to_cscarchive2(doc)
+}
+
+/// Encodes a `DcMstring` into `CscArchive1` (`CTBCSCA\x01` + `DcMixed1`) bytes.
+pub fn dcmstring_to_cscarchive1(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
+    let (dcmm1, log) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(doc)?;
+    let mut out = Vec::with_capacity(ARCHIVE_MAGIC_V1.len().saturating_add(dcmm1.len()));
+    out.extend_from_slice(ARCHIVE_MAGIC_V1);
+    out.extend_from_slice(&dcmm1);
+    Ok((out, log))
+}
+
+/// Encodes a `DcMstring` into `CscArchive2` (`CTBCSCA\x02` + `DcMixed2`) bytes.
+pub fn dcmstring_to_cscarchive2(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
+    let mut out = Vec::with_capacity(ARCHIVE_MAGIC_V2.len().saturating_add(doc.len()));
+    out.extend_from_slice(ARCHIVE_MAGIC_V2);
+    out.extend_from_slice(doc.as_bytes());
+    Ok((out, ctb_formats_utilities::FormatLog::default()))
 }
 
 /// Converts in-memory cscjournal bytes to current DcMixed journal bytes (`CSCJRNL5`),

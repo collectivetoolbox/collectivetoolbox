@@ -39,12 +39,25 @@ struct SupportCell {
 
 #[derive(Debug, Clone)]
 struct FormatSupportRow {
+    short_id: u32,
     ident: String,
     label: String,
     extensions: Vec<String>,
     nicknames: Vec<String>,
     import_support: SupportCell,
     export_support: SupportCell,
+}
+
+impl FormatSupportRow {
+    fn primary_cli_name(&self) -> String {
+        for nick in &self.nicknames {
+            let n = nick.trim().to_ascii_lowercase();
+            if !n.is_empty() {
+                return n;
+            }
+        }
+        self.ident.to_ascii_lowercase()
+    }
 }
 
 fn clean_extension_token(part: &str) -> Option<String> {
@@ -111,6 +124,7 @@ fn read_support_rows_for_script(
             export_map.get(&subj).copied().unwrap_or((0, 0));
 
         rows.push(FormatSupportRow {
+            short_id,
             ident,
             label,
             extensions,
@@ -163,20 +177,30 @@ fn emit_supported_enum(
             "#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n",
         );
     }
+    let mut ordered_rows: Vec<FormatSupportRow> = rows.to_vec();
+    if use_clap {
+        ordered_rows.sort_by(|a, b| {
+            a.primary_cli_name()
+                .cmp(&b.primary_cli_name())
+                .then_with(|| a.ident.cmp(&b.ident))
+        });
+    }
+    let rows = ordered_rows.as_slice();
+
     let _ = writeln!(out, "pub enum {enum_name} {{");
     let mut used_value_names: HashSet<String> = HashSet::new();
+    let mut row_value_names: Vec<Vec<String>> =
+        Vec::with_capacity(rows.len());
 
-    for row in rows {
-        let escaped_label = row.label.replace('`', "");
-        let _ = writeln!(out, "    /// {escaped_label}");
-        if use_clap && default_ident == Some(row.ident.as_str()) {
-            out.push_str("    #[default]\n");
-        }
-        if use_clap {
+    if use_clap {
+        for row in rows {
             let mut names: Vec<String> = Vec::new();
             for nick in &row.nicknames {
                 let n = nick.to_ascii_lowercase();
-                if !names.contains(&n) && used_value_names.insert(n.clone()) {
+                if !n.is_empty()
+                    && !names.contains(&n)
+                    && used_value_names.insert(n.clone())
+                {
                     names.push(n);
                 }
             }
@@ -186,21 +210,65 @@ fn emit_supported_enum(
             {
                 names.push(lower_ident);
             }
+            if !names.contains(&row.ident)
+                && used_value_names.insert(row.ident.clone())
+            {
+                names.push(row.ident.clone());
+            }
+            let shorthand = format!("f{}", row.short_id);
+            if !names.contains(&shorthand)
+                && used_value_names.insert(shorthand.clone())
+            {
+                names.push(shorthand);
+            }
+            for &(extra_fmt, target_var) in extra_from_format_id_arms {
+                if target_var == row.ident {
+                    let lower_extra = extra_fmt.to_ascii_lowercase();
+                    if !names.contains(&lower_extra)
+                        && used_value_names.insert(lower_extra.clone())
+                    {
+                        names.push(lower_extra);
+                    }
+                    let exact_extra = extra_fmt.to_string();
+                    if !names.contains(&exact_extra)
+                        && used_value_names.insert(exact_extra.clone())
+                    {
+                        names.push(exact_extra);
+                    }
+                }
+            }
+            row_value_names.push(names);
+        }
+
+        for (row, names) in rows.iter().zip(row_value_names.iter_mut()) {
             for ext in &row.extensions {
                 let clean = ext.trim_start_matches('.').to_ascii_lowercase();
                 if !clean.is_empty()
+                    && !clean.starts_with('~')
                     && !names.contains(&clean)
                     && used_value_names.insert(clean.clone())
                 {
                     names.push(clean);
                 }
             }
-            if let Some(primary) = names.first() {
-                out.push_str(&format!("    #[value(name = \"{primary}\""));
-                for alias in names.iter().skip(1) {
-                    out.push_str(&format!(", alias = \"{alias}\""));
+        }
+    }
+
+    for (idx, row) in rows.iter().enumerate() {
+        let escaped_label = row.label.replace('`', "");
+        let _ = writeln!(out, "    /// {escaped_label}");
+        if use_clap && default_ident == Some(row.ident.as_str()) {
+            out.push_str("    #[default]\n");
+        }
+        if use_clap {
+            if let Some(names) = row_value_names.get(idx) {
+                if let Some(primary) = names.first() {
+                    out.push_str(&format!("    #[value(name = \"{primary}\""));
+                    for alias in names.iter().skip(1) {
+                        out.push_str(&format!(", alias = \"{alias}\""));
+                    }
+                    out.push_str(")]\n");
                 }
-                out.push_str(")]\n");
             }
         }
         let _ = writeln!(out, "    {},", row.ident);
@@ -238,6 +306,23 @@ fn emit_supported_enum(
     }
 
     out.push_str(
+        "    /// Returns the primary CLI identifier for this format.\n",
+    );
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn primary_cli_name(&self) -> &'static str {\n");
+    out.push_str("        match self {\n");
+    for row in rows {
+        let primary = row.primary_cli_name();
+        let _ = writeln!(
+            out,
+            "            Self::{} => \"{primary}\",",
+            row.ident
+        );
+    }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str(
         "    /// Maps this variant to the canonical global `FormatId`.\n",
     );
     out.push_str("    #[must_use]\n");
@@ -270,10 +355,12 @@ fn emit_supported_enum(
         );
     }
     for (extra_fmt, target_var) in extra_from_format_id_arms {
-        let _ = writeln!(
-            out,
-            "            FormatId::{extra_fmt} => Some(Self::{target_var}),"
-        );
+        if rows.iter().any(|r| r.ident == *target_var) {
+            let _ = writeln!(
+                out,
+                "            FormatId::{extra_fmt} => Some(Self::{target_var}),"
+            );
+        }
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
@@ -427,7 +514,13 @@ pub fn generate_format_support_code_from_index(
     let dc_out_rows: Vec<FormatSupportRow> = doc_rows
         .iter()
         .chain(enc_rows.iter())
-        .filter(|r| r.export_support.dc >= 1)
+        .chain(db_rows.iter())
+        .filter(|r| {
+            r.export_support.dc >= 1
+                && !dc_input_family_mappings
+                    .iter()
+                    .any(|(src, _)| *src == r.ident.as_str())
+        })
         .cloned()
         .collect();
 
@@ -506,7 +599,7 @@ pub fn generate_format_support_code_from_index(
         true,
         Some("Utf8"),
         &[],
-        &[],
+        &dc_input_family_mappings,
     );
 
     out.push_str("impl FormatId {\n");

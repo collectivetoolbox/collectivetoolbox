@@ -53,10 +53,34 @@ fn dcmstring_to_dca(doc: &DcMstring) -> Result<(Vec<u32>, FormatLog)> {
 
 /// Converts a DcIntegerList document (`.dcil`) to `DcMstring`.
 pub fn dcil_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
-    let (dca, mut log) = ctb_formats_eite::formats::integer_list::dca_from_integer_list(
+    dcil_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts a DcIntegerList document (`.dcil`) to `DcMstring`, optionally in permissive mode.
+pub fn dcil_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(DcMstring, FormatLog)> {
+    let (dca, raw_log) = ctb_formats_eite::formats::integer_list::dca_from_integer_list(
         bytes,
         &ctb_formats_eite::formats::integer_list::IntegerListFormatSettings::default(),
     )?;
+    if !permissive && raw_log.has_errors() {
+        let errs = raw_log.get_errors().join("; ");
+        bail!("Input does not conform to valid DcIntegerList (.dcil) format: {errs}");
+    }
+    let mut log = if permissive && raw_log.has_errors() {
+        let mut downgraded = FormatLog::default();
+        for w in raw_log.get_warnings() {
+            downgraded.warn(&w);
+        }
+        for err in raw_log.get_errors() {
+            downgraded.warn(&err);
+        }
+        downgraded
+    } else {
+        raw_log
+    };
     let doc = dca_to_dcmstring(&dca, &mut log)?;
     Ok((doc, log))
 }
@@ -70,10 +94,34 @@ pub fn dcmstring_to_dcil(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
 
 /// Converts a SEMS document (`.sems`) to `DcMstring`.
 pub fn sems_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
-    let (dca, mut log) = ctb_formats_eite::formats::sems::dca_from_sems(
+    sems_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts a SEMS document (`.sems`) to `DcMstring`, optionally in permissive mode.
+pub fn sems_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(DcMstring, FormatLog)> {
+    let (dca, raw_log) = ctb_formats_eite::formats::sems::dca_from_sems(
         bytes,
         &ctb_formats_eite::formats::sems::SEMSFormatSettings::default(),
     )?;
+    if !permissive && raw_log.has_errors() {
+        let errs = raw_log.get_errors().join("; ");
+        bail!("Input does not conform to valid SEMS (.sems) format: {errs}");
+    }
+    let mut log = if permissive && raw_log.has_errors() {
+        let mut downgraded = FormatLog::default();
+        for w in raw_log.get_warnings() {
+            downgraded.warn(&w);
+        }
+        for err in raw_log.get_errors() {
+            downgraded.warn(&err);
+        }
+        downgraded
+    } else {
+        raw_log
+    };
     let doc = dca_to_dcmstring(&dca, &mut log)?;
     Ok((doc, log))
 }
@@ -85,6 +133,30 @@ pub fn dcmstring_to_sems(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     log.merge(&sems_log);
     Ok((bytes, log))
 }
+
+/// Converts a `DcMstring` to an HTML document (`.html`).
+pub fn dcmstring_to_html(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let (dca, mut log) = dcmstring_to_dca(doc)?;
+    let (bytes, html_log) = ctb_formats_eite::formats::html::dca_to_html(&dca)?;
+    log.merge(&html_log);
+    Ok((bytes, log))
+}
+
+/// Converts a `DcMstring` to an HTML fragment (`.htmfrag`).
+pub fn dcmstring_to_html_fragment(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let (dca, mut log) = dcmstring_to_dca(doc)?;
+    let (bytes, html_log) = ctb_formats_eite::formats::html::dca_to_html_fragment(&dca)?;
+    log.merge(&html_log);
+    Ok((bytes, log))
+}
+
+/// Converts a `DcMstring` to a color-coded HTML integer list document.
+pub fn dcmstring_to_eite_colorcoded(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let (dca, log) = dcmstring_to_dca(doc)?;
+    let bytes = ctb_formats_eite::formats::html::dca_to_colorcoded(&dca)?;
+    Ok((bytes, log))
+}
+
 
 pub use crate::converters::ascii::{
     ascii_safe_subset_to_dcmstring, ascii_to_dcmstring, dcmstring_to_ascii,

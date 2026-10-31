@@ -48,6 +48,7 @@ use ctb_utilities::FormatId;
 use crate::convert_bytes::{
     DcConversionOptions, DcExportOptions, FormatSpec,
     convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
+    format_supported_input_formats_table,
 };
 
 /// Summary of a completed streaming conversion operation to `DcMixed` (.dcmm).
@@ -114,8 +115,10 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 supported
             } else {
                 bail!(
-                    "Format {id:?} is not supported for streaming conversion to DcMstring. Supported formats: {:?}",
-                    SupportedDcInputFormat::ALL
+                    "{}",
+                    format_supported_input_formats_table(&format!(
+                        "Format {id:?} is not supported for streaming conversion to DcMstring. Specify --from with one of:"
+                    ))
                 );
             }
         }
@@ -160,8 +163,10 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 });
             } else {
                 bail!(
-                    "Unable to autodetect document format for streaming input. Specify --from with one of: {:?}",
-                    SupportedDcInputFormat::ALL
+                    "{}",
+                    format_supported_input_formats_table(
+                        "Unable to autodetect document format for streaming input. Specify --from with one of:"
+                    )
                 );
             }
         }
@@ -178,7 +183,9 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
             ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
                 &mut buf_reader,
                 writer,
-                &ctb_formats_dcstring::DcmmStreamOptions::default(),
+                &ctb_formats_dcstring::DcmmStreamOptions {
+                    best_effort: options.permissive,
+                },
             )?;
         return Ok(StreamConversionReceipt {
             detected_format: resolved_format.to_format_id(),
@@ -209,32 +216,57 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 }
                 remainder.clear();
 
-                match std::str::from_utf8(&valid_bytes) {
-                    Ok(text) => {
-                        writer.write_all(text.as_bytes())?;
-                        let written_len = u64::try_from(text.len())?;
-                        bytes_written = bytes_written.saturating_add(written_len);
-                    }
-                    Err(e) => {
-                        let valid_up_to = e.valid_up_to();
-                        if valid_up_to > 0 {
-                            if let Some(valid_slice) = valid_bytes.get(..valid_up_to) {
-                                writer.write_all(valid_slice)?;
-                                let written_len = u64::try_from(valid_slice.len())?;
-                                bytes_written = bytes_written.saturating_add(written_len);
-                            }
+                let mut cursor = valid_bytes.as_slice();
+                while !cursor.is_empty() {
+                    match std::str::from_utf8(cursor) {
+                        Ok(text) => {
+                            writer.write_all(text.as_bytes())?;
+                            let written_len = u64::try_from(text.len())?;
+                            bytes_written = bytes_written.saturating_add(written_len);
+                            break;
                         }
-                        if let Some(_error_len) = e.error_len() {
-                            bail!("Encountered invalid UTF-8 sequence at offset {valid_up_to}");
-                        } else if let Some(rem_slice) = valid_bytes.get(valid_up_to..) {
-                            remainder.extend_from_slice(rem_slice);
+                        Err(e) => {
+                            let valid_up_to = e.valid_up_to();
+                            if valid_up_to > 0 {
+                                if let Some(valid_slice) = cursor.get(..valid_up_to) {
+                                    writer.write_all(valid_slice)?;
+                                    let written_len = u64::try_from(valid_slice.len())?;
+                                    bytes_written = bytes_written.saturating_add(written_len);
+                                }
+                            }
+                            if let Some(error_len) = e.error_len() {
+                                if !options.permissive {
+                                    bail!("Encountered invalid UTF-8 sequence at offset {valid_up_to}");
+                                }
+                                log.warn("Invalid UTF-8 byte sequence replaced with U+FFFD in permissive mode");
+                                let rep = "\u{FFFD}".as_bytes();
+                                writer.write_all(rep)?;
+                                bytes_written = bytes_written.saturating_add(u64::try_from(rep.len())?);
+                                let next = valid_up_to.saturating_add(error_len);
+                                if let Some(rest) = cursor.get(next..) {
+                                    cursor = rest;
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                if let Some(rem_slice) = cursor.get(valid_up_to..) {
+                                    remainder.extend_from_slice(rem_slice);
+                                }
+                                break;
+                            }
                         }
                     }
                 }
             }
 
             if !remainder.is_empty() {
-                bail!("Incomplete UTF-8 sequence at end of stream");
+                if !options.permissive {
+                    bail!("Incomplete UTF-8 sequence at end of stream");
+                }
+                log.warn("Incomplete UTF-8 sequence at end of stream replaced with U+FFFD in permissive mode");
+                let rep = "\u{FFFD}".as_bytes();
+                writer.write_all(rep)?;
+                bytes_written = bytes_written.saturating_add(u64::try_from(rep.len())?);
             }
         }
         SupportedDcInputFormat::DcMixed2 => unreachable!(),
@@ -248,6 +280,7 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 &DcConversionOptions {
                     format: FormatSpec::Format(resolved_format),
                     allow_binary_encapsulation: options.allow_binary_encapsulation,
+                    permissive: options.permissive,
                 },
             )?;
             log = res.log;

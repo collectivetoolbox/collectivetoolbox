@@ -272,15 +272,32 @@ pub fn ascii_safe_subset_to_dcmstring_with_settings(
     bytes: &[u8],
     settings: &AsciiSettings,
 ) -> Result<(DcMstring, FormatLog)> {
+    let mut log = FormatLog::default();
     let mut normalized = Vec::with_capacity(bytes.len());
     let mut i = 0usize;
 
     while i < bytes.len() {
         let Some(&b) = bytes.get(i) else { break };
         if !is_ascii_safe_subset_char(b) {
-            bail!(
-                "Invalid ASCII Safe Subset byte: 0x{b:02X} at index {i}"
+            if settings.strict_import {
+                bail!(
+                    "Invalid ASCII Safe Subset byte: 0x{b:02X} at index {i}"
+                );
+            }
+            log.import_warning(
+                u64::try_from(i).map_err(|e| anyhow!("Index conversion overflow: {e}"))?,
+                &format!("Invalid ASCII Safe Subset byte: 0x{b:02X}"),
             );
+            match settings.unmappable_policy {
+                AsciiUnmappablePolicy::Replace(rep) => {
+                    normalized.push(rep);
+                }
+                AsciiUnmappablePolicy::Skip
+                | AsciiUnmappablePolicy::Transliterate
+                | AsciiUnmappablePolicy::TransformationPipeline => {}
+            }
+            i = i.saturating_add(1);
+            continue;
         }
 
         if b == b'\r' {
@@ -295,7 +312,9 @@ pub fn ascii_safe_subset_to_dcmstring_with_settings(
         i = i.saturating_add(1);
     }
 
-    ascii_to_dcmstring_with_settings(&normalized, settings)
+    let (doc, inner_log) = ascii_to_dcmstring_with_settings(&normalized, settings)?;
+    log.merge(&inner_log);
+    Ok((doc, log))
 }
 
 /// Converts a `DcMstring` to ASCII Safe Subset document bytes (printable ASCII

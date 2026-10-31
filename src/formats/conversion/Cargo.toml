@@ -12,6 +12,7 @@ ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
 ctb-formats-dcstring = { path = "../dcstring" }
 ctb-formats-detection = { path = "../detection" }
+ctb-formats-encoding = { path = "../encoding" }
 ctb-formats-unicode = { path = "../unicode" }
 ctb-io-csc = { path = "../../io/csc" }
 anyhow = "1.0"

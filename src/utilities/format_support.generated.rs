@@ -144,6 +144,39 @@ impl SupportedDecompressionFormat {
         FormatId::Szip111,
     ];
 
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::Brotli => "brotli",
+            Self::Gzip => "gzip",
+            Self::Deflate => "deflate",
+            Self::Zlib => "zlib",
+            Self::Bzip2 => "bzip2",
+            Self::Bzip => "bzip",
+            Self::Zstd => "zstd",
+            Self::Lzip => "lz",
+            Self::Xz => "xz",
+            Self::ScoCompress => "sco-compress",
+            Self::CompressLzw => "compress",
+            Self::CompressLzw1 => "compress1",
+            Self::CompressLzw16 => "compress16",
+            Self::CompressLzw2 => "compress2",
+            Self::Pack => "pack",
+            Self::OldPack => "old-pack",
+            Self::Compact => "compact",
+            Self::Rzip => "rzip",
+            Self::Lz4 => "lz4",
+            Self::Lzo => "lzo",
+            Self::Lzma => "lzma",
+            Self::Lzma2 => "lzma2",
+            Self::Freeze2 => "freeze",
+            Self::Freeze1 => "freeze1",
+            Self::Szip => "szip",
+            Self::Szip111 => "szip111",
+        }
+    }
+
     /// Maps this variant to the canonical global `FormatId`.
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
@@ -384,6 +417,39 @@ impl SupportedCompressionFormat {
         FormatId::Szip111,
     ];
 
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::Brotli => "brotli",
+            Self::Gzip => "gzip",
+            Self::Deflate => "deflate",
+            Self::Zlib => "zlib",
+            Self::Bzip2 => "bzip2",
+            Self::Bzip => "bzip",
+            Self::Zstd => "zstd",
+            Self::Lzip => "lz",
+            Self::Xz => "xz",
+            Self::ScoCompress => "sco-compress",
+            Self::CompressLzw => "compress",
+            Self::CompressLzw1 => "compress1",
+            Self::CompressLzw16 => "compress16",
+            Self::CompressLzw2 => "compress2",
+            Self::Pack => "pack",
+            Self::OldPack => "old-pack",
+            Self::Compact => "compact",
+            Self::Rzip => "rzip",
+            Self::Lz4 => "lz4",
+            Self::Lzo => "lzo",
+            Self::Lzma => "lzma",
+            Self::Lzma2 => "lzma2",
+            Self::Freeze2 => "freeze",
+            Self::Freeze1 => "freeze1",
+            Self::Szip => "szip",
+            Self::Szip111 => "szip111",
+        }
+    }
+
     /// Maps this variant to the canonical global `FormatId`.
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
@@ -612,6 +678,36 @@ impl SupportedHashFormat {
         FormatId::Fnv1a_1024,
     ];
 
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::XxHash32 => "xxh32",
+            Self::XxHash64 => "xxh64",
+            Self::XxHash3_64 => "xxh3",
+            Self::XxHash3_128 => "xxh128",
+            Self::Sha256 => "sha256",
+            Self::Fnv0_32 => "fnv0_32",
+            Self::Fnv0_64 => "fnv0_64",
+            Self::Fnv0_128 => "fnv0_128",
+            Self::Fnv0_256 => "fnv0_256",
+            Self::Fnv0_512 => "fnv0_512",
+            Self::Fnv0_1024 => "fnv0_1024",
+            Self::Fnv1_32 => "fnv1_32",
+            Self::Fnv1_64 => "fnv1_64",
+            Self::Fnv1_128 => "fnv1_128",
+            Self::Fnv1_256 => "fnv1_256",
+            Self::Fnv1_512 => "fnv1_512",
+            Self::Fnv1_1024 => "fnv1_1024",
+            Self::Fnv1a_32 => "fnv1a_32",
+            Self::Fnv1a_64 => "fnv1a_64",
+            Self::Fnv1a_128 => "fnv1a_128",
+            Self::Fnv1a_256 => "fnv1a_256",
+            Self::Fnv1a_512 => "fnv1a_512",
+            Self::Fnv1a_1024 => "fnv1a_1024",
+        }
+    }
+
     /// Maps this variant to the canonical global `FormatId`.
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
@@ -735,108 +831,270 @@ impl std::str::FromStr for SupportedHashFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcInputFormat {
-    /// Dc Integer List (short Dcs)
-    #[value(name = "dcil", alias = "dcintegerlist")]
-    DcIntegerList,
-    /// SEMS (short Dcs)
-    #[value(name = "sems")]
-    Sems,
-    /// DcText
-    #[value(name = "dctext")]
-    DcText,
-    /// DcUtf
-    #[value(name = "dcutf")]
-    DcUtf,
+    /// AlphaSmart Neo encoding (has several variants)
+    #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
+    AlphaSmartNeo,
+    /// AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    #[value(name = "alphasmartneolowctluamac", alias = "AlphaSmartNeoLowCtlUaMac", alias = "f331")]
+    AlphaSmartNeoLowCtlUaMac,
+    /// AlphaSmart Neo, control low bytes, Ukraine (PC)
+    #[value(name = "alphasmartneolowctluapc", alias = "AlphaSmartNeoLowCtlUaPc", alias = "f332")]
+    AlphaSmartNeoLowCtlUaPc,
+    /// AlphaSmart Neo, control low bytes, USA
+    #[value(name = "alphasmartneolowctlus", alias = "AlphaSmartNeoLowCtlUs", alias = "f330")]
+    AlphaSmartNeoLowCtlUs,
+    /// AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    #[value(name = "alphasmartneolowgruamac", alias = "AlphaSmartNeoLowGrUaMac", alias = "f328")]
+    AlphaSmartNeoLowGrUaMac,
+    /// AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    #[value(name = "alphasmartneolowgruapc", alias = "AlphaSmartNeoLowGrUaPc", alias = "f329")]
+    AlphaSmartNeoLowGrUaPc,
+    /// AlphaSmart Neo, graphical low bytes, USA
+    #[value(name = "alphasmartneolowgrus", alias = "AlphaSmartNeoLowGrUs", alias = "f327")]
+    AlphaSmartNeoLowGrUs,
+    /// ASCII
+    #[value(name = "ascii", alias = "Ascii", alias = "f4")]
+    Ascii,
+    /// Printable ASCII
+    #[value(name = "asciisafesubset", alias = "AsciiSafeSubset", alias = "f3")]
+    AsciiSafeSubset,
+    /// Code page 437 (CCSID 437)
+    #[value(name = "cp437", alias = "Cp437", alias = "f86")]
+    Cp437,
+    /// Collective Toolbox csc archive
+    #[value(name = "cscarchive", alias = "CscArchive", alias = "f633")]
+    CscArchive,
+    /// Collective Toolbox csc archive, version 1
+    #[value(name = "cscarchive1", alias = "CscArchive1", alias = "f634")]
+    CscArchive1,
+    /// Collective Toolbox csc archive, version 2
+    #[value(name = "cscarchive2", alias = "CscArchive2", alias = "f648")]
+    CscArchive2,
+    /// Collective Toolbox csc journal
+    #[value(name = "cscjournal", alias = "CscJournal", alias = "f410", alias = "cscjournal1meta1", alias = "CscJournal1Meta1", alias = "cscjournal1meta2", alias = "CscJournal1Meta2", alias = "cscjournal1meta3", alias = "CscJournal1Meta3", alias = "cscjournal4", alias = "CscJournal4", alias = "cscjournal5", alias = "CscJournal5")]
+    CscJournal,
+    /// Comma-separated Dc list (long Dcs)
+    #[value(name = "csdl", alias = "Csdl", alias = "f344")]
+    Csdl,
+    /// Collective Toolbox Node Bundle
+    #[value(name = "ctbnbdl", alias = "ctbnodebundle", alias = "CtbNodeBundle", alias = "f640")]
+    CtbNodeBundle,
+    /// Collective Toolbox Node Bundle, version 1
+    #[value(name = "ctbnbdl1", alias = "ctbnodebundle1", alias = "CtbNodeBundle1", alias = "f644")]
+    CtbNodeBundle1,
+    /// Collective Toolbox Node Bundle, version 2
+    #[value(name = "ctbnbdl2", alias = "ctbnodebundle2", alias = "CtbNodeBundle2", alias = "f645")]
+    CtbNodeBundle2,
+    /// Collective Toolbox graph nodes (shorthand text)
+    #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
+    CtbNodes,
     /// Dc ASCII List (long Dcs)
-    #[value(name = "dcal")]
+    #[value(name = "dcal", alias = "Dcal", alias = "f340")]
     Dcal,
-    /// DcText short
-    #[value(name = "dcts")]
-    Dcts,
+    /// Dc Integer List (short Dcs)
+    #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
+    DcIntegerList,
     /// Dc mixed mode
-    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
+    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed", alias = "DcMixed", alias = "f484")]
     DcMixed,
-    /// DcTF (Dc Transformation Format)
-    #[value(name = "dctf")]
-    DcTf,
     /// Dc mixed mode, version 1 (DcUtf)
-    #[value(name = "dcmm1", alias = "dcmixed1")]
+    #[value(name = "dcmm1", alias = "dcmixed1", alias = "DcMixed1", alias = "f642")]
     DcMixed1,
     /// Dc mixed mode, version 2 (DcTF)
-    #[value(name = "dcmm2", alias = "dcmixed2")]
+    #[value(name = "dcmm2", alias = "dcmixed2", alias = "DcMixed2", alias = "f643")]
     DcMixed2,
+    /// Dc shorthand ASCII list
+    #[value(name = "dcsh", alias = "Dcsh", alias = "f635")]
+    Dcsh,
+    /// DcText
+    #[value(name = "dctext", alias = "DcText", alias = "f88")]
+    DcText,
+    /// DcTF (Dc Transformation Format)
+    #[value(name = "dctf", alias = "DcTf", alias = "f641")]
+    DcTf,
+    /// DcText short
+    #[value(name = "dcts", alias = "Dcts", alias = "f461")]
+    Dcts,
+    /// DcUtf
+    #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
+    DcUtf,
+    /// ISO 8859-1
+    #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
+    Iso88591,
+    /// MacRoman
+    #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
+    MacRoman,
+    /// SEMS (short Dcs)
+    #[value(name = "sems", alias = "Sems", alias = "f6")]
+    Sems,
     /// UTF-8
     #[default]
-    #[value(name = "utf8", alias = "txt", alias = "utf-8")]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
-    /// Printable ASCII
-    #[value(name = "asciisafesubset", alias = "ascii")]
-    AsciiSafeSubset,
-    /// ASCII
-    Ascii,
-    /// Collective Toolbox csc journal
-    #[value(name = "cscjournal")]
-    CscJournal,
+    /// Windows-1252 ("ANSI")
+    #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
+    Win1252,
 }
 
 impl SupportedDcInputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcInputFormat] = &[
-        Self::DcIntegerList,
-        Self::Sems,
-        Self::DcText,
-        Self::DcUtf,
+        Self::AlphaSmartNeo,
+        Self::AlphaSmartNeoLowCtlUaMac,
+        Self::AlphaSmartNeoLowCtlUaPc,
+        Self::AlphaSmartNeoLowCtlUs,
+        Self::AlphaSmartNeoLowGrUaMac,
+        Self::AlphaSmartNeoLowGrUaPc,
+        Self::AlphaSmartNeoLowGrUs,
+        Self::Ascii,
+        Self::AsciiSafeSubset,
+        Self::Cp437,
+        Self::CscArchive,
+        Self::CscArchive1,
+        Self::CscArchive2,
+        Self::CscJournal,
+        Self::Csdl,
+        Self::CtbNodeBundle,
+        Self::CtbNodeBundle1,
+        Self::CtbNodeBundle2,
+        Self::CtbNodes,
         Self::Dcal,
-        Self::Dcts,
+        Self::DcIntegerList,
         Self::DcMixed,
-        Self::DcTf,
         Self::DcMixed1,
         Self::DcMixed2,
+        Self::Dcsh,
+        Self::DcText,
+        Self::DcTf,
+        Self::Dcts,
+        Self::DcUtf,
+        Self::Iso88591,
+        Self::MacRoman,
+        Self::Sems,
         Self::Utf8,
-        Self::AsciiSafeSubset,
-        Self::Ascii,
-        Self::CscJournal,
+        Self::Win1252,
     ];
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
-        FormatId::DcIntegerList,
-        FormatId::Sems,
-        FormatId::DcText,
-        FormatId::DcUtf,
+        FormatId::AlphaSmartNeo,
+        FormatId::AlphaSmartNeoLowCtlUaMac,
+        FormatId::AlphaSmartNeoLowCtlUaPc,
+        FormatId::AlphaSmartNeoLowCtlUs,
+        FormatId::AlphaSmartNeoLowGrUaMac,
+        FormatId::AlphaSmartNeoLowGrUaPc,
+        FormatId::AlphaSmartNeoLowGrUs,
+        FormatId::Ascii,
+        FormatId::AsciiSafeSubset,
+        FormatId::Cp437,
+        FormatId::CscArchive,
+        FormatId::CscArchive1,
+        FormatId::CscArchive2,
+        FormatId::CscJournal,
+        FormatId::Csdl,
+        FormatId::CtbNodeBundle,
+        FormatId::CtbNodeBundle1,
+        FormatId::CtbNodeBundle2,
+        FormatId::CtbNodes,
         FormatId::Dcal,
-        FormatId::Dcts,
+        FormatId::DcIntegerList,
         FormatId::DcMixed,
-        FormatId::DcTf,
         FormatId::DcMixed1,
         FormatId::DcMixed2,
+        FormatId::Dcsh,
+        FormatId::DcText,
+        FormatId::DcTf,
+        FormatId::Dcts,
+        FormatId::DcUtf,
+        FormatId::Iso88591,
+        FormatId::MacRoman,
+        FormatId::Sems,
         FormatId::Utf8,
-        FormatId::AsciiSafeSubset,
-        FormatId::Ascii,
-        FormatId::CscJournal,
+        FormatId::Win1252,
     ];
 
     /// Backward-compatible alias for [`Self::DcIntegerList`].
     pub const Dcil: Self = Self::DcIntegerList;
 
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::AlphaSmartNeo => "alphasmartneo",
+            Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
+            Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
+            Self::AlphaSmartNeoLowCtlUs => "alphasmartneolowctlus",
+            Self::AlphaSmartNeoLowGrUaMac => "alphasmartneolowgruamac",
+            Self::AlphaSmartNeoLowGrUaPc => "alphasmartneolowgruapc",
+            Self::AlphaSmartNeoLowGrUs => "alphasmartneolowgrus",
+            Self::Ascii => "ascii",
+            Self::AsciiSafeSubset => "asciisafesubset",
+            Self::Cp437 => "cp437",
+            Self::CscArchive => "cscarchive",
+            Self::CscArchive1 => "cscarchive1",
+            Self::CscArchive2 => "cscarchive2",
+            Self::CscJournal => "cscjournal",
+            Self::Csdl => "csdl",
+            Self::CtbNodeBundle => "ctbnbdl",
+            Self::CtbNodeBundle1 => "ctbnbdl1",
+            Self::CtbNodeBundle2 => "ctbnbdl2",
+            Self::CtbNodes => "ctbnodes",
+            Self::Dcal => "dcal",
+            Self::DcIntegerList => "dcil",
+            Self::DcMixed => "dcmm",
+            Self::DcMixed1 => "dcmm1",
+            Self::DcMixed2 => "dcmm2",
+            Self::Dcsh => "dcsh",
+            Self::DcText => "dctext",
+            Self::DcTf => "dctf",
+            Self::Dcts => "dcts",
+            Self::DcUtf => "dcutf",
+            Self::Iso88591 => "iso88591",
+            Self::MacRoman => "macroman",
+            Self::Sems => "sems",
+            Self::Utf8 => "utf8",
+            Self::Win1252 => "win1252",
+        }
+    }
+
     /// Maps this variant to the canonical global `FormatId`.
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
-            Self::DcIntegerList => FormatId::DcIntegerList,
-            Self::Sems => FormatId::Sems,
-            Self::DcText => FormatId::DcText,
-            Self::DcUtf => FormatId::DcUtf,
+            Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
+            Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
+            Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
+            Self::AlphaSmartNeoLowCtlUs => FormatId::AlphaSmartNeoLowCtlUs,
+            Self::AlphaSmartNeoLowGrUaMac => FormatId::AlphaSmartNeoLowGrUaMac,
+            Self::AlphaSmartNeoLowGrUaPc => FormatId::AlphaSmartNeoLowGrUaPc,
+            Self::AlphaSmartNeoLowGrUs => FormatId::AlphaSmartNeoLowGrUs,
+            Self::Ascii => FormatId::Ascii,
+            Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
+            Self::Cp437 => FormatId::Cp437,
+            Self::CscArchive => FormatId::CscArchive,
+            Self::CscArchive1 => FormatId::CscArchive1,
+            Self::CscArchive2 => FormatId::CscArchive2,
+            Self::CscJournal => FormatId::CscJournal,
+            Self::Csdl => FormatId::Csdl,
+            Self::CtbNodeBundle => FormatId::CtbNodeBundle,
+            Self::CtbNodeBundle1 => FormatId::CtbNodeBundle1,
+            Self::CtbNodeBundle2 => FormatId::CtbNodeBundle2,
+            Self::CtbNodes => FormatId::CtbNodes,
             Self::Dcal => FormatId::Dcal,
-            Self::Dcts => FormatId::Dcts,
+            Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
-            Self::DcTf => FormatId::DcTf,
             Self::DcMixed1 => FormatId::DcMixed1,
             Self::DcMixed2 => FormatId::DcMixed2,
+            Self::Dcsh => FormatId::Dcsh,
+            Self::DcText => FormatId::DcText,
+            Self::DcTf => FormatId::DcTf,
+            Self::Dcts => FormatId::Dcts,
+            Self::DcUtf => FormatId::DcUtf,
+            Self::Iso88591 => FormatId::Iso88591,
+            Self::MacRoman => FormatId::MacRoman,
+            Self::Sems => FormatId::Sems,
             Self::Utf8 => FormatId::Utf8,
-            Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
-            Self::Ascii => FormatId::Ascii,
-            Self::CscJournal => FormatId::CscJournal,
+            Self::Win1252 => FormatId::Win1252,
         }
     }
 
@@ -844,20 +1102,40 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
-            FormatId::DcIntegerList => Some(Self::DcIntegerList),
-            FormatId::Sems => Some(Self::Sems),
-            FormatId::DcText => Some(Self::DcText),
-            FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
+            FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
+            FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
+            FormatId::AlphaSmartNeoLowCtlUs => Some(Self::AlphaSmartNeoLowCtlUs),
+            FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::AlphaSmartNeoLowGrUaMac),
+            FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::AlphaSmartNeoLowGrUaPc),
+            FormatId::AlphaSmartNeoLowGrUs => Some(Self::AlphaSmartNeoLowGrUs),
+            FormatId::Ascii => Some(Self::Ascii),
+            FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
+            FormatId::Cp437 => Some(Self::Cp437),
+            FormatId::CscArchive => Some(Self::CscArchive),
+            FormatId::CscArchive1 => Some(Self::CscArchive1),
+            FormatId::CscArchive2 => Some(Self::CscArchive2),
+            FormatId::CscJournal => Some(Self::CscJournal),
+            FormatId::Csdl => Some(Self::Csdl),
+            FormatId::CtbNodeBundle => Some(Self::CtbNodeBundle),
+            FormatId::CtbNodeBundle1 => Some(Self::CtbNodeBundle1),
+            FormatId::CtbNodeBundle2 => Some(Self::CtbNodeBundle2),
+            FormatId::CtbNodes => Some(Self::CtbNodes),
             FormatId::Dcal => Some(Self::Dcal),
-            FormatId::Dcts => Some(Self::Dcts),
+            FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
-            FormatId::DcTf => Some(Self::DcTf),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
             FormatId::DcMixed2 => Some(Self::DcMixed2),
+            FormatId::Dcsh => Some(Self::Dcsh),
+            FormatId::DcText => Some(Self::DcText),
+            FormatId::DcTf => Some(Self::DcTf),
+            FormatId::Dcts => Some(Self::Dcts),
+            FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::Iso88591 => Some(Self::Iso88591),
+            FormatId::MacRoman => Some(Self::MacRoman),
+            FormatId::Sems => Some(Self::Sems),
             FormatId::Utf8 => Some(Self::Utf8),
-            FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
-            FormatId::Ascii => Some(Self::Ascii),
-            FormatId::CscJournal => Some(Self::CscJournal),
+            FormatId::Win1252 => Some(Self::Win1252),
             FormatId::CscJournal1Meta1 => Some(Self::CscJournal),
             FormatId::CscJournal1Meta2 => Some(Self::CscJournal),
             FormatId::CscJournal1Meta3 => Some(Self::CscJournal),
@@ -928,117 +1206,295 @@ impl std::str::FromStr for SupportedDcInputFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcOutputFormat {
-    /// Dc Integer List (short Dcs)
-    #[value(name = "dcil", alias = "dcintegerlist")]
-    DcIntegerList,
-    /// HTML
-    #[value(name = "html", alias = "htm")]
-    Html,
-    /// HTML fragment
-    #[value(name = "htmlfragment", alias = "htmfrag")]
-    HtmlFragment,
-    /// EITE Language in ASCII documents (ELAD)
-    #[value(name = "elad")]
-    Elad,
-    /// Color-coded HTML integer list
-    #[value(name = "eitecolorcoded")]
-    EiteColorCoded,
-    /// DcText
-    #[value(name = "dctext")]
-    DcText,
-    /// DcUtf
-    #[value(name = "dcutf")]
-    DcUtf,
+    /// AlphaSmart Neo encoding (has several variants)
+    #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
+    AlphaSmartNeo,
+    /// AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    #[value(name = "alphasmartneolowctluamac", alias = "AlphaSmartNeoLowCtlUaMac", alias = "f331")]
+    AlphaSmartNeoLowCtlUaMac,
+    /// AlphaSmart Neo, control low bytes, Ukraine (PC)
+    #[value(name = "alphasmartneolowctluapc", alias = "AlphaSmartNeoLowCtlUaPc", alias = "f332")]
+    AlphaSmartNeoLowCtlUaPc,
+    /// AlphaSmart Neo, control low bytes, USA
+    #[value(name = "alphasmartneolowctlus", alias = "AlphaSmartNeoLowCtlUs", alias = "f330")]
+    AlphaSmartNeoLowCtlUs,
+    /// AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    #[value(name = "alphasmartneolowgruamac", alias = "AlphaSmartNeoLowGrUaMac", alias = "f328")]
+    AlphaSmartNeoLowGrUaMac,
+    /// AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    #[value(name = "alphasmartneolowgruapc", alias = "AlphaSmartNeoLowGrUaPc", alias = "f329")]
+    AlphaSmartNeoLowGrUaPc,
+    /// AlphaSmart Neo, graphical low bytes, USA
+    #[value(name = "alphasmartneolowgrus", alias = "AlphaSmartNeoLowGrUs", alias = "f327")]
+    AlphaSmartNeoLowGrUs,
+    /// ASCII
+    #[value(name = "ascii", alias = "Ascii", alias = "f4")]
+    Ascii,
+    /// Printable ASCII
+    #[value(name = "asciisafesubset", alias = "AsciiSafeSubset", alias = "f3")]
+    AsciiSafeSubset,
+    /// Code page 437 (CCSID 437)
+    #[value(name = "cp437", alias = "Cp437", alias = "f86")]
+    Cp437,
+    /// Collective Toolbox csc archive
+    #[value(name = "cscarchive", alias = "CscArchive", alias = "f633")]
+    CscArchive,
+    /// Collective Toolbox csc archive, version 1
+    #[value(name = "cscarchive1", alias = "CscArchive1", alias = "f634")]
+    CscArchive1,
+    /// Collective Toolbox csc archive, version 2
+    #[value(name = "cscarchive2", alias = "CscArchive2", alias = "f648")]
+    CscArchive2,
+    /// Collective Toolbox csc journal
+    #[value(name = "cscjournal", alias = "CscJournal", alias = "f410", alias = "cscjournal1meta1", alias = "CscJournal1Meta1", alias = "cscjournal1meta2", alias = "CscJournal1Meta2", alias = "cscjournal1meta3", alias = "CscJournal1Meta3", alias = "cscjournal4", alias = "CscJournal4", alias = "cscjournal5", alias = "CscJournal5")]
+    CscJournal,
+    /// Comma-separated Dc list (long Dcs)
+    #[value(name = "csdl", alias = "Csdl", alias = "f344")]
+    Csdl,
+    /// Collective Toolbox Node Bundle
+    #[value(name = "ctbnbdl", alias = "ctbnodebundle", alias = "CtbNodeBundle", alias = "f640")]
+    CtbNodeBundle,
+    /// Collective Toolbox Node Bundle, version 1
+    #[value(name = "ctbnbdl1", alias = "ctbnodebundle1", alias = "CtbNodeBundle1", alias = "f644")]
+    CtbNodeBundle1,
+    /// Collective Toolbox Node Bundle, version 2
+    #[value(name = "ctbnbdl2", alias = "ctbnodebundle2", alias = "CtbNodeBundle2", alias = "f645")]
+    CtbNodeBundle2,
+    /// Collective Toolbox graph nodes (shorthand text)
+    #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
+    CtbNodes,
     /// Dc ASCII List (long Dcs)
-    #[value(name = "dcal")]
+    #[value(name = "dcal", alias = "Dcal", alias = "f340")]
     Dcal,
-    /// DcText short
-    #[value(name = "dcts")]
-    Dcts,
+    /// Dc Integer List (short Dcs)
+    #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
+    DcIntegerList,
     /// Dc mixed mode
-    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
+    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed", alias = "DcMixed", alias = "f484")]
     DcMixed,
-    /// DcTF (Dc Transformation Format)
-    #[value(name = "dctf")]
-    DcTf,
     /// Dc mixed mode, version 1 (DcUtf)
-    #[value(name = "dcmm1", alias = "dcmixed1")]
+    #[value(name = "dcmm1", alias = "dcmixed1", alias = "DcMixed1", alias = "f642")]
     DcMixed1,
     /// Dc mixed mode, version 2 (DcTF)
-    #[value(name = "dcmm2", alias = "dcmixed2")]
+    #[value(name = "dcmm2", alias = "dcmixed2", alias = "DcMixed2", alias = "f643")]
     DcMixed2,
+    /// Dc shorthand ASCII list
+    #[value(name = "dcsh", alias = "Dcsh", alias = "f635")]
+    Dcsh,
+    /// DcText
+    #[value(name = "dctext", alias = "DcText", alias = "f88")]
+    DcText,
+    /// DcTF (Dc Transformation Format)
+    #[value(name = "dctf", alias = "DcTf", alias = "f641")]
+    DcTf,
+    /// DcText short
+    #[value(name = "dcts", alias = "Dcts", alias = "f461")]
+    Dcts,
+    /// DcUtf
+    #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
+    DcUtf,
+    /// Color-coded HTML integer list
+    #[value(name = "eitecolorcoded", alias = "EiteColorCoded", alias = "f21", alias = "htm")]
+    EiteColorCoded,
+    /// EITE Language in ASCII documents (ELAD)
+    #[value(name = "elad", alias = "Elad", alias = "f17")]
+    Elad,
+    /// HTML
+    #[value(name = "html", alias = "Html", alias = "f5")]
+    Html,
+    /// HTML fragment
+    #[value(name = "htmlfragment", alias = "HtmlFragment", alias = "f13", alias = "htmfrag")]
+    HtmlFragment,
+    /// ISO 8859-1
+    #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
+    Iso88591,
+    /// MacRoman
+    #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
+    MacRoman,
+    /// SEMS (short Dcs)
+    #[value(name = "sems", alias = "Sems", alias = "f6")]
+    Sems,
     /// UTF-8
     #[default]
-    #[value(name = "utf8", alias = "txt", alias = "utf-8")]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
-    /// Printable ASCII
-    #[value(name = "asciisafesubset", alias = "ascii")]
-    AsciiSafeSubset,
-    /// ASCII
-    Ascii,
+    /// Windows-1252 ("ANSI")
+    #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
+    Win1252,
 }
 
 impl SupportedDcOutputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcOutputFormat] = &[
-        Self::DcIntegerList,
-        Self::Html,
-        Self::HtmlFragment,
-        Self::Elad,
-        Self::EiteColorCoded,
-        Self::DcText,
-        Self::DcUtf,
+        Self::AlphaSmartNeo,
+        Self::AlphaSmartNeoLowCtlUaMac,
+        Self::AlphaSmartNeoLowCtlUaPc,
+        Self::AlphaSmartNeoLowCtlUs,
+        Self::AlphaSmartNeoLowGrUaMac,
+        Self::AlphaSmartNeoLowGrUaPc,
+        Self::AlphaSmartNeoLowGrUs,
+        Self::Ascii,
+        Self::AsciiSafeSubset,
+        Self::Cp437,
+        Self::CscArchive,
+        Self::CscArchive1,
+        Self::CscArchive2,
+        Self::CscJournal,
+        Self::Csdl,
+        Self::CtbNodeBundle,
+        Self::CtbNodeBundle1,
+        Self::CtbNodeBundle2,
+        Self::CtbNodes,
         Self::Dcal,
-        Self::Dcts,
+        Self::DcIntegerList,
         Self::DcMixed,
-        Self::DcTf,
         Self::DcMixed1,
         Self::DcMixed2,
+        Self::Dcsh,
+        Self::DcText,
+        Self::DcTf,
+        Self::Dcts,
+        Self::DcUtf,
+        Self::EiteColorCoded,
+        Self::Elad,
+        Self::Html,
+        Self::HtmlFragment,
+        Self::Iso88591,
+        Self::MacRoman,
+        Self::Sems,
         Self::Utf8,
-        Self::AsciiSafeSubset,
-        Self::Ascii,
+        Self::Win1252,
     ];
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
-        FormatId::DcIntegerList,
-        FormatId::Html,
-        FormatId::HtmlFragment,
-        FormatId::Elad,
-        FormatId::EiteColorCoded,
-        FormatId::DcText,
-        FormatId::DcUtf,
+        FormatId::AlphaSmartNeo,
+        FormatId::AlphaSmartNeoLowCtlUaMac,
+        FormatId::AlphaSmartNeoLowCtlUaPc,
+        FormatId::AlphaSmartNeoLowCtlUs,
+        FormatId::AlphaSmartNeoLowGrUaMac,
+        FormatId::AlphaSmartNeoLowGrUaPc,
+        FormatId::AlphaSmartNeoLowGrUs,
+        FormatId::Ascii,
+        FormatId::AsciiSafeSubset,
+        FormatId::Cp437,
+        FormatId::CscArchive,
+        FormatId::CscArchive1,
+        FormatId::CscArchive2,
+        FormatId::CscJournal,
+        FormatId::Csdl,
+        FormatId::CtbNodeBundle,
+        FormatId::CtbNodeBundle1,
+        FormatId::CtbNodeBundle2,
+        FormatId::CtbNodes,
         FormatId::Dcal,
-        FormatId::Dcts,
+        FormatId::DcIntegerList,
         FormatId::DcMixed,
-        FormatId::DcTf,
         FormatId::DcMixed1,
         FormatId::DcMixed2,
+        FormatId::Dcsh,
+        FormatId::DcText,
+        FormatId::DcTf,
+        FormatId::Dcts,
+        FormatId::DcUtf,
+        FormatId::EiteColorCoded,
+        FormatId::Elad,
+        FormatId::Html,
+        FormatId::HtmlFragment,
+        FormatId::Iso88591,
+        FormatId::MacRoman,
+        FormatId::Sems,
         FormatId::Utf8,
-        FormatId::AsciiSafeSubset,
-        FormatId::Ascii,
+        FormatId::Win1252,
     ];
+
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::AlphaSmartNeo => "alphasmartneo",
+            Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
+            Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
+            Self::AlphaSmartNeoLowCtlUs => "alphasmartneolowctlus",
+            Self::AlphaSmartNeoLowGrUaMac => "alphasmartneolowgruamac",
+            Self::AlphaSmartNeoLowGrUaPc => "alphasmartneolowgruapc",
+            Self::AlphaSmartNeoLowGrUs => "alphasmartneolowgrus",
+            Self::Ascii => "ascii",
+            Self::AsciiSafeSubset => "asciisafesubset",
+            Self::Cp437 => "cp437",
+            Self::CscArchive => "cscarchive",
+            Self::CscArchive1 => "cscarchive1",
+            Self::CscArchive2 => "cscarchive2",
+            Self::CscJournal => "cscjournal",
+            Self::Csdl => "csdl",
+            Self::CtbNodeBundle => "ctbnbdl",
+            Self::CtbNodeBundle1 => "ctbnbdl1",
+            Self::CtbNodeBundle2 => "ctbnbdl2",
+            Self::CtbNodes => "ctbnodes",
+            Self::Dcal => "dcal",
+            Self::DcIntegerList => "dcil",
+            Self::DcMixed => "dcmm",
+            Self::DcMixed1 => "dcmm1",
+            Self::DcMixed2 => "dcmm2",
+            Self::Dcsh => "dcsh",
+            Self::DcText => "dctext",
+            Self::DcTf => "dctf",
+            Self::Dcts => "dcts",
+            Self::DcUtf => "dcutf",
+            Self::EiteColorCoded => "eitecolorcoded",
+            Self::Elad => "elad",
+            Self::Html => "html",
+            Self::HtmlFragment => "htmlfragment",
+            Self::Iso88591 => "iso88591",
+            Self::MacRoman => "macroman",
+            Self::Sems => "sems",
+            Self::Utf8 => "utf8",
+            Self::Win1252 => "win1252",
+        }
+    }
 
     /// Maps this variant to the canonical global `FormatId`.
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
-            Self::DcIntegerList => FormatId::DcIntegerList,
-            Self::Html => FormatId::Html,
-            Self::HtmlFragment => FormatId::HtmlFragment,
-            Self::Elad => FormatId::Elad,
-            Self::EiteColorCoded => FormatId::EiteColorCoded,
-            Self::DcText => FormatId::DcText,
-            Self::DcUtf => FormatId::DcUtf,
+            Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
+            Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
+            Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
+            Self::AlphaSmartNeoLowCtlUs => FormatId::AlphaSmartNeoLowCtlUs,
+            Self::AlphaSmartNeoLowGrUaMac => FormatId::AlphaSmartNeoLowGrUaMac,
+            Self::AlphaSmartNeoLowGrUaPc => FormatId::AlphaSmartNeoLowGrUaPc,
+            Self::AlphaSmartNeoLowGrUs => FormatId::AlphaSmartNeoLowGrUs,
+            Self::Ascii => FormatId::Ascii,
+            Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
+            Self::Cp437 => FormatId::Cp437,
+            Self::CscArchive => FormatId::CscArchive,
+            Self::CscArchive1 => FormatId::CscArchive1,
+            Self::CscArchive2 => FormatId::CscArchive2,
+            Self::CscJournal => FormatId::CscJournal,
+            Self::Csdl => FormatId::Csdl,
+            Self::CtbNodeBundle => FormatId::CtbNodeBundle,
+            Self::CtbNodeBundle1 => FormatId::CtbNodeBundle1,
+            Self::CtbNodeBundle2 => FormatId::CtbNodeBundle2,
+            Self::CtbNodes => FormatId::CtbNodes,
             Self::Dcal => FormatId::Dcal,
-            Self::Dcts => FormatId::Dcts,
+            Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
-            Self::DcTf => FormatId::DcTf,
             Self::DcMixed1 => FormatId::DcMixed1,
             Self::DcMixed2 => FormatId::DcMixed2,
+            Self::Dcsh => FormatId::Dcsh,
+            Self::DcText => FormatId::DcText,
+            Self::DcTf => FormatId::DcTf,
+            Self::Dcts => FormatId::Dcts,
+            Self::DcUtf => FormatId::DcUtf,
+            Self::EiteColorCoded => FormatId::EiteColorCoded,
+            Self::Elad => FormatId::Elad,
+            Self::Html => FormatId::Html,
+            Self::HtmlFragment => FormatId::HtmlFragment,
+            Self::Iso88591 => FormatId::Iso88591,
+            Self::MacRoman => FormatId::MacRoman,
+            Self::Sems => FormatId::Sems,
             Self::Utf8 => FormatId::Utf8,
-            Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
-            Self::Ascii => FormatId::Ascii,
+            Self::Win1252 => FormatId::Win1252,
         }
     }
 
@@ -1046,22 +1502,49 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
-            FormatId::DcIntegerList => Some(Self::DcIntegerList),
-            FormatId::Html => Some(Self::Html),
-            FormatId::HtmlFragment => Some(Self::HtmlFragment),
-            FormatId::Elad => Some(Self::Elad),
-            FormatId::EiteColorCoded => Some(Self::EiteColorCoded),
-            FormatId::DcText => Some(Self::DcText),
-            FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
+            FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
+            FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
+            FormatId::AlphaSmartNeoLowCtlUs => Some(Self::AlphaSmartNeoLowCtlUs),
+            FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::AlphaSmartNeoLowGrUaMac),
+            FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::AlphaSmartNeoLowGrUaPc),
+            FormatId::AlphaSmartNeoLowGrUs => Some(Self::AlphaSmartNeoLowGrUs),
+            FormatId::Ascii => Some(Self::Ascii),
+            FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
+            FormatId::Cp437 => Some(Self::Cp437),
+            FormatId::CscArchive => Some(Self::CscArchive),
+            FormatId::CscArchive1 => Some(Self::CscArchive1),
+            FormatId::CscArchive2 => Some(Self::CscArchive2),
+            FormatId::CscJournal => Some(Self::CscJournal),
+            FormatId::Csdl => Some(Self::Csdl),
+            FormatId::CtbNodeBundle => Some(Self::CtbNodeBundle),
+            FormatId::CtbNodeBundle1 => Some(Self::CtbNodeBundle1),
+            FormatId::CtbNodeBundle2 => Some(Self::CtbNodeBundle2),
+            FormatId::CtbNodes => Some(Self::CtbNodes),
             FormatId::Dcal => Some(Self::Dcal),
-            FormatId::Dcts => Some(Self::Dcts),
+            FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
-            FormatId::DcTf => Some(Self::DcTf),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
             FormatId::DcMixed2 => Some(Self::DcMixed2),
+            FormatId::Dcsh => Some(Self::Dcsh),
+            FormatId::DcText => Some(Self::DcText),
+            FormatId::DcTf => Some(Self::DcTf),
+            FormatId::Dcts => Some(Self::Dcts),
+            FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::EiteColorCoded => Some(Self::EiteColorCoded),
+            FormatId::Elad => Some(Self::Elad),
+            FormatId::Html => Some(Self::Html),
+            FormatId::HtmlFragment => Some(Self::HtmlFragment),
+            FormatId::Iso88591 => Some(Self::Iso88591),
+            FormatId::MacRoman => Some(Self::MacRoman),
+            FormatId::Sems => Some(Self::Sems),
             FormatId::Utf8 => Some(Self::Utf8),
-            FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
-            FormatId::Ascii => Some(Self::Ascii),
+            FormatId::Win1252 => Some(Self::Win1252),
+            FormatId::CscJournal1Meta1 => Some(Self::CscJournal),
+            FormatId::CscJournal1Meta2 => Some(Self::CscJournal),
+            FormatId::CscJournal1Meta3 => Some(Self::CscJournal),
+            FormatId::CscJournal4 => Some(Self::CscJournal),
+            FormatId::CscJournal5 => Some(Self::CscJournal),
             _ => None,
         }
     }

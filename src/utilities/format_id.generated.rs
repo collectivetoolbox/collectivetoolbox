@@ -2592,7 +2592,7 @@ impl FormatId {
             "orderxy" | "order_xy" => Some(Self::OrderXY),
             "ordervh" | "order_vh" => Some(Self::OrderVH),
             "orderxyz" | "order_xyz" => Some(Self::OrderXYZ),
-            "iso88591" => Some(Self::Iso88591),
+            "iso88591" | "latin1" => Some(Self::Iso88591),
             "actionscript" | "action_script" => Some(Self::ActionScript),
             "x11display" | "x11_display" => Some(Self::X11Display),
             "waylanddisplay" | "wayland_display" => Some(Self::WaylandDisplay),

@@ -530,13 +530,46 @@ pub fn utf8_to_dclist(
 
 /// Converts UTF-8 text bytes to a `DcMstring`.
 pub fn utf8_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
-    let text = std::str::from_utf8(bytes).map_err(|e| {
-        anyhow!("Input is not valid UTF-8 text: {e}")
-    })?;
-    let dc_str = crate::DcStr::from_bytes(text.as_bytes())
-        .map_err(|e| anyhow!("UTF-8 text contains invalid Dc sequences: {e}"))?;
-    let doc = crate::DcMstring::from_dc_str(dc_str)?;
-    Ok((doc, FormatLog::default()))
+    utf8_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts UTF-8 text bytes to a `DcMstring`, optionally in permissive mode.
+pub fn utf8_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    if !permissive {
+        let text = std::str::from_utf8(bytes)
+            .map_err(|e| anyhow!("Input is not valid UTF-8 text: {e}"))?;
+        let dc_str = crate::DcStr::from_bytes(text.as_bytes())
+            .map_err(|e| anyhow!("UTF-8 text contains invalid Dc sequences: {e}"))?;
+        let doc = crate::DcMstring::from_dc_str(dc_str)?;
+        return Ok((doc, FormatLog::default()));
+    }
+
+    let mut log = FormatLog::default();
+    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut offset = 0usize;
+    for chunk in bytes.utf8_chunks() {
+        let valid = chunk.valid();
+        if !valid.is_empty() {
+            doc.push_str(valid);
+            offset = offset.saturating_add(valid.len());
+        }
+        let invalid = chunk.invalid();
+        if !invalid.is_empty() {
+            log.import_warning(
+                u64::try_from(offset)?,
+                &format!(
+                    "Invalid UTF-8 sequence ({len} bytes) at offset {offset}; substituting U+FFFD",
+                    len = invalid.len()
+                ),
+            );
+            doc.push_char(crate::DcChar::from('\u{FFFD}'));
+            offset = offset.saturating_add(invalid.len());
+        }
+    }
+    Ok((doc, log))
 }
 
 /// Converts a `DcMstring` to UTF-8 bytes.
@@ -549,10 +582,46 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
 
 /// Converts DcTF bytes to a `DcMstring`.
 pub fn dctf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
-    let dc_str = crate::DcStr::from_bytes(bytes)
-        .map_err(|e| anyhow!("Input bytes do not conform to valid DcTF format: {e}"))?;
-    let doc = crate::DcMstring::from_dc_str(dc_str)?;
-    Ok((doc, FormatLog::default()))
+    dctf_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts DcTF bytes to a `DcMstring`, optionally in permissive mode.
+pub fn dctf_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    if !permissive {
+        let dc_str = crate::DcStr::from_bytes(bytes)
+            .map_err(|e| anyhow!("Input bytes do not conform to valid DcTF format: {e}"))?;
+        let doc = crate::DcMstring::from_dc_str(dc_str)?;
+        return Ok((doc, FormatLog::default()));
+    }
+
+    let mut log = FormatLog::default();
+    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut offset = 0usize;
+    while offset < bytes.len() {
+        let Some(slice) = bytes.get(offset..) else { break };
+        if let Some((val, char_len)) = ctb_formats_dctf::decode_dctf_buf(slice) {
+            doc.push_char(crate::DcChar(val));
+            offset = offset.saturating_add(char_len);
+        } else {
+            // Reason for fallback: when error_len is None (incomplete sequence at end of slice), consume the remaining bytes of the incomplete sequence.
+            let step = ctb_formats_dctf::determine_dctf_error_len(slice)
+                .unwrap_or(slice.len())
+                .max(1)
+                .min(slice.len());
+            log.import_warning(
+                u64::try_from(offset)?,
+                &format!(
+                    "Invalid DcTF sequence ({step} bytes) at offset {offset}; substituting U+FFFD"
+                ),
+            );
+            doc.push_char(crate::DcChar::from('\u{FFFD}'));
+            offset = offset.saturating_add(step);
+        }
+    }
+    Ok((doc, log))
 }
 
 /// Converts a `DcMstring` to DcTF bytes.
@@ -563,12 +632,48 @@ pub fn dcmstring_to_dctf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
 
 /// Converts legacy DcUtf bytes to a `DcMstring`.
 pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
-    crate::validate_dcutf(bytes)
-        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
-    let dc_string = crate::DcString::from_dcutf(bytes.to_vec())
-        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
-    let doc = crate::DcMstring::from_dc_string(&dc_string)?;
-    Ok((doc, FormatLog::default()))
+    dcutf_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts legacy DcUtf bytes to a `DcMstring`, optionally in permissive mode.
+pub fn dcutf_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    if !permissive {
+        crate::validate_dcutf(bytes)
+            .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+        let dc_string = crate::DcString::from_dcutf(bytes.to_vec())
+            .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+        let doc = crate::DcMstring::from_dc_string(&dc_string)?;
+        return Ok((doc, FormatLog::default()));
+    }
+
+    let mut log = FormatLog::default();
+    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut offset = 0usize;
+    while offset < bytes.len() {
+        let Some(slice) = bytes.get(offset..) else { break };
+        if let Some((val, char_len)) = ctb_formats_dctf::decode_utf_8e_128_buf(slice) {
+            doc.push_char(crate::DcChar(val));
+            offset = offset.saturating_add(char_len);
+        } else {
+            // Reason for fallback: when error_len is None (incomplete sequence at end of slice), consume the remaining bytes of the incomplete sequence.
+            let step = ctb_formats_dctf::determine_utf_8e_128_error_len(slice)
+                .unwrap_or(slice.len())
+                .max(1)
+                .min(slice.len());
+            log.import_warning(
+                u64::try_from(offset)?,
+                &format!(
+                    "Invalid DcUtf sequence ({step} bytes) at offset {offset}; substituting U+FFFD"
+                ),
+            );
+            doc.push_char(crate::DcChar::from('\u{FFFD}'));
+            offset = offset.saturating_add(step);
+        }
+    }
+    Ok((doc, log))
 }
 
 /// Converts a `DcMstring` to legacy DcUtf bytes.

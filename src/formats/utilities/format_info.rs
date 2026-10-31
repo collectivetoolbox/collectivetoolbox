@@ -210,6 +210,7 @@ pub fn format_help_table(
 ) -> String {
     let mut lines = Vec::new();
     lines.push(header.to_string());
+    let mut entries: Vec<(String, String)> = Vec::new();
     for &fid in formats {
         if let Some(info) = get_format_info_by_id(fid) {
             let aliases = info.sorted_nicknames();
@@ -218,9 +219,84 @@ pub fn format_help_table(
             } else {
                 aliases.join(", ")
             };
-            lines.push(format!("  {}: {}", alias_str, info.label));
+            let sort_key = alias_str.to_ascii_lowercase();
+            entries.push((sort_key, format!("  {}: {}", alias_str, info.label)));
         }
     }
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    for (_, line) in entries {
+        lines.push(line);
+    }
+    lines.join("\n")
+}
+
+/// Generates a categorized, alphabetically sorted help table of supported formats
+/// showing both CLI nicknames and Rust `FormatId` names alongside their descriptions.
+pub fn format_categorized_help_table(
+    header: &str,
+    formats: &[ctb_utilities::FormatId],
+) -> String {
+    let mut lines = Vec::new();
+    if !header.is_empty() {
+        lines.push(header.to_string());
+    }
+
+    let category_order = [
+        ("document", "Document formats:"),
+        ("encoding", "Text encodings:"),
+        ("database", "Database & archive formats:"),
+        ("container", "Container formats:"),
+        ("compression", "Compression formats:"),
+        ("hash", "Hash formats:"),
+    ];
+
+    let mut by_category: std::collections::BTreeMap<String, Vec<(String, String)>> =
+        std::collections::BTreeMap::new();
+
+    for &fid in formats {
+        if let Some(info) = get_format_info_by_id(fid) {
+            let nicks: Vec<&str> = info
+                .nicknames
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
+            let primary_key = nicks
+                .first()
+                .map(|s| s.to_ascii_lowercase())
+                .unwrap_or_else(|| info.ident.to_ascii_lowercase());
+            let name_display = if nicks.is_empty() {
+                format!("{} ({})", info.ident.to_ascii_lowercase(), info.ident)
+            } else {
+                format!("{} ({})", nicks.join(", "), info.ident)
+            };
+            let cat_key = info.category.trim().to_ascii_lowercase();
+            by_category.entry(cat_key).or_default().push((
+                primary_key,
+                format!("    {name_display}: {}", info.label),
+            ));
+        }
+    }
+
+    for &(cat_key, cat_title) in &category_order {
+        if let Some(mut entries) = by_category.remove(cat_key) {
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            lines.push(format!("  {cat_title}"));
+            for (_, line) in entries {
+                lines.push(line);
+            }
+        }
+    }
+
+    for (cat_key, mut entries) in by_category {
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        lines.push(format!("  {cat_key} formats:"));
+        for (_, line) in entries {
+            lines.push(line);
+        }
+    }
+
     lines.join("\n")
 }
 

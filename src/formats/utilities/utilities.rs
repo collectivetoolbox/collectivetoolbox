@@ -38,14 +38,17 @@ pub mod format_info;
 pub use ctb_utilities::format_id;
 pub use ctb_utilities::FormatId;
 pub use format_info::{
-    FormatInfo, FormatInfoOptionExt, describe_format, format_help_table,
-    get_format_info, get_format_info_by_id, infer_decompressed_path,
-    strip_format_extension,
+    FormatInfo, FormatInfoOptionExt, describe_format,
+    format_categorized_help_table, format_help_table, get_format_info,
+    get_format_info_by_id, infer_decompressed_path, strip_format_extension,
 };
 pub mod cli_io;
 pub mod cli_document;
 pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
-pub use cli_document::{CliAutoDocumentInputArgs, CliDocumentInputArgs};
+pub use cli_document::{
+    CliAutoDocumentInputArgs, CliDocumentInputArgs,
+    parse_supported_dc_input_format, parse_supported_dc_output_format,
+};
 
 #[expect(
     unused_imports,

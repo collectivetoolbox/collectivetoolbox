@@ -33,7 +33,10 @@ pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
 pub use ctb_utilities::{SupportedDcInputFormat, SupportedDcOutputFormat};
-use ctb_formats_utilities::{CliInputSourceArgs, CliOutputDestArgs};
+use ctb_formats_utilities::{
+    CliAutoDocumentInputArgs, CliInputSourceArgs, CliOutputDestArgs,
+    parse_supported_dc_input_format, parse_supported_dc_output_format,
+};
 use ctb_formats_dcstring::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe_dclist, describe_graph_id,
@@ -41,6 +44,9 @@ use ctb_formats_dcstring::character_description::{
 use crate::convert_api::{
     DcConversionOptions, DcExportOptions, FormatSpec,
     convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
+};
+use crate::convert_bytes::{
+    format_supported_input_formats_table, format_supported_output_formats_table,
 };
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
@@ -51,21 +57,42 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
     ctb_formats_dcstring::cli_identifiers::parse_graph_or_short_id(trimmed)
 }
 
+/// Global static lazy string containing the formatted `character_description` help table and examples.
+pub static CHARACTER_DESCRIPTION_AFTER_HELP: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| {
+        let formats = format_supported_input_formats_table("Supported input formats (--from):");
+        format!(
+            "{formats}\n\nExamples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description --from dcmm --permissive -f input.bin\n  $ ctoolbox character_description -f input.txt -o output.txt"
+        )
+    });
+
+/// Global static lazy string containing the formatted `convert` help table and examples.
+pub static CONVERT_AFTER_HELP: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| {
+        let in_formats = format_supported_input_formats_table("Supported input formats (--from):");
+        let out_formats = format_supported_output_formats_table("Supported output formats (--to):");
+        format!(
+            "{in_formats}\n\n{out_formats}\n\nExamples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal\n  $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext"
+        )
+    });
+
 /// Supported input serialization formats for character descriptions.
 pub type CharacterDescriptionInputFormat = SupportedDcInputFormat;
 
 /// Execution arguments for the `character_description` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(
-    after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
-)]
+#[command(after_help = CHARACTER_DESCRIPTION_AFTER_HELP.as_str())]
 pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format (autodetected if omitted)
-    #[arg(long = "from", value_enum)]
+    /// Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+    #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
+
+    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    #[arg(long = "permissive")]
+    pub permissive: bool,
 
     /// Input file path (or - for stdin)
     #[arg(short = 'f', long = "file")]
@@ -111,6 +138,16 @@ impl CharacterDescriptionArgs {
         CliInputSourceArgs {
             input: self.input.clone(),
             file: self.file.clone(),
+        }
+    }
+
+    /// Adapts the CLI document input fields into [`CliAutoDocumentInputArgs`].
+    #[must_use]
+    pub fn document_input(&self) -> CliAutoDocumentInputArgs {
+        CliAutoDocumentInputArgs {
+            source: self.input_source(),
+            from: self.from,
+            permissive: self.permissive,
         }
     }
 
@@ -204,10 +241,22 @@ where
                 // Reason for fallback: When no source format is explicitly specified via CLI, auto-detection is used.
                 format: args.from.map_or(FormatSpec::Auto, FormatSpec::Format),
                 allow_binary_encapsulation: false,
+                permissive: args.permissive,
             },
         )?;
         conversion.log.auto_log();
-        let dc_string = conversion.document.to_dc_string()?;
+        if conversion.log.has_errors() {
+            eprintln!("{}", conversion.log.format_errors().trim_end());
+        }
+        if conversion.log.has_warnings() {
+            eprintln!("{}", conversion.log.format_warnings().trim_end());
+        }
+        let policy = if args.permissive {
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+        } else {
+            ctb_formats_dcstring::DcProjectionPolicy::strict()
+        };
+        let dc_string = conversion.document.to_dc_string_with_policy(&policy)?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
     };
@@ -217,19 +266,21 @@ where
 
 /// Execution arguments for the `convert` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(
-    after_help = "Examples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal"
-)]
+#[command(after_help = CONVERT_AFTER_HELP.as_str())]
 pub struct ConvertArgs {
     /// Input data string. If not provided, reads from stdin or --file.
     pub input: Option<String>,
 
-    /// Input format (autodetected if omitted)
-    #[arg(long = "from", value_enum)]
+    /// Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+    #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
 
-    /// Output format
-    #[arg(short = 't', long = "to", value_enum, default_value_t = SupportedDcOutputFormat::Utf8)]
+    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    #[arg(long = "permissive")]
+    pub permissive: bool,
+
+    /// Output format (accepts nickname, FormatId name, or f<N> shorthand)
+    #[arg(short = 't', long = "to", value_parser = parse_supported_dc_output_format, default_value = "utf8")]
     pub to: SupportedDcOutputFormat,
 
     /// Input file path (or - for stdin)
@@ -256,6 +307,16 @@ impl ConvertArgs {
         CliInputSourceArgs {
             input: self.input.clone(),
             file: self.file.clone(),
+        }
+    }
+
+    /// Adapts the CLI document input fields into [`CliAutoDocumentInputArgs`].
+    #[must_use]
+    pub fn document_input(&self) -> CliAutoDocumentInputArgs {
+        CliAutoDocumentInputArgs {
+            source: self.input_source(),
+            from: self.from,
+            permissive: self.permissive,
         }
     }
 
@@ -298,6 +359,7 @@ where
             None => FormatSpec::Auto,
         },
         allow_binary_encapsulation: args.allow_binary_encapsulation,
+        permissive: args.permissive,
     };
 
     let conversion = convert_bytes_to_dcmstring(
@@ -319,6 +381,12 @@ where
     let mut log = conversion.log;
     log.merge(&export.log);
     log.auto_log();
+    if log.has_errors() {
+        eprintln!("{}", log.format_errors().trim_end());
+    }
+    if log.has_warnings() {
+        eprintln!("{}", log.format_warnings().trim_end());
+    }
 
     args.output_dest().write_or_stdout(export.bytes)
 }
@@ -649,5 +717,70 @@ mod tests {
         assert!(s
             .split_ascii_whitespace()
             .all(|token| token.chars().all(|c| c.is_ascii_digit())));
+    }
+
+    #[crate::ctb_test]
+    fn test_cli_format_parsing_accepts_nicknames_and_rust_names_and_categorizes_errors() {
+        use clap::{Args, Command, FromArgMatches};
+
+        for arg_val in ["dcmm", "DcMixed", "dcmixed", "f484"] {
+            let cmd = CharacterDescriptionArgs::augment_args(Command::new("character_description"));
+            let matches = cmd
+                .try_get_matches_from(["character_description", "--from", arg_val, "hello"])
+                .expect("parse valid --from format");
+            let parsed = CharacterDescriptionArgs::from_arg_matches(&matches).unwrap();
+            assert_eq!(parsed.from, Some(SupportedDcInputFormat::DcMixed));
+        }
+
+        let cmd = CharacterDescriptionArgs::augment_args(Command::new("character_description"));
+        let err = cmd
+            .try_get_matches_from(["character_description", "--from", "not_a_real_format", "hello"])
+            .unwrap_err();
+        let err_str = err.to_string();
+        assert!(err_str.contains("Document formats:"));
+        assert!(err_str.contains("Text encodings:"));
+        assert!(err_str.contains("Database & archive formats:"));
+        assert!(err_str.contains("dcmm, dcmstr (DcMixed): Dc mixed mode"));
+    }
+
+    #[crate::ctb_test]
+    fn test_cli_character_description_permissive_and_autodetect_error_table() {
+        // 1. Autodetection failure shows categorized, sorted table with both nicknames and Rust names
+        let unknown_bytes = b"CTBRSRC\x00\x04\x00\x00\x00\x00\x00\x00\x00";
+        let err = execute_cli_character_description(
+            CharacterDescriptionArgs {
+                file: Some(PathBuf::from("system_graph_history.rsrc")),
+                ..Default::default()
+            },
+            |_| Ok(unknown_bytes.to_vec()),
+        )
+        .unwrap_err();
+        let err_msg = format!("{err:#}");
+        assert!(err_msg.contains("Unable to autodetect document format for input. Specify --from with one of:"));
+        assert!(err_msg.contains("Document formats:"));
+        assert!(err_msg.contains("dcmm, dcmstr (DcMixed): Dc mixed mode"));
+
+        // 2. Permissive mode with --from dcmm decodes DcMixed2 wrapped in an asset bundle
+        let mut inner_doc = ctb_formats_dcstring::DcMstring::new();
+        inner_doc.push_char(ctb_formats_dcstring::DcChar(1_114_729)); // Dc 617
+        inner_doc.push_str("A");
+        inner_doc.push_char(ctb_formats_dcstring::DcChar(1_114_730)); // Dc 618
+        let mut wrapped = b"CTBRSRC\x00\x04\x00\x00\x00data/graph/system/85899_34942.ctbnbdlCTBNBDL\x02".to_vec();
+        wrapped.extend_from_slice(inner_doc.as_bytes());
+
+        let out = execute_cli_character_description(
+            CharacterDescriptionArgs {
+                file: Some(PathBuf::from("system_graph_history.rsrc")),
+                from: Some(SupportedDcInputFormat::DcMixed),
+                permissive: true,
+                ..Default::default()
+            },
+            |_| Ok(wrapped.clone()),
+        )
+        .expect("permissive character_description")
+        .unwrap();
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("1114729 : <Dc> Begin graph node definition"));
+        assert!(text.contains("1114730 : <Dc> End graph node definition"));
     }
 }

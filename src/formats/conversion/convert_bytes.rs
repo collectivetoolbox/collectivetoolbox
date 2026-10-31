@@ -68,6 +68,9 @@ pub struct DcConversionOptions {
     /// If format cannot be decoded as a known Dc/text document, encapsulate raw
     /// bytes directly as `DcMixed::Binary`.
     pub allow_binary_encapsulation: bool,
+    /// Parse input in permissive/forgiving mode (recovering from invalid headers,
+    /// characters, or checksums with warnings instead of returning an error).
+    pub permissive: bool,
 }
 
 /// Result of a format conversion including the parsed `DcMstring`, detected format,
@@ -100,6 +103,49 @@ pub struct DcExportResult {
     pub log: FormatLog,
 }
 
+fn single_byte_encoding_to_dcmstring(
+    id: FormatId,
+    bytes: &[u8],
+) -> Result<(DcMstring, FormatLog)> {
+    let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
+        .ok_or_else(|| anyhow::anyhow!("Unsupported single-byte encoding: {id:?}"))?;
+    let text = ctb_formats_encoding::decode(enc, bytes)?;
+    let mut doc = DcMstring::with_capacity(text.len());
+    doc.push_str(&text);
+    Ok((doc, FormatLog::default()))
+}
+
+fn dcmstring_to_single_byte_encoding(
+    id: FormatId,
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
+    let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
+        .ok_or_else(|| anyhow::anyhow!("Unsupported single-byte encoding: {id:?}"))?;
+    let (utf8_bytes, log) = ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?;
+    let text = std::str::from_utf8(&utf8_bytes)
+        .context("Internal UTF-8 conversion produced invalid UTF-8")?;
+    let bytes = ctb_formats_encoding::encode(enc, text)?;
+    Ok((bytes, log))
+}
+
+/// Formats the categorized list of supported input document formats for error and help messages.
+#[must_use]
+pub fn format_supported_input_formats_table(header: &str) -> String {
+    ctb_formats_utilities::format_categorized_help_table(
+        header,
+        SupportedDcInputFormat::ALL_FORMAT_IDS,
+    )
+}
+
+/// Formats the categorized list of supported output document formats for error and help messages.
+#[must_use]
+pub fn format_supported_output_formats_table(header: &str) -> String {
+    ctb_formats_utilities::format_categorized_help_table(
+        header,
+        SupportedDcOutputFormat::ALL_FORMAT_IDS,
+    )
+}
+
 /// Converts in-memory bytes with an optional filename hint to a `DcMstring`.
 pub fn convert_bytes_to_dcmstring(
     bytes: &[u8],
@@ -113,8 +159,10 @@ pub fn convert_bytes_to_dcmstring(
                 supported
             } else {
                 bail!(
-                    "Format {id:?} is not supported for conversion to DcMstring. Supported formats: {:?}",
-                    SupportedDcInputFormat::ALL
+                    "{}",
+                    format_supported_input_formats_table(&format!(
+                        "Format {id:?} is not supported for conversion to DcMstring. Specify --from with one of:"
+                    ))
                 );
             }
         }
@@ -147,60 +195,177 @@ pub fn convert_bytes_to_dcmstring(
                 });
             } else {
                 bail!(
-                    "Unable to autodetect document format for input. Specify --from with one of: {:?}",
-                    SupportedDcInputFormat::ALL
+                    "{}",
+                    format_supported_input_formats_table(
+                        "Unable to autodetect document format for input. Specify --from with one of:"
+                    )
                 );
             }
         }
     };
 
+    let dcmm_opts = ctb_formats_dcstring::DcmmStreamOptions {
+        best_effort: options.permissive,
+    };
+
     let (document, log) = match resolved_format {
         SupportedDcInputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring(bytes).context(
+            ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )
+            .context(
                 "NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line.",
             )?
         }
         SupportedDcInputFormat::DcText => {
-            ctb_formats_dcstring::converters::dctext::dctext_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::dctext::dctext_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::Dcts => {
-            ctb_formats_dcstring::converters::dcts::dcts_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::dcts::dcts_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::Dcal => {
-            ctb_formats_dcstring::converters::dcal::dcal_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::dcal::dcal_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::Csdl => {
+            ctb_formats_dcstring::converters::dcal::csdl_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::Dcsh => {
+            ctb_formats_dcstring::converters::dcal::dcsh_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::CtbNodes => {
+            ctb_formats_dcstring::converters::dcal::ctbnodes_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::CtbNodeBundle => {
+            ctb_formats_dcstring::converters::dcal::ctbnbdl_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::CtbNodeBundle1 => {
+            ctb_formats_dcstring::converters::dcal::ctbnbdl1_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
+        SupportedDcInputFormat::CtbNodeBundle2 => {
+            ctb_formats_dcstring::converters::dcal::ctbnbdl2_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::DcIntegerList => {
-            ctb_formats_dcstring::converters::eite::dcil_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::eite::dcil_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::DcMixed => {
-            ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(bytes)?
+            ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &dcmm_opts)?
         }
         SupportedDcInputFormat::DcMixed1 => {
-            ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring(bytes)?
+            ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(bytes, &dcmm_opts)?
         }
         SupportedDcInputFormat::DcMixed2 => {
-            ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring(bytes)?
+            ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(bytes, &dcmm_opts)?
         }
         SupportedDcInputFormat::DcTf => {
-            ctb_formats_dcstring::converters::utf8::dctf_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::utf8::dctf_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::DcUtf => {
-            ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::Sems => {
-            ctb_formats_dcstring::converters::eite::sems_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::eite::sems_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
         }
         SupportedDcInputFormat::Ascii => {
-            ctb_formats_dcstring::converters::ascii::ascii_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::ascii::ascii_to_dcmstring_with_settings(
+                bytes,
+                &ctb_formats_dcstring::converters::ascii::AsciiSettings {
+                    strict_import: !options.permissive,
+                    ..Default::default()
+                },
+            )?
         }
         SupportedDcInputFormat::AsciiSafeSubset => {
-            ctb_formats_dcstring::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::ascii::ascii_safe_subset_to_dcmstring_with_settings(
+                bytes,
+                &ctb_formats_dcstring::converters::ascii::AsciiSettings {
+                    strict_import: !options.permissive,
+                    ..Default::default()
+                },
+            )?
         }
         SupportedDcInputFormat::CscJournal => {
-            ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_policy(
+            ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_options(
                 bytes,
                 &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+                options.permissive,
             )?
+        }
+        SupportedDcInputFormat::CscArchive => {
+            let policy = if options.permissive {
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+            } else {
+                ctb_formats_dcstring::DcProjectionPolicy::strict()
+            };
+            ctb_io_csc::journal::convert_cscarchive_to_dcmstring_with_policy(bytes, &policy)?
+        }
+        SupportedDcInputFormat::CscArchive1 => {
+            let policy = if options.permissive {
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+            } else {
+                ctb_formats_dcstring::DcProjectionPolicy::strict()
+            };
+            ctb_io_csc::journal::convert_cscarchive1_to_dcmstring_with_policy(bytes, &policy)?
+        }
+        SupportedDcInputFormat::CscArchive2 => {
+            let policy = if options.permissive {
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+            } else {
+                ctb_formats_dcstring::DcProjectionPolicy::strict()
+            };
+            ctb_io_csc::journal::convert_cscarchive2_to_dcmstring_with_policy(bytes, &policy)?
+        }
+        SupportedDcInputFormat::Cp437
+        | SupportedDcInputFormat::MacRoman
+        | SupportedDcInputFormat::Win1252
+        | SupportedDcInputFormat::Iso88591
+        | SupportedDcInputFormat::AlphaSmartNeo
+        | SupportedDcInputFormat::AlphaSmartNeoLowGrUs
+        | SupportedDcInputFormat::AlphaSmartNeoLowGrUaMac
+        | SupportedDcInputFormat::AlphaSmartNeoLowGrUaPc
+        | SupportedDcInputFormat::AlphaSmartNeoLowCtlUs
+        | SupportedDcInputFormat::AlphaSmartNeoLowCtlUaMac
+        | SupportedDcInputFormat::AlphaSmartNeoLowCtlUaPc => {
+            single_byte_encoding_to_dcmstring(resolved_format.to_format_id(), bytes)?
         }
     };
 
@@ -230,8 +395,38 @@ pub fn convert_dcmstring_to_bytes(
         SupportedDcOutputFormat::Dcal => {
             ctb_formats_dcstring::converters::dcal::dcmstring_to_dcal(doc)?
         }
+        SupportedDcOutputFormat::Csdl => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_csdl(doc)?
+        }
+        SupportedDcOutputFormat::Dcsh => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_dcsh(doc)?
+        }
+        SupportedDcOutputFormat::CtbNodes => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_ctbnodes(doc)?
+        }
+        SupportedDcOutputFormat::CtbNodeBundle => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_ctbnbdl(doc)?
+        }
+        SupportedDcOutputFormat::CtbNodeBundle1 => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_ctbnbdl1(doc)?
+        }
+        SupportedDcOutputFormat::CtbNodeBundle2 => {
+            ctb_formats_dcstring::converters::dcal::dcmstring_to_ctbnbdl2(doc)?
+        }
         SupportedDcOutputFormat::DcIntegerList => {
             ctb_formats_dcstring::converters::eite::dcmstring_to_dcil(doc)?
+        }
+        SupportedDcOutputFormat::Sems => {
+            ctb_formats_dcstring::converters::eite::dcmstring_to_sems(doc)?
+        }
+        SupportedDcOutputFormat::Html => {
+            ctb_formats_dcstring::converters::eite::dcmstring_to_html(doc)?
+        }
+        SupportedDcOutputFormat::HtmlFragment => {
+            ctb_formats_dcstring::converters::eite::dcmstring_to_html_fragment(doc)?
+        }
+        SupportedDcOutputFormat::EiteColorCoded => {
+            ctb_formats_dcstring::converters::eite::dcmstring_to_eite_colorcoded(doc)?
         }
         SupportedDcOutputFormat::DcMixed => {
             ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm(doc)?
@@ -254,8 +449,33 @@ pub fn convert_dcmstring_to_bytes(
         SupportedDcOutputFormat::AsciiSafeSubset => {
             ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_safe_subset(doc)?
         }
-        unhandled => {
-            bail!("Export to format {unhandled:?} is not yet implemented");
+        SupportedDcOutputFormat::CscJournal => {
+            ctb_io_csc::journal::dcmstring_to_cscjournal(doc)?
+        }
+        SupportedDcOutputFormat::CscArchive => {
+            ctb_io_csc::journal::dcmstring_to_cscarchive(doc)?
+        }
+        SupportedDcOutputFormat::CscArchive1 => {
+            ctb_io_csc::journal::dcmstring_to_cscarchive1(doc)?
+        }
+        SupportedDcOutputFormat::CscArchive2 => {
+            ctb_io_csc::journal::dcmstring_to_cscarchive2(doc)?
+        }
+        SupportedDcOutputFormat::Cp437
+        | SupportedDcOutputFormat::MacRoman
+        | SupportedDcOutputFormat::Win1252
+        | SupportedDcOutputFormat::Iso88591
+        | SupportedDcOutputFormat::AlphaSmartNeo
+        | SupportedDcOutputFormat::AlphaSmartNeoLowGrUs
+        | SupportedDcOutputFormat::AlphaSmartNeoLowGrUaMac
+        | SupportedDcOutputFormat::AlphaSmartNeoLowGrUaPc
+        | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUs
+        | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaMac
+        | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaPc => {
+            dcmstring_to_single_byte_encoding(format.to_format_id(), doc)?
+        }
+        SupportedDcOutputFormat::Elad => {
+            bail!("Export to format {format:?} is not yet implemented");
         }
     };
 
@@ -329,6 +549,7 @@ mod tests {
             &DcConversionOptions {
                 format: FormatSpec::Format(SupportedDcInputFormat::DcIntegerList),
                 allow_binary_encapsulation: false,
+                ..Default::default()
             },
         )?;
         let exported = convert_dcmstring_to_bytes(
@@ -342,6 +563,7 @@ mod tests {
             &DcConversionOptions {
                 format: FormatSpec::Format(SupportedDcInputFormat::DcUtf),
                 allow_binary_encapsulation: false,
+                ..Default::default()
             },
         )?;
         let output = convert_dcmstring_to_bytes(
@@ -503,6 +725,7 @@ mod tests {
             &DcConversionOptions {
                 format: FormatSpec::Format(SupportedDcInputFormat::Ascii),
                 allow_binary_encapsulation: false,
+                ..Default::default()
             },
         )
         .expect("convert ascii");
@@ -532,6 +755,7 @@ mod tests {
                     SupportedDcInputFormat::AsciiSafeSubset,
                 ),
                 allow_binary_encapsulation: false,
+                ..Default::default()
             },
         )
         .expect("convert ascii safe subset");
@@ -579,6 +803,7 @@ mod tests {
                 &DcConversionOptions {
                     format: FormatSpec::Format(SupportedDcInputFormat::CscJournal),
                     allow_binary_encapsulation: false,
+                    ..Default::default()
                 },
             )
             .expect("convert cscjournal explicit");
@@ -599,6 +824,7 @@ mod tests {
                         FormatId::CscJournal4
                     }),
                     allow_binary_encapsulation: false,
+                    ..Default::default()
                 },
             )
             .expect("convert cscjournal by FormatId");
@@ -634,5 +860,169 @@ mod tests {
             assert_eq!(res_file.detected_format, FormatId::CscJournal);
             assert_eq!(res_file.document.as_bytes(), res_explicit.document.as_bytes());
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_convert_ctbnodes_and_ctbnbdl_parity() {
+        let ctbnodes_input = b"# Sample nodes\nl8589934592: 586 615 581 # Is an instance of\nl8589934593: u4c u61 u74 u69 u6e # Latin\n";
+        let nodes_res = convert_bytes_to_dcmstring(
+            ctbnodes_input,
+            Some("test.ctbnodes"),
+            &DcConversionOptions::default(),
+        )
+        .expect("convert .ctbnodes");
+        assert_eq!(nodes_res.detected_format, FormatId::CtbNodes);
+
+        let bdl_export = convert_dcmstring_to_bytes(
+            &nodes_res.document,
+            SupportedDcOutputFormat::CtbNodeBundle,
+            &DcExportOptions::default(),
+        )
+        .expect("export .ctbnbdl");
+        assert!(bdl_export.bytes.starts_with(b"CTBNBDL\x02"));
+
+        let bdl_res = convert_bytes_to_dcmstring(
+            &bdl_export.bytes,
+            Some("test.ctbnbdl"),
+            &DcConversionOptions::default(),
+        )
+        .expect("convert .ctbnbdl");
+        assert_eq!(bdl_res.document.as_bytes(), nodes_res.document.as_bytes());
+
+        let nodes_export = convert_dcmstring_to_bytes(
+            &bdl_res.document,
+            SupportedDcOutputFormat::CtbNodes,
+            &DcExportOptions::default(),
+        )
+        .expect("export .ctbnodes");
+        let reimported = convert_bytes_to_dcmstring(
+            &nodes_export.bytes,
+            Some("roundtrip.ctbnodes"),
+            &DcConversionOptions::default(),
+        )
+        .expect("reimport .ctbnodes");
+        assert_eq!(reimported.document.as_bytes(), nodes_res.document.as_bytes());
+    }
+
+    #[crate::ctb_test]
+    fn test_permissive_dcmm_with_leading_asset_bundle_junk() {
+        // Construct a synthetic asset bundle wrapper (CTBRSRC\0...) followed by CTBNBDL\x02 and a valid DcMixed2 document.
+        let mut inner_doc = DcMstring::new();
+        inner_doc.push_char(ctb_formats_dcstring::DcChar(1_114_729)); // Dc 617
+        inner_doc.push_str("test node payload");
+        inner_doc.push_char(ctb_formats_dcstring::DcChar(1_114_730)); // Dc 618
+
+        let mut wrapped = b"CTBRSRC\x00\x04\x00\x00\x00data/graph/system/85899_34942.ctbnbdlCTBNBDL\x02".to_vec();
+        wrapped.extend_from_slice(inner_doc.as_bytes());
+
+        // Strict mode must reject the invalid DcMixed magic header
+        let strict_err = convert_bytes_to_dcmstring(
+            &wrapped,
+            Some("system_graph_history.rsrc"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::DcMixed),
+                allow_binary_encapsulation: false,
+                permissive: false,
+            },
+        )
+        .unwrap_err();
+        assert!(format!("{strict_err:#}").contains("Invalid DcMixed magic header"));
+
+        // Permissive mode must recover the embedded DcMixed2 document with warnings
+        let permissive_res = convert_bytes_to_dcmstring(
+            &wrapped,
+            Some("system_graph_history.rsrc"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::DcMixed),
+                allow_binary_encapsulation: false,
+                permissive: true,
+            },
+        )
+        .expect("permissive dcmm decode");
+        assert!(permissive_res.log.has_warnings());
+        let dclist = permissive_res.document.to_dc_string().unwrap().to_dclist();
+        assert!(
+            dclist.contains(&1_114_729) && dclist.contains(&1_114_730),
+            "Decoded dclist must contain the embedded Dc 617 .. Dc 618 statements"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_convert_csdl_dcsh_cscarchive_and_encodings() {
+        // 1. Csdl roundtrip
+        let csdl_in = b"65, 1114408, 2228304";
+        let csdl_res = convert_bytes_to_dcmstring(
+            csdl_in,
+            Some("test.csdl"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Csdl),
+                ..Default::default()
+            },
+        )
+        .expect("csdl import");
+        let csdl_out = convert_dcmstring_to_bytes(
+            &csdl_res.document,
+            SupportedDcOutputFormat::Csdl,
+            &DcExportOptions::default(),
+        )
+        .expect("csdl export");
+        assert_eq!(csdl_out.bytes, b"65,1114408,2228304");
+
+        // 2. Dcsh roundtrip
+        let dcsh_in = b"u41 296 f80";
+        let dcsh_res = convert_bytes_to_dcmstring(
+            dcsh_in,
+            Some("test.dcsh"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Dcsh),
+                ..Default::default()
+            },
+        )
+        .expect("dcsh import");
+        assert_eq!(dcsh_res.document.as_bytes(), csdl_res.document.as_bytes());
+        let dcsh_out = convert_dcmstring_to_bytes(
+            &dcsh_res.document,
+            SupportedDcOutputFormat::Dcsh,
+            &DcExportOptions::default(),
+        )
+        .expect("dcsh export");
+        assert_eq!(dcsh_out.bytes, dcsh_in);
+
+        // 3. CscArchive roundtrip
+        let arch_out = convert_dcmstring_to_bytes(
+            &dcsh_res.document,
+            SupportedDcOutputFormat::CscArchive,
+            &DcExportOptions::default(),
+        )
+        .expect("cscarchive export");
+        assert!(arch_out.bytes.starts_with(b"CTBCSCA\x02"));
+        let arch_in = convert_bytes_to_dcmstring(
+            &arch_out.bytes,
+            Some("test.cscarchive"),
+            &DcConversionOptions::default(),
+        )
+        .expect("cscarchive autodetect import");
+        assert_eq!(arch_in.document.as_bytes(), dcsh_res.document.as_bytes());
+
+        // 4. MacRoman single-byte encoding roundtrip
+        let mut text_doc = DcMstring::new();
+        text_doc.push_str("caf\u{e9}");
+        let mac_out = convert_dcmstring_to_bytes(
+            &text_doc,
+            SupportedDcOutputFormat::MacRoman,
+            &DcExportOptions::default(),
+        )
+        .expect("macroman export");
+        assert_eq!(mac_out.bytes, vec![99, 97, 102, 142]);
+        let mac_in = convert_bytes_to_dcmstring(
+            &mac_out.bytes,
+            None,
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::MacRoman),
+                ..Default::default()
+            },
+        )
+        .expect("macroman import");
+        assert_eq!(mac_in.document, "caf\u{e9}");
     }
 }

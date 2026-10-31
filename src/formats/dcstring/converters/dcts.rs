@@ -169,8 +169,24 @@ pub fn dcstring_to_dcts(s: &DcStr) -> Vec<u8> {
 
 /// Converts a Dcts document to `DcMstring`.
 pub fn dcts_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    dcts_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts a Dcts document to `DcMstring`, optionally in permissive mode.
+pub fn dcts_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
     let conv = dcts_to_dcstring(bytes)?;
-    let doc = crate::DcMstring::from_dc_string(&conv.result)?;
+    if !permissive && conv.log.has_errors() {
+        bail!("Invalid Dcts token(s): {}", conv.log.get_errors().join("; "));
+    }
+    let policy = if permissive {
+        crate::DcProjectionPolicy::forgiving()
+    } else {
+        crate::DcProjectionPolicy::strict()
+    };
+    let doc = crate::DcMstring::from_dc_string_with_policy(&conv.result, &policy)?;
     Ok((doc, conv.log))
 }
 
