@@ -7,7 +7,7 @@
       "--network=host"
     ]
   },
-  "initializeCommand": "scripts/lock-graph-append-only --host-init || true",
+  "initializeCommand": "scripts/lock-graph-append-only --host-init",
   "runArgs": [
     "--network=host",
     "--cap-drop=LINUX_IMMUTABLE"

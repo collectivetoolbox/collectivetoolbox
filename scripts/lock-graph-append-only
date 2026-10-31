@@ -21,87 +21,171 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 REPO_ROOT="$(pwd)"
 GRAPH_DIR="${REPO_ROOT}/assets/data/graph"
+CANARY_FILE="${REPO_ROOT}/.git/ctb-append-only-canary"
+HELPER_IMAGE="ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2"
+WATCHER_CONTAINER_NAME="ctb-graph-append-only-watcher"
 
-run_chattr() {
-    if ! command -v chattr >/dev/null 2>&1; then
-        return 1
-    fi
-    if [ "$(id -u)" -eq 0 ]; then
-        chattr "$@"
-    elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-        sudo -n chattr "$@"
-    else
-        return 1
+# Self-contained Python script executed inside the helper container (which has CAP_LINUX_IMMUTABLE).
+# Uses Linux kernel ioctl FS_IOC_GETFLAGS (0x80086601) and FS_IOC_SETFLAGS (0x40086602) directly
+# and verifies every flag readback, failing loudly on any error.
+read -r -d '' PYTHON_LOCK_SCRIPT << 'PYEOF' || true
+import fcntl
+import glob
+import os
+import struct
+import sys
+import time
+
+FS_IOC_GETFLAGS = 0x80086601
+FS_IOC_SETFLAGS = 0x40086602
+FS_IMMUTABLE_FL = 0x00000010
+FS_APPEND_FL = 0x00000020
+
+def get_flags(path: str) -> int:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        buf = fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack("L", 0))
+        return struct.unpack("L", buf)[0]
+    finally:
+        os.close(fd)
+
+def set_exact_lock_flags(path: str, want_immutable: bool, want_append: bool) -> None:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        buf = fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack("L", 0))
+        cur = struct.unpack("L", buf)[0]
+        target = cur & ~(FS_IMMUTABLE_FL | FS_APPEND_FL)
+        if want_immutable:
+            target |= FS_IMMUTABLE_FL
+        if want_append:
+            target |= FS_APPEND_FL
+        if cur != target:
+            # Clear both first if transitioning between +a and +i
+            if (cur & (FS_IMMUTABLE_FL | FS_APPEND_FL)) and (target & (FS_IMMUTABLE_FL | FS_APPEND_FL)):
+                cleared = cur & ~(FS_IMMUTABLE_FL | FS_APPEND_FL)
+                fcntl.ioctl(fd, FS_IOC_SETFLAGS, struct.pack("L", cleared))
+            fcntl.ioctl(fd, FS_IOC_SETFLAGS, struct.pack("L", target))
+        verify_buf = fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack("L", 0))
+        verified = struct.unpack("L", verify_buf)[0]
+        if (verified & (FS_IMMUTABLE_FL | FS_APPEND_FL)) != (target & (FS_IMMUTABLE_FL | FS_APPEND_FL)):
+            raise RuntimeError(
+                f"Kernel flag verification failed for {path}: expected 0x{target:08x}, got 0x{verified:08x}"
+            )
+    finally:
+        os.close(fd)
+
+def lock_pass(graph_dir: str, canary_path: str) -> tuple[int, int]:
+    if os.path.isfile(canary_path):
+        set_exact_lock_flags(canary_path, want_immutable=False, want_append=True)
+    immutable_count = 0
+    append_count = 0
+    for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+        with open(path, "rb") as f:
+            line_count = sum(1 for _ in f)
+        if line_count >= 100:
+            set_exact_lock_flags(path, want_immutable=True, want_append=False)
+            immutable_count += 1
+        else:
+            set_exact_lock_flags(path, want_immutable=False, want_append=True)
+            append_count += 1
+    return immutable_count, append_count
+
+def unlock_pass(graph_dir: str, canary_path: str) -> int:
+    unlocked = 0
+    if os.path.isfile(canary_path):
+        set_exact_lock_flags(canary_path, want_immutable=False, want_append=False)
+        unlocked += 1
+    for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+        set_exact_lock_flags(path, want_immutable=False, want_append=False)
+        unlocked += 1
+    return unlocked
+
+mode = sys.argv[1]
+graph_dir = sys.argv[2]
+canary_path = sys.argv[3]
+
+if mode == "lock-once":
+    imm, app = lock_pass(graph_dir, canary_path)
+    print(f"Locked graph ledger: {imm} full chunk(s) set FS_IMMUTABLE_FL (+i), {app} active tail chunk(s) + canary set FS_APPEND_FL (+a).")
+elif mode == "watch":
+    while True:
+        lock_pass(graph_dir, canary_path)
+        time.sleep(2.0)
+elif mode == "unlock":
+    count = unlock_pass(graph_dir, canary_path)
+    print(f"Unlocked {count} file(s) (cleared FS_IMMUTABLE_FL and FS_APPEND_FL).")
+else:
+    raise ValueError(f"Unknown mode: {mode}")
+PYEOF
+
+ensure_canary_file() {
+    mkdir -p "${REPO_ROOT}/.git"
+    if [ ! -f "${CANARY_FILE}" ]; then
+        printf "ctb-append-only-canary initialized\n" > "${CANARY_FILE}"
     fi
 }
 
-apply_host_chattr_locks() {
+run_host_init() {
     if [ ! -d "${GRAPH_DIR}" ]; then
-        return 0
+        echo "Error: Graph directory not found at ${GRAPH_DIR}" >&2
+        exit 1
     fi
-    if ! command -v chattr >/dev/null 2>&1; then
-        return 0
-    fi
+    ensure_canary_file
 
-    # Lock each .ctbnodes chunk file:
-    # - Full 100-line chunks are completely closed and never written to again (+i immutable, or +a append-only).
-    # - The active tail chunk (< 100 lines) is strictly append-only (+a).
-    shopt -s nullglob
-    for node_file in "${GRAPH_DIR}"/*.ctbnodes; do
-        line_count="$(wc -l < "${node_file}" | tr -d '[:space:]')"
-        if [ "${line_count}" -ge 100 ]; then
-            run_chattr -a "${node_file}" 2>/dev/null || true
-            run_chattr +i "${node_file}" 2>/dev/null || run_chattr +a "${node_file}" 2>/dev/null || true
-        else
-            run_chattr -i "${node_file}" 2>/dev/null || true
-            run_chattr +a "${node_file}" 2>/dev/null || true
-        fi
-    done
-    shopt -u nullglob
-
-    # Lock the graph directory itself as append-only (+a):
-    # Allows creating new .ctbnodes chunk files (O_CREAT) and truncating .ctbnbdl in-place,
-    # while the kernel forbids unlink (rm) and rename (mv / git checkout) on all files in assets/data/graph/.
-    run_chattr +a "${GRAPH_DIR}" 2>/dev/null || true
-}
-
-install_host_systemd_watcher() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo "Error: --install-host must be run as root on the host (e.g., sudo ./scripts/lock-graph-append-only --install-host)" >&2
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "Error: docker CLI is required on the host to apply CAP_LINUX_IMMUTABLE without host root." >&2
         exit 1
     fi
 
-    apply_host_chattr_locks
+    # 1. Synchronously apply and verify FS_IMMUTABLE_FL (+i) and FS_APPEND_FL (+a) via a one-shot helper container.
+    docker run --rm \
+        --network=none \
+        --security-opt=no-new-privileges \
+        --cap-add=LINUX_IMMUTABLE \
+        -v "${GRAPH_DIR}:/graph" \
+        -v "${CANARY_FILE}:/canary" \
+        "${HELPER_IMAGE}" \
+        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary
 
-    if [ -d /etc/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
-        cat > /etc/systemd/system/ctb-graph-append-only.service <<EOF
-[Unit]
-Description=Apply append-only/immutable kernel inode flags to Collective Toolbox graph ledger
-
-[Service]
-Type=oneshot
-ExecStart=${REPO_ROOT}/scripts/lock-graph-append-only --host-init
-EOF
-
-        cat > /etc/systemd/system/ctb-graph-append-only.path <<EOF
-[Unit]
-Description=Watch Collective Toolbox graph ledger directory for new chunk files
-
-[Path]
-PathChanged=${GRAPH_DIR}
-Unit=ctb-graph-append-only.service
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-        systemctl daemon-reload
-        systemctl enable --now ctb-graph-append-only.path
-        systemctl start ctb-graph-append-only.service
-        echo "Installed and started systemd path watcher (ctb-graph-append-only.path) and locked ${GRAPH_DIR}."
-    else
-        echo "Applied chattr +a/+i locks to ${GRAPH_DIR} (systemd not detected on this host)."
+    # 2. Ensure the detached watcher container is running so newly created .ctbnodes chunks are automatically locked.
+    if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
+        docker rm -f "${WATCHER_CONTAINER_NAME}" >/dev/null
     fi
+
+    docker run -d \
+        --name "${WATCHER_CONTAINER_NAME}" \
+        --restart=unless-stopped \
+        --network=none \
+        --security-opt=no-new-privileges \
+        --cap-add=LINUX_IMMUTABLE \
+        -v "${GRAPH_DIR}:/graph" \
+        -v "${CANARY_FILE}:/canary" \
+        "${HELPER_IMAGE}" \
+        python3 -c "${PYTHON_LOCK_SCRIPT}" watch /graph /canary >/dev/null
+
+    echo "Started background Docker watcher '${WATCHER_CONTAINER_NAME}' for ${GRAPH_DIR}."
+}
+
+run_unlock() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "Error: docker CLI is required on the host to run --unlock." >&2
+        exit 1
+    fi
+    ensure_canary_file
+
+    if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
+        docker rm -f "${WATCHER_CONTAINER_NAME}" >/dev/null
+        echo "Stopped background Docker watcher '${WATCHER_CONTAINER_NAME}'."
+    fi
+
+    docker run --rm \
+        --network=none \
+        --security-opt=no-new-privileges \
+        --cap-add=LINUX_IMMUTABLE \
+        -v "${GRAPH_DIR}:/graph" \
+        -v "${CANARY_FILE}:/canary" \
+        "${HELPER_IMAGE}" \
+        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary
 }
 
 seed_highwater_from_head() {
@@ -121,169 +205,199 @@ seed_highwater_from_head() {
         fi
         local base_name
         base_name="$(basename "${rel_path}")"
-        local out_file="${target_dir}/${base_name}"
-        if [ ! -e "${out_file}" ]; then
-            /usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" > "${out_file}"
-            chmod 0444 "${out_file}"
-        fi
-    done < <(/usr/bin/git -C "${REPO_ROOT}" ls-tree --name-only HEAD assets/data/graph/ | grep '\.ctbnodes$' || true)
+        local dest_file="${target_dir}/${base_name}"
+        git -C "${REPO_ROOT}" show "HEAD:${rel_path}" > "${dest_file}"
+        chmod 0444 "${dest_file}"
+    done < <(git -C "${REPO_ROOT}" ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
 }
 
-install_container_guards() {
-    mkdir -p /usr/local/sbin
-
-    # 1. Install /usr/local/sbin/git wrapper to block git checkout / restore / reset / clean on assets/data/graph/
-    cat > /usr/local/sbin/git <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-REAL_GIT="/usr/local/bin/git"
-if [ ! -x "${REAL_GIT}" ]; then
-    REAL_GIT="/usr/bin/git"
-fi
-
-if [ "${CTB_ALLOW_GRAPH_MUTATION:-}" != "I_AM_THE_OPERATOR" ]; then
-    subcmd=""
-    for arg in "$@"; do
-        case "${arg}" in
-            -*)
-                ;;
-            checkout|restore|reset|clean|revert|stash)
-                subcmd="${arg}"
-                break
-                ;;
-        esac
-    done
-
-    if [ -n "${subcmd}" ]; then
-        for arg in "$@"; do
-            case "${arg}" in
-                *assets/data/graph*|*.ctbnodes*|*.ctbnbdl*)
-                    echo "FATAL: Refusing 'git ${subcmd}' on append-only graph ledger ('${arg}')." >&2
-                    echo "Graph files in assets/data/graph/ are strictly append-only and must NEVER be reverted, checked out, or reset." >&2
-                    exit 1
-                    ;;
-            esac
-        done
-
-        # Also block whole-worktree destructive git commands if assets/data/graph/ has uncommitted changes
-        block_whole_tree=false
-        case "${subcmd}" in
-            reset)
-                for arg in "$@"; do
-                    if [ "${arg}" = "--hard" ]; then
-                        block_whole_tree=true
-                    fi
-                done
-                ;;
-            clean)
-                block_whole_tree=true
-                ;;
-            checkout|restore)
-                for arg in "$@"; do
-                    if [ "${arg}" = "." ] || [ "${arg}" = "./" ] || [ "${arg}" = "assets" ] || [ "${arg}" = "assets/" ] || [ "${arg}" = "assets/data" ] || [ "${arg}" = "assets/data/" ]; then
-                        block_whole_tree=true
-                    fi
-                done
-                ;;
-        esac
-
-        if [ "${block_whole_tree}" = true ]; then
-            if [ -n "$("${REAL_GIT}" status --porcelain -- assets/data/graph/ 2>/dev/null || true)" ]; then
-                echo "FATAL: Refusing whole-tree 'git ${subcmd}' while append-only graph ledger 'assets/data/graph/' has uncommitted changes." >&2
-                echo "Commit or preserve assets/data/graph/ changes first; already-assigned graph node IDs must never be discarded." >&2
-                exit 1
-            fi
+remove_legacy_wrappers() {
+    for cmd in git rm mv truncate; do
+        if [ -f "/usr/local/sbin/${cmd}" ] && grep -q "assets/data/graph" "/usr/local/sbin/${cmd}" 2>/dev/null; then
+            unlink "/usr/local/sbin/${cmd}"
         fi
+    done
+}
+
+install_git_pre_commit_hook() {
+    if [ ! -d "${REPO_ROOT}/.git" ]; then
+        return 0
     fi
-fi
-
-exec "${REAL_GIT}" "$@"
-EOF
-    chmod 0755 /usr/local/sbin/git
-
-    # 2. Install /usr/local/sbin/{rm,mv,truncate} wrappers to block deleting, renaming, or truncating .ctbnodes files
-    for tool_name in rm mv truncate; do
-        cat > "/usr/local/sbin/${tool_name}" <<EOF
+    mkdir -p "${REPO_ROOT}/.git/hooks"
+    local hook_path="${REPO_ROOT}/.git/hooks/pre-commit"
+    cat > "${hook_path}" << 'HOOKEOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "\${CTB_ALLOW_GRAPH_MUTATION:-}" != "I_AM_THE_OPERATOR" ]; then
-    for arg in "\$@"; do
-        case "\${arg}" in
-            *assets/data/graph*|*.ctbnodes*)
-                echo "FATAL: Refusing '${tool_name}' on append-only graph ledger target '\${arg}'." >&2
-                echo "Files in assets/data/graph/ are strictly append-only and must NEVER be deleted, moved, or truncated." >&2
-                exit 1
-                ;;
-        esac
-    done
-fi
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-exec "/usr/bin/${tool_name}" "\$@"
-EOF
-        chmod 0755 "/usr/local/sbin/${tool_name}"
-    done
-
-    # 3. Install Git pre-commit hook verifying strict append-only invariant against HEAD
-    if [ -d "${REPO_ROOT}/.git/hooks" ]; then
-        cat > "${REPO_ROOT}/.git/hooks/pre-commit" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-REPO_ROOT="$(/usr/bin/git rev-parse --show-toplevel)"
 while IFS= read -r rel_path; do
     if [ -z "${rel_path}" ]; then
         continue
     fi
     work_file="${REPO_ROOT}/${rel_path}"
     if [ ! -f "${work_file}" ]; then
-        echo "FATAL: Append-only graph chunk '${rel_path}' from HEAD is missing in working tree!" >&2
+        echo "FATAL [pre-commit]: Append-only graph chunk '${rel_path}' from HEAD is missing in the working tree!" >&2
         exit 1
     fi
-    head_lines="$(/usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" | wc -l | tr -d '[:space:]')"
-    work_lines="$(wc -l < "${work_file}" | tr -d '[:space:]')"
-    if [ "${work_lines}" -lt "${head_lines}" ]; then
-        echo "FATAL: Append-only graph chunk '${rel_path}' shrunk from ${head_lines} lines in HEAD to ${work_lines} lines!" >&2
+    head_tmp="$(mktemp)"
+    git show "HEAD:${rel_path}" > "${head_tmp}"
+    head_size="$(wc -c < "${head_tmp}" | tr -d '[:space:]')"
+    work_size="$(wc -c < "${work_file}" | tr -d '[:space:]')"
+    if [ "${work_size}" -lt "${head_size}" ]; then
+        rm "${head_tmp}"
+        echo "FATAL [pre-commit]: Append-only graph chunk '${rel_path}' shrank (${work_size} < ${head_size} bytes in HEAD)!" >&2
         exit 1
     fi
-    # Compare the token prefix (everything before '#') of the first head_lines lines
-    if ! diff -u \
-        <(/usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" | sed 's/[[:space:]]*#.*$//') \
-        <(head -n "${head_lines}" "${work_file}" | sed 's/[[:space:]]*#.*$//') >/dev/null; then
-        echo "FATAL: Append-only invariant violated in '${rel_path}': existing node IDs or Dc tokens differ from HEAD!" >&2
+    if ! cmp -n "${head_size}" -s "${head_tmp}" "${work_file}"; then
+        rm "${head_tmp}"
+        echo "FATAL [pre-commit]: Existing lines in append-only graph chunk '${rel_path}' were modified relative to HEAD!" >&2
         exit 1
     fi
-done < <(/usr/bin/git -C "${REPO_ROOT}" ls-tree --name-only HEAD assets/data/graph/ | grep '\.ctbnodes$' || true)
-EOF
-        chmod 0755 "${REPO_ROOT}/.git/hooks/pre-commit"
-    fi
+    rm "${head_tmp}"
+done < <(git ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
+HOOKEOF
+    chmod +x "${hook_path}"
+}
 
-    # 4. Seed high-water-mark shadow ledgers from HEAD if not yet initialized
+run_container_init() {
+    remove_legacy_wrappers
+    ensure_canary_file
+    install_git_pre_commit_hook
     seed_highwater_from_head "${REPO_ROOT}/.git/ctb-graph-ledger-highwater"
     if [ -d "/root/.gemini" ]; then
         seed_highwater_from_head "/root/.gemini/ctb-graph-ledger-highwater"
     fi
 }
 
-mode="${1:---host-init}"
-case "${mode}" in
+run_test_canary() {
+    ensure_canary_file
+    python3 - "${CANARY_FILE}" "${GRAPH_DIR}" << 'PYTEST'
+import errno
+import fcntl
+import glob
+import os
+import struct
+import sys
+
+FS_IOC_GETFLAGS = 0x80086601
+FS_IOC_SETFLAGS = 0x40086602
+FS_IMMUTABLE_FL = 0x00000010
+FS_APPEND_FL = 0x00000020
+
+canary = sys.argv[1]
+graph_dir = sys.argv[2]
+
+def get_flags(path: str) -> int:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        buf = fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack("L", 0))
+        return struct.unpack("L", buf)[0]
+    finally:
+        os.close(fd)
+
+flags = get_flags(canary)
+if not (flags & FS_APPEND_FL):
+    print(
+        f"ERROR: Canary file {canary} does not have FS_APPEND_FL set (flags=0x{flags:08x}).\n"
+        "Run `./scripts/lock-graph-append-only --host-init` on the host (or reload the devcontainer) first.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# 1. Verify clearing FS_APPEND_FL inside container fails with EPERM
+fd = os.open(canary, os.O_RDONLY)
+try:
+    try:
+        fcntl.ioctl(fd, FS_IOC_SETFLAGS, struct.pack("L", flags & ~FS_APPEND_FL))
+        print("ERROR: Container was able to clear FS_APPEND_FL on canary!", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError:
+        pass
+finally:
+    os.close(fd)
+
+# 2. Verify O_TRUNC fails with EPERM on canary
+try:
+    fd = os.open(canary, os.O_WRONLY | os.O_TRUNC)
+    os.close(fd)
+    print("ERROR: O_TRUNC succeeded on append-only canary!", file=sys.stderr)
+    sys.exit(1)
+except PermissionError:
+    pass
+
+# 3. Verify non-append O_WRONLY fails with EPERM on canary
+try:
+    fd = os.open(canary, os.O_WRONLY)
+    os.close(fd)
+    print("ERROR: Non-append O_WRONLY succeeded on append-only canary!", file=sys.stderr)
+    sys.exit(1)
+except PermissionError:
+    pass
+
+# 4. Verify unlink and rename fail with EPERM on canary
+try:
+    os.unlink(canary)
+    print("ERROR: unlink succeeded on append-only canary!", file=sys.stderr)
+    sys.exit(1)
+except PermissionError:
+    pass
+
+try:
+    os.rename(canary, canary + ".moved")
+    print("ERROR: rename succeeded on append-only canary!", file=sys.stderr)
+    sys.exit(1)
+except PermissionError:
+    pass
+
+# 5. Verify O_APPEND write succeeds on canary
+fd = os.open(canary, os.O_WRONLY | os.O_APPEND)
+try:
+    os.write(fd, b"canary append check ok\n")
+finally:
+    os.close(fd)
+
+# 6. Read-only verification of FS_IMMUTABLE_FL / FS_APPEND_FL on assets/data/graph/*.ctbnodes
+imm_count = 0
+app_count = 0
+for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+    f_flags = get_flags(path)
+    with open(path, "rb") as f:
+        lines = sum(1 for _ in f)
+    if lines >= 100:
+        if not (f_flags & FS_IMMUTABLE_FL):
+            print(f"ERROR: Full 100-line chunk {path} lacks FS_IMMUTABLE_FL (0x{f_flags:08x})", file=sys.stderr)
+            sys.exit(1)
+        imm_count += 1
+    else:
+        if not (f_flags & FS_APPEND_FL):
+            print(f"ERROR: Active tail chunk {path} lacks FS_APPEND_FL (0x{f_flags:08x})", file=sys.stderr)
+            sys.exit(1)
+        app_count += 1
+
+print(
+    f"Canary self-test passed on {canary} (O_TRUNC/O_WRONLY/unlink/rename/chattr blocked with EPERM; O_APPEND succeeded).\n"
+    f"Read-only flag check verified {imm_count} immutable (+i) and {app_count} append-only (+a) .ctbnodes files."
+)
+PYTEST
+}
+
+MODE="${1:---container-init}"
+case "${MODE}" in
     --host-init)
-        apply_host_chattr_locks
+        run_host_init
         ;;
-    --install-host)
-        install_host_systemd_watcher
+    --unlock)
+        run_unlock
         ;;
     --container-init)
-        install_container_guards
-        apply_host_chattr_locks
+        run_container_init
         ;;
-    --all)
-        install_container_guards
-        apply_host_chattr_locks
+    --test-canary)
+        run_test_canary
         ;;
     *)
-        echo "Usage: $0 [--host-init | --install-host | --container-init | --all]" >&2
+        echo "Usage: $0 [--host-init | --unlock | --container-init | --test-canary]" >&2
         exit 1
         ;;
 esac
