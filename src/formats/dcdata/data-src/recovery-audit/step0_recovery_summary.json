@@ -1,0 +1,30 @@
+{
+  "ambiguous_count": 602,
+  "artifact_sha256s": {
+    "collision_manifest.json": "544db731ee1c773b7bdbcd95ef52e15ffc906c3954053edff6c949e9e0175980",
+    "invocation_and_mutation_window_audit.json": "47fc60288a375e5dfc1adb895a159f8f6de4f62344c81d6f5a2e4e3f57d6aab6",
+    "observed_run1_document_csv_slice.csv": "7fa654d4acc1d0e78940f27b11c4bdb7bc5901a16aa5b461aeec516332f88866",
+    "observed_run2_document_csv_slice.csv": "cbf225f2bfd06a4dbaa976044cba8dfacd4cc222f60cae6d8f187b2becddd1e1",
+    "observed_run2_nodes_8589951799_8589952424.ctbnodes": "97443057bd4c3694d1ca47c4c1ca57fab25175c3854c78de725160f5503c2c99",
+    "observed_step684_record.json": "0ac526a434a94abdc9ae5f67c8c787a651cb485ce1e97d3a11acb8170b24d46a",
+    "observed_step687_and_698_logs.json": "00cdd074241148fa9e5f133a3ee55baf51b0a6f7868671004abb9174d20cb75d",
+    "reconstructed_run1_nodes_8589951799_8589952481.ctbnodes": "fe8ac9bacc6c86319c94ca8b2ec606055f051f0b21293796d6c7c88449856dcc",
+    "step2a_manifest.json": "a789eeb01434b730e98872e692b7388d25f4959ee99108f693ac1dbba7acfcd2",
+    "step2b_manifest.json": "3f9ef3ea2307dbbc89e0fb2be7437aace99c7855871b1a3f2dec4900c03f4269"
+  },
+  "baseline_commit": "3345d2dff",
+  "current_baseline_last_id": 8589952424,
+  "current_baseline_ledger_sha256": "30f84309fe88cd6f24d109ce42d3145a686dbac94b98ed966246e1b52570defb",
+  "current_baseline_node_count": 17833,
+  "erased_tail_count": 57,
+  "run2_commit": "a90464028",
+  "step2a_appended_count": 2465,
+  "step2a_final_last_id": 8589954889,
+  "step2a_final_ledger_sha256": "6c22bf227d3fc935657ace5e1106b49b72c20da6b96751f6ecb5df7f40e06cc2",
+  "step2a_final_node_count": 20298,
+  "step2b_appended_count": 2838,
+  "step2b_final_last_id": 8589957727,
+  "step2b_final_ledger_sha256": "17e10926b9ecdeb4c72b607de32a7b412ac0e72a46fbdc093a0e26d53034a519",
+  "step2b_final_node_count": 23136,
+  "unambiguous_count": 24
+}

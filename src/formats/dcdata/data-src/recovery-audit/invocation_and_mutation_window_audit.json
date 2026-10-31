@@ -1,0 +1,33 @@
+{
+  "baseline_commit": "3345d2dff",
+  "document_csv_edit": {
+    "execution_completed_at": "2026-10-31T19:28:46Z",
+    "execution_started_at": "2026-10-31T19:28:43Z",
+    "execution_step_index": 685,
+    "proposal_physical_line": 685,
+    "proposal_step_index": 684,
+    "seconds_after_task680_exit": 39
+  },
+  "epistemic_boundary": "Run 1's .ctbnodes files were overwritten at steps 688..693 before being read into the transcript, and task-680 ran without per-syscall file-access tracing. Therefore, reconstructed_run1_nodes_8589951799_8589952481.ctbnodes is labeled as deterministic reconstruction from the unmodified generator corroborated by the 19:28:04Z summary metrics (17,890 total / 683 appended / 1 superseded / 0 retracted / 7 chunk files updated) and 100% byte-for-byte Run 2 replay.",
+  "git_diff_stat_3345d2dff_to_a90464028": " AGENTS.md                                          |   1 +\n assets/data/graph/85899_34592.ctbnbdl              | Bin 544053 -> 563453 bytes\n assets/data/graph/85899_51792.ctbnodes             |  93 +++++\n assets/data/graph/85899_51892.ctbnodes             | 100 +++++\n assets/data/graph/85899_51992.ctbnodes             | 100 +++++\n assets/data/graph/85899_52092.ctbnodes             | 100 +++++\n assets/data/graph/85899_52192.ctbnodes             | 100 +++++\n assets/data/graph/85899_52292.ctbnodes             | 100 +++++\n assets/data/graph/85899_52392.ctbnodes             |  33 ++\n assets/data/graph/system/85899_34942.ctbnbdl       | Bin 25680 -> 25792 bytes\n src/formats/dcdata/data/magic/ctoolbox.magic       |   9 +\n .../fixtures/categories/formats/document.csv       |  40 +-\n src/formats/dcdata/fixtures/formats.generated.csv  |  52 +--\n src/formats/dceutils/dceutils.rs                   | 456 +++++++++++++++++++++\n src/formats/dceutils/dceutils_tests.rs             |  17 +-\n src/formats/dcstring/Cargo.toml                    |   1 +\n src/formats/dcstring/converters.rs                 |   1 +\n src/formats/dcstring/converters/dceutils.rs        | 356 ++++++++++++++++\n src/formats/utilities/extension_data.generated.rs  |  12 +\n src/utilities/format_id.generated.rs               |  28 +-\n src/utilities/format_support.generated.rs          | 312 ++++++++++++++\n 21 files changed, 1847 insertions(+), 64 deletions(-)\n",
+  "run1_task": {
+    "backgrounded_step_index": 680,
+    "backgrounded_timestamp": "2026-10-31T19:27:33Z",
+    "launch_step_index": 679,
+    "launch_timestamp": "2026-10-31T19:27:09Z",
+    "notification_delivered_step_index": 687,
+    "notification_delivered_timestamp": "2026-10-31T19:28:48Z",
+    "process_exit_timestamp": "2026-10-31T19:28:04Z",
+    "reported_summary": "System Graph Ledger: 17890 total nodes (683 appended, 1 superseded, 0 retracted, 7 chunk files updated).",
+    "task_id": "23f9eaf6-7cd6-416e-8470-852b9878ea88/task-680"
+  },
+  "run2_commit": "a90464028",
+  "run2_task": {
+    "launch_step_index": 692,
+    "launch_timestamp": "2026-10-31T19:29:15Z",
+    "notification_delivered_step_index": 698,
+    "process_exit_timestamp": "2026-10-31T19:30:01Z",
+    "reported_summary": "System Graph Ledger: 17833 total nodes (626 appended, 1 superseded, 0 retracted, 7 chunk files updated).",
+    "task_id": "23f9eaf6-7cd6-416e-8470-852b9878ea88/task-693"
+  }
+}
