@@ -340,23 +340,23 @@ impl<'a> DcDocumentNavigator<'a> {
     /// If the pattern matches, advances `self.cursor` past the matched span and
     /// returns `Ok(true)`. If the pattern does not match, rewinds `self.cursor`
     /// to its starting offset and returns `Ok(false)`.
-    pub fn eval_pattern(
+    pub fn eval_pattern<'p, 'r: 'p>(
         &mut self,
-        pattern: &SyntaxPattern,
-        ctx: &mut SyntaxEvalContext<'_>,
+        pattern: &'p SyntaxPattern,
+        ctx: &mut SyntaxEvalContext<'r>,
     ) -> Result<bool> {
-        enum Frame<'r> {
-            Pattern(SyntaxPattern),
-            Sequence(Vec<SyntaxElement>, usize, NavigatorCheckpoint),
+        enum Frame<'p, 'r> {
+            Pattern(&'p SyntaxPattern),
+            Sequence(&'p [SyntaxElement], usize, NavigatorCheckpoint),
             Alternation {
-                branches: Vec<SyntaxPattern>,
+                branches: &'p [SyntaxPattern],
                 index: usize,
                 branch_start: NavigatorCheckpoint,
                 saved_ctx: SyntaxEvalContext<'r>,
                 zero_match: Option<(SyntaxEvalContext<'r>, NavigatorCheckpoint)>,
             },
-            Element(SyntaxElement, usize, NavigatorCheckpoint, NavigatorCheckpoint),
-            Term(SyntaxTerm),
+            Element(&'p SyntaxElement, usize, NavigatorCheckpoint, NavigatorCheckpoint),
+            Term(&'p SyntaxTerm),
             Restore(Option<u128>, usize, NavigatorCheckpoint),
         }
 
@@ -364,14 +364,14 @@ impl<'a> DcDocumentNavigator<'a> {
         let old_depth = ctx.depth;
         let old_self = ctx.self_dc;
         let result = (|| -> Result<bool> {
-            let mut frames = vec![Frame::Pattern(pattern.clone())];
+            let mut frames = vec![Frame::Pattern(pattern)];
             let mut matched = true;
             while let Some(frame) = frames.pop() {
                 match frame {
                     Frame::Term(term) => {
                         let token = self.peek_next_token()?;
                         let constructor = matches!(
-                            &term,
+                            term,
                             SyntaxTerm::NamedConstruct { name, subtype: None, .. } if name == "type"
                         ) && token.is_some_and(|ch| {
                             ch.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
@@ -413,13 +413,13 @@ impl<'a> DcDocumentNavigator<'a> {
                             ));
                             ctx.depth = ctx.depth.saturating_add(1);
                             ctx.self_dc = token.map(DcChar::to_u128);
-                            frames.push(Frame::Pattern(rule.pattern.clone()));
+                            frames.push(Frame::Pattern(&rule.pattern));
                         } else if !has_term_wrapper
                             && let SyntaxTerm::Group(group_pat) = term
                         {
                             frames.push(Frame::Pattern(group_pat));
                         } else {
-                            matched = self.eval_term_single(&term, ctx)?;
+                            matched = self.eval_term_single(term, ctx)?;
                         }
                     }
                     Frame::Pattern(pat) => match pat {
@@ -428,7 +428,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             matched = true;
                         }
                         SyntaxPattern::Alternation(branches) => {
-                            let Some(branch) = branches.first().cloned() else {
+                            let Some(branch) = branches.first() else {
                                 matched = false;
                                 continue;
                             };
@@ -461,14 +461,13 @@ impl<'a> DcDocumentNavigator<'a> {
                                 break;
                             }
                             let cp = self.save_checkpoint();
-                            let elem_cloned = elem.clone();
                             frames.push(Frame::Sequence(
                                 elements,
                                 next_idx.saturating_add(1),
                                 sequence_start,
                             ));
-                            frames.push(Frame::Element(elem_cloned.clone(), 0, cp.clone(), cp));
-                            frames.push(Frame::Term(elem_cloned.term));
+                            frames.push(Frame::Element(elem, 0, cp.clone(), cp));
+                            frames.push(Frame::Term(&elem.term));
                             break;
                         }
                     }
@@ -491,7 +490,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         self.restore_checkpoint(branch_start.clone());
                         *ctx = saved_ctx.clone();
-                        if let Some(branch) = branches.get(index).cloned() {
+                        if let Some(branch) = branches.get(index) {
                             frames.push(Frame::Alternation {
                                 branches,
                                 index: index.saturating_add(1),
@@ -530,12 +529,12 @@ impl<'a> DcDocumentNavigator<'a> {
                         {
                             let cp = self.save_checkpoint();
                             frames.push(Frame::Element(
-                                element.clone(),
+                                element,
                                 count,
                                 element_start,
                                 cp,
                             ));
-                            frames.push(Frame::Term(element.term));
+                            frames.push(Frame::Term(&element.term));
                             continue;
                         }
                         matched = match element.quantifier {
@@ -917,8 +916,23 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.eval_literal_frame(Some(DcRole::TypeString), subtype.as_deref(), ctx)?
                 } else if name == "Routine" {
                     self.eval_literal_frame(Some(DcRole::TypeRoutine), subtype.as_deref(), ctx)?
-                } else if name == "value" && first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
+                } else if name == "value" && subtype.is_none() && first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
                     self.eval_literal_frame(None, None, ctx)?
+                } else if name == "value" && subtype.is_none() && first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
+                    self.eval_number_frame(None, None, ctx)?
+                } else if name == "value"
+                    && subtype.is_none()
+                    && !from_spliced
+                    && first_dc.fills_role_with(DcRole::StartEncapsulationBinary, ctx.resolver)
+                {
+                    if let Ok((after_bin, _)) =
+                        self.scan_binary_at(start_offset, &ctx.policy, ctx.resolver)
+                    {
+                        self.cursor = after_bin;
+                        true
+                    } else {
+                        false
+                    }
                 } else if name == "identifier" {
                     self.eval_identifier_frame(subtype.as_deref(), ctx)?
                 } else if name == "number" || name == "Number" {
@@ -948,15 +962,35 @@ impl<'a> DcDocumentNavigator<'a> {
                         (name.as_str(), None)
                     };
                     let mut matched = false;
-                    if let Some(pattern) = ctx
-                        .resolver
-                        .resolve_named_type_with_arg(lookup_name, subtype.as_deref())
-                    {
-                        ctx.call_stack.push(frame_key);
-                        ctx.depth = ctx.depth.saturating_add(1);
-                        matched = self.eval_pattern(&pattern, ctx)?;
-                        ctx.depth = ctx.depth.saturating_sub(1);
-                        ctx.call_stack.pop();
+                    let resolved_pat = if let Some(sub) = subtype.as_deref() {
+                        ctx.resolver
+                            .resolve_named_type_with_arg(lookup_name, Some(sub))
+                            .map(Cow::Owned)
+                    } else {
+                        ctx.resolver
+                            .resolve_named_type(lookup_name)
+                            .map(Cow::Borrowed)
+                            .or_else(|| {
+                                ctx.resolver
+                                    .resolve_named_type_with_arg(lookup_name, None)
+                                    .map(Cow::Owned)
+                            })
+                    };
+                    if let Some(pattern) = resolved_pat {
+                        let skip_value_pattern = lookup_name == "value"
+                            && subtype.is_none()
+                            && !ctx.resolver.matches_named_type_starter("value", first)
+                            && !first_dc.fills_role_with(
+                                DcRole::EvaluableExpressionStarter,
+                                ctx.resolver,
+                            );
+                        if !skip_value_pattern {
+                            ctx.call_stack.push(frame_key);
+                            ctx.depth = ctx.depth.saturating_add(1);
+                            matched = self.eval_pattern(&pattern, ctx)?;
+                            ctx.depth = ctx.depth.saturating_sub(1);
+                            ctx.call_stack.pop();
+                        }
                         if matched
                             && lookup_name == "list"
                             && (subtype.is_some() || list_len_arg.is_some())
@@ -1122,6 +1156,20 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(false);
                 }
                 if let Some(rule) = ctx.resolver.resolve_rule(target) {
+                    self.scan_cache.ensure_resolver(ctx.resolver);
+                    if !from_spliced
+                        && !ctx.validate_interiors
+                        && let Some(&(cached_end, self_delimited)) = self
+                            .scan_cache
+                            .validated_rule_spans
+                            .get(&(target.to_u128(), start_offset))
+                        && (self_delimited && cached_end <= self.active_span.end
+                            || cached_end == self.active_span.end)
+                    {
+                        self.cursor = cached_end;
+                        return Ok(true);
+                    }
+
                     let old_self = ctx.self_dc;
                     ctx.self_dc = Some(target.to_u128());
                     ctx.call_stack.push(frame_key);
@@ -1141,6 +1189,17 @@ impl<'a> DcDocumentNavigator<'a> {
 
                     if matched {
                         let matched_end = self.cursor;
+                        if !from_spliced && !ctx.has_errors && self.spliced_tokens.is_empty() {
+                            if self.scan_cache.validated_rule_spans.len() >= MAX_NAV_CACHE_ENTRIES {
+                                self.scan_cache.validated_rule_spans.clear();
+                            }
+                            let self_delimited = ctx.resolver.closer_for_opener(target).is_some()
+                                || matched_end < self.active_span.end;
+                            self.scan_cache.validated_rule_spans.insert(
+                                (target.to_u128(), start_offset),
+                                (matched_end, self_delimited),
+                            );
+                        }
                         if ctx.validate_interiors {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(target) {
                                 if !ctx.resolver.is_opaque_container(first) {
@@ -1468,8 +1527,24 @@ impl<'a> DcDocumentNavigator<'a> {
         subtype: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
-        let term_checkpoint = self.save_checkpoint();
         let start_offset = self.cursor;
+        self.scan_cache.ensure_resolver(ctx.resolver);
+        if subtype.is_none()
+            && self.spliced_tokens.is_empty()
+            && let Some(&(cached_end, CachedLeafKind::Literal(type_dc))) =
+                self.scan_cache.validated_leaf_frames.get(&start_offset)
+            && cached_end <= self.active_span.end
+        {
+            if let Some(role) = expected_type_role
+                && !type_dc.fills_role_with(role, ctx.resolver)
+                && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
+            {
+                return Ok(false);
+            }
+            self.cursor = cached_end;
+            return Ok(true);
+        }
+        let term_checkpoint = self.save_checkpoint();
         let Some(first_dc) = self.pop_next_token()? else {
             return Ok(false);
         };
@@ -1585,6 +1660,14 @@ impl<'a> DcDocumentNavigator<'a> {
                         return Ok(false);
                     }
                 }
+                if term_checkpoint.spliced_tokens.is_empty() && self.spliced_tokens.is_empty() {
+                    if self.scan_cache.validated_leaf_frames.len() >= MAX_NAV_CACHE_ENTRIES {
+                        self.scan_cache.validated_leaf_frames.clear();
+                    }
+                    self.scan_cache
+                        .validated_leaf_frames
+                        .insert(start_offset, (self.cursor, CachedLeafKind::Literal(type_dc)));
+                }
                 return Ok(true);
             } else if subtype.is_some() {
                 decoded_payload.push(ch);
@@ -1650,8 +1733,18 @@ impl<'a> DcDocumentNavigator<'a> {
         subtype: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
-        let term_checkpoint = self.save_checkpoint();
         let start_offset = self.cursor;
+        self.scan_cache.ensure_resolver(ctx.resolver);
+        if subtype.is_none()
+            && self.spliced_tokens.is_empty()
+            && let Some(&(cached_end, CachedLeafKind::Identifier)) =
+                self.scan_cache.validated_leaf_frames.get(&start_offset)
+            && cached_end <= self.active_span.end
+        {
+            self.cursor = cached_end;
+            return Ok(true);
+        }
+        let term_checkpoint = self.save_checkpoint();
         let Some(first_dc) = self.pop_next_token()? else {
             return Ok(false);
         };
@@ -1710,6 +1803,14 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.restore_checkpoint(term_checkpoint);
                         return Ok(false);
                     }
+                }
+                if term_checkpoint.spliced_tokens.is_empty() && self.spliced_tokens.is_empty() {
+                    if self.scan_cache.validated_leaf_frames.len() >= MAX_NAV_CACHE_ENTRIES {
+                        self.scan_cache.validated_leaf_frames.clear();
+                    }
+                    self.scan_cache
+                        .validated_leaf_frames
+                        .insert(start_offset, (self.cursor, CachedLeafKind::Identifier));
                 }
                 return Ok(true);
             } else {
@@ -1784,36 +1885,61 @@ impl<'a> DcDocumentNavigator<'a> {
         if before_offset <= doc_start {
             return Ok(false);
         }
+        self.scan_cache.ensure_resolver(ctx.resolver);
         let saved_checkpoint = self.save_checkpoint();
         let saved_diag_len = self.diagnostics.len();
         let quiet = DcProjectionPolicy::forgiving_quiet();
-        self.active_span = DcByteSpan::new(doc_start, before_offset);
-        self.cursor = doc_start;
-        self.spliced_tokens.clear();
-        let mut bound_value_span: Option<DcByteSpan> = None;
-        while self.cursor < before_offset {
-            let prev_cursor = self.cursor;
-            let Ok(Some(stub)) = self.next_sibling_stub_with_resolver(&quiet, ctx.resolver) else {
-                break;
-            };
-            if self.cursor <= prev_cursor {
-                break;
-            }
-            if ctx.resolver.is_assignment_construct(stub.head_dc.to_u128()) {
-                let mut temp_arena = DcSyntaxArena::new();
-                if let Ok(root_id) =
-                    self.build_arena_node_from_stub_with_resolver(&stub, &mut temp_arena, &quiet, ctx.resolver)
-                    && let Some(DcSyntaxKind::Assignment { ident, value }) =
+        // Reason for fallback: when no prior assignment scan offset is cached, start scanning from doc_start.
+        let scan_from = self
+            .scan_cache
+            .assignments_scanned_up_to
+            .filter(|&pos| pos >= doc_start)
+            .unwrap_or(doc_start);
+        if scan_from < before_offset {
+            self.active_span = DcByteSpan::new(scan_from, before_offset);
+            self.cursor = scan_from;
+            self.spliced_tokens.clear();
+            while self.cursor < before_offset {
+                let prev_cursor = self.cursor;
+                let Ok(Some(stub)) = self.next_sibling_stub_with_resolver(&quiet, ctx.resolver) else {
+                    break;
+                };
+                if self.cursor <= prev_cursor {
+                    break;
+                }
+                if ctx.resolver.is_assignment_construct(stub.head_dc.to_u128()) {
+                    let mut temp_arena = DcSyntaxArena::new();
+                    if let Ok(root_id) = self.build_arena_node_from_stub_with_resolver(
+                        &stub,
+                        &mut temp_arena,
+                        &quiet,
+                        ctx.resolver,
+                    ) && let Some(DcSyntaxKind::Assignment { ident, value }) =
                         temp_arena.get(root_id).map(|n| &n.kind)
-                    && ident.as_mstr() == ident_name
-                    && let Some(val_node) = temp_arena.get(*value)
-                {
-                    bound_value_span = Some(val_node.span);
+                        && let Some(val_node) = temp_arena.get(*value)
+                    {
+                        if self.scan_cache.top_level_assignments.len() >= MAX_NAV_CACHE_ENTRIES {
+                            self.scan_cache.top_level_assignments.clear();
+                        }
+                        self.scan_cache.top_level_assignments.push((
+                            stub.outer_span.end,
+                            ident.clone(),
+                            val_node.span,
+                        ));
+                    }
                 }
             }
+            self.scan_cache.assignments_scanned_up_to = Some(self.cursor);
+            self.diagnostics.truncate(saved_diag_len);
+            self.restore_checkpoint(saved_checkpoint.clone());
         }
-        self.diagnostics.truncate(saved_diag_len);
-        self.restore_checkpoint(saved_checkpoint.clone());
+        let bound_value_span = self
+            .scan_cache
+            .top_level_assignments
+            .iter()
+            .rev()
+            .find(|(end_pos, ident, _)| *end_pos <= before_offset && ident.as_mstr() == ident_name)
+            .map(|(_, _, span)| *span);
         let Some(val_span) = bound_value_span else {
             return Ok(false);
         };
@@ -1843,6 +1969,18 @@ impl<'a> DcDocumentNavigator<'a> {
         capture_var: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
+        let start_offset = self.cursor;
+        let need_digits = subtype.is_some() || capture_var.is_some();
+        self.scan_cache.ensure_resolver(ctx.resolver);
+        if !need_digits
+            && self.spliced_tokens.is_empty()
+            && let Some(&(cached_end, CachedLeafKind::Number(_))) =
+                self.scan_cache.validated_leaf_frames.get(&start_offset)
+            && cached_end <= self.active_span.end
+        {
+            self.cursor = cached_end;
+            return Ok(true);
+        }
         let term_checkpoint = self.save_checkpoint();
         let Some(first_dc) = self.pop_next_token()? else {
             return Ok(false);
@@ -1861,7 +1999,6 @@ impl<'a> DcDocumentNavigator<'a> {
             self.restore_checkpoint(term_checkpoint);
             return Ok(false);
         }
-        let need_digits = subtype.is_some() || capture_var.is_some();
         let mut digits = Vec::new();
         let mut digit_count = 0usize;
         while let Some(ch) = self.pop_next_token()? {
@@ -1888,6 +2025,14 @@ impl<'a> DcDocumentNavigator<'a> {
                         ctx.captured_numbers
                             .insert(var.trim_start_matches('$').to_owned(), val);
                     }
+                }
+                if term_checkpoint.spliced_tokens.is_empty() && self.spliced_tokens.is_empty() {
+                    if self.scan_cache.validated_leaf_frames.len() >= MAX_NAV_CACHE_ENTRIES {
+                        self.scan_cache.validated_leaf_frames.clear();
+                    }
+                    self.scan_cache
+                        .validated_leaf_frames
+                        .insert(start_offset, (self.cursor, CachedLeafKind::Number(fmt_dc)));
                 }
                 return Ok(true);
             }
@@ -2017,6 +2162,16 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
+        self.scan_cache.ensure_resolver(resolver);
+        if self.spliced_tokens.is_empty()
+            && self
+                .scan_cache
+                .validated_containers
+                .contains(&(outer.start, outer.end))
+        {
+            return Ok(());
+        }
+        let diag_before = self.diagnostics.len();
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
         let saved_spliced = self.spliced_tokens.clone();
@@ -2027,7 +2182,15 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(rule) = resolver.resolve_rule(target) {
                 let mut ctx = SyntaxEvalContext::new(resolver, Some(target.to_u128()));
                 ctx.policy.clone_from(policy);
-                let matched = if resolver.token_fills_role(target.to_u128(), DcRole::BeginLiteral) {
+                let matched = if self
+                    .scan_cache
+                    .validated_rule_spans
+                    .get(&(target.to_u128(), outer.start))
+                    .is_some_and(|&(end, _)| end == outer.end)
+                {
+                    self.cursor = outer.end;
+                    true
+                } else if resolver.token_fills_role(target.to_u128(), DcRole::BeginLiteral) {
                     self.eval_literal_frame(None, None, &mut ctx)?
                 } else if resolver.token_fills_role(target.to_u128(), DcRole::BeginIdentifier) {
                     self.eval_identifier_frame(None, &mut ctx)?
@@ -2045,6 +2208,13 @@ impl<'a> DcDocumentNavigator<'a> {
                         outer.start,
                         format!("Syntax rule mismatch for {target} at offset {}", outer.start),
                     )?;
+                } else if self.spliced_tokens.is_empty() {
+                    if self.scan_cache.validated_rule_spans.len() >= MAX_NAV_CACHE_ENTRIES {
+                        self.scan_cache.validated_rule_spans.clear();
+                    }
+                    self.scan_cache
+                        .validated_rule_spans
+                        .insert((target.to_u128(), outer.start), (outer.end, true));
                 }
             }
             if resolver.is_opaque_container(target.to_u128()) {
@@ -2108,6 +2278,17 @@ impl<'a> DcDocumentNavigator<'a> {
         self.active_span = saved_span;
         self.cursor = saved_cursor;
         self.spliced_tokens = saved_spliced;
+        if result.is_ok()
+            && self.diagnostics.len() == diag_before
+            && self.spliced_tokens.is_empty()
+        {
+            if self.scan_cache.validated_containers.len() >= MAX_NAV_CACHE_ENTRIES {
+                self.scan_cache.validated_containers.clear();
+            }
+            self.scan_cache
+                .validated_containers
+                .insert((outer.start, outer.end));
+        }
         result
     }
 

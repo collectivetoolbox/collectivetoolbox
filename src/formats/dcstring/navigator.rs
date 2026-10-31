@@ -106,6 +106,49 @@ pub(super) enum NavBackend<'a> {
 /// - Random-access seeking to bookmarked stubs or offsets ([`Self::seek_to_stub`], [`Self::seek_to_offset`])
 /// - On-demand CST expansion into a reusable [`DcSyntaxArena`] ([`Self::expand_frame`])
 /// - Direct typed projection of a frame stub ([`Self::decode_frame`])
+pub(super) const MAX_NAV_CACHE_ENTRIES: usize = 65_536;
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CachedBalancedContainer {
+    pub(super) closer_start: u64,
+    pub(super) after_closer: u64,
+    pub(super) is_spliced: bool,
+    pub(super) max_rel_depth: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum CachedLeafKind {
+    Literal(DcChar),
+    Number(DcChar),
+    Identifier,
+}
+
+#[derive(Debug, Default)]
+pub(super) struct NavScanCache {
+    pub(super) resolver_addr: Option<usize>,
+    pub(super) balanced_containers: std::collections::HashMap<u64, CachedBalancedContainer>,
+    pub(super) validated_containers: std::collections::HashSet<(u64, u64)>,
+    pub(super) validated_rule_spans: std::collections::HashMap<(u128, u64), (u64, bool)>,
+    pub(super) validated_leaf_frames: std::collections::HashMap<u64, (u64, CachedLeafKind)>,
+    pub(super) assignments_scanned_up_to: Option<u64>,
+    pub(super) top_level_assignments: Vec<(u64, DcMstring, DcByteSpan)>,
+}
+
+impl NavScanCache {
+    pub(super) fn ensure_resolver(&mut self, resolver: &dyn SyntaxRuleResolver) {
+        let addr = std::ptr::from_ref::<dyn SyntaxRuleResolver>(resolver).addr();
+        if self.resolver_addr != Some(addr) {
+            self.resolver_addr = Some(addr);
+            self.balanced_containers.clear();
+            self.validated_containers.clear();
+            self.validated_rule_spans.clear();
+            self.validated_leaf_frames.clear();
+            self.assignments_scanned_up_to = None;
+            self.top_level_assignments.clear();
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct DcDocumentNavigator<'a> {
     pub(super) backend: NavBackend<'a>,
@@ -114,6 +157,7 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) level_stack: Vec<(DcByteSpan, u64, Option<DcChar>)>,
     pub(super) diagnostics: Vec<SyntaxDiagnostic>,
     pub(super) spliced_tokens: std::collections::VecDeque<DcChar>,
+    pub(super) scan_cache: NavScanCache,
 }
 
 impl<'b> DcBinaryResolver for DcDocumentNavigator<'b> {
@@ -150,6 +194,7 @@ impl<'a> DcDocumentNavigator<'a> {
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
             spliced_tokens: std::collections::VecDeque::new(),
+            scan_cache: NavScanCache::default(),
         }
     }
 
@@ -169,6 +214,7 @@ impl<'a> DcDocumentNavigator<'a> {
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
             spliced_tokens: std::collections::VecDeque::new(),
+            scan_cache: NavScanCache::default(),
         }
     }
 
@@ -384,6 +430,7 @@ impl<'a> DcDocumentNavigator<'a> {
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
             spliced_tokens: std::collections::VecDeque::new(),
+            scan_cache: NavScanCache::default(),
         })
     }
 

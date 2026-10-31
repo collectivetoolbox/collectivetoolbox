@@ -254,6 +254,18 @@ impl<'a> DcDocumentNavigator<'a> {
                     .as_bytes()
                     .get(start_usize..)
                     .context("Binary encapsulation start out of bounds")?;
+                if !rem.starts_with(&crate::dc_mixed::DC_203_BYTES)
+                    || !matches!(
+                        rem.get(crate::dc_mixed::DC_203_BYTES.len()).copied(),
+                        Some(
+                            crate::dc_mixed::TYPE_BINARY
+                                | crate::dc_mixed::TYPE_BINARY_METADATA
+                                | crate::dc_mixed::TYPE_BINARY_SHA256
+                        )
+                    )
+                {
+                    return Ok(None);
+                }
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice: rem };
                 let Some(chunk) = chunks.next() else {
                     return Ok(None);
@@ -628,7 +640,17 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(u64, u64, bool)> {
-        if self.depth() >= policy.max_depth {
+        struct CloserFrame {
+            after_opener: u64,
+            closer: DcChar,
+            opaque: bool,
+            max_rel_depth: usize,
+            had_issue: bool,
+        }
+
+        self.scan_cache.ensure_resolver(resolver);
+        let root_depth_exceeded = self.depth() >= policy.max_depth;
+        if root_depth_exceeded {
             self.record_diagnostic(
                 policy,
                 policy.depth_limit_exceeded,
@@ -638,11 +660,30 @@ impl<'a> DcDocumentNavigator<'a> {
                     policy.max_depth,
                 ),
             )?;
+        } else if self.spliced_tokens.is_empty()
+            && let Some(&cached) = self.scan_cache.balanced_containers.get(&after_opener)
+            && cached.after_closer <= self.active_span.end
+            && self.depth().saturating_add(cached.max_rel_depth) < policy.max_depth
+        {
+            return Ok((cached.closer_start, cached.after_closer, cached.is_spliced));
         }
-        let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
+
+        let diag_base = self.diagnostics.len();
+        let mut closer_stack = vec![CloserFrame {
+            after_opener,
+            closer,
+            opaque: resolver.is_opaque_container(opener.to_u128()),
+            max_rel_depth: 0,
+            had_issue: root_depth_exceeded,
+        }];
         let mut offset = after_opener;
         if opener.fills_role_with(DcRole::BeginLiteral, resolver) {
             offset = self.advance_past_literal_type_header(offset, policy, resolver)?;
+            if self.diagnostics.len() > diag_base
+                && let Some(top) = closer_stack.last_mut()
+            {
+                top.had_issue = true;
+            }
         }
 
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
@@ -660,30 +701,63 @@ impl<'a> DcDocumentNavigator<'a> {
                 )?;
                 return Ok((next_offset, next_offset, false));
             }
-            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
-                if closer_stack.last().is_some_and(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
-                    closer_stack.pop();
-                    if closer_stack.is_empty() {
-                        return Ok((token_start, next_offset, false));
+            if closer_stack.last().is_some_and(|f| f.opaque) {
+                if closer_stack.last().is_some_and(|f| {
+                    f.closer == ch || resolver.is_equivalent_to(ch.to_u128(), f.closer.to_u128())
+                }) {
+                    if let Some(popped) = closer_stack.pop() {
+                        if !popped.had_issue && self.spliced_tokens.is_empty() {
+                            if self.scan_cache.balanced_containers.len() >= MAX_NAV_CACHE_ENTRIES {
+                                self.scan_cache.balanced_containers.clear();
+                            }
+                            self.scan_cache.balanced_containers.insert(
+                                popped.after_opener,
+                                CachedBalancedContainer {
+                                    closer_start: token_start,
+                                    after_closer: next_offset,
+                                    is_spliced: false,
+                                    max_rel_depth: popped.max_rel_depth,
+                                },
+                            );
+                        }
+                        if let Some(parent) = closer_stack.last_mut() {
+                            parent.max_rel_depth =
+                                parent.max_rel_depth.max(popped.max_rel_depth.saturating_add(1));
+                            parent.had_issue |= popped.had_issue;
+                        } else {
+                            return Ok((token_start, next_offset, false));
+                        }
                     }
                 }
                 offset = next_offset;
                 continue;
             }
             if ch.fills_role_with(DcRole::LangSay, resolver) {
+                let diag_before_say = self.diagnostics.len();
                 if let Ok(after_say) = self.scan_say_frame_at(token_start, policy, resolver) {
+                    if self.diagnostics.len() > diag_before_say
+                        && let Some(top) = closer_stack.last_mut()
+                    {
+                        top.had_issue = true;
+                    }
                     let call_tokens = self.read_tokens_in_span(DcByteSpan::new(token_start, after_say))?;
                     let call_dcs: Vec<DcChar> = call_tokens.into_iter().map(DcChar::from_u128).collect();
                     let evaluator = DefaultDcExpressionEvaluator;
                     if let Ok(Some(spliced)) = evaluator.eval_stream_splice(&call_dcs, resolver) {
+                        for frame in &mut closer_stack {
+                            frame.had_issue = true;
+                        }
                         let mut spliced_iter = spliced.into_iter();
                         while let Some(tok) = spliced_iter.next() {
                             if tok.fills_role_with(DcRole::Escape, resolver) {
                                 let _ = spliced_iter.next();
                                 continue;
                             }
-                            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
-                                if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
+                            if closer_stack.last().is_some_and(|f| f.opaque) {
+                                if closer_stack.last().is_some_and(|f| {
+                                    f.closer == tok
+                                        || resolver.is_equivalent_to(tok.to_u128(), f.closer.to_u128())
+                                }) {
                                     closer_stack.pop();
                                     if closer_stack.is_empty() {
                                         return Ok((after_say, after_say, true));
@@ -691,14 +765,23 @@ impl<'a> DcDocumentNavigator<'a> {
                                 }
                                 continue;
                             }
-                            if closer_stack.last().is_some_and(|(expected, _)| *expected == tok || resolver.is_equivalent_to(tok.to_u128(), expected.to_u128())) {
+                            if closer_stack.last().is_some_and(|f| {
+                                f.closer == tok
+                                    || resolver.is_equivalent_to(tok.to_u128(), f.closer.to_u128())
+                            }) {
                                 closer_stack.pop();
                                 if closer_stack.is_empty() {
                                     return Ok((after_say, after_say, true));
                                 }
                             } else if let Some(target) = CharTarget::from_u128(tok.to_u128()) {
                                 if let Some(inner_closer) = resolver.closer_for_opener(&target) {
-                                    closer_stack.push((DcChar::from_u128(inner_closer), resolver.is_opaque_container(tok.to_u128())));
+                                    closer_stack.push(CloserFrame {
+                                        after_opener: after_say,
+                                        closer: DcChar::from_u128(inner_closer),
+                                        opaque: resolver.is_opaque_container(tok.to_u128()),
+                                        max_rel_depth: 0,
+                                        had_issue: true,
+                                    });
                                 }
                             }
                         }
@@ -708,21 +791,50 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+                let diag_before_bin = self.diagnostics.len();
                 let (after_bin, _) = self.scan_binary_at(token_start, policy, resolver)?;
+                if self.diagnostics.len() > diag_before_bin
+                    && let Some(top) = closer_stack.last_mut()
+                {
+                    top.had_issue = true;
+                }
                 offset = after_bin;
                 continue;
             }
-            if closer_stack.last().is_some_and(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
-                closer_stack.pop();
-                if closer_stack.is_empty() {
-                    return Ok((token_start, next_offset, false));
+            if closer_stack.last().is_some_and(|f| {
+                f.closer == ch || resolver.is_equivalent_to(ch.to_u128(), f.closer.to_u128())
+            }) {
+                if let Some(popped) = closer_stack.pop() {
+                    if !popped.had_issue && self.spliced_tokens.is_empty() {
+                        if self.scan_cache.balanced_containers.len() >= MAX_NAV_CACHE_ENTRIES {
+                            self.scan_cache.balanced_containers.clear();
+                        }
+                        self.scan_cache.balanced_containers.insert(
+                            popped.after_opener,
+                            CachedBalancedContainer {
+                                closer_start: token_start,
+                                after_closer: next_offset,
+                                is_spliced: false,
+                                max_rel_depth: popped.max_rel_depth,
+                            },
+                        );
+                    }
+                    if let Some(parent) = closer_stack.last_mut() {
+                        parent.max_rel_depth =
+                            parent.max_rel_depth.max(popped.max_rel_depth.saturating_add(1));
+                        parent.had_issue |= popped.had_issue;
+                    } else {
+                        return Ok((token_start, next_offset, false));
+                    }
                 }
                 offset = next_offset;
                 continue;
             }
             // Sacred opener/closer framing: if an inner container was left unclosed
             // before an outer closer on the stack, synchronize at the outer closer.
-            if let Some(stack_pos) = closer_stack.iter().rposition(|(expected, _)| *expected == ch || resolver.is_equivalent_to(ch.to_u128(), expected.to_u128())) {
+            if let Some(stack_pos) = closer_stack.iter().rposition(|f| {
+                f.closer == ch || resolver.is_equivalent_to(ch.to_u128(), f.closer.to_u128())
+            }) {
                 self.record_diagnostic(
                     policy,
                     policy.syntax_error,
@@ -732,6 +844,9 @@ impl<'a> DcDocumentNavigator<'a> {
                     ),
                 )?;
                 closer_stack.truncate(stack_pos);
+                for frame in &mut closer_stack {
+                    frame.had_issue = true;
+                }
                 if closer_stack.is_empty() {
                     return Ok((token_start, next_offset, false));
                 }
@@ -740,7 +855,21 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
                 if let Some(inner_closer) = resolver.closer_for_opener(&target) {
-                    if self.depth().saturating_add(closer_stack.len()) >= policy.max_depth {
+                    let next_depth = self.depth().saturating_add(closer_stack.len());
+                    if self.spliced_tokens.is_empty()
+                        && let Some(&cached) = self.scan_cache.balanced_containers.get(&next_offset)
+                        && cached.after_closer <= self.active_span.end
+                        && next_depth.saturating_add(cached.max_rel_depth) < policy.max_depth
+                    {
+                        if let Some(parent) = closer_stack.last_mut() {
+                            parent.max_rel_depth =
+                                parent.max_rel_depth.max(cached.max_rel_depth.saturating_add(1));
+                        }
+                        offset = cached.after_closer;
+                        continue;
+                    }
+                    let inner_depth_exceeded = next_depth >= policy.max_depth;
+                    if inner_depth_exceeded {
                         self.record_diagnostic(
                             policy,
                             policy.depth_limit_exceeded,
@@ -752,12 +881,21 @@ impl<'a> DcDocumentNavigator<'a> {
                         )?;
                     }
                     closer_stack.try_reserve(1)?;
-                    closer_stack.push((
-                        DcChar::from_u128(inner_closer),
-                        resolver.is_opaque_container(ch.to_u128()),
-                    ));
+                    closer_stack.push(CloserFrame {
+                        after_opener: next_offset,
+                        closer: DcChar::from_u128(inner_closer),
+                        opaque: resolver.is_opaque_container(ch.to_u128()),
+                        max_rel_depth: 0,
+                        had_issue: inner_depth_exceeded,
+                    });
                     if ch.fills_role_with(DcRole::BeginLiteral, resolver) {
+                        let diag_before_hdr = self.diagnostics.len();
                         offset = self.advance_past_literal_type_header(next_offset, policy, resolver)?;
+                        if self.diagnostics.len() > diag_before_hdr
+                            && let Some(top) = closer_stack.last_mut()
+                        {
+                            top.had_issue = true;
+                        }
                         continue;
                     }
                 }
