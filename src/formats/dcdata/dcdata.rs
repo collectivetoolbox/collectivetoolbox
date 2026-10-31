@@ -174,29 +174,41 @@ const _: &[u8] = include_bytes!("data/magic/ctoolbox.magic");
 static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Returns the raw bytes of an embedded data file within the `dc_data` asset directory,
-/// or a test fixture from `src/formats/dcdata/fixtures/` when running in test mode.
+/// or a source data file from `src/formats/dcdata/data-src/` when running in test mode.
 pub fn get_dc_data_file(key: &str) -> Option<Vec<u8>> {
-    if key.starts_with("fixtures/") {
-        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+    let load_from_data_src = |rel: &str| -> Option<Vec<u8>> {
+        // Reason for fallback: strip optional data-src/ or fixtures/ prefix, defaulting to full relative key
+        let clean = rel
+            .strip_prefix("data-src/")
+            .or_else(|| rel.strip_prefix("fixtures/"))
+            .unwrap_or(rel);
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("data-src")
+            .join(clean);
+        std::fs::read(path).ok()
+    };
+    if key.starts_with("data-src/") || key.starts_with("fixtures/") {
+        return load_from_data_src(key);
     }
     if let Some(bytes) = get_embedded_asset(&DC_DATA_DIR, key) {
         return Some(bytes);
     }
     if ctb_utilities::testing::is_in_test() {
-        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+        return load_from_data_src(key);
     }
     None
 }
 
 pub(crate) fn get_dc_categories_dir_path() -> std::path::PathBuf {
-    ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "categories")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data-src")
+        .join("categories")
 }
 
 pub(crate) fn get_formats_categories_dir_path() -> std::path::PathBuf {
-    ctb_utilities::manifest_fixture_path(
-        env!("CARGO_MANIFEST_DIR"),
-        "categories/formats",
-    )
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data-src")
+        .join("categories/formats")
 }
 
 /// Returns the embedded Magdir directory containing upstream libmagic rule files.

@@ -401,14 +401,14 @@ pub(crate) fn load_dc_category_csvs_with_assigned_ids(
 }
 
 /// Scans and automatically assigns Short and Global Dc IDs in Document Character
-/// category CSV files (`src/formats/dcdata/fixtures/categories/*.csv`).
+/// category CSV files (`src/formats/dcdata/data-src/categories/*.csv`).
 ///
 /// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
 /// monotonically without backfilling any preexisting gaps.
 pub fn assign_and_update_dc_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
-    let categories_dir = repo_root.join("src/formats/dcdata/fixtures/categories");
+    let categories_dir = repo_root.join("src/formats/dcdata/data-src/categories");
     let (processed, stats) = process_dc_category_files(&categories_dir)?;
     for file in processed {
         if file.modified {
@@ -591,7 +591,7 @@ pub(crate) fn load_format_category_csvs_with_assigned_ids(
 }
 
 /// Scans and automatically assigns Short and Global Dc IDs in Formats
-/// category CSV files (`src/formats/dcdata/fixtures/categories/formats/*.csv`).
+/// category CSV files (`src/formats/dcdata/data-src/categories/formats/*.csv`).
 ///
 /// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
 /// monotonically without backfilling any preexisting gaps.
@@ -599,7 +599,7 @@ pub fn assign_and_update_format_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
     let formats_dir =
-        repo_root.join("src/formats/dcdata/fixtures/categories/formats");
+        repo_root.join("src/formats/dcdata/data-src/categories/formats");
     let (processed, stats) = process_format_category_files(&formats_dir)?;
     for file in processed {
         if file.modified {
@@ -618,7 +618,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         UNIFIED_SCHEMA_HEADER.iter().map(|s| s.to_string()).collect();
 
     // 1. Generate formats.generated.csv
-    let formats_dir = repo_root.join("src/formats/dcdata/fixtures/categories/formats");
+    let formats_dir = repo_root.join("src/formats/dcdata/data-src/categories/formats");
     let mut all_format_rows = Vec::new();
     if formats_dir.is_dir() {
         for entry in fs::read_dir(&formats_dir)? {
@@ -731,14 +731,14 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         });
 
         let target_path =
-            repo_root.join("src/formats/dcdata/fixtures/formats.generated.csv");
+            repo_root.join("src/formats/dcdata/data-src/formats.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_format_rows)?;
         stats.format_records_merged = all_format_rows.len();
     }
 
     // 2. Generate DcList.generated.csv
     let categories_dir =
-        repo_root.join("src/formats/dcdata/fixtures/categories");
+        repo_root.join("src/formats/dcdata/data-src/categories");
     let mut all_dc_rows = Vec::new();
     if categories_dir.is_dir() {
         for entry in fs::read_dir(&categories_dir)? {
@@ -812,14 +812,14 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         });
 
         let target_path =
-            repo_root.join("src/formats/dcdata/fixtures/DcList.generated.csv");
+            repo_root.join("src/formats/dcdata/data-src/DcList.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
         stats.dc_records_merged = all_dc_rows.len();
     }
 
     // 3. Load unicode clarifications to supplement (without replacing) real Unicode data
     let mut unicode_clarifications: HashMap<u32, (String, String)> = HashMap::new();
-    let clar_path = repo_root.join("src/formats/dcdata/fixtures/categories/unicode-clarifications.csv");
+    let clar_path = repo_root.join("src/formats/dcdata/data-src/categories/unicode-clarifications.csv");
     if clar_path.is_file() {
         if let Ok((_, rows)) = read_csv_file(&clar_path) {
             for row in rows {
@@ -891,7 +891,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     }
 
     let unicode_target_path =
-        repo_root.join("src/formats/dcdata/fixtures/unicode.generated.csv");
+        repo_root.join("src/formats/dcdata/data-src/unicode.generated.csv");
     // write_csv_file(&unicode_target_path, &canonical_header, &all_unicode_rows)?;
     stats.unicode_records_merged = all_unicode_rows.len();
 
@@ -922,17 +922,17 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     });
 
     let all_target_path =
-        repo_root.join("src/formats/dcdata/fixtures/all.generated.csv");
+        repo_root.join("src/formats/dcdata/data-src/all.generated.csv");
     // write_csv_file(&all_target_path, &canonical_header, &combined_rows)?;
     stats.total_records_merged = combined_rows.len();
 
     // 5. Clean up old .generated.json files if present
-    let old_dc_json = repo_root.join("src/formats/dcdata/fixtures/DcList.generated.json");
+    let old_dc_json = repo_root.join("src/formats/dcdata/data-src/DcList.generated.json");
     if old_dc_json.exists() {
         let _ = fs::remove_file(&old_dc_json);
     }
     let old_fmt_json =
-        repo_root.join("src/formats/dcdata/fixtures/formats.generated.json");
+        repo_root.join("src/formats/dcdata/data-src/formats.generated.json");
     if old_fmt_json.exists() {
         let _ = fs::remove_file(&old_fmt_json);
     }
@@ -1099,7 +1099,7 @@ mod tests {
         // Create simulated category files with IDs [0, 10, 20] and one "AUTO" entry
         let temp_dir = tempfile::tempdir().unwrap();
         let cat_dir =
-            temp_dir.path().join("src/formats/dcdata/fixtures/categories");
+            temp_dir.path().join("src/formats/dcdata/data-src/categories");
         fs::create_dir_all(&cat_dir).unwrap();
 
         let header = vec![
