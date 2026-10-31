@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+GRAPH_DIR="${REPO_ROOT}/assets/data/graph"
+
+run_chattr() {
+    if ! command -v chattr >/dev/null 2>&1; then
+        return 1
+    fi
+    if [ "$(id -u)" -eq 0 ]; then
+        chattr "$@"
+    elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+        sudo -n chattr "$@"
+    else
+        return 1
+    fi
+}
+
+apply_host_chattr_locks() {
+    if [ ! -d "${GRAPH_DIR}" ]; then
+        return 0
+    fi
+    if ! command -v chattr >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Lock each .ctbnodes chunk file:
+    # - Full 100-line chunks are completely closed and never written to again (+i immutable, or +a append-only).
+    # - The active tail chunk (< 100 lines) is strictly append-only (+a).
+    shopt -s nullglob
+    for node_file in "${GRAPH_DIR}"/*.ctbnodes; do
+        line_count="$(wc -l < "${node_file}" | tr -d '[:space:]')"
+        if [ "${line_count}" -ge 100 ]; then
+            run_chattr -a "${node_file}" 2>/dev/null || true
+            run_chattr +i "${node_file}" 2>/dev/null || run_chattr +a "${node_file}" 2>/dev/null || true
+        else
+            run_chattr -i "${node_file}" 2>/dev/null || true
+            run_chattr +a "${node_file}" 2>/dev/null || true
+        fi
+    done
+    shopt -u nullglob
+
+    # Lock the graph directory itself as append-only (+a):
+    # Allows creating new .ctbnodes chunk files (O_CREAT) and truncating .ctbnbdl in-place,
+    # while the kernel forbids unlink (rm) and rename (mv / git checkout) on all files in assets/data/graph/.
+    run_chattr +a "${GRAPH_DIR}" 2>/dev/null || true
+}
+
+install_host_systemd_watcher() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "Error: --install-host must be run as root on the host (e.g., sudo ./scripts/lock-graph-append-only --install-host)" >&2
+        exit 1
+    fi
+
+    apply_host_chattr_locks
+
+    if [ -d /etc/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        cat > /etc/systemd/system/ctb-graph-append-only.service <<EOF
+[Unit]
+Description=Apply append-only/immutable kernel inode flags to Collective Toolbox graph ledger
+
+[Service]
+Type=oneshot
+ExecStart=${REPO_ROOT}/scripts/lock-graph-append-only --host-init
+EOF
+
+        cat > /etc/systemd/system/ctb-graph-append-only.path <<EOF
+[Unit]
+Description=Watch Collective Toolbox graph ledger directory for new chunk files
+
+[Path]
+PathChanged=${GRAPH_DIR}
+Unit=ctb-graph-append-only.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        systemctl daemon-reload
+        systemctl enable --now ctb-graph-append-only.path
+        systemctl start ctb-graph-append-only.service
+        echo "Installed and started systemd path watcher (ctb-graph-append-only.path) and locked ${GRAPH_DIR}."
+    else
+        echo "Applied chattr +a/+i locks to ${GRAPH_DIR} (systemd not detected on this host)."
+    fi
+}
+
+seed_highwater_from_head() {
+    local target_dir="$1"
+    if [ ! -d "${REPO_ROOT}/.git" ]; then
+        return 0
+    fi
+    mkdir -p "${target_dir}"
+    local existing_files
+    existing_files="$(find "${target_dir}" -maxdepth 1 -name '*.ctbnodes' | wc -l | tr -d '[:space:]')"
+    if [ "${existing_files}" -gt 0 ]; then
+        return 0
+    fi
+    while IFS= read -r rel_path; do
+        if [ -z "${rel_path}" ]; then
+            continue
+        fi
+        local base_name
+        base_name="$(basename "${rel_path}")"
+        local out_file="${target_dir}/${base_name}"
+        if [ ! -e "${out_file}" ]; then
+            /usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" > "${out_file}"
+            chmod 0444 "${out_file}"
+        fi
+    done < <(/usr/bin/git -C "${REPO_ROOT}" ls-tree --name-only HEAD assets/data/graph/ | grep '\.ctbnodes$' || true)
+}
+
+install_container_guards() {
+    mkdir -p /usr/local/sbin
+
+    # 1. Install /usr/local/sbin/git wrapper to block git checkout / restore / reset / clean on assets/data/graph/
+    cat > /usr/local/sbin/git <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_GIT="/usr/local/bin/git"
+if [ ! -x "${REAL_GIT}" ]; then
+    REAL_GIT="/usr/bin/git"
+fi
+
+if [ "${CTB_ALLOW_GRAPH_MUTATION:-}" != "I_AM_THE_OPERATOR" ]; then
+    subcmd=""
+    for arg in "$@"; do
+        case "${arg}" in
+            -*)
+                ;;
+            checkout|restore|reset|clean|revert|stash)
+                subcmd="${arg}"
+                break
+                ;;
+        esac
+    done
+
+    if [ -n "${subcmd}" ]; then
+        for arg in "$@"; do
+            case "${arg}" in
+                *assets/data/graph*|*.ctbnodes*|*.ctbnbdl*)
+                    echo "FATAL: Refusing 'git ${subcmd}' on append-only graph ledger ('${arg}')." >&2
+                    echo "Graph files in assets/data/graph/ are strictly append-only and must NEVER be reverted, checked out, or reset." >&2
+                    exit 1
+                    ;;
+            esac
+        done
+
+        # Also block whole-worktree destructive git commands if assets/data/graph/ has uncommitted changes
+        block_whole_tree=false
+        case "${subcmd}" in
+            reset)
+                for arg in "$@"; do
+                    if [ "${arg}" = "--hard" ]; then
+                        block_whole_tree=true
+                    fi
+                done
+                ;;
+            clean)
+                block_whole_tree=true
+                ;;
+            checkout|restore)
+                for arg in "$@"; do
+                    if [ "${arg}" = "." ] || [ "${arg}" = "./" ] || [ "${arg}" = "assets" ] || [ "${arg}" = "assets/" ] || [ "${arg}" = "assets/data" ] || [ "${arg}" = "assets/data/" ]; then
+                        block_whole_tree=true
+                    fi
+                done
+                ;;
+        esac
+
+        if [ "${block_whole_tree}" = true ]; then
+            if [ -n "$("${REAL_GIT}" status --porcelain -- assets/data/graph/ 2>/dev/null || true)" ]; then
+                echo "FATAL: Refusing whole-tree 'git ${subcmd}' while append-only graph ledger 'assets/data/graph/' has uncommitted changes." >&2
+                echo "Commit or preserve assets/data/graph/ changes first; already-assigned graph node IDs must never be discarded." >&2
+                exit 1
+            fi
+        fi
+    fi
+fi
+
+exec "${REAL_GIT}" "$@"
+EOF
+    chmod 0755 /usr/local/sbin/git
+
+    # 2. Install /usr/local/sbin/{rm,mv,truncate} wrappers to block deleting, renaming, or truncating .ctbnodes files
+    for tool_name in rm mv truncate; do
+        cat > "/usr/local/sbin/${tool_name}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "\${CTB_ALLOW_GRAPH_MUTATION:-}" != "I_AM_THE_OPERATOR" ]; then
+    for arg in "\$@"; do
+        case "\${arg}" in
+            *assets/data/graph*|*.ctbnodes*)
+                echo "FATAL: Refusing '${tool_name}' on append-only graph ledger target '\${arg}'." >&2
+                echo "Files in assets/data/graph/ are strictly append-only and must NEVER be deleted, moved, or truncated." >&2
+                exit 1
+                ;;
+        esac
+    done
+fi
+
+exec "/usr/bin/${tool_name}" "\$@"
+EOF
+        chmod 0755 "/usr/local/sbin/${tool_name}"
+    done
+
+    # 3. Install Git pre-commit hook verifying strict append-only invariant against HEAD
+    if [ -d "${REPO_ROOT}/.git/hooks" ]; then
+        cat > "${REPO_ROOT}/.git/hooks/pre-commit" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(/usr/bin/git rev-parse --show-toplevel)"
+while IFS= read -r rel_path; do
+    if [ -z "${rel_path}" ]; then
+        continue
+    fi
+    work_file="${REPO_ROOT}/${rel_path}"
+    if [ ! -f "${work_file}" ]; then
+        echo "FATAL: Append-only graph chunk '${rel_path}' from HEAD is missing in working tree!" >&2
+        exit 1
+    fi
+    head_lines="$(/usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" | wc -l | tr -d '[:space:]')"
+    work_lines="$(wc -l < "${work_file}" | tr -d '[:space:]')"
+    if [ "${work_lines}" -lt "${head_lines}" ]; then
+        echo "FATAL: Append-only graph chunk '${rel_path}' shrunk from ${head_lines} lines in HEAD to ${work_lines} lines!" >&2
+        exit 1
+    fi
+    # Compare the token prefix (everything before '#') of the first head_lines lines
+    if ! diff -u \
+        <(/usr/bin/git -C "${REPO_ROOT}" show "HEAD:${rel_path}" | sed 's/[[:space:]]*#.*$//') \
+        <(head -n "${head_lines}" "${work_file}" | sed 's/[[:space:]]*#.*$//') >/dev/null; then
+        echo "FATAL: Append-only invariant violated in '${rel_path}': existing node IDs or Dc tokens differ from HEAD!" >&2
+        exit 1
+    fi
+done < <(/usr/bin/git -C "${REPO_ROOT}" ls-tree --name-only HEAD assets/data/graph/ | grep '\.ctbnodes$' || true)
+EOF
+        chmod 0755 "${REPO_ROOT}/.git/hooks/pre-commit"
+    fi
+
+    # 4. Seed high-water-mark shadow ledgers from HEAD if not yet initialized
+    seed_highwater_from_head "${REPO_ROOT}/.git/ctb-graph-ledger-highwater"
+    if [ -d "/root/.gemini" ]; then
+        seed_highwater_from_head "/root/.gemini/ctb-graph-ledger-highwater"
+    fi
+}
+
+mode="${1:---host-init}"
+case "${mode}" in
+    --host-init)
+        apply_host_chattr_locks
+        ;;
+    --install-host)
+        install_host_systemd_watcher
+        ;;
+    --container-init)
+        install_container_guards
+        apply_host_chattr_locks
+        ;;
+    --all)
+        install_container_guards
+        apply_host_chattr_locks
+        ;;
+    *)
+        echo "Usage: $0 [--host-init | --install-host | --container-init | --all]" >&2
+        exit 1
+        ;;
+esac

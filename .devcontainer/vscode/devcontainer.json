@@ -7,8 +7,10 @@
       "--network=host"
     ]
   },
+  "initializeCommand": "scripts/lock-graph-append-only --host-init || true",
   "runArgs": [
-    "--network=host"
+    "--network=host",
+    "--cap-drop=LINUX_IMMUTABLE"
   ],
   "mounts": [
     "source=antigravity-ide-data,target=/root/.gemini,type=volume"
@@ -20,7 +22,7 @@
     "BASH_ENV": "/etc/profile.d/umask.sh",
     "DISPLAY": ":99"
   },
-  "postStartCommand": "setfacl -R -d -m u::rwx,g::rwx,o::rwx /workspaces/ctoolbox 2>/dev/null || true; nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 & nohup /usr/local/bin/gui-server start > /tmp/gui-server.log 2>&1 &",
+  "postStartCommand": "/workspaces/ctoolbox/scripts/lock-graph-append-only --container-init; setfacl -R -d -m u::rwx,g::rwx,o::rwx /workspaces/ctoolbox 2>/dev/null || true; nohup /root/.config/guix/current/bin/guix-daemon --disable-chroot --build-users-group=guixbuild > /tmp/guix-daemon.log 2>&1 & nohup /usr/local/bin/gui-server start > /tmp/gui-server.log 2>&1 &",
 
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
