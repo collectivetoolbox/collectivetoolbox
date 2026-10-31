@@ -151,9 +151,12 @@ pub fn convert_legacy_cdce_to_dc(
             {
                 txt.push_str(&format!("{val},"));
             } else {
-                log.import_warning(&format!(
-                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy CDCE import"
-                ));
+                log.import_warning(
+                    u64::try_from(i).unwrap_or(u64::MAX),
+                    &format!(
+                        "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy CDCE import"
+                    ),
+                );
             }
             i = i.saturating_add(1);
         }

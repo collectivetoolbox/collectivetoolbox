@@ -110,8 +110,13 @@ pub fn convert_dc_to_3_0a_output(
     let tables = get_tables();
     let mut hex_str = "44434565020101fd80".to_string();
 
-    for dc_id in dc_array {
-        if dc_id.is_empty() || dc_id == "114" || dc_id == "115" {
+    for (idx, dc_id) in dc_array.into_iter().enumerate() {
+        if dc_id.is_empty()
+            || matches!(
+                dc_id.as_str(),
+                "13" | "15" | "16" | "112" | "113" | "114" | "115"
+            )
+        {
             continue;
         }
         if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_id)
@@ -119,9 +124,12 @@ pub fn convert_dc_to_3_0a_output(
         {
             hex_str.push_str(&mapped.to_lowercase());
         } else {
-            log.export_warning(&format!(
-                "Short Dc {dc_id} cannot be represented in DCE 3.0a and was omitted"
-            ));
+            log.export_warning(
+                u64::try_from(idx).unwrap_or(u64::MAX),
+                &format!(
+                    "Short Dc {dc_id} cannot be represented in DCE 3.0a and was omitted"
+                ),
+            );
         }
     }
     hex_str.push_str("81fd03");

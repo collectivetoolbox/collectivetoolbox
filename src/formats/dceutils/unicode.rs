@@ -46,7 +46,7 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
     let mut txt = String::new();
     let chunks = utf32_bytes.chunks_exact(4);
 
-    for chunk in chunks {
+    for (idx, chunk) in chunks.enumerate() {
         let bytes: [u8; 4] =
             chunk.try_into().context("Invalid chunk size for u32 BE")?;
         let cp = u32::from_be_bytes(bytes);
@@ -62,9 +62,12 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
             txt.push_str(val);
             txt.push(',');
         } else {
-            log.import_warning(&format!(
-                "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
-            ));
+            log.import_warning(
+                u64::try_from(idx).unwrap_or(u64::MAX),
+                &format!(
+                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
+                ),
+            );
         }
     }
     Ok(txt)
@@ -279,7 +282,7 @@ pub fn convert_dc_to_utf8_output(
     let tables = get_tables();
     let mut txt = String::new();
 
-    for dc_id in dc_array {
+    for (idx, dc_id) in dc_array.into_iter().enumerate() {
         if let Some(mapped) = tables.dc_map_send_unicode.get(&dc_id) {
             if !mapped.is_empty() {
                 // Pad to 8 hex characters, lowercase
@@ -288,10 +291,33 @@ pub fn convert_dc_to_utf8_output(
                 continue;
             }
         }
-        if dc_id != "114" && dc_id != "115" && !dc_id.is_empty() {
-            log.export_warning(&format!(
-                "Short Dc {dc_id} has no Unicode mapping in dceutils and was replaced with U+FFFD"
-            ));
+        // DCE stateful-encoding control characters and unbounded-content markers
+        // have no glyph representation in Unicode/CDCE and are ignored rather
+        // than replaced with U+FFFD.
+        if !dc_id.is_empty()
+            && !matches!(
+                dc_id.as_str(),
+                "13" | "14"
+                    | "15"
+                    | "16"
+                    | "112"
+                    | "113"
+                    | "114"
+                    | "115"
+                    | "194"
+                    | "196"
+                    | "197"
+                    | "198"
+                    | "199"
+                    | "205"
+            )
+        {
+            log.export_warning(
+                u64::try_from(idx).unwrap_or(u64::MAX),
+                &format!(
+                    "Short Dc {dc_id} has no Unicode mapping in dceutils and was replaced with U+FFFD"
+                ),
+            );
             txt.push_str("0000fffd");
         }
     }

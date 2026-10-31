@@ -234,9 +234,74 @@ pub fn dc_map_send_simple_with_log(
     let mut mapped = String::new();
     let mut state = "Core".to_string();
 
-    for dc_id in dc_array {
+    for (idx, dc_id) in dc_array.into_iter().enumerate() {
         if dc_id.is_empty() {
             continue;
+        }
+        let idx_u64 = u64::try_from(idx).unwrap_or(u64::MAX);
+        match dc_id.as_str() {
+            "13" => {
+                mapped.push_str("FD");
+                state = "Core".to_string();
+                continue;
+            }
+            "14" => {
+                mapped.push_str("FE");
+                state = "Core".to_string();
+                continue;
+            }
+            "16" => {
+                if state != "Core" {
+                    mapped.push_str("FD");
+                }
+                mapped.push_str("01");
+                state = "DCE_Version_Selectors".to_string();
+                continue;
+            }
+            "196" => {
+                if state != "Core" {
+                    mapped.push_str("FD");
+                }
+                mapped.push_str("C5");
+                state = "Variant_Selectors".to_string();
+                continue;
+            }
+            "197" => {
+                if state != "Core" {
+                    mapped.push_str("FD");
+                }
+                mapped.push_str("C6");
+                state = "Semantic_Records".to_string();
+                continue;
+            }
+            "198" => {
+                if state != "Core" {
+                    mapped.push_str("FD");
+                }
+                mapped.push_str("C7");
+                state = "Mathematics".to_string();
+                continue;
+            }
+            "199" => {
+                if state != "Core" {
+                    mapped.push_str("FD");
+                }
+                mapped.push_str("C8");
+                state = "Punctuation_and_Whitespace".to_string();
+                continue;
+            }
+            "205" => {
+                if state != "DCE_Version_Selectors" {
+                    if state != "Core" {
+                        mapped.push_str("FD");
+                    }
+                    mapped.push_str("01");
+                    state = "DCE_Version_Selectors".to_string();
+                }
+                mapped.push_str("03");
+                continue;
+            }
+            _ => {}
         }
         if let Some(record) = tables.dc_map_send_dce3_01a_all.get(&dc_id)
             && !record.is_empty()
@@ -248,6 +313,13 @@ pub fn dc_map_send_simple_with_log(
                     mapped.push_str("FD");
                     mapped.push_str(append);
                     state = "Core".to_string();
+                } else if state_needed == "DCE_Version_Selectors" {
+                    if state != "Core" {
+                        mapped.push_str("FD");
+                    }
+                    mapped.push_str("01");
+                    mapped.push_str(append);
+                    state = "DCE_Version_Selectors".to_string();
                 } else {
                     let switch_query = format!(">{state_needed}");
                     let mut state_switch = None;
@@ -267,17 +339,23 @@ pub fn dc_map_send_simple_with_log(
                         mapped.push_str(append);
                         state = state_needed.to_string();
                     } else {
-                        log.export_warning(&format!(
-                            "Short Dc {dc_id} (sheet {state_needed}) has no sheet switch in DCE 3.01a and was omitted"
-                        ));
+                        log.export_warning(
+                            idx_u64,
+                            &format!(
+                                "Short Dc {dc_id} (sheet {state_needed}) has no sheet switch in DCE 3.01a and was omitted"
+                            ),
+                        );
                     }
                 }
                 continue;
             }
         }
-        log.export_warning(&format!(
-            "Short Dc {dc_id} cannot be represented in DCE 3.01a and was omitted"
-        ));
+        log.export_warning(
+            idx_u64,
+            &format!(
+                "Short Dc {dc_id} cannot be represented in DCE 3.01a and was omitted"
+            ),
+        );
     }
 
     mapped
