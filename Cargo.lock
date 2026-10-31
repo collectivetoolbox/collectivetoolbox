@@ -3145,6 +3145,7 @@ dependencies = [
  "ctb-dc-macro",
  "ctb-formats-checksum",
  "ctb-formats-dcdata",
+ "ctb-formats-dceutils",
  "ctb-formats-dctf",
  "ctb-formats-eite",
  "ctb-formats-math",

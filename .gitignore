@@ -35,3 +35,5 @@
 
 # Temporary csc state files
 /csc_state_*
+
+/rsync-checksummed-2026oct31
