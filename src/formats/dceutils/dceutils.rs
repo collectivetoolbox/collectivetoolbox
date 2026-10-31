@@ -485,3 +485,459 @@ pub fn convert_dc_to_dc_output(data: &str, log: &mut FormatLog) -> String {
         data.to_string()
     }
 }
+
+/// Returns `true` if `short_dc` is a DCE stateful-encoding control character or
+/// unbounded-content framing marker that has no glyph representation in text/CDCE.
+#[must_use]
+pub const fn is_dce_encoding_control_dc(short_dc: u32) -> bool {
+    matches!(
+        short_dc,
+        13..=16 | 112..=115 | 194 | 196..=199 | 205
+    )
+}
+
+/// Decodes a DCE binary or hex-encoded stream (`dce`, `3_0a`, `3_0a_raw`,
+/// `3_01a`, `3_01a_raw`, and their `hex_*` variants) into a sequence of short
+/// Dc IDs while preserving all stateful DCE control characters (`13..=16`,
+/// `112..=115`, `194`, `196..=199`, `205`) as-is.
+pub fn decode_dce_preserving_controls(
+    data: &[u8],
+    input_format: &str,
+    log: &mut FormatLog,
+) -> Result<Vec<u32>> {
+    let (raw_bytes, base_fmt) = match input_format {
+        "hex_dce" | "dce_hex" => (decode_hex_payload(data, log)?, "dce"),
+        "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex" => {
+            (decode_hex_payload(data, log)?, "3_0a")
+        }
+        "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" => {
+            (decode_hex_payload(data, log)?, "3_0a_raw")
+        }
+        "hex_3_01a" | "3_01a_hex" | "dce_3_01a_hex" => {
+            (decode_hex_payload(data, log)?, "3_01a")
+        }
+        "hex_3_01a_raw" | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
+            (decode_hex_payload(data, log)?, "3_01a_raw")
+        }
+        "3_0a" | "dce_3_0a" => (data.to_vec(), "3_0a"),
+        "3_0a_raw" | "dce_3_0a_raw" => (data.to_vec(), "3_0a_raw"),
+        "3_01a" | "dce_3_01a" => (data.to_vec(), "3_01a"),
+        "3_01a_raw" | "dce_3_01a_raw" => (data.to_vec(), "3_01a_raw"),
+        "dce" => (data.to_vec(), "dce"),
+        _ => {
+            log.error("Unknown DCE input format.");
+            bail!("Unknown DCE input format: {input_format}");
+        }
+    };
+
+    let (is_3_01a, start_offset) = match base_fmt {
+        "3_0a_raw" => {
+            if raw_bytes.first() != Some(&0x80) {
+                log.error(
+                    "This document is not stored using the specified format.",
+                );
+                bail!(
+                    "This document is not stored using the specified format."
+                );
+            }
+            (false, 0_usize)
+        }
+        "3_01a_raw" => {
+            if raw_bytes.first() != Some(&0x80) {
+                log.error(
+                    "This document is not stored using the specified format.",
+                );
+                bail!(
+                    "This document is not stored using the specified format."
+                );
+            }
+            (true, 0_usize)
+        }
+        "3_0a" | "3_01a" | "dce" => {
+            if raw_bytes.len() < 7
+                || raw_bytes.get(0..6) != Some(b"DCEe\x02\x01")
+            {
+                log.error(
+                    "This document is not stored using the specified format.",
+                );
+                bail!(
+                    "This document is not stored using the specified format."
+                );
+            }
+            let ver_byte = raw_bytes.get(6).copied().unwrap_or(0);
+            match (base_fmt, ver_byte) {
+                ("3_0a", 1) | ("dce", 1) => (false, 4_usize),
+                ("3_01a", 2) | ("dce", 2 | 3) => (true, 4_usize),
+                ("3_0a", _) => {
+                    log.error(
+                        "This document is not stored using the specified format.",
+                    );
+                    bail!(
+                        "This document is not stored using the specified format."
+                    );
+                }
+                ("3_01a", _) => {
+                    log.error(
+                        "This document is not stored using the specified version of DCE.",
+                    );
+                    bail!(
+                        "This document is not stored using the specified version of DCE."
+                    );
+                }
+                _ => {
+                    log.error(
+                        "This document is not stored using a supported version of DCE.",
+                    );
+                    bail!(
+                        "This document is not stored using a supported version of DCE."
+                    );
+                }
+            }
+        }
+        _ => unreachable!("base_fmt is constrained above"),
+    };
+
+    let tables = tables::get_tables();
+    let mut out = Vec::new();
+    let mut state = "Core".to_string();
+    let slice = raw_bytes.get(start_offset..).unwrap_or(&[]);
+
+    for (idx, &byte) in slice.iter().enumerate() {
+        let byte_hex = format!("{byte:02X}");
+        let idx_u64 = u64::try_from(idx.saturating_add(start_offset))
+            .unwrap_or(u64::MAX);
+        match state.as_str() {
+            "Core" => {
+                if byte == 0x01 {
+                    out.push(16);
+                    state = "DCE_Version_Selectors".to_string();
+                    continue;
+                }
+                let core_map = if is_3_01a {
+                    &tables.dc_map_dce3_01a_core
+                } else {
+                    &tables.dc_map_dce3_0a_core
+                };
+                if let Some(val) = core_map.get(&byte_hex)
+                    && !val.is_empty()
+                {
+                    if let Some(stripped) = val.strip_prefix('>') {
+                        let sheet_dc = match stripped {
+                            "Variant_Selectors" => Some(196_u32),
+                            "Semantic_Records" => Some(197_u32),
+                            "Mathematics" => Some(198_u32),
+                            "Punctuation_and_Whitespace"
+                            | "Whitespace_and_Punctuation" => Some(199_u32),
+                            _ => None,
+                        };
+                        if let Some(dc_id) = sheet_dc {
+                            out.push(dc_id);
+                        }
+                        state = stripped.to_string();
+                    } else if let Ok(dc_id) = val.parse::<u32>() {
+                        out.push(dc_id);
+                        if byte == 0x03 && start_offset == 4 {
+                            break;
+                        }
+                    }
+                } else {
+                    log.import_warning(
+                        idx_u64,
+                        &format!(
+                            "Unmapped DCE Core byte 0x{byte_hex} dropped during import"
+                        ),
+                    );
+                }
+            }
+            "DCE_Version_Selectors" => match byte {
+                0xFD => {
+                    out.push(13);
+                    state = "Core".to_string();
+                }
+                0xFE => {
+                    out.push(14);
+                    state = "Core".to_string();
+                }
+                0x00 => out.push(0),
+                0x01 => out.push(112),
+                0x02 => out.push(194),
+                0x03 => out.push(205),
+                0xFF => out.push(17),
+                _ => {
+                    log.import_warning(
+                        idx_u64,
+                        &format!(
+                            "Unmapped DCE_Version_Selectors byte 0x{byte_hex} dropped during import"
+                        ),
+                    );
+                }
+            },
+            "Variant_Selectors"
+            | "Semantic_Records"
+            | "Mathematics"
+            | "Punctuation_and_Whitespace"
+            | "Whitespace_and_Punctuation" => {
+                if byte == 0xFD {
+                    out.push(13);
+                    state = "Core".to_string();
+                    continue;
+                }
+                if byte == 0xFE {
+                    out.push(14);
+                    state = "Core".to_string();
+                    continue;
+                }
+                let sheet_map = match state.as_str() {
+                    "Variant_Selectors" => {
+                        &tables.dc_map_dce3_01a_variant_selectors
+                    }
+                    "Semantic_Records" => {
+                        &tables.dc_map_dce3_01a_semantic_records
+                    }
+                    "Mathematics" => &tables.dc_map_dce3_01a_mathematics,
+                    _ => &tables.dc_map_dce3_01a_punctuation_and_whitespace,
+                };
+                if let Some(val) = sheet_map.get(&byte_hex)
+                    && !val.is_empty()
+                    && let Ok(dc_id) = val.parse::<u32>()
+                {
+                    out.push(dc_id);
+                } else {
+                    log.import_warning(
+                        idx_u64,
+                        &format!(
+                            "Unmapped DCE {state} byte 0x{byte_hex} dropped during import"
+                        ),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(out)
+}
+
+/// Encodes a sequence of short Dc IDs into a DCE binary or hex-encoded format
+/// (`dce`, `3_0a`, `3_0a_raw`, `3_01a`, `3_01a_raw`, and their `hex_*` variants),
+/// respecting any explicit DCE sheet/control Dcs already present in `dcs` and
+/// automatically inserting sheet transitions or framing when absent.
+pub fn encode_dce_preserving_controls(
+    dcs: &[u32],
+    output_format: &str,
+    log: &mut FormatLog,
+) -> Result<Vec<u8>> {
+    let (base_fmt, is_hex) = match output_format {
+        "hex_dce" | "dce_hex" => ("dce", true),
+        "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex" => ("3_0a", true),
+        "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" => {
+            ("3_0a_raw", true)
+        }
+        "hex_3_01a" | "3_01a_hex" | "dce_3_01a_hex" => ("3_01a", true),
+        "hex_3_01a_raw" | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
+            ("3_01a_raw", true)
+        }
+        "dce" | "3_0a" | "3_0a_raw" | "3_01a" | "3_01a_raw" => {
+            (output_format, false)
+        }
+        "dce_3_0a" => ("3_0a", false),
+        "dce_3_0a_raw" => ("3_0a_raw", false),
+        "dce_3_01a" => ("3_01a", false),
+        "dce_3_01a_raw" => ("3_01a_raw", false),
+        _ => {
+            log.error("Unknown DCE output format.");
+            bail!("Unknown DCE output format: {output_format}");
+        }
+    };
+
+    let is_raw = matches!(base_fmt, "3_0a_raw" | "3_01a_raw");
+    let is_3_01a = match base_fmt {
+        "3_01a" | "3_01a_raw" => true,
+        "3_0a" | "3_0a_raw" => false,
+        "dce" => dcs.iter().any(|&dc| {
+            matches!(dc, 2..=12 | 116..=199 | 205)
+        }),
+        _ => false,
+    };
+
+    // Strip outer DCE header `[15, 16, 112|194|205, 13|14]` and trailer `[13|14, 113]` if present
+    let mut start = 0_usize;
+    if dcs.len() >= 4
+        && dcs.first() == Some(&15)
+        && dcs.get(1) == Some(&16)
+        && matches!(dcs.get(2), Some(&112 | &194 | &205))
+        && matches!(dcs.get(3), Some(&13 | &14))
+    {
+        start = 4;
+    }
+    let mut end = dcs.len();
+    if end.saturating_sub(start) >= 2
+        && matches!(dcs.get(end.saturating_sub(2)), Some(&13 | &14))
+        && dcs.get(end.saturating_sub(1)) == Some(&113)
+    {
+        end = end.saturating_sub(2);
+    } else if end > start && dcs.get(end.saturating_sub(1)) == Some(&113) {
+        end = end.saturating_sub(1);
+    }
+
+    let inner = dcs.get(start..end).unwrap_or(&[]);
+    let tables = tables::get_tables();
+    let mut hex_str = String::new();
+
+    if !is_raw {
+        if is_3_01a {
+            hex_str.push_str("44434565020102fd");
+        } else {
+            hex_str.push_str("44434565020101fd");
+        }
+    }
+
+    if inner.first() != Some(&114) {
+        hex_str.push_str("80");
+    }
+
+    let mut state = "Core".to_string();
+    for (idx, &dc) in inner.iter().enumerate() {
+        let idx_u64 =
+            u64::try_from(idx.saturating_add(start)).unwrap_or(u64::MAX);
+        match dc {
+            13 => {
+                hex_str.push_str("fd");
+                state = "Core".to_string();
+                continue;
+            }
+            14 => {
+                hex_str.push_str("fe");
+                state = "Core".to_string();
+                continue;
+            }
+            16 => {
+                if state != "Core" {
+                    hex_str.push_str("fd");
+                }
+                hex_str.push_str("01");
+                state = "DCE_Version_Selectors".to_string();
+                continue;
+            }
+            196..=199 if is_3_01a => {
+                if state != "Core" {
+                    hex_str.push_str("fd");
+                }
+                let (sw_hex, next_state) = match dc {
+                    196 => ("c5", "Variant_Selectors"),
+                    197 => ("c6", "Semantic_Records"),
+                    198 => ("c7", "Mathematics"),
+                    _ => ("c8", "Punctuation_and_Whitespace"),
+                };
+                hex_str.push_str(sw_hex);
+                state = next_state.to_string();
+                continue;
+            }
+            205 if is_3_01a => {
+                if state != "DCE_Version_Selectors" {
+                    if state != "Core" {
+                        hex_str.push_str("fd");
+                    }
+                    hex_str.push_str("01");
+                    state = "DCE_Version_Selectors".to_string();
+                }
+                hex_str.push_str("03");
+                continue;
+            }
+            _ => {}
+        }
+
+        let dc_key = dc.to_string();
+        if is_3_01a {
+            if let Some(record) = tables.dc_map_send_dce3_01a_all.get(&dc_key)
+                && !record.is_empty()
+                && let Some((state_needed, append)) = record.split_once(':')
+            {
+                let append_lower = append.to_lowercase();
+                if state_needed == state {
+                    hex_str.push_str(&append_lower);
+                } else if state_needed == "Core" {
+                    hex_str.push_str("fd");
+                    hex_str.push_str(&append_lower);
+                    state = "Core".to_string();
+                } else {
+                    let sw_hex = match state_needed {
+                        "DCE_Version_Selectors" => Some("01"),
+                        "Variant_Selectors" => Some("c5"),
+                        "Semantic_Records" => Some("c6"),
+                        "Mathematics" => Some("c7"),
+                        "Punctuation_and_Whitespace" => Some("c8"),
+                        _ => None,
+                    };
+                    if let Some(sw) = sw_hex {
+                        if state != "Core" {
+                            hex_str.push_str("fd");
+                        }
+                        hex_str.push_str(sw);
+                        hex_str.push_str(&append_lower);
+                        state = state_needed.to_string();
+                    } else {
+                        log.export_warning_unmappable(
+                            idx_u64,
+                            dc,
+                            output_format,
+                        );
+                    }
+                }
+            } else {
+                log.export_warning_unmappable(idx_u64, dc, output_format);
+            }
+        } else if dc == 112 {
+            if state != "DCE_Version_Selectors" {
+                if state != "Core" {
+                    hex_str.push_str("fd");
+                }
+                hex_str.push_str("01");
+                state = "DCE_Version_Selectors".to_string();
+            }
+            hex_str.push_str("01");
+        } else if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_key)
+            && !mapped.is_empty()
+        {
+            if state != "Core" {
+                hex_str.push_str("fd");
+                state = "Core".to_string();
+            }
+            hex_str.push_str(&mapped.to_lowercase());
+        } else {
+            log.export_warning_unmappable(idx_u64, dc, output_format);
+        }
+    }
+
+    if state != "Core" {
+        hex_str.push_str("fd");
+    }
+    if inner.last() != Some(&115) {
+        hex_str.push_str("81");
+    }
+    if !is_raw {
+        hex_str.push_str("fd03");
+    }
+
+    let raw_out = ctb_formats_hexdump::hex2bin(&hex_str).map_err(|e| {
+        log.error(&format!("Failed to encode hex in DCE serialization: {e}"));
+        anyhow!("Failed to encode hex in DCE serialization: {e}")
+    })?;
+
+    if is_hex {
+        Ok(bin2hex(raw_out).to_uppercase().into_bytes())
+    } else {
+        Ok(raw_out)
+    }
+}
+
+fn decode_hex_payload(data: &[u8], log: &mut FormatLog) -> Result<Vec<u8>> {
+    let hex_str = std::str::from_utf8(data).map_err(|_| {
+        log.error("This document is not stored using the specified format.");
+        anyhow!("This document is not stored using the specified format.")
+    })?;
+    ctb_formats_hexdump::hex2bin(hex_str).map_err(|_| {
+        log.error("This document is not stored using the specified format.");
+        anyhow!("This document is not stored using the specified format.")
+    })
+}

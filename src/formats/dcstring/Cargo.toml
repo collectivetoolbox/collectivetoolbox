@@ -11,6 +11,7 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-dctf = { path = "../dctf" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
+ctb-formats-dceutils = { path = "../dceutils" }
 ctb-formats-eite = { path = "../eite" }
 ctb-formats-checksum = { path = "../checksum" }
 ctb-formats-math = { path = "../math" }

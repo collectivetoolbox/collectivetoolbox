@@ -61,4 +61,13 @@
 !:mime	text/plain
 !:ext	cscdesc
 
+# DCE (Document Character Encoding)
+0	string		DCEe\x02\x01\x01\xfd	DCE 3.0a document
+!:mime	application/octet-stream
+!:ext	dce
+
+0	string		DCEe\x02\x01\x02\xfd	DCE 3.01a document
+!:mime	application/octet-stream
+!:ext	dce
+
 

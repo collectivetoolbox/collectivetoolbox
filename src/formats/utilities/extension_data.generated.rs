@@ -528,6 +528,18 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("dcutf"),
     },
     ExtensionEntry {
+        format_id: FormatId::Cdce,
+        rule: ExtensionRule::insensitive("cdce"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CdceLegacy,
+        rule: ExtensionRule::insensitive("legacy_cdce"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dce,
+        rule: ExtensionRule::insensitive("dce"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Pdf,
         rule: ExtensionRule::insensitive("pdf"),
     },

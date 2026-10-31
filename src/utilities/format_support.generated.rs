@@ -831,6 +831,18 @@ impl std::str::FromStr for SupportedHashFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcInputFormat {
+    /// DCE 3.01a
+    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
+    Dce_3_01a,
+    /// DCE 3.01a (raw)
+    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
+    Dce_3_01a_raw,
+    /// DCE 3.0a
+    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
+    Dce_3_0a,
+    /// DCE 3.0a (raw)
+    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
+    Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
@@ -858,6 +870,9 @@ pub enum SupportedDcInputFormat {
     /// Printable ASCII
     #[value(name = "asciisafesubset", alias = "AsciiSafeSubset", alias = "f3")]
     AsciiSafeSubset,
+    /// CDCE (legacy, strict)
+    #[value(name = "cdce_lstrict", alias = "cdcelegacystrict", alias = "CdceLegacyStrict", alias = "f94")]
+    CdceLegacyStrict,
     /// Code page 437 (CCSID 437)
     #[value(name = "cp437", alias = "Cp437", alias = "f86")]
     Cp437,
@@ -888,9 +903,15 @@ pub enum SupportedDcInputFormat {
     /// Collective Toolbox graph nodes (shorthand text)
     #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
     CtbNodes,
+    /// Dc ID list (ASCII)
+    #[value(name = "dc_id_list", alias = "dcidlist", alias = "DcIdList", alias = "f109")]
+    DcIdList,
     /// Dc ASCII List (long Dcs)
     #[value(name = "dcal", alias = "Dcal", alias = "f340")]
     Dcal,
+    /// DCE (automatic version selection)
+    #[value(name = "dce", alias = "Dce", alias = "f95")]
+    Dce,
     /// Dc Integer List (short Dcs)
     #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
@@ -918,9 +939,27 @@ pub enum SupportedDcInputFormat {
     /// DcUtf
     #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
     DcUtf,
+    /// DCE 3.01a (hex-encoded)
+    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
+    Dce_3_01a_hex,
+    /// DCE 3.01a (raw hex-encoded)
+    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
+    Dce_3_01a_raw_hex,
+    /// DCE 3.0a (hex-encoded)
+    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
+    Dce_3_0a_hex,
+    /// DCE 3.0a (raw hex-encoded)
+    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
+    Dce_3_0a_raw_hex,
+    /// DCE (hex-encoded)
+    #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
+    DceHex,
     /// ISO 8859-1
     #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
     Iso88591,
+    /// CDCE (legacy)
+    #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
+    CdceLegacy,
     /// MacRoman
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
@@ -931,6 +970,24 @@ pub enum SupportedDcInputFormat {
     #[default]
     #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
+    /// UTF-8 (Base64-encoded, ASCII Dc ID list)
+    #[value(name = "utf8_dc64", alias = "Utf8_Dc64", alias = "f111")]
+    Utf8_Dc64,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    #[value(name = "utf8_dc64_bin", alias = "Utf8_Dc64_bin", alias = "f113")]
+    Utf8_Dc64_bin,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    #[value(name = "utf8_dc64_bin_enc", alias = "Utf8_Dc64_bin_enc", alias = "f115")]
+    Utf8_Dc64_bin_enc,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    #[value(name = "utf8_dc64_bin_enc_hex", alias = "Utf8_Dc64_bin_enc_hex", alias = "f116")]
+    Utf8_Dc64_bin_enc_hex,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    #[value(name = "utf8_dc64_bin_hex", alias = "Utf8_Dc64_bin_hex", alias = "f114")]
+    Utf8_Dc64_bin_hex,
+    /// UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+    #[value(name = "utf8_dc64_enc", alias = "Utf8_Dc64_enc", alias = "f112")]
+    Utf8_Dc64_enc,
     /// Windows-1252 ("ANSI")
     #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
     Win1252,
@@ -939,6 +996,10 @@ pub enum SupportedDcInputFormat {
 impl SupportedDcInputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcInputFormat] = &[
+        Self::Dce_3_01a,
+        Self::Dce_3_01a_raw,
+        Self::Dce_3_0a,
+        Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
         Self::AlphaSmartNeoLowCtlUaMac,
         Self::AlphaSmartNeoLowCtlUaPc,
@@ -948,6 +1009,7 @@ impl SupportedDcInputFormat {
         Self::AlphaSmartNeoLowGrUs,
         Self::Ascii,
         Self::AsciiSafeSubset,
+        Self::CdceLegacyStrict,
         Self::Cp437,
         Self::CscArchive,
         Self::CscArchive1,
@@ -958,7 +1020,9 @@ impl SupportedDcInputFormat {
         Self::CtbNodeBundle1,
         Self::CtbNodeBundle2,
         Self::CtbNodes,
+        Self::DcIdList,
         Self::Dcal,
+        Self::Dce,
         Self::DcIntegerList,
         Self::DcMixed,
         Self::DcMixed1,
@@ -968,15 +1032,31 @@ impl SupportedDcInputFormat {
         Self::DcTf,
         Self::Dcts,
         Self::DcUtf,
+        Self::Dce_3_01a_hex,
+        Self::Dce_3_01a_raw_hex,
+        Self::Dce_3_0a_hex,
+        Self::Dce_3_0a_raw_hex,
+        Self::DceHex,
         Self::Iso88591,
+        Self::CdceLegacy,
         Self::MacRoman,
         Self::Sems,
         Self::Utf8,
+        Self::Utf8_Dc64,
+        Self::Utf8_Dc64_bin,
+        Self::Utf8_Dc64_bin_enc,
+        Self::Utf8_Dc64_bin_enc_hex,
+        Self::Utf8_Dc64_bin_hex,
+        Self::Utf8_Dc64_enc,
         Self::Win1252,
     ];
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
+        FormatId::Dce_3_01a,
+        FormatId::Dce_3_01a_raw,
+        FormatId::Dce_3_0a,
+        FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
         FormatId::AlphaSmartNeoLowCtlUaMac,
         FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -986,6 +1066,7 @@ impl SupportedDcInputFormat {
         FormatId::AlphaSmartNeoLowGrUs,
         FormatId::Ascii,
         FormatId::AsciiSafeSubset,
+        FormatId::CdceLegacyStrict,
         FormatId::Cp437,
         FormatId::CscArchive,
         FormatId::CscArchive1,
@@ -996,7 +1077,9 @@ impl SupportedDcInputFormat {
         FormatId::CtbNodeBundle1,
         FormatId::CtbNodeBundle2,
         FormatId::CtbNodes,
+        FormatId::DcIdList,
         FormatId::Dcal,
+        FormatId::Dce,
         FormatId::DcIntegerList,
         FormatId::DcMixed,
         FormatId::DcMixed1,
@@ -1006,10 +1089,22 @@ impl SupportedDcInputFormat {
         FormatId::DcTf,
         FormatId::Dcts,
         FormatId::DcUtf,
+        FormatId::Dce_3_01a_hex,
+        FormatId::Dce_3_01a_raw_hex,
+        FormatId::Dce_3_0a_hex,
+        FormatId::Dce_3_0a_raw_hex,
+        FormatId::DceHex,
         FormatId::Iso88591,
+        FormatId::CdceLegacy,
         FormatId::MacRoman,
         FormatId::Sems,
         FormatId::Utf8,
+        FormatId::Utf8_Dc64,
+        FormatId::Utf8_Dc64_bin,
+        FormatId::Utf8_Dc64_bin_enc,
+        FormatId::Utf8_Dc64_bin_enc_hex,
+        FormatId::Utf8_Dc64_bin_hex,
+        FormatId::Utf8_Dc64_enc,
         FormatId::Win1252,
     ];
 
@@ -1020,6 +1115,10 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn primary_cli_name(&self) -> &'static str {
         match self {
+            Self::Dce_3_01a => "3_01a",
+            Self::Dce_3_01a_raw => "3_01a_raw",
+            Self::Dce_3_0a => "3_0a",
+            Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
             Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
             Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
@@ -1029,6 +1128,7 @@ impl SupportedDcInputFormat {
             Self::AlphaSmartNeoLowGrUs => "alphasmartneolowgrus",
             Self::Ascii => "ascii",
             Self::AsciiSafeSubset => "asciisafesubset",
+            Self::CdceLegacyStrict => "cdce_lstrict",
             Self::Cp437 => "cp437",
             Self::CscArchive => "cscarchive",
             Self::CscArchive1 => "cscarchive1",
@@ -1039,7 +1139,9 @@ impl SupportedDcInputFormat {
             Self::CtbNodeBundle1 => "ctbnbdl1",
             Self::CtbNodeBundle2 => "ctbnbdl2",
             Self::CtbNodes => "ctbnodes",
+            Self::DcIdList => "dc_id_list",
             Self::Dcal => "dcal",
+            Self::Dce => "dce",
             Self::DcIntegerList => "dcil",
             Self::DcMixed => "dcmm",
             Self::DcMixed1 => "dcmm1",
@@ -1049,10 +1151,22 @@ impl SupportedDcInputFormat {
             Self::DcTf => "dctf",
             Self::Dcts => "dcts",
             Self::DcUtf => "dcutf",
+            Self::Dce_3_01a_hex => "hex_3_01a",
+            Self::Dce_3_01a_raw_hex => "hex_3_01a_raw",
+            Self::Dce_3_0a_hex => "hex_3_0a",
+            Self::Dce_3_0a_raw_hex => "hex_3_0a_raw",
+            Self::DceHex => "hex_dce",
             Self::Iso88591 => "iso88591",
+            Self::CdceLegacy => "legacy_cdce",
             Self::MacRoman => "macroman",
             Self::Sems => "sems",
             Self::Utf8 => "utf8",
+            Self::Utf8_Dc64 => "utf8_dc64",
+            Self::Utf8_Dc64_bin => "utf8_dc64_bin",
+            Self::Utf8_Dc64_bin_enc => "utf8_dc64_bin_enc",
+            Self::Utf8_Dc64_bin_enc_hex => "utf8_dc64_bin_enc_hex",
+            Self::Utf8_Dc64_bin_hex => "utf8_dc64_bin_hex",
+            Self::Utf8_Dc64_enc => "utf8_dc64_enc",
             Self::Win1252 => "win1252",
         }
     }
@@ -1061,6 +1175,10 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
+            Self::Dce_3_01a => FormatId::Dce_3_01a,
+            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
+            Self::Dce_3_0a => FormatId::Dce_3_0a,
+            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
             Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1070,6 +1188,7 @@ impl SupportedDcInputFormat {
             Self::AlphaSmartNeoLowGrUs => FormatId::AlphaSmartNeoLowGrUs,
             Self::Ascii => FormatId::Ascii,
             Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
+            Self::CdceLegacyStrict => FormatId::CdceLegacyStrict,
             Self::Cp437 => FormatId::Cp437,
             Self::CscArchive => FormatId::CscArchive,
             Self::CscArchive1 => FormatId::CscArchive1,
@@ -1080,7 +1199,9 @@ impl SupportedDcInputFormat {
             Self::CtbNodeBundle1 => FormatId::CtbNodeBundle1,
             Self::CtbNodeBundle2 => FormatId::CtbNodeBundle2,
             Self::CtbNodes => FormatId::CtbNodes,
+            Self::DcIdList => FormatId::DcIdList,
             Self::Dcal => FormatId::Dcal,
+            Self::Dce => FormatId::Dce,
             Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
             Self::DcMixed1 => FormatId::DcMixed1,
@@ -1090,10 +1211,22 @@ impl SupportedDcInputFormat {
             Self::DcTf => FormatId::DcTf,
             Self::Dcts => FormatId::Dcts,
             Self::DcUtf => FormatId::DcUtf,
+            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
+            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
+            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
+            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
+            Self::DceHex => FormatId::DceHex,
             Self::Iso88591 => FormatId::Iso88591,
+            Self::CdceLegacy => FormatId::CdceLegacy,
             Self::MacRoman => FormatId::MacRoman,
             Self::Sems => FormatId::Sems,
             Self::Utf8 => FormatId::Utf8,
+            Self::Utf8_Dc64 => FormatId::Utf8_Dc64,
+            Self::Utf8_Dc64_bin => FormatId::Utf8_Dc64_bin,
+            Self::Utf8_Dc64_bin_enc => FormatId::Utf8_Dc64_bin_enc,
+            Self::Utf8_Dc64_bin_enc_hex => FormatId::Utf8_Dc64_bin_enc_hex,
+            Self::Utf8_Dc64_bin_hex => FormatId::Utf8_Dc64_bin_hex,
+            Self::Utf8_Dc64_enc => FormatId::Utf8_Dc64_enc,
             Self::Win1252 => FormatId::Win1252,
         }
     }
@@ -1102,6 +1235,10 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
+            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
+            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
+            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
+            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
             FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
             FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
@@ -1111,6 +1248,7 @@ impl SupportedDcInputFormat {
             FormatId::AlphaSmartNeoLowGrUs => Some(Self::AlphaSmartNeoLowGrUs),
             FormatId::Ascii => Some(Self::Ascii),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
+            FormatId::CdceLegacyStrict => Some(Self::CdceLegacyStrict),
             FormatId::Cp437 => Some(Self::Cp437),
             FormatId::CscArchive => Some(Self::CscArchive),
             FormatId::CscArchive1 => Some(Self::CscArchive1),
@@ -1121,7 +1259,9 @@ impl SupportedDcInputFormat {
             FormatId::CtbNodeBundle1 => Some(Self::CtbNodeBundle1),
             FormatId::CtbNodeBundle2 => Some(Self::CtbNodeBundle2),
             FormatId::CtbNodes => Some(Self::CtbNodes),
+            FormatId::DcIdList => Some(Self::DcIdList),
             FormatId::Dcal => Some(Self::Dcal),
+            FormatId::Dce => Some(Self::Dce),
             FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
@@ -1131,10 +1271,22 @@ impl SupportedDcInputFormat {
             FormatId::DcTf => Some(Self::DcTf),
             FormatId::Dcts => Some(Self::Dcts),
             FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
+            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
+            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
+            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
+            FormatId::DceHex => Some(Self::DceHex),
             FormatId::Iso88591 => Some(Self::Iso88591),
+            FormatId::CdceLegacy => Some(Self::CdceLegacy),
             FormatId::MacRoman => Some(Self::MacRoman),
             FormatId::Sems => Some(Self::Sems),
             FormatId::Utf8 => Some(Self::Utf8),
+            FormatId::Utf8_Dc64 => Some(Self::Utf8_Dc64),
+            FormatId::Utf8_Dc64_bin => Some(Self::Utf8_Dc64_bin),
+            FormatId::Utf8_Dc64_bin_enc => Some(Self::Utf8_Dc64_bin_enc),
+            FormatId::Utf8_Dc64_bin_enc_hex => Some(Self::Utf8_Dc64_bin_enc_hex),
+            FormatId::Utf8_Dc64_bin_hex => Some(Self::Utf8_Dc64_bin_hex),
+            FormatId::Utf8_Dc64_enc => Some(Self::Utf8_Dc64_enc),
             FormatId::Win1252 => Some(Self::Win1252),
             FormatId::CscJournal1Meta1 => Some(Self::CscJournal),
             FormatId::CscJournal1Meta2 => Some(Self::CscJournal),
@@ -1206,6 +1358,18 @@ impl std::str::FromStr for SupportedDcInputFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcOutputFormat {
+    /// DCE 3.01a
+    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
+    Dce_3_01a,
+    /// DCE 3.01a (raw)
+    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
+    Dce_3_01a_raw,
+    /// DCE 3.0a
+    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
+    Dce_3_0a,
+    /// DCE 3.0a (raw)
+    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
+    Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
@@ -1263,9 +1427,15 @@ pub enum SupportedDcOutputFormat {
     /// Collective Toolbox graph nodes (shorthand text)
     #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
     CtbNodes,
+    /// Dc ID list (ASCII)
+    #[value(name = "dc_id_list", alias = "dcidlist", alias = "DcIdList", alias = "f109")]
+    DcIdList,
     /// Dc ASCII List (long Dcs)
     #[value(name = "dcal", alias = "Dcal", alias = "f340")]
     Dcal,
+    /// DCE (automatic version selection)
+    #[value(name = "dce", alias = "Dce", alias = "f95")]
+    Dce,
     /// Dc Integer List (short Dcs)
     #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
@@ -1299,15 +1469,39 @@ pub enum SupportedDcOutputFormat {
     /// EITE Language in ASCII documents (ELAD)
     #[value(name = "elad", alias = "Elad", alias = "f17")]
     Elad,
+    /// DCE 3.01a (hex-encoded)
+    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
+    Dce_3_01a_hex,
+    /// DCE 3.01a (raw hex-encoded)
+    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
+    Dce_3_01a_raw_hex,
+    /// DCE 3.0a (hex-encoded)
+    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
+    Dce_3_0a_hex,
+    /// DCE 3.0a (raw hex-encoded)
+    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
+    Dce_3_0a_raw_hex,
+    /// DCE (hex-encoded)
+    #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
+    DceHex,
     /// HTML
     #[value(name = "html", alias = "Html", alias = "f5")]
     Html,
+    /// HTML (legacy CDCE output)
+    #[value(name = "html_l", alias = "htmllegacycdce", alias = "HtmlLegacyCdce", alias = "f117")]
+    HtmlLegacyCdce,
+    /// HTML (snippet) (legacy CDCE output)
+    #[value(name = "html_snippet_l", alias = "htmllegacycdcesnippet", alias = "HtmlLegacyCdceSnippet", alias = "f118")]
+    HtmlLegacyCdceSnippet,
     /// HTML fragment
     #[value(name = "htmlfragment", alias = "HtmlFragment", alias = "f13", alias = "htmfrag")]
     HtmlFragment,
     /// ISO 8859-1
     #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
     Iso88591,
+    /// CDCE (legacy)
+    #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
+    CdceLegacy,
     /// MacRoman
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
@@ -1318,6 +1512,24 @@ pub enum SupportedDcOutputFormat {
     #[default]
     #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
+    /// UTF-8 (Base64-encoded, ASCII Dc ID list)
+    #[value(name = "utf8_dc64", alias = "Utf8_Dc64", alias = "f111")]
+    Utf8_Dc64,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    #[value(name = "utf8_dc64_bin", alias = "Utf8_Dc64_bin", alias = "f113")]
+    Utf8_Dc64_bin,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    #[value(name = "utf8_dc64_bin_enc", alias = "Utf8_Dc64_bin_enc", alias = "f115")]
+    Utf8_Dc64_bin_enc,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    #[value(name = "utf8_dc64_bin_enc_hex", alias = "Utf8_Dc64_bin_enc_hex", alias = "f116")]
+    Utf8_Dc64_bin_enc_hex,
+    /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    #[value(name = "utf8_dc64_bin_hex", alias = "Utf8_Dc64_bin_hex", alias = "f114")]
+    Utf8_Dc64_bin_hex,
+    /// UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+    #[value(name = "utf8_dc64_enc", alias = "Utf8_Dc64_enc", alias = "f112")]
+    Utf8_Dc64_enc,
     /// Windows-1252 ("ANSI")
     #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
     Win1252,
@@ -1326,6 +1538,10 @@ pub enum SupportedDcOutputFormat {
 impl SupportedDcOutputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcOutputFormat] = &[
+        Self::Dce_3_01a,
+        Self::Dce_3_01a_raw,
+        Self::Dce_3_0a,
+        Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
         Self::AlphaSmartNeoLowCtlUaMac,
         Self::AlphaSmartNeoLowCtlUaPc,
@@ -1345,7 +1561,9 @@ impl SupportedDcOutputFormat {
         Self::CtbNodeBundle1,
         Self::CtbNodeBundle2,
         Self::CtbNodes,
+        Self::DcIdList,
         Self::Dcal,
+        Self::Dce,
         Self::DcIntegerList,
         Self::DcMixed,
         Self::DcMixed1,
@@ -1357,17 +1575,35 @@ impl SupportedDcOutputFormat {
         Self::DcUtf,
         Self::EiteColorCoded,
         Self::Elad,
+        Self::Dce_3_01a_hex,
+        Self::Dce_3_01a_raw_hex,
+        Self::Dce_3_0a_hex,
+        Self::Dce_3_0a_raw_hex,
+        Self::DceHex,
         Self::Html,
+        Self::HtmlLegacyCdce,
+        Self::HtmlLegacyCdceSnippet,
         Self::HtmlFragment,
         Self::Iso88591,
+        Self::CdceLegacy,
         Self::MacRoman,
         Self::Sems,
         Self::Utf8,
+        Self::Utf8_Dc64,
+        Self::Utf8_Dc64_bin,
+        Self::Utf8_Dc64_bin_enc,
+        Self::Utf8_Dc64_bin_enc_hex,
+        Self::Utf8_Dc64_bin_hex,
+        Self::Utf8_Dc64_enc,
         Self::Win1252,
     ];
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
+        FormatId::Dce_3_01a,
+        FormatId::Dce_3_01a_raw,
+        FormatId::Dce_3_0a,
+        FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
         FormatId::AlphaSmartNeoLowCtlUaMac,
         FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1387,7 +1623,9 @@ impl SupportedDcOutputFormat {
         FormatId::CtbNodeBundle1,
         FormatId::CtbNodeBundle2,
         FormatId::CtbNodes,
+        FormatId::DcIdList,
         FormatId::Dcal,
+        FormatId::Dce,
         FormatId::DcIntegerList,
         FormatId::DcMixed,
         FormatId::DcMixed1,
@@ -1399,12 +1637,26 @@ impl SupportedDcOutputFormat {
         FormatId::DcUtf,
         FormatId::EiteColorCoded,
         FormatId::Elad,
+        FormatId::Dce_3_01a_hex,
+        FormatId::Dce_3_01a_raw_hex,
+        FormatId::Dce_3_0a_hex,
+        FormatId::Dce_3_0a_raw_hex,
+        FormatId::DceHex,
         FormatId::Html,
+        FormatId::HtmlLegacyCdce,
+        FormatId::HtmlLegacyCdceSnippet,
         FormatId::HtmlFragment,
         FormatId::Iso88591,
+        FormatId::CdceLegacy,
         FormatId::MacRoman,
         FormatId::Sems,
         FormatId::Utf8,
+        FormatId::Utf8_Dc64,
+        FormatId::Utf8_Dc64_bin,
+        FormatId::Utf8_Dc64_bin_enc,
+        FormatId::Utf8_Dc64_bin_enc_hex,
+        FormatId::Utf8_Dc64_bin_hex,
+        FormatId::Utf8_Dc64_enc,
         FormatId::Win1252,
     ];
 
@@ -1412,6 +1664,10 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn primary_cli_name(&self) -> &'static str {
         match self {
+            Self::Dce_3_01a => "3_01a",
+            Self::Dce_3_01a_raw => "3_01a_raw",
+            Self::Dce_3_0a => "3_0a",
+            Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
             Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
             Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
@@ -1431,7 +1687,9 @@ impl SupportedDcOutputFormat {
             Self::CtbNodeBundle1 => "ctbnbdl1",
             Self::CtbNodeBundle2 => "ctbnbdl2",
             Self::CtbNodes => "ctbnodes",
+            Self::DcIdList => "dc_id_list",
             Self::Dcal => "dcal",
+            Self::Dce => "dce",
             Self::DcIntegerList => "dcil",
             Self::DcMixed => "dcmm",
             Self::DcMixed1 => "dcmm1",
@@ -1443,12 +1701,26 @@ impl SupportedDcOutputFormat {
             Self::DcUtf => "dcutf",
             Self::EiteColorCoded => "eitecolorcoded",
             Self::Elad => "elad",
+            Self::Dce_3_01a_hex => "hex_3_01a",
+            Self::Dce_3_01a_raw_hex => "hex_3_01a_raw",
+            Self::Dce_3_0a_hex => "hex_3_0a",
+            Self::Dce_3_0a_raw_hex => "hex_3_0a_raw",
+            Self::DceHex => "hex_dce",
             Self::Html => "html",
+            Self::HtmlLegacyCdce => "html_l",
+            Self::HtmlLegacyCdceSnippet => "html_snippet_l",
             Self::HtmlFragment => "htmlfragment",
             Self::Iso88591 => "iso88591",
+            Self::CdceLegacy => "legacy_cdce",
             Self::MacRoman => "macroman",
             Self::Sems => "sems",
             Self::Utf8 => "utf8",
+            Self::Utf8_Dc64 => "utf8_dc64",
+            Self::Utf8_Dc64_bin => "utf8_dc64_bin",
+            Self::Utf8_Dc64_bin_enc => "utf8_dc64_bin_enc",
+            Self::Utf8_Dc64_bin_enc_hex => "utf8_dc64_bin_enc_hex",
+            Self::Utf8_Dc64_bin_hex => "utf8_dc64_bin_hex",
+            Self::Utf8_Dc64_enc => "utf8_dc64_enc",
             Self::Win1252 => "win1252",
         }
     }
@@ -1457,6 +1729,10 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
+            Self::Dce_3_01a => FormatId::Dce_3_01a,
+            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
+            Self::Dce_3_0a => FormatId::Dce_3_0a,
+            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
             Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1476,7 +1752,9 @@ impl SupportedDcOutputFormat {
             Self::CtbNodeBundle1 => FormatId::CtbNodeBundle1,
             Self::CtbNodeBundle2 => FormatId::CtbNodeBundle2,
             Self::CtbNodes => FormatId::CtbNodes,
+            Self::DcIdList => FormatId::DcIdList,
             Self::Dcal => FormatId::Dcal,
+            Self::Dce => FormatId::Dce,
             Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
             Self::DcMixed1 => FormatId::DcMixed1,
@@ -1488,12 +1766,26 @@ impl SupportedDcOutputFormat {
             Self::DcUtf => FormatId::DcUtf,
             Self::EiteColorCoded => FormatId::EiteColorCoded,
             Self::Elad => FormatId::Elad,
+            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
+            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
+            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
+            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
+            Self::DceHex => FormatId::DceHex,
             Self::Html => FormatId::Html,
+            Self::HtmlLegacyCdce => FormatId::HtmlLegacyCdce,
+            Self::HtmlLegacyCdceSnippet => FormatId::HtmlLegacyCdceSnippet,
             Self::HtmlFragment => FormatId::HtmlFragment,
             Self::Iso88591 => FormatId::Iso88591,
+            Self::CdceLegacy => FormatId::CdceLegacy,
             Self::MacRoman => FormatId::MacRoman,
             Self::Sems => FormatId::Sems,
             Self::Utf8 => FormatId::Utf8,
+            Self::Utf8_Dc64 => FormatId::Utf8_Dc64,
+            Self::Utf8_Dc64_bin => FormatId::Utf8_Dc64_bin,
+            Self::Utf8_Dc64_bin_enc => FormatId::Utf8_Dc64_bin_enc,
+            Self::Utf8_Dc64_bin_enc_hex => FormatId::Utf8_Dc64_bin_enc_hex,
+            Self::Utf8_Dc64_bin_hex => FormatId::Utf8_Dc64_bin_hex,
+            Self::Utf8_Dc64_enc => FormatId::Utf8_Dc64_enc,
             Self::Win1252 => FormatId::Win1252,
         }
     }
@@ -1502,6 +1794,10 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
+            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
+            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
+            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
+            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
             FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
             FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
@@ -1521,7 +1817,9 @@ impl SupportedDcOutputFormat {
             FormatId::CtbNodeBundle1 => Some(Self::CtbNodeBundle1),
             FormatId::CtbNodeBundle2 => Some(Self::CtbNodeBundle2),
             FormatId::CtbNodes => Some(Self::CtbNodes),
+            FormatId::DcIdList => Some(Self::DcIdList),
             FormatId::Dcal => Some(Self::Dcal),
+            FormatId::Dce => Some(Self::Dce),
             FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
@@ -1533,12 +1831,26 @@ impl SupportedDcOutputFormat {
             FormatId::DcUtf => Some(Self::DcUtf),
             FormatId::EiteColorCoded => Some(Self::EiteColorCoded),
             FormatId::Elad => Some(Self::Elad),
+            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
+            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
+            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
+            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
+            FormatId::DceHex => Some(Self::DceHex),
             FormatId::Html => Some(Self::Html),
+            FormatId::HtmlLegacyCdce => Some(Self::HtmlLegacyCdce),
+            FormatId::HtmlLegacyCdceSnippet => Some(Self::HtmlLegacyCdceSnippet),
             FormatId::HtmlFragment => Some(Self::HtmlFragment),
             FormatId::Iso88591 => Some(Self::Iso88591),
+            FormatId::CdceLegacy => Some(Self::CdceLegacy),
             FormatId::MacRoman => Some(Self::MacRoman),
             FormatId::Sems => Some(Self::Sems),
             FormatId::Utf8 => Some(Self::Utf8),
+            FormatId::Utf8_Dc64 => Some(Self::Utf8_Dc64),
+            FormatId::Utf8_Dc64_bin => Some(Self::Utf8_Dc64_bin),
+            FormatId::Utf8_Dc64_bin_enc => Some(Self::Utf8_Dc64_bin_enc),
+            FormatId::Utf8_Dc64_bin_enc_hex => Some(Self::Utf8_Dc64_bin_enc_hex),
+            FormatId::Utf8_Dc64_bin_hex => Some(Self::Utf8_Dc64_bin_hex),
+            FormatId::Utf8_Dc64_enc => Some(Self::Utf8_Dc64_enc),
             FormatId::Win1252 => Some(Self::Win1252),
             FormatId::CscJournal1Meta1 => Some(Self::CscJournal),
             FormatId::CscJournal1Meta2 => Some(Self::CscJournal),

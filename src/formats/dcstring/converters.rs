@@ -28,6 +28,7 @@ use crate::utilities::*;
 
 pub mod ascii;
 pub mod dcal;
+pub mod dceutils;
 pub mod dcts;
 pub mod dctext;
 pub mod utf8;
