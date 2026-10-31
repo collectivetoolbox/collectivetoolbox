@@ -44,7 +44,7 @@ This plan implements a permanent, auditable, strictly append-only recovery and m
 
 ---
 
-## Confirmed Design Decisions & Reviewer Fixes (Rounds 1 & 2)
+## Confirmed Design Decisions & Reviewer Fixes (Rounds 1, 2, & 3)
 
 1. **Step 0 Executed First with Pinned Historical Generator (Fixes R1-F3 & R2-F6)**:
    - Step 0 runs **before** any `fixtures -> data-src` rename or `seed_graph.rs` / `graph_ledger.rs` modifications so historical replay uses the exact unmodified generator logic from `a90464028` / `3345d2dff` (recording the exact Git commit SHA and SHA-256 digests of `seed_graph.rs`, `graph_ledger.rs`, `transcript_full.jsonl`, and all input CSVs in `provenance_manifest.json`).
@@ -55,38 +55,52 @@ This plan implements a permanent, auditable, strictly append-only recovery and m
    - Every node in the `603`-node closure receives a `Dc 348 "Ambiguous values"` record and a single `Dc 591 "Supersedes"` statement (`591 l<ambig_raw(N)> l<N>`).
    - We enforce a hard ledger invariant that no two active `Dc 591 "Supersedes"` statements may target the same `old_id`, and no `Dc 591 "Supersedes"` statement may self-supersede (`new_id == old_id`) or form a cycle.
 
-3. **Shared Exclusive Lock Across All Ledger Writers (Fixes R1-F2 & R2-F1)**:
+3. **Explicit Multi-Target `# @allow-duplicate-of` Authorization (Fixes R1-Q3 & R3-F3)**:
+   - Duplicate checking is **never** globally disabled. By default, `process_inbox_nodes` rejects any non-empty inbox node whose token sequence matches one or more currently active (`!inactive_ids.contains(&id)`) nodes (excluding `586 615 <class_dc>` seed entity declarations using `Dc 586 "Is an instance of"` and `Dc 615 "Enclosing document"`).
+   - Prevalidation maintains a dynamic index `active_nodes_by_tokens: HashMap<Vec<DcShorthand>, BTreeSet<u128>>` of all currently active node IDs for each token sequence, removing `old_id` immediately when a `Dc 591 "Supersedes"` (`591 <new> l<old_id>`) or `Dc 592 "Retracts"` (`592 615 l<old_id>`) node is processed in the batch.
+   - A `.dcsh` file may include `# @allow-duplicate-of: l<id1>[, l<id2>, ...]` specifying a comma-separated list of active node IDs (`BTreeSet<u128>`). When `active_matches = active_nodes_by_tokens.get(&tokens)` is non-empty:
+     - Prevalidation requires `declared_allowed_ids == *active_matches` (**exact set equality**: every currently active node with those tokens must be explicitly listed, and no non-matching or inactive ID may be listed).
+     - In Step 2a, when allocating `l<r1_raw(N)>` and `l<r2_raw(N)>` (prior to `l<sup_raw(N)> = 591 l<ambig_raw(N)> l<N>` marking `l<N>` inactive):
+       - Any candidate whose tokens match one or more currently active nodes (for example, `l<r2_raw(N)>` duplicating `l<N>` and any earlier still-active `l<r1_raw(M)>` with identical shifted tokens; or for `N = 8589951813`, `l<r1_raw(8589951813)>` declaring `# @allow-duplicate-of: l8589951813` and `l<r2_raw(8589951813)>` declaring `# @allow-duplicate-of: l8589951813, l<r1_raw(8589951813)>`) explicitly lists that exact active set in `# @allow-duplicate-of`.
+
+4. **Shared Exclusive Lock Across All Ledger Writers (Fixes R1-F2 & R2-F1)**:
    - Every code path that writes to `assets/data/graph/*.ctbnodes` or `assets/data/graph/**/*.ctbnbdl` — both `process_inbox_nodes` and `update_system_graph_ledger` — must acquire the **same** exclusive advisory file lock (`flock` on `src/formats/dcdata/data-src/nodes/.ledger-writer.lock`) **before** reading the ledger from disk, and hold that lock until `.ctbnodes` appends, shadow-ledger syncs (`.git/ctb-graph-ledger-highwater` and `/root/.gemini/ctb-graph-ledger-highwater`), `.ctbnbdl` compilations, and journal updates are finished.
    - Under this lock, `update_system_graph_ledger` (and ordinary `validate_tables`) refuses to proceed if `nodes/inbox/` contains any non-dotfile entries **or** if `allocation-journal.jsonl` contains an unfinished `BATCH_PENDING` transaction.
 
-4. **Resumable Preconditions, Complete Crash-State Journal, & Read-Only `--dry-run` (Fixes R2-F2 & R2-F3)**:
-   - **Journal Format & Durable Ordering (`nodes/allocated/allocation-journal.jsonl`)**:
-     - Each line in `allocation-journal.jsonl` is a single JSON object containing a `record_sha256` checksum over its canonical fields and terminated by `\n`.
-     - After whole-batch in-memory prevalidation succeeds, `process_inbox_nodes` writes a single `BATCH_PENDING` record containing `batch_id`, `baseline_last_id`, `baseline_ledger_sha256`, and `items: [{inbox_name, allocated_name, inbox_sha256, node_id, target_chunk_file, ctbnodes_line}]`, and calls `fsync` on `allocation-journal.jsonl` and its parent directory **before** any `.ctbnodes` or file-move mutation.
-     - If a crash occurs while writing `BATCH_PENDING` (leaving a torn trailing journal line without `\n` or with invalid `record_sha256`) before any ledger bytes were written (verified by matching `baseline_ledger_sha256`), the torn trailing record is discarded under the lock.
+5. **Resumable Preconditions, Complete Crash-State Journal, & Torn-Record Recovery (Fixes R2-F2, R2-F3, R3-F1, & R3-F2)**:
+   - **Journal Format & Checksum Integrity (`nodes/allocated/allocation-journal.jsonl`)**:
+     - Each line in `allocation-journal.jsonl` is a single JSON object (`BATCH_PENDING` or `BATCH_COMMITTED`) containing a `record_sha256` checksum over its canonical fields and terminated by `\n`.
+     - **Complete-Record Corruption Rule**: Every complete line (terminated by `\n`) in `allocation-journal.jsonl` must parse as valid JSON and match its `record_sha256`. Any checksum mismatch or invalid JSON in a `\n`-terminated line (whether non-final or final) is treated as **hard journal corruption** and aborts immediately without modifying any files.
+     - **Torn Trailing Line Classification (Unterminated Final Line Only)**:
+       Only a final line **lacking a terminating `\n`** is treated as an interrupted journal write, with two distinct cases based on the preceding complete records:
+       1. **Torn trailing `BATCH_PENDING` line** (the last complete `\n`-terminated record is `BATCH_COMMITTED`, or there are 0 complete records):
+          - Because `BATCH_PENDING` is written and `fsync`ed before any `.ctbnodes` or file-move mutation begins, verify that the on-disk `.ctbnodes` ledger matches the last `BATCH_COMMITTED` state (or clean baseline) and that no `nodes/inbox/` files were moved. If the ledger was mutated without an intact `BATCH_PENDING`, abort with a corruption error. Otherwise, repair `allocation-journal.jsonl` by removing the unterminated trailing bytes back to the last `\n` and `fsync`ing `allocation-journal.jsonl`.
+       2. **Torn trailing `BATCH_COMMITTED` line** (the last complete `\n`-terminated record is an intact, checksum-verified `BATCH_PENDING` record, followed by an unterminated trailing line):
+          - A crash occurred while writing `BATCH_COMMITTED` after item processing had begun or finished. Repair `allocation-journal.jsonl` by removing the unterminated trailing bytes back to the end of the intact `BATCH_PENDING` line (`fsync`), and then proceed directly into the standard `BATCH_PENDING` resume flow below (which verifies that all items are durably appended, shadow-synced, and moved, verify `final_ledger_sha256`, and then writes a complete checksummed `BATCH_COMMITTED` line + `\n` and `fsync`).
    - **Resumable Precondition Verification**:
-     - When no `BATCH_PENDING` exists, `--expected-last-id` and `--expected-ledger-sha256` are checked directly against the current on-disk ledger.
-     - When resuming an existing `BATCH_PENDING` transaction, `--expected-last-id` and `--expected-ledger-sha256` are checked against the transaction's recorded `baseline_last_id` and `baseline_ledger_sha256`, and the current on-disk ledger is verified to equal the exact `baseline_ledger_sha256` prefix (`<= baseline_last_id`) followed by an **exact verified byte prefix** of `BATCH_PENDING.items` (rejecting any unrelated or diverged edits).
-     - `--dry-run` is **strictly read-only** in all states (including when a `BATCH_PENDING` record exists): it simulates and reports the planned actions without writing to `.ctbnodes`, shadow ledgers, `nodes/inbox/`, `nodes/allocated/`, or `allocation-journal.jsonl`.
-   - **All Crash Boundaries Covered on Resume**:
-     For each item in `BATCH_PENDING.items`:
-     1. **Primary `.ctbnodes` chunk**:
-        - If `item.ctbnodes_line` is already completely present at its expected offset/line, verify byte-for-byte equality and skip appending.
-        - If a **partial trailing line** is present at the end of `target_chunk_file` (from an interrupted write), verify that those trailing bytes are a strict prefix of `item.ctbnodes_line`, append **only the remaining suffix bytes** via `O_WRONLY | O_APPEND` (never truncating!), and `fsync` the chunk file. (If the trailing bytes are not a prefix of `item.ctbnodes_line`, abort with a corruption error.)
-        - If not yet present, append `item.ctbnodes_line` via `O_WRONLY | O_APPEND` and `fsync` the chunk file (and parent directory if newly created).
-     2. **Shadow high-water ledgers (`.git/ctb-graph-ledger-highwater` & `/root/.gemini/ctb-graph-ledger-highwater`)**:
-        - Apply the exact same idempotent prefix/suffix completion + `fsync` to each shadow high-water chunk file.
-     3. **Inbox -> Allocated file move (`nodes/inbox/<inbox_name>` -> `nodes/allocated/<allocated_name>`)**:
-        - If `inbox` exists and `allocated` does not: verify `sha256(inbox) == item.inbox_sha256`, `fs::rename(inbox, allocated)`, and `fsync` both `nodes/inbox/` and `nodes/allocated/` directories.
-        - If `inbox` does not exist and `allocated` already exists (crash occurred after `rename` but before `BATCH_COMMITTED`): verify `sha256(allocated) == item.inbox_sha256` and treat the move as complete.
-        - If both exist with matching `item.inbox_sha256`: remove `inbox` and `fsync` `nodes/inbox/`.
-     4. **Journal Commit**:
-        - Append `BATCH_COMMITTED` (with `batch_id`, `final_last_id`, `final_ledger_sha256`, and `record_sha256`) + `\n` to `allocation-journal.jsonl` and `fsync`.
+     - When no active `BATCH_PENDING` exists, `--expected-last-id` and `--expected-ledger-sha256` are checked directly against the current on-disk ledger.
+     - When resuming an intact `BATCH_PENDING` transaction (`final_last_id` and `final_ledger_sha256` precomputed in `BATCH_PENDING`), `--expected-last-id` and `--expected-ledger-sha256` are checked against `BATCH_PENDING.baseline_last_id` and `BATCH_PENDING.baseline_ledger_sha256`, and the current on-disk ledger is verified to equal the exact `baseline_ledger_sha256` prefix (`<= baseline_last_id`) followed by an **exact verified byte prefix** of `BATCH_PENDING.items` (rejecting any unrelated or diverged edits).
+     - `--dry-run` is **strictly read-only** in all states (including when a `BATCH_PENDING` or torn record exists): it reports the planned recovery/allocation actions without mutating `.ctbnodes`, shadow ledgers, `nodes/inbox/`, `nodes/allocated/`, or `allocation-journal.jsonl`.
+   - **Per-Item Execution Loop Followed by Single Batch Commit (Fixes R3-F1)**:
+     1. **Phase 1 — Per-item loop**: For each `item` in `BATCH_PENDING.items` (in order):
+        - **Step 1a (Primary `.ctbnodes` chunk)**:
+          - If `item.ctbnodes_line` is already completely present at its expected line in `target_chunk_file`, verify byte-for-byte equality and skip appending.
+          - If a **partial trailing line** is present at the end of `target_chunk_file`, verify that those trailing bytes are a strict prefix of `item.ctbnodes_line`, append **only the remaining suffix bytes** via `O_WRONLY | O_APPEND` (never truncating!), and `fsync` the chunk file. (If the trailing bytes are not a prefix of `item.ctbnodes_line`, abort with a corruption error.)
+          - If not yet present, append `item.ctbnodes_line` via `O_WRONLY | O_APPEND` and `fsync` the chunk file (and parent directory if newly created).
+        - **Step 1b (Shadow high-water ledgers)**:
+          - Apply the exact same idempotent prefix/suffix completion + `fsync` to `.git/ctb-graph-ledger-highwater/<chunk>` and `/root/.gemini/ctb-graph-ledger-highwater/<chunk>`.
+        - **Step 1c (Inbox -> Allocated file move)**:
+          - If `inbox` exists and `allocated` does not: verify `sha256(inbox) == item.inbox_sha256`, `fs::rename(inbox, allocated)`, and `fsync` both `nodes/inbox/` and `nodes/allocated/` directories.
+          - If `inbox` does not exist and `allocated` already exists (crash occurred after `rename` for this item): verify `sha256(allocated) == item.inbox_sha256` and treat this item's move as complete.
+          - If both exist with matching `item.inbox_sha256`: remove `inbox` and `fsync` `nodes/inbox/`.
+     2. **Phase 2 — Whole-batch verification & single `BATCH_COMMITTED` write (outside the per-item loop)**:
+        - After **all** items in `BATCH_PENDING.items` have completed Steps 1a–1c, verify that the on-disk `.ctbnodes` ledger's last node ID equals `BATCH_PENDING.final_last_id` and its SHA-256 equals `BATCH_PENDING.final_ledger_sha256`, and that every item's `allocated` file exists in `nodes/allocated/`.
+        - Write **one** `BATCH_COMMITTED` record (with `batch_id`, `final_last_id`, `final_ledger_sha256`, and `record_sha256`) + `\n` to `allocation-journal.jsonl` and `fsync` `allocation-journal.jsonl`.
 
-5. **Branch-Resolved Ambiguity Lists in Step 2b (Fixes R1-F4)**:
+6. **Branch-Resolved Ambiguity Lists in Step 2b (Fixes R1-F4)**:
    - Whenever `l<r1_raw(N)>` or `l<r2_raw(N)>` references any of the `603` ambiguous IDs and is superseded in Step 2b by `l<r1_resolved(N)>` or `l<r2_resolved(N)>`, Step 2b also allocates `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and supersedes `l<ambig_raw(N)>` via `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`).
 
-6. **Component-Wise CSV Reconciliation Preserving Shared Statement IDs (Fixes R1-F5 & R2-F4)**:
+7. **Component-Wise CSV Reconciliation Preserving Shared Statement IDs (Fixes R1-F5 & R2-F4)**:
    - For `f95` (`Dce`), the `Dc 584 "Has a"` node `l8589951812` (`584 f95 573`, property `Dc 573 "Description"`) is one of the `23` preserved unambiguous nodes shared by both Run 1 and Run 2! Only its attached `Dc 610 "Has value"` statement `l8589951813` (`610 l8589951812 l8589951802`) was ambiguous (`l<r1_resolved(8589951813)>` vs. `l<r2_resolved(8589951813)>`, both pointing to `l8589951812`).
    - Therefore, `SeedGraphIndex` will index **all** active `Dc 610 "Has value"` statements (`all_active_has_val_by_stmt: BTreeMap<u128, Vec<(u128, DcShorthand)>>`) and all active `Dc 570 "Preferred"` qualifiers per `has_a_id`, and track all active property groups `(has_a_id, has_val_id, val_tok, pref_id)` per `(subj, prop)`.
    - In Step 3, when `LedgerBuilder::apply_desired_state` reconciles a canonical CSV-matching property group `(canon_has_a_id, canon_has_val_id, canon_pref_id)` against another active group `(other_has_a_id, other_has_val_id, other_pref_id)` for the same CSV-owned property:
@@ -94,11 +108,11 @@ This plan implements a permanent, auditable, strictly append-only recovery and m
      - **Supersede distinct `has_val_id`**: Emit `591 l<canon_has_val_id> l<other_has_val_id>` (`Dc 591 "Supersedes"`) when `canon_has_val_id != other_has_val_id`.
      - **Reconcile `pref_id`**: If `other_pref_id == Some(op)`, supersede with `canon_pref_id` if present and distinct (`cp != op`), or retract via `592 615 l<op>` (`Dc 592 "Retracts"`) if `canon_pref_id.is_none()`.
 
-7. **Explicit Distinction Between Ledger-Effective Activity and Runtime-Bundle Membership (Fixes R1-F6 & R2-F5)**:
-   - Among the `23` preserved unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), `l8589951819` (`591 l8589951818 l8589938484`) is a `Dc 591 "Supersedes"` revision statement.
+8. **Explicit Distinction Between Ledger-Effective Activity and Runtime-Bundle Membership (Fixes R1-F6, R2-F5, & R3-F4)**:
+   - Among the `23` preserved unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), `l8589951819` (`591 l8589951818 l8589941912`) is a `Dc 591 "Supersedes"` revision statement superseding `l8589941912` with `l8589951818`.
    - Per [`partition_active_and_inactive_nodes_with`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl.rs#L1029-L1051), all `Dc 591 "Supersedes"` and `Dc 592 "Retracts"` revision statements are placed in the historical archive bundle (`assets/data/graph/system/85899_34942.ctbnbdl`), while their revision effect remains active in the full ledger (`!full_index.inactive_ids.contains(&8589951819)`).
    - Our verification tests explicitly distinguish:
-     1. **Ledger-effective (`!full_index.inactive_ids.contains(&id)`)**: Holds for all `23` preserved unambiguous nodes (including `l8589951819`), with `l8589951819` continuing to supersede `l8589938484` with `l8589951818`.
+     1. **Ledger-effective (`!full_index.inactive_ids.contains(&id)`)**: Holds for all `23` preserved unambiguous nodes (including `l8589951819`), with `l8589951819` continuing to supersede `l8589941912` with `l8589951818`.
      2. **Runtime-bundle membership (`assets/data/graph/85899_34592.ctbnbdl`)**: Contains the `22` non-revision unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951818`, `l8589951820`..`l8589951823`), while `l8589951819` resides in `assets/data/graph/system/85899_34942.ctbnbdl`.
 
 ---
@@ -137,7 +151,7 @@ flowchart TD
 ### Component 1: Rename `fixtures/` to `data-src/` & Shared-Lock Transactional Pipeline (`Steps 1a–1c`)
 
 #### [MODIFY] `src/formats/dcdata/fixtures/` -> `src/formats/dcdata/data-src/` (`Steps 1a & 1b`)
-- Move via `git mv src/formats/dcdata/fixtures src/formats/dcdata/data-src`.
+- Move via `git mv src/formats/dcdata/fixtures src/formats/dcdata/data-src` (including `recovery-audit/`).
 - Create `src/formats/dcdata/data-src/nodes/inbox/.keep` and `src/formats/dcdata/data-src/nodes/allocated/.keep`.
 - Update all `src/formats/dcdata/fixtures` paths to `src/formats/dcdata/data-src` across [dcdata.rs](file:///workspaces/ctoolbox/src/formats/dcdata/dcdata.rs), [graph_ledger.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs), [updater.rs](file:///workspaces/ctoolbox/src/formats/dcdata/updater.rs), [validation.rs](file:///workspaces/ctoolbox/src/formats/dcdata/validation.rs), [format.rs](file:///workspaces/ctoolbox/src/formats/dcdata/format.rs), [syntax.rs](file:///workspaces/ctoolbox/src/formats/dcdata/syntax.rs), and [modify-columns.py](file:///workspaces/ctoolbox/scripts/modify-columns.py), and commit Steps 1a & 1b.
 
@@ -148,10 +162,12 @@ flowchart TD
 2. **Resumable Crash-Safe Inbox Allocator (`process_inbox_nodes`)**:
    - Invoked explicitly via `validate_tables --process-inbox [--expected-last-id l<id>] [--expected-ledger-sha256 <hex>] [--dry-run]`.
    - Implements the `BATCH_PENDING` / `BATCH_COMMITTED` journal protocol in `src/formats/dcdata/data-src/nodes/allocated/allocation-journal.jsonl` with:
-     - `record_sha256` checksum verification and torn-record detection;
+     - `record_sha256` checksum verification on all `\n`-terminated records (treating any complete record with bad JSON or mismatched `record_sha256` as hard corruption);
+     - torn-record recovery for unterminated trailing `BATCH_PENDING` (verified against unmutated baseline) and unterminated trailing `BATCH_COMMITTED` (verified via the preceding intact `BATCH_PENDING` record and completed on-disk items);
+     - dynamic `active_nodes_by_tokens: HashMap<Vec<DcShorthand>, BTreeSet<u128>>` tracking with exact-set `# @allow-duplicate-of: l<id1>[, l<id2>, ...]` validation;
      - resumable baseline + verified output-prefix checking for `--expected-last-id` and `--expected-ledger-sha256`;
-     - strictly read-only `--dry-run` simulation in both clean and `BATCH_PENDING` states;
-     - suffix-only `O_APPEND` completion of partial trailing `.ctbnodes` lines (never truncating), idempotent shadow-ledger sync, and post-`rename` crash recovery with `fsync` at each file and directory boundary.
+     - strictly read-only `--dry-run` simulation in all states;
+     - per-item durable primary `.ctbnodes` suffix/line append, shadow-ledger sync, and `rename` loop, followed **outside the per-item loop** by whole-batch `final_last_id` / `final_ledger_sha256` verification and a single `BATCH_COMMITTED` record + `fsync`.
 3. **Active Value Node Indexing & Component-Wise CSV Reconciliation**:
    - In [`SeedGraphIndex::from_nodes_with_single_props`](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs#L442-L459):
      - Skip `inactive_ids` when populating `value_node_by_tokens`.
@@ -165,20 +181,20 @@ flowchart TD
 
 #### [NEW] `scripts/graph-recovery/step2a_stage_ambiguous_nodes.py`
 - Reads `src/formats/dcdata/data-src/recovery-audit/collision_manifest.json` and stages `.dcsh` files into `src/formats/dcdata/data-src/nodes/inbox/`:
-  1. **Tail restoration (`l8589952425`..`l8589952481`, `57` nodes)**: Restores the `57` erased Run 1 tail nodes at `l8589952425`..`l8589952481`.
+  1. **Tail restoration (`l8589952425`..`l8589952481`, `57` nodes)**: Restores the `57` erased Run 1 tail nodes at `l8589952425`..`l8589952481` (including `# @allow-duplicate-of: l<active_ids>` for any tail node whose tokens match a still-active shifted node in `l8589951824`..`l8589952424`).
   2. **Ambiguous node quadruplets (`603` IDs: `l8589951802`, `l8589951813`, `l8589951824`..`l8589952424` × 4 nodes = `2,412` nodes at `l8589952482`..`l8589954893`)**:
      For each ambiguous node `l<N>`:
-     - `l<r1_raw(N)>`: literal Run 1 token body of `l<N>`
-     - `l<r2_raw(N)>`: literal Run 2 token body of `l<N>`
+     - `l<r1_raw(N)>`: literal Run 1 token body of `l<N>` (with `# @allow-duplicate-of: <exact active matching IDs>` whenever its tokens match currently active nodes, e.g. `# @allow-duplicate-of: l8589951813` for `N = 8589951813`)
+     - `l<r2_raw(N)>`: literal Run 2 token body of `l<N>` (with `# @allow-duplicate-of: <exact active matching IDs>`, e.g. `l<N>` plus any active `l<r1_raw(M)>` with identical tokens, such as `# @allow-duplicate-of: l8589951813, l<r1_raw(8589951813)>` for `N = 8589951813`)
      - `l<ambig_raw(N)>`: `348 310 275 l<r1_raw(N)> 312 l<r2_raw(N)> 311` (`Dc 348 "Ambiguous values"`)
-     - `l<sup_raw(N)>`: `591 l<ambig_raw(N)> l<N>` (`Dc 591 "Supersedes"`)
+     - `l<sup_raw(N)>`: `591 l<ambig_raw(N)> l<N>` (`Dc 591 "Supersedes"`, which immediately marks `l<N>` inactive in `active_nodes_by_tokens`)
 - Runs `validate_tables --process-inbox --expected-last-id l8589952424 --dry-run` first, then executes the allocation and commits Step 2a.
 
 #### [NEW] `scripts/graph-recovery/step2b_stage_disambiguations.py`
 - In ascending topological order of original node ID `N`:
   - For each of the `603` ambiguous IDs `N`:
-    - If `l<r1_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r1_resolved(N)>` (rewriting `l<X> -> l<r1_resolved(X)>`) and `591 l<r1_resolved(N)> l<r1_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r1_resolved(N)> = l<r1_raw(N)>`.
-    - If `l<r2_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r2_resolved(N)>` (rewriting `l<X> -> l<r2_resolved(X)>`) and `591 l<r2_resolved(N)> l<r2_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r2_resolved(N)> = l<r2_raw(N)>`.
+    - If `l<r1_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r1_resolved(N)>` (rewriting `l<X> -> l<r1_resolved(X)>`, with `# @allow-duplicate-of` if its resolved tokens match an already-active node) and `591 l<r1_resolved(N)> l<r1_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r1_resolved(N)> = l<r1_raw(N)>`.
+    - If `l<r2_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r2_resolved(N)>` (rewriting `l<X> -> l<r2_resolved(X)>`, with `# @allow-duplicate-of` if its resolved tokens match an already-active node) and `591 l<r2_resolved(N)> l<r2_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r2_resolved(N)> = l<r2_raw(N)>`.
     - Whenever `l<r1_resolved(N)> != l<r1_raw(N)>` or `l<r2_resolved(N)> != l<r2_raw(N)>`, stages `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`).
   - For each restored Run 1 tail node `N` in `l8589952425`..`l8589952481` that references any of the `603` ambiguous IDs `l<X>`:
     - Stages `l<r1_resolved(N)>` (rewriting `l<X> -> l<r1_resolved(X)>`) and `591 l<r1_resolved(N)> l<N>` (`Dc 591 "Supersedes"`).
@@ -194,20 +210,20 @@ flowchart TD
 
 ### Automated Invariant & Fault-Injection Tests
 1. **Allocator Transactional & Fault-Injection Tests (`cargo test -p ctb-formats-dcdata --lib graph_ledger`)**:
-   - **Whole-batch prevalidation failure**: Verify syntax error, self-reference, forward reference, unpermitted active duplicate, self-supersession (`591 l<a> l<a>`), supersession cycle, or duplicate `Dc 591 "Supersedes"` target aborts before writing `BATCH_PENDING` or touching `.ctbnodes`.
-   - **Fault-injection at every crash boundary**:
-     1. Torn trailing `BATCH_PENDING` line (missing `\n` or bad `record_sha256`) before ledger append -> discarded cleanly on retry.
+   - **Whole-batch prevalidation failure**: Verify syntax error, self-reference, forward reference, unpermitted active duplicate, incomplete `# @allow-duplicate-of` set (e.g. omitting one of two active matching IDs), self-supersession (`591 l<a> l<a>`), supersession cycle, or duplicate `Dc 591 "Supersedes"` target aborts before writing `BATCH_PENDING` or touching `.ctbnodes`.
+   - **Fault-injection across all crash boundaries**:
+     1. Torn trailing `BATCH_PENDING` line (unterminated line before ledger mutation) -> repaired cleanly on retry; complete (`\n`-terminated) record with bad `record_sha256` -> rejected as hard corruption error.
      2. Partial `.ctbnodes` line (interrupted mid-line write) -> resumed retry verifies prefix and appends only the remaining suffix bytes via `O_APPEND` without truncating, using the original `--expected-last-id` and `--expected-ledger-sha256`.
-     3. Primary `.ctbnodes` appended, shadow high-water ledger not yet synced -> resumed retry completes shadow sync, move, and `BATCH_COMMITTED`.
-     4. `.ctbnodes` appended and `nodes/inbox/<f>` already moved to `nodes/allocated/<id>_<f>`, crash before `BATCH_COMMITTED` -> resumed retry verifies `allocated` file SHA-256 and writes `BATCH_COMMITTED` without re-allocating.
-     5. `--dry-run` during `BATCH_PENDING` -> verifies zero files are mutated.
-   - **Shared lock & pending-transaction guard**: Verify `update_system_graph_ledger` blocks on `.ledger-writer.lock` and refuses to proceed if `nodes/inbox/` is non-empty or `BATCH_PENDING` is uncommitted.
+     3. **Multi-item batch interruption**: In a 3-item batch, simulate a crash after item 1 completes its `.ctbnodes` append, shadow sync, and `rename` to `nodes/allocated/`, before item 2 is written -> verify `BATCH_COMMITTED` was **not** written yet, and resuming completes items 2 and 3 without re-allocating item 1, then writes `BATCH_COMMITTED`.
+     4. **Torn trailing `BATCH_COMMITTED` line**: After all items in `BATCH_PENDING` are appended, shadow-synced, and moved to `nodes/allocated/`, append an unterminated prefix of `BATCH_COMMITTED` -> verify resume validates the preceding intact `BATCH_PENDING` record and completed on-disk items, repairs the torn suffix, and writes the complete checksummed `BATCH_COMMITTED` record.
+     5. `--dry-run` during `BATCH_PENDING` or torn journal state -> verifies zero files are mutated.
+   - **Shared lock & pending-transaction guard**: Verify `update_system_graph_ledger` acquires `.ledger-writer.lock` and refuses to proceed if `nodes/inbox/` is non-empty or `BATCH_PENDING` is uncommitted.
 2. **Recovery & Live vs. Historical Graph Invariant Tests (`cargo test -p ctb-formats-dcdata --lib seed_graph`)**:
    - **Unchanged Prefix Invariant**: `l8589934592`..`l8589952424` (`17,833` nodes) match commit `a90464028` byte-for-byte.
    - **Exact Tail Restoration Invariant**: `l8589952425`..`l8589952481` (`57` nodes) match the reconstructed Run 1 tail nodes token-for-token.
    - **Preserved Unambiguous Nodes (`23` nodes)**:
-     - All `23` nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) remain **ledger-effective** (`!full_index.inactive_ids.contains(&id)`), including `f95`'s shared `Dc 584 "Has a"` node `l8589951812` and the revision statement `l8589951819` (`591 l8589951818 l8589938484`).
-     - The `22` non-revision unambiguous nodes are present in the runtime bundle (`assets/data/graph/85899_34592.ctbnbdl`), while the revision statement `l8589951819` is present in the history bundle (`assets/data/graph/system/85899_34942.ctbnbdl`) with its supersession effect active.
+     - All `23` nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) remain **ledger-effective** (`!full_index.inactive_ids.contains(&id)`), including `f95`'s shared `Dc 584 "Has a"` node `l8589951812` and the revision statement `l8589951819` (`591 l8589951818 l8589941912`).
+     - The `22` non-revision unambiguous nodes are present in the runtime bundle (`assets/data/graph/85899_34592.ctbnbdl`), while the revision statement `l8589951819` is present in the history bundle (`assets/data/graph/system/85899_34942.ctbnbdl`) with its supersession of `l8589941912` by `l8589951818` active.
    - **Complete `603`-Node Ambiguity Closure Invariant**:
      - Every node in the `603`-node ambiguity closure (`l8589951802`, `l8589951813`, `l8589951824`..`l8589952424`) resolves via `get_ambiguous_candidates(id)` to a terminal `Dc 348 "Ambiguous values"` list of 2 branch-resolved candidates `[l<r1_resolved(N)>, l<r2_resolved(N)>]`, neither of which references any of the `603` ambiguous IDs.
    - **Live Runtime Bundle Purity & Uniqueness Invariant**:
