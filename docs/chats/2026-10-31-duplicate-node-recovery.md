@@ -1,3 +1,10 @@
+Original problem: Some node IDs were allocated twice by deleting them after assignment and then checking out the pre-assignment state of the graph from Git. This causes those nodes to be ambiguous, which is meant to never happen by making the graph strictly append-only. As that was not enforced in any technical way, it left room for this type of blunder. To prevent this reoccurring, I've added scripts which *should* enforce through technical means that the .ctbnodes files are strictly append-only. Since the .ctbnbdl files are, I believe, generated from the .ctbnodes files, that should also ensure that the union of the active and history .ctbnbdl files should also be append-only going forward. To address the now-ambiguous node IDs as best as possible, I'm looking into how to model this situation precisely in the graph.
+
+
+
+
+
+
 Thanks, I think we're back and it's set up now! Great.
 
 Next, let's look at recovering from the duplicated node IDs. So, I *think* the best way to approach this will need a few steps:
@@ -12,6 +19,8 @@ Next, let's look at recovering from the duplicated node IDs. So, I *think* the b
 
 Does that sound like the correct recovery path? How can we go about this with really careful auditing and precision to make sure it's recovered correctly and doesn't make even more of a mess? I think the source data where you found the original and overwritten graph values should be copied using a checked-in/committed script (*not* regenerating them but scripting what to copy out of the session transcript or wherever you found it using an auditable, committed script), and every step should also be implemented as a script, with all scripts and data committed to Git with every edit and step, so that the full process can be reproduced and audited after the fact.
  [/plan](slashCommand;plan)
+
+
 
 
 # Append-Only Graph Ledger Recovery & Manual Node Allocation Plan
@@ -154,3 +163,9 @@ Every recovery phase will be driven by a committed Python/shell script under `sc
 2. `cargo test -p ctb-formats-dcdata --lib seed_graph` (verifying that `SeedGraphIndex::reconstruct_dc_defns()` and `reconstruct_format_defns()` round-trip the CSV tables with zero drift and zero references to ambiguous node IDs `l8589951802` or `l8589951813`..`l8589952481`).
 3. `cargo run --manifest-path src/build_support/Cargo.toml --bin ctb-lint -- all --quick` (verifying Section 9 `graph ledger append-only lint` and all repository linters).
 4. `./scripts/lock-graph-append-only --test-canary` (verifying kernel-level `FS_IMMUTABLE_FL` / `FS_APPEND_FL` flags on all `.ctbnodes` files).
+
+
+
+Question 1: If those 23 were unambiguous, it sounds fine to leave them as-is even if they were deleted and recreeated in a bit-for-bit-, meaning-for-meaning-identical way.
+Question 2: It sounds like those 57 nodes should be restored to their original definitions, yes.
+Question 3: I think that sounds good.
