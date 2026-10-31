@@ -209,8 +209,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-pub mod apple_single_double;
-pub use apple_single_double as apple_double;
+pub mod attached_stream;
+pub use attached_stream as apple_single_double;
+pub use attached_stream as apple_double;
+pub use attached_stream as stream_sidecar;
+pub use attached_stream as stream_companion;
 pub mod block_device_size;
 pub mod clean_name;
 pub mod entity;
@@ -231,7 +234,7 @@ pub mod sys_flags;
 pub mod traversal;
 pub mod verifier;
 
-pub use apple_single_double::{
+pub use attached_stream::{
     AppleArchive, AppleArchiveExt, AppleDoubleStyle, AppleFormat, AppleMetadata,
     AppleRawEntry, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
     ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,

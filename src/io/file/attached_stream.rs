@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! AppleSingle and AppleDouble integration for file entities and streams.
+//! Attached stream integration for file entities, covering AppleSingle,
+//! AppleDouble, and Windows alternate data stream (ADS) companions and sidecars.
 
 #[allow(
     unused_imports,
