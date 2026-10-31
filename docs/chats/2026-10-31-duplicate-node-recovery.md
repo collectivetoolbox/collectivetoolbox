@@ -31,145 +31,162 @@ In session `23f9eaf6-7cd6-416e-8470-852b9878ea88`, two separate graph derivation
 1. **Run 1 (`task-680`, started at `step_index == 679` / finished at `step_index == 687`)**: Appended `683` nodes (`l8589951799`..`l8589952481`, `17,890` total nodes), which included 19 invented file extensions (`57` nodes = `19 × 3`) and an earlier `Dc 573 "Description"` string for `f95` (`Dce`).
 2. **Run 2 (`task-693`, started at `step_index == 693` / finished at `step_index == 698`, committed in `a90464028`)**: After resetting `assets/data/graph/`, appended `626` nodes (`l8589951799`..`l8589952424`, `17,833` total nodes), overwriting `l8589951799`..`l8589952424` and erasing `l8589952425`..`l8589952481`.
 
-This plan implements a permanent, auditable, strictly append-only recovery and manual node ingestion pipeline:
-1. Rename `src/formats/dcdata/fixtures/` to `src/formats/dcdata/data-src/` and add `src/formats/dcdata/data-src/nodes/{inbox,allocated}` with a **resumable, transactional** allocator for non-CSV graph nodes in `f635 "Dc shorthand ASCII list"` (`.dcsh`) format.
-2. Extract and hash the exact transcript and Git evidence (`step_index == 684` on physical JSONL line `685` of `transcript_full.jsonl`), prove generator replay exactness token-for-token against all `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`), and deterministically reconstruct the `683` Run 1 nodes (`l8589951799`..`l8589952481`).
-3. Compute the **full transitive dependency-ambiguity closure** over `l8589951799`..`l8589952424` (`603` ambiguous IDs: `l8589951802`, `l8589951813`, and `l8589951824`..`l8589952424`; `23` proven-unambiguous IDs: `l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), and stage `.dcsh` node batches via auditable scripts to:
-   - Restore the `57` erased Run 1 tail nodes (`l8589952425`..`l8589952481`) at their original IDs first so they are never double-assigned.
-   - **Step 2a**: For each of the `603` ambiguous IDs `l<N>`, allocate its literal Run 1 candidate `l<r1_raw(N)>`, its literal Run 2 candidate `l<r2_raw(N)>`, a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<r1_raw(N)> 312 l<r2_raw(N)> 311` using `Dc 310 "Begin list (ordered, contiguous, typed)"`, `Dc 275 "Built-in type identifier: * (Object or any subtype)"`, `Dc 312 "List element separator"`, `Dc 311 "End list"`), and a single `Dc 591 "Supersedes"` statement (`591 l<ambig_raw(N)> l<N>`).
+This plan implements a permanent, auditable, strictly append-only recovery and manual node ingestion pipeline in the following strict order:
+1. **Step 0 (Evidence Preservation & Pinned Historical Replay First — Before Any Code Refactoring)**:
+   - Extract and hash the exact transcript and Git evidence (`step_index == 684` on physical JSONL line `685` of `transcript_full.jsonl`), run the **unmodified historical generator code** (`a90464028` / `3345d2dff` baseline) to prove 100% token-for-token and comment-for-comment replay exactness against all `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`), deterministically reconstruct the `683` Run 1 nodes (`l8589951799`..`l8589952481`), and verify the transitive dependency-ambiguity closure and classification counts.
+2. **Step 1 (Rename `fixtures/` -> `data-src/` & Shared-Lock Resumable Allocator)**:
+   - Rename `src/formats/dcdata/fixtures/` to `src/formats/dcdata/data-src/`, move Step 0's audit directory into `src/formats/dcdata/data-src/recovery-audit/`, and add `src/formats/dcdata/data-src/nodes/{inbox,allocated}` with a **shared-lock, resumable, crash-safe** allocator for non-CSV graph nodes in `f635 "Dc shorthand ASCII list"` (`.dcsh`) format.
+3. **Step 2 (Restore Erased Tail & Disambiguate Overwritten Node IDs via `nodes/inbox/`)**:
+   - **Step 2a**: Restore the `57` erased Run 1 tail nodes (`l8589952425`..`l8589952481`) at their original IDs first, then for each of the `603` dependency-ambiguous IDs (`l8589951802`, `l8589951813`, and `l8589951824`..`l8589952424`), allocate its literal Run 1 candidate `l<r1_raw(N)>`, its literal Run 2 candidate `l<r2_raw(N)>`, a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<r1_raw(N)> 312 l<r2_raw(N)> 311` using `Dc 310 "Begin list (ordered, contiguous, typed)"`, `Dc 275 "Built-in type identifier: * (Object or any subtype)"`, `Dc 312 "List element separator"`, `Dc 311 "End list"`), and a single `Dc 591 "Supersedes"` statement (`591 l<ambig_raw(N)> l<N>`).
    - **Step 2b**: Disambiguate every statement from Run 1 and Run 2 that references any of the `603` ambiguous IDs by allocating branch-resolved replacement statements (`l<r1_resolved(N)>`, `l<r2_resolved(N)>`) linked via `Dc 591 "Supersedes"`, **and** superseding `l<ambig_raw(N)>` with `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` so the terminal `Dc 348 "Ambiguous values"` record for `l<N>` points directly at the branch-resolved candidates.
-4. **Step 3**: Re-run the CSV graph derivation (`update_system_graph_ledger`) to reconcile active CSV-owned statements against the authoritative CSV tables using `Dc 591 "Supersedes"` and `Dc 592 "Retracts"` without blind allocation-order collapsing.
+4. **Step 3 (CSV-Provenance-Driven Graph Reconciliation)**:
+   - Re-run `update_system_graph_ledger` under the shared ledger lock to reconcile active CSV-owned statements against `DesiredGraphState` using `Dc 591 "Supersedes"` and `Dc 592 "Retracts"` while preserving shared statement IDs (such as `f95`'s shared `Dc 584 "Has a"` node `l8589951812`).
 
 ---
 
-## Confirmed Design Decisions & Reviewer Fixes
+## Confirmed Design Decisions & Reviewer Fixes (Rounds 1 & 2)
 
-1. **Full Dependency-Ambiguity Closure (`603` Ambiguous IDs vs. `23` Unambiguous IDs — Fixes Finding 1)**:
-   - A node `l<N>` in the overwritten range `l8589951799`..`l8589952424` is ambiguous if **either** (a) its literal token sequence differed between Run 1 and Run 2 (`602` nodes: `l8589951802` and `l8589951824`..`l8589952424`) **or** (b) its tokens in Run 1 or Run 2 transitively reference an ambiguous node ID (`1` additional node: `l8589951813 = 610 l8589951812 l8589951802`, whose target `l8589951802` had two different meanings).
-   - Including `l8589951813` in the ambiguity closure (`603` ambiguous IDs total) ensures `l8589951813` receives its own `Dc 348 "Ambiguous values"` record and a **single** `591 l<ambig_raw(8589951813)> l8589951813` (`Dc 591 "Supersedes"`), rather than two competing `Dc 591 "Supersedes"` statements that would collide in `SeedGraphIndex::superseded_by`.
-   - The remaining `23` nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) are verified to have both identical literal tokens and zero transitive dependency on any ambiguous node, and are left as-is.
-   - We also add a strict ledger validation check rejecting any two active `Dc 591 "Supersedes"` statements that target the same `old_id`.
+1. **Step 0 Executed First with Pinned Historical Generator (Fixes R1-F3 & R2-F6)**:
+   - Step 0 runs **before** any `fixtures -> data-src` rename or `seed_graph.rs` / `graph_ledger.rs` modifications so historical replay uses the exact unmodified generator logic from `a90464028` / `3345d2dff` (recording the exact Git commit SHA and SHA-256 digests of `seed_graph.rs`, `graph_ledger.rs`, `transcript_full.jsonl`, and all input CSVs in `provenance_manifest.json`).
+   - Step 0 queries `transcript_full.jsonl` by JSON field `step_index == 684` (physical line `685`, 1-indexed), proves generator replay exactness token-for-token and comment-for-comment against all `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`), reconstructs the `683` Run 1 nodes (`l8589951799`..`l8589952481`), and verifies all classification counts (`23` unambiguous, `603` ambiguous, `57` erased tail) as explicit assertions rather than unverified assumptions.
 
-2. **Restore the 57 Erased Run 1 Tail Nodes (`l8589952425`..`l8589952481`) First**:
-   - Currently `assets/data/graph/85899_52392.ctbnodes` ends at `l8589952424` (`626` nodes). Before allocating any new Step 2a recovery nodes, Run 1's `57` tail nodes are restored at their original IDs `l8589952425`..`l8589952481` via `nodes/inbox/` so those `57` IDs hold their single original Run 1 definitions (never double-assigned), and all new recovery nodes start cleanly at `l8589952482`.
+2. **Full Dependency-Ambiguity Closure (`603` Ambiguous IDs vs. `23` Unambiguous IDs — Fixes R1-F1)**:
+   - A node `l<N>` in `l8589951799`..`l8589952424` is in the ambiguity closure if either (a) `run1.tokens != run2.tokens` (`602` nodes: `l8589951802` and `l8589951824`..`l8589952424`) or (b) its Run 1 or Run 2 tokens transitively reference an ambiguous node (`1` additional node: `l8589951813 = 610 l8589951812 l8589951802`, whose target `l8589951802` had two different meanings).
+   - Every node in the `603`-node closure receives a `Dc 348 "Ambiguous values"` record and a single `Dc 591 "Supersedes"` statement (`591 l<ambig_raw(N)> l<N>`).
+   - We enforce a hard ledger invariant that no two active `Dc 591 "Supersedes"` statements may target the same `old_id`, and no `Dc 591 "Supersedes"` statement may self-supersede (`new_id == old_id`) or form a cycle.
 
-3. **Resumable Transactional Inbox Allocator (`# @allow-duplicate-of: l<old_id>` — Fixes Finding 2)**:
-   - `process_inbox_nodes` is **not** run implicitly during ordinary builds or validations. Instead, ordinary `validate_tables` / lint runs fail loudly if `src/formats/dcdata/data-src/nodes/inbox/` contains any unallocated `.dcsh` files, and allocation requires explicit `--process-inbox` invocation.
-   - The allocator acquires an exclusive advisory lock (`flock`) on `src/formats/dcdata/data-src/nodes/.allocator.lock`, verifies optional `--expected-last-id` and `--expected-ledger-sha256` preconditions, prevalidates the entire `nodes/inbox/` batch in memory before touching disk, and writes a persistent transactional journal (`src/formats/dcdata/data-src/nodes/allocated/allocation-journal.jsonl`) so any interrupted write or failed move can be resumed idempotently without ever double-allocating an ID.
+3. **Shared Exclusive Lock Across All Ledger Writers (Fixes R1-F2 & R2-F1)**:
+   - Every code path that writes to `assets/data/graph/*.ctbnodes` or `assets/data/graph/**/*.ctbnbdl` — both `process_inbox_nodes` and `update_system_graph_ledger` — must acquire the **same** exclusive advisory file lock (`flock` on `src/formats/dcdata/data-src/nodes/.ledger-writer.lock`) **before** reading the ledger from disk, and hold that lock until `.ctbnodes` appends, shadow-ledger syncs (`.git/ctb-graph-ledger-highwater` and `/root/.gemini/ctb-graph-ledger-highwater`), `.ctbnbdl` compilations, and journal updates are finished.
+   - Under this lock, `update_system_graph_ledger` (and ordinary `validate_tables`) refuses to proceed if `nodes/inbox/` contains any non-dotfile entries **or** if `allocation-journal.jsonl` contains an unfinished `BATCH_PENDING` transaction.
 
-4. **Pinned Transcript Evidence & Exact Run 2 Replay Proof (Fixes Finding 3)**:
-   - Step 0 queries `transcript_full.jsonl` by JSON field `step_index == 684` (which resides on physical line `685`, 1-indexed) and records SHA-256 digests of the transcript, commit `3345d2dff` inputs, and extracted CSV slices.
-   - Step 0 proves generator determinism by replaying `(commit 3345d2dff baseline + step_index == 684 Replacement CSV)` through `update_ledger_in_memory` and asserting **100% token-for-token and comment-for-comment identity** against all `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`).
-   - Step 0 then reconstructs the `683` Run 1 nodes from `(commit 3345d2dff baseline + step_index == 684 Target CSV)`, verifies the exact `step_index == 687` metrics (`17890 total / 683 appended / 1 superseded / 0 retracted`), and labels the output clearly as reconstructed evidence verified by Run 2 replay.
+4. **Resumable Preconditions, Complete Crash-State Journal, & Read-Only `--dry-run` (Fixes R2-F2 & R2-F3)**:
+   - **Journal Format & Durable Ordering (`nodes/allocated/allocation-journal.jsonl`)**:
+     - Each line in `allocation-journal.jsonl` is a single JSON object containing a `record_sha256` checksum over its canonical fields and terminated by `\n`.
+     - After whole-batch in-memory prevalidation succeeds, `process_inbox_nodes` writes a single `BATCH_PENDING` record containing `batch_id`, `baseline_last_id`, `baseline_ledger_sha256`, and `items: [{inbox_name, allocated_name, inbox_sha256, node_id, target_chunk_file, ctbnodes_line}]`, and calls `fsync` on `allocation-journal.jsonl` and its parent directory **before** any `.ctbnodes` or file-move mutation.
+     - If a crash occurs while writing `BATCH_PENDING` (leaving a torn trailing journal line without `\n` or with invalid `record_sha256`) before any ledger bytes were written (verified by matching `baseline_ledger_sha256`), the torn trailing record is discarded under the lock.
+   - **Resumable Precondition Verification**:
+     - When no `BATCH_PENDING` exists, `--expected-last-id` and `--expected-ledger-sha256` are checked directly against the current on-disk ledger.
+     - When resuming an existing `BATCH_PENDING` transaction, `--expected-last-id` and `--expected-ledger-sha256` are checked against the transaction's recorded `baseline_last_id` and `baseline_ledger_sha256`, and the current on-disk ledger is verified to equal the exact `baseline_ledger_sha256` prefix (`<= baseline_last_id`) followed by an **exact verified byte prefix** of `BATCH_PENDING.items` (rejecting any unrelated or diverged edits).
+     - `--dry-run` is **strictly read-only** in all states (including when a `BATCH_PENDING` record exists): it simulates and reports the planned actions without writing to `.ctbnodes`, shadow ledgers, `nodes/inbox/`, `nodes/allocated/`, or `allocation-journal.jsonl`.
+   - **All Crash Boundaries Covered on Resume**:
+     For each item in `BATCH_PENDING.items`:
+     1. **Primary `.ctbnodes` chunk**:
+        - If `item.ctbnodes_line` is already completely present at its expected offset/line, verify byte-for-byte equality and skip appending.
+        - If a **partial trailing line** is present at the end of `target_chunk_file` (from an interrupted write), verify that those trailing bytes are a strict prefix of `item.ctbnodes_line`, append **only the remaining suffix bytes** via `O_WRONLY | O_APPEND` (never truncating!), and `fsync` the chunk file. (If the trailing bytes are not a prefix of `item.ctbnodes_line`, abort with a corruption error.)
+        - If not yet present, append `item.ctbnodes_line` via `O_WRONLY | O_APPEND` and `fsync` the chunk file (and parent directory if newly created).
+     2. **Shadow high-water ledgers (`.git/ctb-graph-ledger-highwater` & `/root/.gemini/ctb-graph-ledger-highwater`)**:
+        - Apply the exact same idempotent prefix/suffix completion + `fsync` to each shadow high-water chunk file.
+     3. **Inbox -> Allocated file move (`nodes/inbox/<inbox_name>` -> `nodes/allocated/<allocated_name>`)**:
+        - If `inbox` exists and `allocated` does not: verify `sha256(inbox) == item.inbox_sha256`, `fs::rename(inbox, allocated)`, and `fsync` both `nodes/inbox/` and `nodes/allocated/` directories.
+        - If `inbox` does not exist and `allocated` already exists (crash occurred after `rename` but before `BATCH_COMMITTED`): verify `sha256(allocated) == item.inbox_sha256` and treat the move as complete.
+        - If both exist with matching `item.inbox_sha256`: remove `inbox` and `fsync` `nodes/inbox/`.
+     4. **Journal Commit**:
+        - Append `BATCH_COMMITTED` (with `batch_id`, `final_last_id`, `final_ledger_sha256`, and `record_sha256`) + `\n` to `allocation-journal.jsonl` and `fsync`.
 
-5. **Branch-Resolved Ambiguity Lists in Step 2b (Fixes Finding 4)**:
-   - In Step 2a, `l<ambig_raw(N)>` lists the literal Run 1 and Run 2 candidate nodes `[ l<r1_raw(N)>, l<r2_raw(N)> ]`.
-   - In Step 2b, whenever `l<r1_raw(N)>` or `l<r2_raw(N)>` references any of the `603` ambiguous IDs and is superseded by `l<r1_resolved(N)>` or `l<r2_resolved(N)>`, Step 2b **also** allocates `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and supersedes `l<ambig_raw(N)>` via `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`).
-   - Thus, both the literal Step 2a bodies and the disambiguated Step 2b bodies are preserved in the append-only ledger, and following `Dc 591 "Supersedes"` from any ambiguous node `l<N>` to its terminal `Dc 348 "Ambiguous values"` record yields `[ l<r1_resolved(N)>, l<r2_resolved(N)> ]` with all internal references branch-resolved.
+5. **Branch-Resolved Ambiguity Lists in Step 2b (Fixes R1-F4)**:
+   - Whenever `l<r1_raw(N)>` or `l<r2_raw(N)>` references any of the `603` ambiguous IDs and is superseded in Step 2b by `l<r1_resolved(N)>` or `l<r2_resolved(N)>`, Step 2b also allocates `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and supersedes `l<ambig_raw(N)>` via `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`).
 
-6. **CSV-Provenance-Driven Reconciliation in Step 3 (Fixes Finding 5)**:
-   - `SeedGraphIndex` will **not** blindly collapse or auto-supersede active statements by allocation order.
-   - Instead, `SeedGraphIndex` exposes `find_duplicate_or_conflicting_active_statements()` to surface all active statements per `(subj, prop)`, `(subj, prop, val)`, and `(verb, subj, obj)`.
-   - In Step 3, `LedgerBuilder::apply_desired_state` reconciles active CSV-owned statement groups (`has_a_id`, `has_val_id`, and optional `preferred_id`) strictly against `DesiredGraphState` derived from the verified CSV tables:
-     - For `f95` `Dc 573 "Description"`, Run 2's disambiguated statement pair matches `DesiredGraphState` and supersedes Run 1's disambiguated statement pair (`Dc 591 "Supersedes"`).
-     - For the 19 invented Run 1 file extensions (absent from `DesiredGraphState`), their disambiguated `Dc 584 "Has a"` statements are retracted via `Dc 592 "Retracts"` (`592 615 l<r1_has_a_id>`), which deactivates their paired `Dc 610 "Has value"` statements and string value nodes.
-     - For CSV facts that are identical in both Run 1 and Run 2 (where both branches produced active disambiguated statement groups for the same CSV fact), the canonical Run 2 statement group supersedes the duplicate Run 1 statement group (`has_a_id`, `has_val_id`, and any `preferred_id`) via `Dc 591 "Supersedes"`.
+6. **Component-Wise CSV Reconciliation Preserving Shared Statement IDs (Fixes R1-F5 & R2-F4)**:
+   - For `f95` (`Dce`), the `Dc 584 "Has a"` node `l8589951812` (`584 f95 573`, property `Dc 573 "Description"`) is one of the `23` preserved unambiguous nodes shared by both Run 1 and Run 2! Only its attached `Dc 610 "Has value"` statement `l8589951813` (`610 l8589951812 l8589951802`) was ambiguous (`l<r1_resolved(8589951813)>` vs. `l<r2_resolved(8589951813)>`, both pointing to `l8589951812`).
+   - Therefore, `SeedGraphIndex` will index **all** active `Dc 610 "Has value"` statements (`all_active_has_val_by_stmt: BTreeMap<u128, Vec<(u128, DcShorthand)>>`) and all active `Dc 570 "Preferred"` qualifiers per `has_a_id`, and track all active property groups `(has_a_id, has_val_id, val_tok, pref_id)` per `(subj, prop)`.
+   - In Step 3, when `LedgerBuilder::apply_desired_state` reconciles a canonical CSV-matching property group `(canon_has_a_id, canon_has_val_id, canon_pref_id)` against another active group `(other_has_a_id, other_has_val_id, other_pref_id)` for the same CSV-owned property:
+     - **Preserve shared `has_a_id`**: Only emit `591 l<canon_has_a_id> l<other_has_a_id>` (`Dc 591 "Supersedes"`) if `canon_has_a_id != other_has_a_id`. When `canon_has_a_id == other_has_a_id` (as for `l8589951812`), `l8589951812` is preserved untouched!
+     - **Supersede distinct `has_val_id`**: Emit `591 l<canon_has_val_id> l<other_has_val_id>` (`Dc 591 "Supersedes"`) when `canon_has_val_id != other_has_val_id`.
+     - **Reconcile `pref_id`**: If `other_pref_id == Some(op)`, supersede with `canon_pref_id` if present and distinct (`cp != op`), or retract via `592 615 l<op>` (`Dc 592 "Retracts"`) if `canon_pref_id.is_none()`.
+
+7. **Explicit Distinction Between Ledger-Effective Activity and Runtime-Bundle Membership (Fixes R1-F6 & R2-F5)**:
+   - Among the `23` preserved unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), `l8589951819` (`591 l8589951818 l8589938484`) is a `Dc 591 "Supersedes"` revision statement.
+   - Per [`partition_active_and_inactive_nodes_with`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl.rs#L1029-L1051), all `Dc 591 "Supersedes"` and `Dc 592 "Retracts"` revision statements are placed in the historical archive bundle (`assets/data/graph/system/85899_34942.ctbnbdl`), while their revision effect remains active in the full ledger (`!full_index.inactive_ids.contains(&8589951819)`).
+   - Our verification tests explicitly distinguish:
+     1. **Ledger-effective (`!full_index.inactive_ids.contains(&id)`)**: Holds for all `23` preserved unambiguous nodes (including `l8589951819`), with `l8589951819` continuing to supersede `l8589938484` with `l8589951818`.
+     2. **Runtime-bundle membership (`assets/data/graph/85899_34592.ctbnbdl`)**: Contains the `22` non-revision unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951818`, `l8589951820`..`l8589951823`), while `l8589951819` resides in `assets/data/graph/system/85899_34942.ctbnbdl`.
 
 ---
 
-## Proposed Changes
+## Proposed Execution Sequence
 
 ```mermaid
 flowchart TD
-    A["Step 1a/1b: git mv fixtures -> data-src\nCreate data-src/nodes/{inbox,allocated}"] --> B["Step 1c: Implement transactional process_inbox_nodes()\nwith flock, prevalidation & allocation-journal.jsonl"]
-    B --> C["Step 0 Script: Extract & hash step_index==684 evidence,\nprove exact Run 2 replay, reconstruct 683 Run 1 nodes"]
-    C --> D["Step 2a Script: Restore l8589952425..l8589952481 (57 nodes)\n& emit 603 Dc 348 / Dc 591 quadruplets (2,412 nodes)"]
-    D --> E["Step 2b Script: Emit branch-resolved statements\n& update Dc 348 records via Dc 591 Supersedes"]
-    E --> F["Step 3: Run update_system_graph_ledger() to reconcile\nCSV-owned facts via Dc 591 / Dc 592 & verify all invariants"]
+    S0["Step 0 (First): Extract & hash step_index==684 evidence,\nrun pinned historical generator replay, verify 626 Run 2\n& 683 Run 1 nodes + 603-node closure"] --> S1A["Step 1a/1b: git mv fixtures -> data-src,\nmove recovery-audit/ into data-src/,\ncreate data-src/nodes/{inbox,allocated}"]
+    S1A --> S1C["Step 1c: Implement shared-lock transactional process_inbox_nodes()\n& component-wise CSV reconciliation in seed_graph.rs / graph_ledger.rs"]
+    S1C --> S2A["Step 2a: Restore l8589952425..l8589952481 (57 nodes)\n& allocate 603 Dc 348 / Dc 591 quadruplets (2,412 nodes)"]
+    S2A --> S2B["Step 2b: Allocate branch-resolved statements\n& supersede Dc 348 records via Dc 591 Supersedes"]
+    S2B --> S3["Step 3: Run update_system_graph_ledger() under shared lock\nto reconcile CSV-owned facts via Dc 591 / Dc 592 & verify all invariants"]
 ```
 
 ---
 
-### Component 1: Rename `fixtures/` to `data-src/` & Transactional Manual Node Pipeline (`Step 1a–1c`)
+### Step 0 (Executed First): Pinned Forensic Extraction & Historical Replay Verification
 
-#### [MODIFY] `src/formats/dcdata/fixtures/` -> `src/formats/dcdata/data-src/`
-- Move via `git mv src/formats/dcdata/fixtures src/formats/dcdata/data-src`.
-- Create `src/formats/dcdata/data-src/nodes/inbox/.keep` and `src/formats/dcdata/data-src/nodes/allocated/.keep`.
-
-#### [MODIFY] [dcdata.rs](file:///workspaces/ctoolbox/src/formats/dcdata/dcdata.rs), [updater.rs](file:///workspaces/ctoolbox/src/formats/dcdata/updater.rs), [validation.rs](file:///workspaces/ctoolbox/src/formats/dcdata/validation.rs), [format.rs](file:///workspaces/ctoolbox/src/formats/dcdata/format.rs), [syntax.rs](file:///workspaces/ctoolbox/src/formats/dcdata/syntax.rs), [modify-columns.py](file:///workspaces/ctoolbox/scripts/modify-columns.py)
-- Update all `src/formats/dcdata/fixtures` paths to `src/formats/dcdata/data-src`.
-- In [dcdata.rs](file:///workspaces/ctoolbox/src/formats/dcdata/dcdata.rs#L178-L200), resolve `data-src/` relative to `env!("CARGO_MANIFEST_DIR")`.
-
-#### [MODIFY] [graph_ledger.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs), [seed_graph.rs](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs), & [validate_tables.rs](file:///workspaces/ctoolbox/src/formats/dcdata/bin/validate_tables.rs)
-1. **Resumable Transactional Inbox Node Allocator (`process_inbox_nodes`)**:
-   - Invoked explicitly via `validate_tables --process-inbox [--expected-last-id l<id>] [--expected-ledger-sha256 <hex>] [--dry-run]`.
-   - Ordinary `validate_tables` and `update_system_graph_ledger` runs check that `nodes/inbox/` contains no unallocated files (bailing with an actionable message if any exist, so routine builds never silently consume node IDs).
-   - **Locking & Preconditions**:
-     - Acquires an exclusive `flock` on `src/formats/dcdata/data-src/nodes/.allocator.lock`.
-     - Verifies `--expected-last-id` and `--expected-ledger-sha256` (if provided) against `assets/data/graph/*.ctbnodes`.
-   - **Journal Recovery (`nodes/allocated/allocation-journal.jsonl`)**:
-     - Before processing new inbox files, inspects `allocation-journal.jsonl` for any `PENDING` records from a prior interrupted run:
-       - If the `PENDING` node ID is already present at the tail of `assets/data/graph/*.ctbnodes` with matching tokens and `nodes/inbox/<filename>` still exists, completes the move to `nodes/allocated/<grouped_id>_<filename>` and marks the entry `COMMITTED`.
-       - If the `PENDING` node ID was not yet appended to `.ctbnodes`, appends it, completes the move, and marks `COMMITTED`.
-   - **Whole-Batch In-Memory Prevalidation**:
-     - Scans `src/formats/dcdata/data-src/nodes/inbox/` in deterministic ASCII filename order (skipping dotfiles like `.keep`).
-     - Validates `.dcsh` (`f635 "Dc shorthand ASCII list"`) extension and parses tokens via `DcShorthand::parse`, extracting `# @comment: <text>` and `# @allow-duplicate-of: l<id>`.
-     - Simulates the entire batch in memory:
-       - Rejects any token `DcShorthand::Long(id)` with `id >= prospective_node_id` (no self-reference or forward reference).
-       - Rejects any two active `Dc 591 "Supersedes"` statements targeting the same `old_id`.
-       - Checks if any currently active (`!inactive_ids.contains(&id)`) non-empty node has identical tokens (excluding `586 615 <class_dc>` seed entity declarations using `Dc 586 "Is an instance of"` and `Dc 615 "Enclosing document"`). If an active match exists, fails unless `# @allow-duplicate-of: l<existing_id>` matches that active node ID.
-       - Updates the simulated active/inactive state after each node in the batch as `591` (`Dc 591 "Supersedes"`) and `592` (`Dc 592 "Retracts"`) statements are encountered.
-   - **Commit Phase**:
-     - If `--dry-run` is set, prints the planned allocation range and exits without writing.
-     - Otherwise, writes `PENDING` entries to `allocation-journal.jsonl`, appends to `assets/data/graph/*.ctbnodes` via `write_ledger_nodes_to_dir` (`O_APPEND`), syncs high-water shadow ledgers, moves each file to `nodes/allocated/<grouped_id>_<filename>`, and records `COMMITTED` in `allocation-journal.jsonl`.
-2. **Active Value Node Indexing & CSV-Provenance Reconciliation**:
-   - In [`SeedGraphIndex::from_nodes_with_single_props`](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs#L442-L459):
-     - Skip `inactive_ids` when populating `value_node_by_tokens` so superseded value nodes (`l8589951802`, `l8589951824`, etc.) are never reused by `LedgerBuilder::get_or_insert_value_node`.
-     - Add `get_ambiguous_candidates(id: u128) -> Option<Vec<DcShorthand>>` to follow `superseded_by` from `id` to its terminal `Dc 348 "Ambiguous values"` node and return its candidate list.
-     - Add `find_duplicate_or_conflicting_active_statements()` to report all active statement groups sharing a `(subj, prop)` single-valued key, `(subj, prop, val)` multi-valued key, or `(verb, subj, obj)` direct key, plus any duplicate active `Dc 591 "Supersedes"` targets.
-   - In [`LedgerBuilder::apply_desired_state`](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs#L1180-L1520):
-     - Reconcile all active CSV-owned statement groups against `DesiredGraphState` (superseding outdated single-valued properties and duplicate branch statement groups (`has_a_id`, `has_val_id`, `preferred_id`) with the canonical active CSV statement group via `Dc 591 "Supersedes"`, and retracting removed CSV statements via `Dc 592 "Retracts"`).
+#### [NEW] `scripts/graph-recovery/step0_extract_transcript_data.py`
+- Runs **before** any modifications to `src/formats/dcdata/` so that replay uses the exact historical generator code from commit `a90464028` / `3345d2dff`:
+  1. Verifies and records the current Git commit SHA and the SHA-256 digests of `src/formats/dcdata/seed_graph.rs`, `src/formats/dcdata/graph_ledger.rs`, `/root/.gemini/antigravity/brain/23f9eaf6-7cd6-416e-8470-852b9878ea88/.system_generated/logs/transcript_full.jsonl`, and every CSV file in `src/formats/dcdata/fixtures/` at `3345d2dff` and `a90464028`.
+  2. Queries `transcript_full.jsonl` by JSON field `step_index`:
+     - `step_index == 679` (physical line `680`): Run 1 command invocation.
+     - `step_index == 684` (physical line `685`): `edit_file` on `document.csv` with `Target` (Run 1 slice) and `Replacement` (Run 2 slice).
+     - `step_index == 687` (physical line `688`): `task-680` output (`17890 total nodes (683 appended, 1 superseded, 0 retracted, 7 chunk files updated)`).
+     - `step_index == 698` (physical line `699`): `task-693` output (`17833 total nodes (626 appended, 1 superseded, 0 retracted, 7 chunk files updated)`).
+  3. Verifies via `git diff 3345d2dff..a90464028` that `document.csv` was the **only** modified input CSV table in `src/formats/dcdata/fixtures/`, and that substituting `step_index == 684`'s `Target` for `Replacement` in `a90464028`'s `document.csv` produces the exact Run 1 `document.csv`.
+  4. Runs the pinned historical `update_ledger_in_memory` against `(commit 3345d2dff 17,207-node baseline + Run 2 document.csv)` and asserts **100% token-for-token and comment-for-comment equality** with all `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`).
+  5. Runs the pinned historical `update_ledger_in_memory` against `(commit 3345d2dff 17,207-node baseline + Run 1 document.csv)` to reconstruct the `683` Run 1 nodes (`l8589951799`..`l8589952481`) and asserts the exact `step_index == 687` summary metrics (`17,890 total / 683 appended / 1 superseded / 0 retracted`).
+  6. Computes the transitive dependency-ambiguity closure over `l8589951799`..`l8589952424`, asserting `23` unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), `603` ambiguous nodes (`l8589951802`, `l8589951813`, `l8589951824`..`l8589952424`), and `57` erased tail nodes (`l8589952425`..`l8589952481`).
+  7. Writes `provenance_manifest.json`, `run1_document_csv_slice.csv`, `run2_document_csv_slice.csv`, `run1_reconstructed_nodes_8589951799_8589952481.ctbnodes`, `run2_surviving_nodes_8589951799_8589952424.ctbnodes`, and `collision_manifest.json`, and commits Step 0.
 
 ---
 
-### Component 2: Auditable Forensic Extraction & Step-by-Step Recovery Scripts (`Steps 0, 2a, 2b, 3`)
+### Component 1: Rename `fixtures/` to `data-src/` & Shared-Lock Transactional Pipeline (`Steps 1a–1c`)
 
-#### [NEW] `scripts/graph-recovery/step0_extract_transcript_data.py`
-- Queries `/root/.gemini/antigravity/brain/23f9eaf6-7cd6-416e-8470-852b9878ea88/.system_generated/logs/transcript_full.jsonl` by `step_index`:
-  - Verifies SHA-256 of `transcript_full.jsonl` and locates `step_index == 679` (physical line `680`), `step_index == 684` (physical line `685`, containing `tool_calls[0].args.Target` and `Replacement` for `document.csv`), `step_index == 687` (physical line `688`, `task-680` output), and `step_index == 698` (physical line `699`, `task-693` output).
-  - Verifies against Git (`3345d2dff..a90464028`) that `document.csv` was the only modified input table in `src/formats/dcdata/` and pins the SHA-256 of every input CSV file at `3345d2dff` and `a90464028`.
-  - Runs the generator in-memory against `(3345d2dff + Run 2 document.csv)` and asserts **100% token-for-token and comment-for-comment identity** with the `626` surviving Run 2 nodes (`l8589951799`..`l8589952424`).
-  - Runs the generator in-memory against `(3345d2dff + Run 1 document.csv from step_index == 684 Target)` to reconstruct the `683` Run 1 nodes (`l8589951799`..`l8589952481`) and verifies the exact `step_index == 687` metrics (`17890 total / 683 appended / 1 superseded / 0 retracted`).
-  - Computes the transitive dependency-ambiguity closure over `l8589951799`..`l8589952424`, confirming `23` unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`), `603` ambiguous nodes (`l8589951802`, `l8589951813`, `l8589951824`..`l8589952424`), and `57` erased tail nodes (`l8589952425`..`l8589952481`).
-  - Writes all artifacts and SHA-256 manifests into `src/formats/dcdata/data-src/recovery-audit/` and commits them.
+#### [MODIFY] `src/formats/dcdata/fixtures/` -> `src/formats/dcdata/data-src/` (`Steps 1a & 1b`)
+- Move via `git mv src/formats/dcdata/fixtures src/formats/dcdata/data-src`.
+- Create `src/formats/dcdata/data-src/nodes/inbox/.keep` and `src/formats/dcdata/data-src/nodes/allocated/.keep`.
+- Update all `src/formats/dcdata/fixtures` paths to `src/formats/dcdata/data-src` across [dcdata.rs](file:///workspaces/ctoolbox/src/formats/dcdata/dcdata.rs), [graph_ledger.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs), [updater.rs](file:///workspaces/ctoolbox/src/formats/dcdata/updater.rs), [validation.rs](file:///workspaces/ctoolbox/src/formats/dcdata/validation.rs), [format.rs](file:///workspaces/ctoolbox/src/formats/dcdata/format.rs), [syntax.rs](file:///workspaces/ctoolbox/src/formats/dcdata/syntax.rs), and [modify-columns.py](file:///workspaces/ctoolbox/scripts/modify-columns.py), and commit Steps 1a & 1b.
+
+#### [MODIFY] [graph_ledger.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs), [seed_graph.rs](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs), & [validate_tables.rs](file:///workspaces/ctoolbox/src/formats/dcdata/bin/validate_tables.rs) (`Step 1c`)
+1. **Shared Exclusive Ledger Writer Lock (`acquire_ledger_writer_lock`)**:
+   - Acquires `flock(LOCK_EX)` on `src/formats/dcdata/data-src/nodes/.ledger-writer.lock`.
+   - Used by **both** `process_inbox_nodes` and `update_system_graph_ledger` prior to reading `assets/data/graph/*.ctbnodes`, and held until all `.ctbnodes` writes, shadow-ledger syncs, `.ctbnbdl` bundle compilations, and journal commits finish.
+2. **Resumable Crash-Safe Inbox Allocator (`process_inbox_nodes`)**:
+   - Invoked explicitly via `validate_tables --process-inbox [--expected-last-id l<id>] [--expected-ledger-sha256 <hex>] [--dry-run]`.
+   - Implements the `BATCH_PENDING` / `BATCH_COMMITTED` journal protocol in `src/formats/dcdata/data-src/nodes/allocated/allocation-journal.jsonl` with:
+     - `record_sha256` checksum verification and torn-record detection;
+     - resumable baseline + verified output-prefix checking for `--expected-last-id` and `--expected-ledger-sha256`;
+     - strictly read-only `--dry-run` simulation in both clean and `BATCH_PENDING` states;
+     - suffix-only `O_APPEND` completion of partial trailing `.ctbnodes` lines (never truncating), idempotent shadow-ledger sync, and post-`rename` crash recovery with `fsync` at each file and directory boundary.
+3. **Active Value Node Indexing & Component-Wise CSV Reconciliation**:
+   - In [`SeedGraphIndex::from_nodes_with_single_props`](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs#L442-L459):
+     - Skip `inactive_ids` when populating `value_node_by_tokens`.
+     - Track all active `Dc 610 "Has value"` statements (`all_active_has_val_by_stmt`) and `Dc 570 "Preferred"` qualifiers per `has_a_id`, and expose `find_duplicate_or_conflicting_active_statements()` and `get_ambiguous_candidates(id)`.
+   - In [`LedgerBuilder::apply_desired_state`](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs#L1180-L1520):
+     - Reconcile active CSV-owned property groups `(has_a_id, has_val_id, pref_id)` component-wise against `DesiredGraphState`, preserving shared statement IDs (such as `f95`'s `has_a_id = l8589951812`) while superseding distinct `has_val_id` / `has_a_id` / `pref_id` components via `Dc 591 "Supersedes"`, retracting absent Run 1 statements via `Dc 592 "Retracts"`, and forbidding self-supersession (`new_id == old_id`) and cycles.
+
+---
+
+### Component 2: Step-by-Step Recovery Scripts (`Steps 2a, 2b, 3`)
 
 #### [NEW] `scripts/graph-recovery/step2a_stage_ambiguous_nodes.py`
 - Reads `src/formats/dcdata/data-src/recovery-audit/collision_manifest.json` and stages `.dcsh` files into `src/formats/dcdata/data-src/nodes/inbox/`:
-  1. **Tail restoration (`l8589952425`..`l8589952481`, `57` nodes)**: Restores the `57` erased Run 1 tail nodes at their exact original IDs `l8589952425`..`l8589952481`.
+  1. **Tail restoration (`l8589952425`..`l8589952481`, `57` nodes)**: Restores the `57` erased Run 1 tail nodes at `l8589952425`..`l8589952481`.
   2. **Ambiguous node quadruplets (`603` IDs: `l8589951802`, `l8589951813`, `l8589951824`..`l8589952424` × 4 nodes = `2,412` nodes at `l8589952482`..`l8589954893`)**:
      For each ambiguous node `l<N>`:
-     - `l<r1_raw(N)>`: literal Run 1 token body of `l<N>` (with `# @allow-duplicate-of` where needed)
-     - `l<r2_raw(N)>`: literal Run 2 token body of `l<N>` (with `# @allow-duplicate-of: l<N>` or `# @allow-duplicate-of: l<r1_raw(N)>` for `l8589951813`)
-     - `l<ambig_raw(N)>`: `348 310 275 l<r1_raw(N)> 312 l<r2_raw(N)> 311` (`Dc 348 "Ambiguous values"`, `Dc 310 "Begin list (ordered, contiguous, typed)"`, `Dc 275 "Built-in type identifier: * (Object or any subtype)"`, `l<r1_raw(N)>`, `Dc 312 "List element separator"`, `l<r2_raw(N)>`, `Dc 311 "End list"`)
+     - `l<r1_raw(N)>`: literal Run 1 token body of `l<N>`
+     - `l<r2_raw(N)>`: literal Run 2 token body of `l<N>`
+     - `l<ambig_raw(N)>`: `348 310 275 l<r1_raw(N)> 312 l<r2_raw(N)> 311` (`Dc 348 "Ambiguous values"`)
      - `l<sup_raw(N)>`: `591 l<ambig_raw(N)> l<N>` (`Dc 591 "Supersedes"`)
-- Runs `validate_tables --process-inbox --expected-last-id l8589952424 --dry-run` first, then executes the allocation and commits all changes.
+- Runs `validate_tables --process-inbox --expected-last-id l8589952424 --dry-run` first, then executes the allocation and commits Step 2a.
 
 #### [NEW] `scripts/graph-recovery/step2b_stage_disambiguations.py`
 - In ascending topological order of original node ID `N`:
   - For each of the `603` ambiguous IDs `N`:
-    - If `l<r1_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r1_resolved(N)>` (with every ambiguous `l<X>` rewritten to `l<r1_resolved(X)>`) and `591 l<r1_resolved(N)> l<r1_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r1_resolved(N)> = l<r1_raw(N)>`.
-    - If `l<r2_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r2_resolved(N)>` (with every ambiguous `l<X>` rewritten to `l<r2_resolved(X)>`) and `591 l<r2_resolved(N)> l<r2_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r2_resolved(N)> = l<r2_raw(N)>`.
-    - Whenever `l<r1_resolved(N)> != l<r1_raw(N)>` or `l<r2_resolved(N)> != l<r2_raw(N)>`, stages `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`), so the terminal `Dc 348 "Ambiguous values"` node for `l<N>` points directly at `[ l<r1_resolved(N)>, l<r2_resolved(N)> ]`.
+    - If `l<r1_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r1_resolved(N)>` (rewriting `l<X> -> l<r1_resolved(X)>`) and `591 l<r1_resolved(N)> l<r1_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r1_resolved(N)> = l<r1_raw(N)>`.
+    - If `l<r2_raw(N)>` references any of the `603` ambiguous IDs `l<X>`, stages `l<r2_resolved(N)>` (rewriting `l<X> -> l<r2_resolved(X)>`) and `591 l<r2_resolved(N)> l<r2_raw(N)>` (`Dc 591 "Supersedes"`). Otherwise `l<r2_resolved(N)> = l<r2_raw(N)>`.
+    - Whenever `l<r1_resolved(N)> != l<r1_raw(N)>` or `l<r2_resolved(N)> != l<r2_raw(N)>`, stages `l<ambig_resolved(N)> = 348 310 275 l<r1_resolved(N)> 312 l<r2_resolved(N)> 311` (`Dc 348 "Ambiguous values"`) and `591 l<ambig_resolved(N)> l<ambig_raw(N)>` (`Dc 591 "Supersedes"`).
   - For each restored Run 1 tail node `N` in `l8589952425`..`l8589952481` that references any of the `603` ambiguous IDs `l<X>`:
     - Stages `l<r1_resolved(N)>` (rewriting `l<X> -> l<r1_resolved(X)>`) and `591 l<r1_resolved(N)> l<N>` (`Dc 591 "Supersedes"`).
-- Runs `validate_tables --process-inbox --expected-last-id l8589954893 --dry-run` first, then executes the allocation and commits all changes.
+- Runs `validate_tables --process-inbox --expected-last-id l8589954893 --dry-run` first, then executes the allocation and commits Step 2b.
 
 #### [NEW] `scripts/graph-recovery/step3_reconcile_csv_graph.sh`
-- Runs `./scripts/validate-data-tables` (`update_system_graph_ledger`), which:
-  - Emits `Dc 592 "Retracts"` (`592 615 l<id>`) for the 19 disambiguated Run 1 file-extension statements that are absent from the current CSVs.
-  - Emits `Dc 591 "Supersedes"` (`591 l<r2_id> l<r1_id>`) for the disambiguated Run 1 statements (both `f95`'s outdated description and the shifted duplicate statements) that are superseded by Run 2's canonical disambiguated statements.
-  - Compiles `assets/data/graph/85899_34592.ctbnbdl` (active) and `assets/data/graph/system/85899_34942.ctbnbdl` (historical).
-- Verifies that a second consecutive run of `./scripts/validate-data-tables` appends **0 nodes**, then commits the final reconciled graph.
+- Runs `./scripts/validate-data-tables` (`update_system_graph_ledger`), which acquires the shared ledger lock, reconciles all active CSV-owned statement groups component-wise against `DesiredGraphState` via `Dc 591 "Supersedes"` and `Dc 592 "Retracts"`, and compiles `assets/data/graph/85899_34592.ctbnbdl` and `assets/data/graph/system/85899_34942.ctbnbdl`.
+- Runs `./scripts/validate-data-tables` a second time to verify `0` nodes are appended, then commits Step 3.
 
 ---
 
@@ -177,22 +194,28 @@ flowchart TD
 
 ### Automated Invariant & Fault-Injection Tests
 1. **Allocator Transactional & Fault-Injection Tests (`cargo test -p ctb-formats-dcdata --lib graph_ledger`)**:
-   - Test whole-batch prevalidation failure (syntax error, self-reference, forward reference, duplicate active node without `# @allow-duplicate-of`, duplicate `Dc 591 "Supersedes"` target) ensures zero bytes are appended to `.ctbnodes`.
-   - Test crash/interruption recovery: simulate an interrupted run where `.ctbnodes` was appended and `allocation-journal.jsonl` has a `PENDING` entry before `fs::rename`, then verify re-running `process_inbox_nodes` completes the move without allocating a duplicate ID.
-   - Test `--expected-last-id` and `--expected-ledger-sha256` mismatch rejection and `flock` lock contention.
-   - Test that ordinary validation fails if `nodes/inbox/` is non-empty.
+   - **Whole-batch prevalidation failure**: Verify syntax error, self-reference, forward reference, unpermitted active duplicate, self-supersession (`591 l<a> l<a>`), supersession cycle, or duplicate `Dc 591 "Supersedes"` target aborts before writing `BATCH_PENDING` or touching `.ctbnodes`.
+   - **Fault-injection at every crash boundary**:
+     1. Torn trailing `BATCH_PENDING` line (missing `\n` or bad `record_sha256`) before ledger append -> discarded cleanly on retry.
+     2. Partial `.ctbnodes` line (interrupted mid-line write) -> resumed retry verifies prefix and appends only the remaining suffix bytes via `O_APPEND` without truncating, using the original `--expected-last-id` and `--expected-ledger-sha256`.
+     3. Primary `.ctbnodes` appended, shadow high-water ledger not yet synced -> resumed retry completes shadow sync, move, and `BATCH_COMMITTED`.
+     4. `.ctbnodes` appended and `nodes/inbox/<f>` already moved to `nodes/allocated/<id>_<f>`, crash before `BATCH_COMMITTED` -> resumed retry verifies `allocated` file SHA-256 and writes `BATCH_COMMITTED` without re-allocating.
+     5. `--dry-run` during `BATCH_PENDING` -> verifies zero files are mutated.
+   - **Shared lock & pending-transaction guard**: Verify `update_system_graph_ledger` blocks on `.ledger-writer.lock` and refuses to proceed if `nodes/inbox/` is non-empty or `BATCH_PENDING` is uncommitted.
 2. **Recovery & Live vs. Historical Graph Invariant Tests (`cargo test -p ctb-formats-dcdata --lib seed_graph`)**:
-   - **Unchanged Prefix Invariant**: Verify `l8589934592`..`l8589952424` (`17,833` nodes) match commit `a90464028` byte-for-byte.
-   - **Exact Tail Restoration Invariant**: Verify `l8589952425`..`l8589952481` (`57` nodes) match the reconstructed Run 1 tail nodes token-for-token.
-   - **Complete Ambiguity Closure & Unambiguous Preservation Invariant**:
-     - Verify the `23` unambiguous nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) remain active and unsuperseded.
-     - Verify every node in the `603`-node ambiguity closure (`l8589951802`, `l8589951813`, `l8589951824`..`l8589952424`) resolves via `get_ambiguous_candidates(id)` to a terminal `Dc 348 "Ambiguous values"` list of 2 branch-resolved candidates `[l<r1_resolved(N)>, l<r2_resolved(N)>]`, and neither candidate references any of the `603` ambiguous IDs.
-   - **Live Active Graph Purity & Uniqueness Invariant**:
-     - Verify that in the active bundle (`assets/data/graph/85899_34592.ctbnbdl`), zero nodes from the `603`-node ambiguous set are active or referenced by any active node.
-     - Verify `find_duplicate_or_conflicting_active_statements()` returns empty (strictly 1 active statement per CSV fact, zero duplicate `Dc 591 "Supersedes"` targets).
-     - Verify `reconstruct_dc_defns()` and `reconstruct_format_defns()` round-trip the CSV tables with zero drift.
+   - **Unchanged Prefix Invariant**: `l8589934592`..`l8589952424` (`17,833` nodes) match commit `a90464028` byte-for-byte.
+   - **Exact Tail Restoration Invariant**: `l8589952425`..`l8589952481` (`57` nodes) match the reconstructed Run 1 tail nodes token-for-token.
+   - **Preserved Unambiguous Nodes (`23` nodes)**:
+     - All `23` nodes (`l8589951799`..`l8589951801`, `l8589951803`..`l8589951812`, `l8589951814`..`l8589951823`) remain **ledger-effective** (`!full_index.inactive_ids.contains(&id)`), including `f95`'s shared `Dc 584 "Has a"` node `l8589951812` and the revision statement `l8589951819` (`591 l8589951818 l8589938484`).
+     - The `22` non-revision unambiguous nodes are present in the runtime bundle (`assets/data/graph/85899_34592.ctbnbdl`), while the revision statement `l8589951819` is present in the history bundle (`assets/data/graph/system/85899_34942.ctbnbdl`) with its supersession effect active.
+   - **Complete `603`-Node Ambiguity Closure Invariant**:
+     - Every node in the `603`-node ambiguity closure (`l8589951802`, `l8589951813`, `l8589951824`..`l8589952424`) resolves via `get_ambiguous_candidates(id)` to a terminal `Dc 348 "Ambiguous values"` list of 2 branch-resolved candidates `[l<r1_resolved(N)>, l<r2_resolved(N)>]`, neither of which references any of the `603` ambiguous IDs.
+   - **Live Runtime Bundle Purity & Uniqueness Invariant**:
+     - Zero nodes from the `603`-node ambiguous set are present in `assets/data/graph/85899_34592.ctbnbdl` or referenced by any node in `assets/data/graph/85899_34592.ctbnbdl`.
+     - `find_duplicate_or_conflicting_active_statements()` returns empty (strictly 1 active statement group per CSV fact, zero duplicate `Dc 610 "Has value"` statements on `l8589951812` or any other `has_a_id`, zero duplicate `Dc 591 "Supersedes"` targets).
+     - `reconstruct_dc_defns()` and `reconstruct_format_defns()` round-trip the CSV dataset with zero drift.
    - **Active + History Union & Idempotency Invariant**:
-     - Verify active + history `.ctbnbdl` bundles partition 100% of `.ctbnodes` with zero overlap and identical active state, and a second `update_system_graph_ledger` run appends `0` nodes.
+     - `assets/data/graph/85899_34592.ctbnbdl` and `assets/data/graph/system/85899_34942.ctbnbdl` partition 100% of `.ctbnodes` with zero overlap and identical reconstructed semantic state, and a second `update_system_graph_ledger` run appends `0` nodes.
 3. **Repository Lints & Kernel Guard Canary**:
    - `cargo run --manifest-path src/build_support/Cargo.toml --bin ctb-lint -- all --quick`
    - `./scripts/lock-graph-append-only --test-canary`
