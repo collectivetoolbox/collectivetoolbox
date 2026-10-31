@@ -163,21 +163,48 @@ pub(crate) fn dce_convert_internal(
     // Detect and handle one-step conversions
     let mut onestep = false;
     match input_format {
-        "3_0a_old" if output_format == "none" => onestep = true,
+        "3_0a_old" | "dce_3_0a_old" if output_format == "none" => {
+            onestep = true;
+        }
         "dce2txt" if output_format == "none" => onestep = true,
         "dce2hex" if output_format == "none" => onestep = true,
         "hex2dce" if output_format == "none" => onestep = true,
-        "legacy_cdce" if output_format == "html" => onestep = true,
+        "legacy_cdce" | "cdce_legacy"
+            if matches!(
+                output_format,
+                "html"
+                    | "html_l"
+                    | "html_legacy"
+                    | "html_legacy_cdce"
+                    | "html_snippet"
+                    | "html_snippet_l"
+                    | "html_s_legacy"
+                    | "html_legacy_cdce_snippet"
+            ) =>
+        {
+            onestep = true;
+        }
         _ => {}
     }
 
     if onestep {
-        return match input_format {
-            "3_0a_old" => legacy::onestep_3_0a_old_to_none(data),
-            "dce2txt" => legacy::onestep_dce2txt_to_none(data),
-            "dce2hex" => legacy::onestep_dce2hex_to_none(data),
-            "hex2dce" => legacy::onestep_hex2dce_to_none(data),
-            "legacy_cdce" => legacy::onestep_legacy_cdce_to_html_l(data),
+        return match (input_format, output_format) {
+            ("3_0a_old" | "dce_3_0a_old", _) => {
+                legacy::onestep_3_0a_old_to_none(data)
+            }
+            ("dce2txt", _) => legacy::onestep_dce2txt_to_none(data),
+            ("dce2hex", _) => legacy::onestep_dce2hex_to_none(data),
+            ("hex2dce", _) => legacy::onestep_hex2dce_to_none(data),
+            (
+                "legacy_cdce" | "cdce_legacy",
+                "html_snippet"
+                | "html_snippet_l"
+                | "html_s_legacy"
+                | "html_legacy_cdce_snippet",
+            ) => legacy::onestep_legacy_cdce_to_html_snippet_l(data),
+            ("legacy_cdce" | "cdce_legacy", _) => {
+                legacy::onestep_legacy_cdce_to_html_l(data)
+            }
             _ => {
                 log.error(&format!(
                     "Unknown one-step conversion: {input_format} to {output_format}"
@@ -191,7 +218,7 @@ pub(crate) fn dce_convert_internal(
 
     // Step 4: Convert input data to a Dc list (String representation)
     let dc = match input_format {
-        "dc" => std::str::from_utf8(data)
+        "dc" | "dc_id_list" => std::str::from_utf8(data)
             .context("invalid UTF-8 in Dc list")?
             .to_string(),
         "dce" => {
@@ -212,7 +239,7 @@ pub(crate) fn dce_convert_internal(
                 bail!("{ver}");
             }
         }
-        "hex_dce" => {
+        "hex_dce" | "dce_hex" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
                 ctb_formats_hexdump::hex2bin(hex_str)
@@ -228,9 +255,11 @@ pub(crate) fn dce_convert_internal(
             let res_bytes = dce_convert_internal(&bin, "dce", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
-        "3_0a" => dce3_0a::convert_3_0a_to_dc(data, log)?,
-        "3_0a_raw" => dce3_0a::convert_3_0a_raw_to_dc(data, log)?,
-        "hex_3_0a" => {
+        "3_0a" | "dce_3_0a" => dce3_0a::convert_3_0a_to_dc(data, log)?,
+        "3_0a_raw" | "dce_3_0a_raw" => {
+            dce3_0a::convert_3_0a_raw_to_dc(data, log)?
+        }
+        "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
                 ctb_formats_hexdump::hex2bin(hex_str)
@@ -246,7 +275,7 @@ pub(crate) fn dce_convert_internal(
             let res_bytes = dce_convert_internal(&bin, "3_0a", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
-        "hex_3_0a_raw" => {
+        "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
                 ctb_formats_hexdump::hex2bin(hex_str)
@@ -262,9 +291,11 @@ pub(crate) fn dce_convert_internal(
             let res_bytes = dce_convert_internal(&bin, "3_0a_raw", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
-        "3_01a" => dce3_01a::convert_3_01a_to_dc(data, log)?,
-        "3_01a_raw" => dce3_01a::convert_3_01a_raw_to_dc(data, log)?,
-        "hex_3_01a" => {
+        "3_01a" | "dce_3_01a" => dce3_01a::convert_3_01a_to_dc(data, log)?,
+        "3_01a_raw" | "dce_3_01a_raw" => {
+            dce3_01a::convert_3_01a_raw_to_dc(data, log)?
+        }
+        "hex_3_01a" | "3_01a_hex" | "dce_3_01a_hex" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
                 ctb_formats_hexdump::hex2bin(hex_str)
@@ -280,7 +311,7 @@ pub(crate) fn dce_convert_internal(
             let res_bytes = dce_convert_internal(&bin, "3_01a", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
-        "hex_3_01a_raw" => {
+        "hex_3_01a_raw" | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
             let bin = (|| -> Result<Vec<u8>> {
                 let hex_str = std::str::from_utf8(data)?;
                 ctb_formats_hexdump::hex2bin(hex_str)
@@ -296,8 +327,12 @@ pub(crate) fn dce_convert_internal(
             let res_bytes = dce_convert_internal(&bin, "3_01a_raw", "dc", log)?;
             String::from_utf8(res_bytes)?
         }
-        "legacy_cdce" => cdce::convert_legacy_cdce_to_dc(data, false, log)?,
-        "cdce_lstrict" => cdce::convert_legacy_cdce_to_dc(data, true, log)?,
+        "legacy_cdce" | "cdce_legacy" => {
+            cdce::convert_legacy_cdce_to_dc(data, false, log)?
+        }
+        "cdce_lstrict" | "cdce_legacy_strict" => {
+            cdce::convert_legacy_cdce_to_dc(data, true, log)?
+        }
         "utf8" => unicode::convert_utf8_to_dc(data, log)?,
         "utf32" => unicode::convert_utf32_to_dc(data, log)?,
         "utf8_base64" => unicode::convert_utf8_base64_to_dc(data, log)?,
@@ -327,33 +362,57 @@ pub(crate) fn dce_convert_internal(
 
     // Step 5: Convert the Dc list to the chosen output format
     match output_format {
-        "dc" => {
+        "dc" | "dc_id_list" => {
             let dc_out = convert_dc_to_dc_output(&dc_cleaned, log);
             Ok(dc_out.into_bytes())
         }
-        "legacy_cdce" => {
+        "legacy_cdce" | "cdce_legacy" => {
             cdce::convert_dc_to_legacy_cdce_output(&dc_cleaned, log)
         }
+        "html_l" | "html_legacy" | "html_legacy_cdce" => {
+            let cdce_bytes =
+                cdce::convert_dc_to_legacy_cdce_output(&dc_cleaned, log)?;
+            legacy::onestep_legacy_cdce_to_html_l(&cdce_bytes)
+        }
+        "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => {
+            let cdce_bytes =
+                cdce::convert_dc_to_legacy_cdce_output(&dc_cleaned, log)?;
+            legacy::onestep_legacy_cdce_to_html_snippet_l(&cdce_bytes)
+        }
         "dce" => dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned, log),
-        "3_0a" => dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned, log),
-        "3_0a_raw" => dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log),
-        "hex_3_0a_raw" => {
+        "3_0a" | "dce_3_0a" => {
+            dce3_0a::convert_dc_to_3_0a_output(&dc_cleaned, log)
+        }
+        "3_0a_raw" | "dce_3_0a_raw" => {
+            dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log)
+        }
+        "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" => {
             let raw_bytes =
                 dce3_0a::convert_dc_to_3_0a_raw_output(&dc_cleaned, log)?;
             Ok(bin2hex(raw_bytes).to_uppercase().into_bytes())
         }
-        "3_01a" => dce3_01a::convert_dc_to_3_01a_output(&dc_cleaned, log),
-        "hex_dce" => {
+        "3_01a" | "dce_3_01a" => {
+            dce3_01a::convert_dc_to_3_01a_output(&dc_cleaned, log)
+        }
+        "3_01a_raw" | "dce_3_01a_raw" => {
+            dce3_01a::convert_dc_to_3_01a_raw_output(&dc_cleaned, log)
+        }
+        "hex_3_01a_raw" | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
+            let raw_bytes =
+                dce3_01a::convert_dc_to_3_01a_raw_output(&dc_cleaned, log)?;
+            Ok(bin2hex(raw_bytes).to_uppercase().into_bytes())
+        }
+        "hex_dce" | "dce_hex" => {
             let dce_bytes =
                 dce_convert_internal(dc_cleaned.as_bytes(), "dc", "dce", log)?;
             Ok(bin2hex(dce_bytes).to_uppercase().into_bytes())
         }
-        "hex_3_0a" => {
+        "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex" => {
             let bytes =
                 dce_convert_internal(dc_cleaned.as_bytes(), "dc", "3_0a", log)?;
             Ok(bin2hex(bytes).to_uppercase().into_bytes())
         }
-        "hex_3_01a" => {
+        "hex_3_01a" | "3_01a_hex" | "dce_3_01a_hex" => {
             let bytes = dce_convert_internal(
                 dc_cleaned.as_bytes(),
                 "dc",

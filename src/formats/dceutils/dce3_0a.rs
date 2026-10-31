@@ -111,8 +111,17 @@ pub fn convert_dc_to_3_0a_output(
     let mut hex_str = "44434565020101fd80".to_string();
 
     for dc_id in dc_array {
-        if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_id) {
+        if dc_id.is_empty() || dc_id == "114" || dc_id == "115" {
+            continue;
+        }
+        if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_id)
+            && !mapped.is_empty()
+        {
             hex_str.push_str(&mapped.to_lowercase());
+        } else {
+            log.export_warning(&format!(
+                "Short Dc {dc_id} cannot be represented in DCE 3.0a and was omitted"
+            ));
         }
     }
     hex_str.push_str("81fd03");

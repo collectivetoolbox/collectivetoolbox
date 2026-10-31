@@ -141,11 +141,19 @@ pub fn convert_legacy_cdce_to_dc(
                 }
             }
         } else {
-            let key = format!("{cp:X}");
-            if let Some(val) = tables.dc_map_unicode_lossy.get(&key) {
-                if !val.is_empty() {
-                    txt.push_str(&format!("{val},"));
-                }
+            let key = if cp == 0 {
+                "00".to_string()
+            } else {
+                format!("{cp:X}")
+            };
+            if let Some(val) = tables.dc_map_unicode_lossy.get(&key)
+                && !val.is_empty()
+            {
+                txt.push_str(&format!("{val},"));
+            } else {
+                log.import_warning(&format!(
+                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy CDCE import"
+                ));
             }
             i = i.saturating_add(1);
         }

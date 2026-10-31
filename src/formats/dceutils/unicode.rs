@@ -31,7 +31,7 @@ use ctb_formats_hexdump::hex2bin;
 use ctb_formats_utilities::FormatLog;
 
 use crate::dce_convert_internal;
-use crate::dce3_01a::dc_map_send_simple;
+use crate::dce3_01a::dc_map_send_simple_with_log;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
@@ -51,12 +51,20 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
             chunk.try_into().context("Invalid chunk size for u32 BE")?;
         let cp = u32::from_be_bytes(bytes);
         // PHP: strtoupper(ltrim(substr($hex, $counter, 8), '0'))
-        let hex_str = format!("{cp:X}");
-        if let Some(val) = tables.dc_map_unicode_lossy.get(&hex_str) {
-            if !val.is_empty() {
-                txt.push_str(val);
-                txt.push(',');
-            }
+        let hex_str = if cp == 0 {
+            "00".to_string()
+        } else {
+            format!("{cp:X}")
+        };
+        if let Some(val) = tables.dc_map_unicode_lossy.get(&hex_str)
+            && !val.is_empty()
+        {
+            txt.push_str(val);
+            txt.push(',');
+        } else {
+            log.import_warning(&format!(
+                "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
+            ));
         }
     }
     Ok(txt)
@@ -280,7 +288,10 @@ pub fn convert_dc_to_utf8_output(
                 continue;
             }
         }
-        if dc_id != "114" && dc_id != "115" {
+        if dc_id != "114" && dc_id != "115" && !dc_id.is_empty() {
+            log.export_warning(&format!(
+                "Short Dc {dc_id} has no Unicode mapping in dceutils and was replaced with U+FFFD"
+            ));
             txt.push_str("0000fffd");
         }
     }
@@ -350,7 +361,7 @@ pub fn convert_dc_to_utf8_dc64_bin_output(
 ) -> Result<Vec<u8>> {
     let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
-    let hex_val = dc_map_send_simple(&dc64_str);
+    let hex_val = dc_map_send_simple_with_log(&dc64_str, log);
     hex2bin(&hex_val)
 }
 
@@ -360,7 +371,7 @@ pub fn convert_dc_to_utf8_dc64_bin_hex_output(
 ) -> Result<Vec<u8>> {
     let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
-    let hex_val = dc_map_send_simple(&dc64_str);
+    let hex_val = dc_map_send_simple_with_log(&dc64_str, log);
     Ok(hex_val.to_uppercase().into_bytes())
 }
 
