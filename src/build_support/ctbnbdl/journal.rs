@@ -324,7 +324,7 @@ impl Drop for LedgerWriteGuard {
 impl LedgerReadGuard {
     /// Acquires a shared `flock(LOCK_SH)` lock on `<repo_root>/.git/ctb-append-only-canary`.
     pub fn acquire(repo_root: &Path) -> Result<Self> {
-        let file = open_or_create_lock_canary(repo_root)?;
+        let file = open_or_create_lock_canary(repo_root)?;,
         file.lock_shared().with_context(|| {
             format!(
                 "Failed to acquire shared flock(LOCK_SH) on {}",
