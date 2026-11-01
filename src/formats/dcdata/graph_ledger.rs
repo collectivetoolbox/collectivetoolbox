@@ -693,11 +693,18 @@ impl LedgerBuilder {
 
     fn is_non_csv_node_with(
         node_id: u128,
+        initial_node_count: usize,
         node_data_source: &HashMap<u128, DcShorthand>,
         provenance_stmt_ids: &HashSet<u128>,
         had_initial_in_graph_provenance: bool,
         provenance_map: &NodeProvenanceMap,
     ) -> bool {
+        // Reason for fallback: usize always fits in u128 on all targets.
+        let initial_end_id = SYSTEM_REGION_START
+            .saturating_add(u128::try_from(initial_node_count).unwrap_or(0));
+        if node_id >= initial_end_id {
+            return false;
+        }
         if let Some(entry) = provenance_map.get(node_id) {
             return entry.provenance == NodeProvenance::Manual;
         }
@@ -732,6 +739,7 @@ impl LedgerBuilder {
                 && !index.provenance_stmt_ids.contains(&node.id)
                 && Self::is_non_csv_node_with(
                     node.id,
+                    initial_node_count,
                     &index.node_data_source,
                     &index.provenance_stmt_ids,
                     had_initial_in_graph_provenance,
@@ -743,6 +751,7 @@ impl LedgerBuilder {
                         && !index.inactive_ids.contains(&ref_id)
                         && !Self::is_non_csv_node_with(
                             ref_id,
+                            initial_node_count,
                             &index.node_data_source,
                             &index.provenance_stmt_ids,
                             had_initial_in_graph_provenance,
@@ -843,6 +852,7 @@ impl LedgerBuilder {
     fn is_manual_node(&self, node_id: u128) -> bool {
         Self::is_non_csv_node_with(
             node_id,
+            self.initial_node_count,
             &self.node_data_source,
             &self.provenance_stmt_ids,
             self.had_initial_in_graph_provenance,

@@ -1884,7 +1884,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_in_graph_provenance_for_each_and_manual_protection() -> Result<()> {
-        let mut defn = sample_test_dc_defn(900, "Test Dc", "Desc");
+        let mut defn = sample_dc_defn(900, "Test Dc", "Desc");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
         let (mut nodes, _) =
             update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
@@ -1929,7 +1929,7 @@ mod tests {
         let prov_for_each_id = str_id + 3;
         nodes.push(LedgerNode {
             id: prov_for_each_id,
-            tokens: super::encode_for_each_statement_tokens(
+            tokens: crate::graph_ledger::encode_for_each_statement_tokens(
                 sh(DC_HAS_A),
                 sh(crate::dc::DC_THIS_ELEMENT),
                 sh(crate::dc::DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),
