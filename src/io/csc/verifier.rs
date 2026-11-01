@@ -1805,14 +1805,12 @@ mod tests {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 // Untracked entry inside my_fonts MUST be reported
-                assert!(
-                    out.contains(&format!(
+                assert!(out.contains(&format!(
                         "[UNTRACKED] {}",
                         Path::new("my_fonts")
                             .join("untracked_in_fonts.ttf")
                             .display()
-                    ))
-                );
+                    )));
                 // Sibling entries outside my_fonts MUST NOT be reported
                 assert!(!out.contains(".dosbox"));
                 assert!(!out.contains(".face"));
