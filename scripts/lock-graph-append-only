@@ -32,6 +32,7 @@ read -r -d '' PYTHON_LOCK_SCRIPT << 'PYEOF' || true
 import fcntl
 import glob
 import os
+import re
 import struct
 import sys
 import time
@@ -40,6 +41,11 @@ FS_IOC_GETFLAGS = 0x80086601
 FS_IOC_SETFLAGS = 0x40086602
 FS_IMMUTABLE_FL = 0x00000010
 FS_APPEND_FL = 0x00000020
+
+HEX_DIR_RE = re.compile(r"^[0-9a-f]{2}$")
+HEX_OBJ_RE = re.compile(r"^[0-9a-f]{38,62}$")
+PACK_FILE_RE = re.compile(r"^pack-[0-9a-f]{40,64}\.(pack|idx|rev|bitmap|mtimes|keep)$")
+REFLOG_PREFIXES = ("refs/heads/", "refs/remotes/", "refs/tags/")
 
 def get_flags(path: str) -> int:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -100,7 +106,6 @@ def is_journal_pending(journal_dir: str | None) -> bool:
         return True
 
 def is_complete_100_line_chunk(path: str) -> bool:
-    import re
     line_re = re.compile(rb"^l[0-9]+:( .*)?\n$")
     with open(path, "rb") as f:
         raw = f.read()
@@ -119,38 +124,161 @@ def cleanup_legacy_git_canary(git_dir: str | None) -> None:
         set_exact_lock_flags(legacy_canary, want_immutable=False, want_append=False)
         os.unlink(legacy_canary)
 
+def iter_git_dirs(git_dirs_root: str | None) -> list[str]:
+    if not git_dirs_root or not os.path.exists(git_dirs_root):
+        return []
+    if os.path.isdir(os.path.join(git_dirs_root, "objects")):
+        return [git_dirs_root]
+    return [
+        p for p in sorted(glob.glob(os.path.join(git_dirs_root, "*")))
+        if os.path.isdir(p)
+    ]
+
+def lock_single_git_dir(
+    git_dir: str,
+    verified_inodes: dict[tuple[int, int], tuple[bool, bool]] | None = None,
+) -> tuple[int, int]:
+    cleanup_legacy_git_canary(git_dir)
+    try:
+        dev = os.stat(git_dir).st_dev
+    except FileNotFoundError:
+        return (0, 0)
+
+    imm_count = 0
+    app_count = 0
+
+    def lock_entry(path: str, ino: int, want_imm: bool, want_app: bool) -> bool:
+        key = (dev, ino)
+        desired = (want_imm, want_app)
+        if verified_inodes is not None and verified_inodes.get(key) == desired:
+            return True
+        try:
+            set_exact_lock_flags(path, want_immutable=want_imm, want_append=want_app)
+        except FileNotFoundError:
+            return False
+        if verified_inodes is not None:
+            verified_inodes[key] = desired
+        return True
+
+    objects_dir = os.path.join(git_dir, "objects")
+    if os.path.isdir(objects_dir) and not os.path.islink(objects_dir):
+        try:
+            with os.scandir(objects_dir) as obj_it:
+                for sub in obj_it:
+                    if not sub.is_dir(follow_symlinks=False):
+                        continue
+                    if HEX_DIR_RE.match(sub.name):
+                        try:
+                            with os.scandir(sub.path) as fanout_it:
+                                for f in fanout_it:
+                                    if f.is_file(follow_symlinks=False) and HEX_OBJ_RE.match(f.name):
+                                        if lock_entry(f.path, f.inode(), True, False):
+                                            imm_count += 1
+                        except FileNotFoundError:
+                            continue
+                    elif sub.name == "pack":
+                        try:
+                            with os.scandir(sub.path) as pack_it:
+                                for f in pack_it:
+                                    if f.is_file(follow_symlinks=False) and PACK_FILE_RE.match(f.name):
+                                        if lock_entry(f.path, f.inode(), True, False):
+                                            imm_count += 1
+                        except FileNotFoundError:
+                            continue
+        except FileNotFoundError:
+            pass
+
+    logs_dir = os.path.join(git_dir, "logs")
+    if os.path.isdir(logs_dir) and not os.path.islink(logs_dir):
+        def walk_logs(cur_dir: str, rel_prefix: str) -> None:
+            nonlocal app_count
+            try:
+                with os.scandir(cur_dir) as log_it:
+                    for entry in log_it:
+                        rel_path = f"{rel_prefix}{entry.name}" if rel_prefix else entry.name
+                        if entry.is_dir(follow_symlinks=False):
+                            walk_logs(entry.path, f"{rel_path}/")
+                        elif entry.is_file(follow_symlinks=False):
+                            if entry.name.endswith(".lock") or entry.name == "AUTO_MERGE":
+                                continue
+                            if rel_path == "HEAD" or rel_path.startswith(REFLOG_PREFIXES):
+                                if lock_entry(entry.path, entry.inode(), False, True):
+                                    app_count += 1
+            except FileNotFoundError:
+                return
+
+        walk_logs(logs_dir, "")
+
+    return imm_count, app_count
+
+def lock_git_dirs(
+    git_dirs_root: str | None,
+    verified_inodes: dict[tuple[int, int], tuple[bool, bool]] | None = None,
+) -> tuple[int, int, int]:
+    dirs = iter_git_dirs(git_dirs_root)
+    total_imm = 0
+    total_app = 0
+    for gd in dirs:
+        imm, app = lock_single_git_dir(gd, verified_inodes)
+        total_imm += imm
+        total_app += app
+    return len(dirs), total_imm, total_app
+
+def unlock_git_dirs(git_dirs_root: str | None) -> int:
+    unlocked = 0
+    for gd in iter_git_dirs(git_dirs_root):
+        cleanup_legacy_git_canary(gd)
+        for sub_name in ("objects", "logs"):
+            sub_root = os.path.join(gd, sub_name)
+            if not os.path.isdir(sub_root) or os.path.islink(sub_root):
+                continue
+            for root, _, files in os.walk(sub_root):
+                for fn in files:
+                    p = os.path.join(root, fn)
+                    if os.path.islink(p) or not os.path.isfile(p):
+                        continue
+                    try:
+                        set_exact_lock_flags(p, want_immutable=False, want_append=False)
+                        unlocked += 1
+                    except FileNotFoundError:
+                        continue
+    return unlocked
+
 def lock_pass(
     graph_dir: str,
     canary_path: str,
     journal_dir: str | None = None,
-    git_dir: str | None = None,
-) -> tuple[int, int]:
-    cleanup_legacy_git_canary(git_dir)
+    git_dirs_root: str | None = None,
+    verified_git_inodes: dict[tuple[int, int], tuple[bool, bool]] | None = None,
+) -> tuple[int, int, int, int, int]:
     if not os.path.isfile(canary_path):
         raise RuntimeError(f"Required lock inode does not exist: {canary_path}")
+    immutable_count = 0
+    append_count = 0
     lock_fd = os.open(canary_path, os.O_RDONLY)
     try:
         try:
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            got_lock = True
         except BlockingIOError:
-            return (0, 0)
-        set_exact_lock_flags(canary_path, want_immutable=False, want_append=True)
-        journal_pending = is_journal_pending(journal_dir)
-        immutable_count = 0
-        append_count = 0
-        for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
-            if not journal_pending and is_complete_100_line_chunk(path):
-                set_exact_lock_flags(path, want_immutable=True, want_append=False)
-                immutable_count += 1
-            else:
-                set_exact_lock_flags(path, want_immutable=False, want_append=True)
-                append_count += 1
-        return immutable_count, append_count
+            got_lock = False
+        if got_lock:
+            set_exact_lock_flags(canary_path, want_immutable=False, want_append=True)
+            journal_pending = is_journal_pending(journal_dir)
+            for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+                if not journal_pending and is_complete_100_line_chunk(path):
+                    set_exact_lock_flags(path, want_immutable=True, want_append=False)
+                    immutable_count += 1
+                else:
+                    set_exact_lock_flags(path, want_immutable=False, want_append=True)
+                    append_count += 1
     finally:
         os.close(lock_fd)
 
-def unlock_pass(graph_dir: str, canary_path: str, git_dir: str | None = None) -> int:
-    cleanup_legacy_git_canary(git_dir)
+    git_repos, git_imm, git_app = lock_git_dirs(git_dirs_root, verified_git_inodes)
+    return immutable_count, append_count, git_repos, git_imm, git_app
+
+def unlock_pass(graph_dir: str, canary_path: str, git_dirs_root: str | None = None) -> tuple[int, int]:
     unlocked = 0
     if os.path.isfile(canary_path):
         set_exact_lock_flags(canary_path, want_immutable=False, want_append=False)
@@ -158,24 +286,37 @@ def unlock_pass(graph_dir: str, canary_path: str, git_dir: str | None = None) ->
     for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
         set_exact_lock_flags(path, want_immutable=False, want_append=False)
         unlocked += 1
-    return unlocked
+    git_unlocked = unlock_git_dirs(git_dirs_root)
+    return unlocked, git_unlocked
 
 mode = sys.argv[1]
 graph_dir = sys.argv[2]
 canary_path = sys.argv[3]
 journal_dir = sys.argv[4] if len(sys.argv) > 4 else None
-git_dir = sys.argv[5] if len(sys.argv) > 5 else None
+git_dirs_root = sys.argv[5] if len(sys.argv) > 5 else None
 
 if mode == "lock-once":
-    imm, app = lock_pass(graph_dir, canary_path, journal_dir, git_dir)
-    print(f"Locked graph ledger: {imm} full chunk(s) set FS_IMMUTABLE_FL (+i), {app} active tail chunk(s) + canary set FS_APPEND_FL (+a).")
+    imm, app, git_repos, git_imm, git_app = lock_pass(graph_dir, canary_path, journal_dir, git_dirs_root)
+    print(
+        f"Locked graph ledger: {imm} full chunk(s) set FS_IMMUTABLE_FL (+i), {app} active tail chunk(s) + canary set FS_APPEND_FL (+a).\n"
+        f"Locked {git_repos} Git repo(s): {git_imm} object/pack file(s) set FS_IMMUTABLE_FL (+i), {git_app} reflog file(s) set FS_APPEND_FL (+a)."
+    )
 elif mode == "watch":
+    verified_git_inodes: dict[tuple[int, int], tuple[bool, bool]] = {}
+    tick = 0
     while True:
-        lock_pass(graph_dir, canary_path, journal_dir, git_dir)
+        if tick >= 30:
+            verified_git_inodes.clear()
+            tick = 0
+        lock_pass(graph_dir, canary_path, journal_dir, git_dirs_root, verified_git_inodes)
+        tick += 1
         time.sleep(2.0)
 elif mode == "unlock":
-    count = unlock_pass(graph_dir, canary_path, git_dir)
-    print(f"Unlocked {count} file(s) (cleared FS_IMMUTABLE_FL and FS_APPEND_FL).")
+    graph_count, git_count = unlock_pass(graph_dir, canary_path, git_dirs_root)
+    print(
+        f"Unlocked {graph_count} graph/canary file(s) and {git_count} Git file(s) "
+        "(cleared FS_IMMUTABLE_FL and FS_APPEND_FL)."
+    )
 else:
     raise ValueError(f"Unknown mode: {mode}")
 PYEOF
@@ -187,12 +328,25 @@ ensure_canary_file() {
     fi
 }
 
+build_git_dir_mounts() {
+    GIT_MOUNT_ARGS=()
+    local idx=0
+    while IFS= read -r git_dir; do
+        if [ -z "${git_dir}" ]; then
+            continue
+        fi
+        GIT_MOUNT_ARGS+=(-v "${git_dir}:/git-dirs/${idx}")
+        idx=$((idx + 1))
+    done < <(find "${REPO_ROOT}" -maxdepth 4 -name ".git" -type d | sort)
+}
+
 run_host_init() {
     if [ ! -d "${GRAPH_DIR}" ]; then
         echo "Error: Graph directory not found at ${GRAPH_DIR}" >&2
         exit 1
     fi
     ensure_canary_file
+    build_git_dir_mounts
 
     if ! command -v docker >/dev/null 2>&1; then
         echo "Error: docker CLI is required on the host to apply CAP_LINUX_IMMUTABLE without host root." >&2
@@ -207,11 +361,11 @@ run_host_init() {
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
         -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
-        -v "${REPO_ROOT}/.git:/git-dir" \
+        "${GIT_MOUNT_ARGS[@]}" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary /journal-dir /git-dir
+        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary /journal-dir /git-dirs
 
-    # 2. Ensure the detached watcher container is running so newly created .ctbnodes chunks are automatically locked.
+    # 2. Ensure the detached watcher container is running so newly created .ctbnodes chunks and Git objects/reflogs are automatically locked.
     if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
         docker rm -f "${WATCHER_CONTAINER_NAME}" >/dev/null
     fi
@@ -225,10 +379,11 @@ run_host_init() {
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
         -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
+        "${GIT_MOUNT_ARGS[@]}" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" watch /graph /canary /journal-dir >/dev/null
+        python3 -c "${PYTHON_LOCK_SCRIPT}" watch /graph /canary /journal-dir /git-dirs >/dev/null
 
-    echo "Started background Docker watcher '${WATCHER_CONTAINER_NAME}' for ${GRAPH_DIR}."
+    echo "Started background Docker watcher '${WATCHER_CONTAINER_NAME}' for ${GRAPH_DIR} and Git repositories."
 }
 
 run_unlock() {
@@ -237,6 +392,7 @@ run_unlock() {
         exit 1
     fi
     ensure_canary_file
+    build_git_dir_mounts
 
     if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
         docker rm -f "${WATCHER_CONTAINER_NAME}" >/dev/null
@@ -250,9 +406,9 @@ run_unlock() {
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
         -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
-        -v "${REPO_ROOT}/.git:/git-dir" \
+        "${GIT_MOUNT_ARGS[@]}" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary /journal-dir /git-dir
+        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary /journal-dir /git-dirs
 }
 
 seed_highwater_from_head() {
@@ -308,21 +464,30 @@ run_container_init() {
 
 run_test_canary() {
     ensure_canary_file
-    python3 - "${CANARY_FILE}" "${GRAPH_DIR}" << 'PYTEST'
+    mapfile -t GIT_DIRS < <(find "${REPO_ROOT}" -maxdepth 4 -name ".git" -type d | sort)
+    python3 - "${CANARY_FILE}" "${GRAPH_DIR}" "${GIT_DIRS[@]}" << 'PYTEST'
 import errno
 import fcntl
 import glob
 import os
+import re
 import struct
 import sys
+import time
 
 FS_IOC_GETFLAGS = 0x80086601
 FS_IOC_SETFLAGS = 0x40086602
 FS_IMMUTABLE_FL = 0x00000010
 FS_APPEND_FL = 0x00000020
 
+HEX_DIR_RE = re.compile(r"^[0-9a-f]{2}$")
+HEX_OBJ_RE = re.compile(r"^[0-9a-f]{38,62}$")
+PACK_FILE_RE = re.compile(r"^pack-[0-9a-f]{40,64}\.(pack|idx|rev|bitmap|mtimes|keep)$")
+REFLOG_PREFIXES = ("refs/heads/", "refs/remotes/", "refs/tags/")
+
 canary = sys.argv[1]
 graph_dir = sys.argv[2]
+git_dirs = sys.argv[3:]
 
 def get_flags(path: str) -> int:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -411,9 +576,68 @@ for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
             sys.exit(1)
         app_count += 1
 
+# 7. Read-only verification of FS_IMMUTABLE_FL / FS_APPEND_FL across all .git directories
+def check_git_dirs() -> tuple[int, int, str | None]:
+    git_imm = 0
+    git_app = 0
+    for gd in git_dirs:
+        objects_dir = os.path.join(gd, "objects")
+        if os.path.isdir(objects_dir) and not os.path.islink(objects_dir):
+            with os.scandir(objects_dir) as obj_it:
+                for sub in obj_it:
+                    if not sub.is_dir(follow_symlinks=False):
+                        continue
+                    if HEX_DIR_RE.match(sub.name):
+                        with os.scandir(sub.path) as fanout_it:
+                            for f in fanout_it:
+                                if f.is_file(follow_symlinks=False) and HEX_OBJ_RE.match(f.name):
+                                    fl = get_flags(f.path)
+                                    if not (fl & FS_IMMUTABLE_FL):
+                                        return git_imm, git_app, f"Git object {f.path} lacks FS_IMMUTABLE_FL (0x{fl:08x})"
+                                    git_imm += 1
+                    elif sub.name == "pack":
+                        with os.scandir(sub.path) as pack_it:
+                            for f in pack_it:
+                                if f.is_file(follow_symlinks=False) and PACK_FILE_RE.match(f.name):
+                                    fl = get_flags(f.path)
+                                    if not (fl & FS_IMMUTABLE_FL):
+                                        return git_imm, git_app, f"Git packfile {f.path} lacks FS_IMMUTABLE_FL (0x{fl:08x})"
+                                    git_imm += 1
+
+        logs_dir = os.path.join(gd, "logs")
+        if os.path.isdir(logs_dir) and not os.path.islink(logs_dir):
+            for root, _, files in os.walk(logs_dir):
+                for fn in files:
+                    if fn.endswith(".lock") or fn == "AUTO_MERGE":
+                        continue
+                    p = os.path.join(root, fn)
+                    if os.path.islink(p) or not os.path.isfile(p):
+                        continue
+                    rel_path = os.path.relpath(p, logs_dir).replace(os.sep, "/")
+                    if rel_path == "HEAD" or rel_path.startswith(REFLOG_PREFIXES):
+                        fl = get_flags(p)
+                        if not (fl & FS_APPEND_FL):
+                            return git_imm, git_app, f"Git reflog {p} lacks FS_APPEND_FL (0x{fl:08x})"
+                        git_app += 1
+    return git_imm, git_app, None
+
+git_imm_count, git_app_count, git_err = check_git_dirs()
+if git_err is not None:
+    # Allow one 2.5s watcher cycle in case a git command just created a new object/reflog
+    time.sleep(2.5)
+    git_imm_count, git_app_count, git_err = check_git_dirs()
+    if git_err is not None:
+        print(
+            f"ERROR: {git_err}\n"
+            "Run `./scripts/lock-graph-append-only --host-init` on the host (or reload the devcontainer) first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
 print(
     f"Canary self-test passed on {canary} (O_TRUNC/O_WRONLY/unlink/rename/chattr blocked with EPERM; O_APPEND succeeded).\n"
-    f"Read-only flag check verified {imm_count} immutable (+i) and {app_count} append-only (+a) .ctbnodes files."
+    f"Read-only flag check verified {imm_count} immutable (+i) and {app_count} append-only (+a) .ctbnodes files.\n"
+    f"Read-only Git flag check across {len(git_dirs)} repo(s) verified {git_imm_count} immutable (+i) object/pack files and {git_app_count} append-only (+a) reflog files."
 )
 PYTEST
 }
