@@ -598,10 +598,29 @@ pub fn prevalidate_and_plan_inbox_items(
                         "{inbox_name} (l{next_id}): target 'Has a' node l{has_a_id} does not exist"
                     );
                 };
-                let is_has_a = parse_statement_tokens(&target_node.tokens)
-                    .is_some_and(|(v, _, o)| {
-                        v == sh_has_a && o != sh_preferred
-                    });
+                let check_node_is_has_a = |n: &LedgerNode| -> bool {
+                    parse_statement_tokens(&n.tokens)
+                        .is_some_and(|(v, _, o)| v == sh_has_a && o != sh_preferred)
+                };
+                let mut is_has_a = check_node_is_has_a(target_node);
+                if !is_has_a {
+                    // If `has_a_id` has been superseded by a Dc 348 "Ambiguous values" node,
+                    // accept if any candidate of that ambiguity node is a property `Has a` statement.
+                    let mut cur = has_a_id;
+                    while let Some(&next_sup) = superseded_by.get(&cur) {
+                        cur = next_sup;
+                    }
+                    if let Some(eff_node) = node_by_id.get(&cur)
+                        && let Some(cands) =
+                            parse_ambiguous_values_tokens(&eff_node.tokens)
+                    {
+                        is_has_a = cands.iter().any(|cand_id| {
+                            node_by_id
+                                .get(cand_id)
+                                .is_some_and(check_node_is_has_a)
+                        });
+                    }
+                }
                 ensure!(
                     is_has_a,
                     "{inbox_name} (l{next_id}): target l{has_a_id} is not a property 'Has a' statement"

@@ -1,0 +1,100 @@
+l8589954092: 348 310 275 l8589954090 312 l8589954091 311 # Ambiguous values (l8589954090, l8589954091) for overwritten node l8589952225
+l8589954093: 591 l8589954092 l8589952225 # Supersedes (l8589954092, l8589952225)
+l8589954094: 610 l8589952225 628 # Run 1 raw candidate for l8589952226: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954095: 584 l8589951970 625 # Run 2 raw candidate for l8589952226: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954096: 348 310 275 l8589954094 312 l8589954095 311 # Ambiguous values (l8589954094, l8589954095) for overwritten node l8589952226
+l8589954097: 591 l8589954096 l8589952226 # Supersedes (l8589954096, l8589952226)
+l8589954098: 584 l8589951971 625 # Run 1 raw candidate for l8589952227: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954099: 610 l8589952226 627 # Run 2 raw candidate for l8589952227: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954100: 348 310 275 l8589954098 312 l8589954099 311 # Ambiguous values (l8589954098, l8589954099) for overwritten node l8589952227
+l8589954101: 591 l8589954100 l8589952227 # Supersedes (l8589954100, l8589952227)
+l8589954102: 610 l8589952227 628 # Run 1 raw candidate for l8589952228: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954103: 584 l8589951972 625 # Run 2 raw candidate for l8589952228: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954104: 348 310 275 l8589954102 312 l8589954103 311 # Ambiguous values (l8589954102, l8589954103) for overwritten node l8589952228
+l8589954105: 591 l8589954104 l8589952228 # Supersedes (l8589954104, l8589952228)
+l8589954106: 584 l8589951973 625 # Run 1 raw candidate for l8589952229: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954107: 610 l8589952228 627 # Run 2 raw candidate for l8589952229: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954108: 348 310 275 l8589954106 312 l8589954107 311 # Ambiguous values (l8589954106, l8589954107) for overwritten node l8589952229
+l8589954109: 591 l8589954108 l8589952229 # Supersedes (l8589954108, l8589952229)
+l8589954110: 610 l8589952229 628 # Run 1 raw candidate for l8589952230: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954111: 584 l8589951974 625 # Run 2 raw candidate for l8589952230: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954112: 348 310 275 l8589954110 312 l8589954111 311 # Ambiguous values (l8589954110, l8589954111) for overwritten node l8589952230
+l8589954113: 591 l8589954112 l8589952230 # Supersedes (l8589954112, l8589952230)
+l8589954114: 584 l8589951975 625 # Run 1 raw candidate for l8589952231: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954115: 610 l8589952230 627 # Run 2 raw candidate for l8589952231: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954116: 348 310 275 l8589954114 312 l8589954115 311 # Ambiguous values (l8589954114, l8589954115) for overwritten node l8589952231
+l8589954117: 591 l8589954116 l8589952231 # Supersedes (l8589954116, l8589952231)
+l8589954118: 610 l8589952231 628 # Run 1 raw candidate for l8589952232: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954119: 584 l8589951976 625 # Run 2 raw candidate for l8589952232: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954120: 348 310 275 l8589954118 312 l8589954119 311 # Ambiguous values (l8589954118, l8589954119) for overwritten node l8589952232
+l8589954121: 591 l8589954120 l8589952232 # Supersedes (l8589954120, l8589952232)
+l8589954122: 584 l8589951977 625 # Run 1 raw candidate for l8589952233: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954123: 610 l8589952232 627 # Run 2 raw candidate for l8589952233: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954124: 348 310 275 l8589954122 312 l8589954123 311 # Ambiguous values (l8589954122, l8589954123) for overwritten node l8589952233
+l8589954125: 591 l8589954124 l8589952233 # Supersedes (l8589954124, l8589952233)
+l8589954126: 610 l8589952233 628 # Run 1 raw candidate for l8589952234: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954127: 584 l8589951978 625 # Run 2 raw candidate for l8589952234: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954128: 348 310 275 l8589954126 312 l8589954127 311 # Ambiguous values (l8589954126, l8589954127) for overwritten node l8589952234
+l8589954129: 591 l8589954128 l8589952234 # Supersedes (l8589954128, l8589952234)
+l8589954130: 584 l8589951979 625 # Run 1 raw candidate for l8589952235: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954131: 610 l8589952234 627 # Run 2 raw candidate for l8589952235: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954132: 348 310 275 l8589954130 312 l8589954131 311 # Ambiguous values (l8589954130, l8589954131) for overwritten node l8589952235
+l8589954133: 591 l8589954132 l8589952235 # Supersedes (l8589954132, l8589952235)
+l8589954134: 610 l8589952235 628 # Run 1 raw candidate for l8589952236: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954135: 584 l8589951980 625 # Run 2 raw candidate for l8589952236: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954136: 348 310 275 l8589954134 312 l8589954135 311 # Ambiguous values (l8589954134, l8589954135) for overwritten node l8589952236
+l8589954137: 591 l8589954136 l8589952236 # Supersedes (l8589954136, l8589952236)
+l8589954138: 584 l8589951981 625 # Run 1 raw candidate for l8589952237: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954139: 610 l8589952236 627 # Run 2 raw candidate for l8589952237: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954140: 348 310 275 l8589954138 312 l8589954139 311 # Ambiguous values (l8589954138, l8589954139) for overwritten node l8589952237
+l8589954141: 591 l8589954140 l8589952237 # Supersedes (l8589954140, l8589952237)
+l8589954142: 610 l8589952237 628 # Run 1 raw candidate for l8589952238: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954143: 584 l8589951982 625 # Run 2 raw candidate for l8589952238: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954144: 348 310 275 l8589954142 312 l8589954143 311 # Ambiguous values (l8589954142, l8589954143) for overwritten node l8589952238
+l8589954145: 591 l8589954144 l8589952238 # Supersedes (l8589954144, l8589952238)
+l8589954146: 584 l8589951983 625 # Run 1 raw candidate for l8589952239: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954147: 610 l8589952238 627 # Run 2 raw candidate for l8589952239: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954148: 348 310 275 l8589954146 312 l8589954147 311 # Ambiguous values (l8589954146, l8589954147) for overwritten node l8589952239
+l8589954149: 591 l8589954148 l8589952239 # Supersedes (l8589954148, l8589952239)
+l8589954150: 610 l8589952239 627 # Run 1 raw candidate for l8589952240: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Work-in-progress support)
+l8589954151: 584 l8589951984 625 # Run 2 raw candidate for l8589952240: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954152: 348 310 275 l8589954150 312 l8589954151 311 # Ambiguous values (l8589954150, l8589954151) for overwritten node l8589952240
+l8589954153: 591 l8589954152 l8589952240 # Supersedes (l8589954152, l8589952240)
+l8589954154: 584 l8589951985 625 # Run 1 raw candidate for l8589952241: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954155: 610 l8589952240 627 # Run 2 raw candidate for l8589952241: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954156: 348 310 275 l8589954154 312 l8589954155 311 # Ambiguous values (l8589954154, l8589954155) for overwritten node l8589952241
+l8589954157: 591 l8589954156 l8589952241 # Supersedes (l8589954156, l8589952241)
+l8589954158: 610 l8589952241 627 # Run 1 raw candidate for l8589952242: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Work-in-progress support)
+l8589954159: 584 l8589951986 625 # Run 2 raw candidate for l8589952242: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954160: 348 310 275 l8589954158 312 l8589954159 311 # Ambiguous values (l8589954158, l8589954159) for overwritten node l8589952242
+l8589954161: 591 l8589954160 l8589952242 # Supersedes (l8589954160, l8589952242)
+l8589954162: 584 l8589951987 625 # Run 1 raw candidate for l8589952243: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954163: 610 l8589952242 627 # Run 2 raw candidate for l8589952243: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954164: 348 310 275 l8589954162 312 l8589954163 311 # Ambiguous values (l8589954162, l8589954163) for overwritten node l8589952243
+l8589954165: 591 l8589954164 l8589952243 # Supersedes (l8589954164, l8589952243)
+l8589954166: 610 l8589952243 627 # Run 1 raw candidate for l8589952244: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Work-in-progress support)
+l8589954167: 584 l8589951988 625 # Run 2 raw candidate for l8589952244: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954168: 348 310 275 l8589954166 312 l8589954167 311 # Ambiguous values (l8589954166, l8589954167) for overwritten node l8589952244
+l8589954169: 591 l8589954168 l8589952244 # Supersedes (l8589954168, l8589952244)
+l8589954170: 584 l8589951989 625 # Run 1 raw candidate for l8589952245: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954171: 610 l8589952244 627 # Run 2 raw candidate for l8589952245: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954172: 348 310 275 l8589954170 312 l8589954171 311 # Ambiguous values (l8589954170, l8589954171) for overwritten node l8589952245
+l8589954173: 591 l8589954172 l8589952245 # Supersedes (l8589954172, l8589952245)
+l8589954174: 610 l8589952245 627 # Run 1 raw candidate for l8589952246: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Work-in-progress support)
+l8589954175: 584 l8589951990 625 # Run 2 raw candidate for l8589952246: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954176: 348 310 275 l8589954174 312 l8589954175 311 # Ambiguous values (l8589954174, l8589954175) for overwritten node l8589952246
+l8589954177: 591 l8589954176 l8589952246 # Supersedes (l8589954176, l8589952246)
+l8589954178: 584 l8589951991 625 # Run 1 raw candidate for l8589952247: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954179: 610 l8589952246 627 # Run 2 raw candidate for l8589952247: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954180: 348 310 275 l8589954178 312 l8589954179 311 # Ambiguous values (l8589954178, l8589954179) for overwritten node l8589952247
+l8589954181: 591 l8589954180 l8589952247 # Supersedes (l8589954180, l8589952247)
+l8589954182: 610 l8589952247 628 # Run 1 raw candidate for l8589952248: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954183: 584 l8589951992 625 # Run 2 raw candidate for l8589952248: Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level)
+l8589954184: 348 310 275 l8589954182 312 l8589954183 311 # Ambiguous values (l8589954182, l8589954183) for overwritten node l8589952248
+l8589954185: 591 l8589954184 l8589952248 # Supersedes (l8589954184, l8589952248)
+l8589954186: 584 l8589951993 625 # Run 1 raw candidate for l8589952249: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589954187: 610 l8589952248 627 # Run 2 raw candidate for l8589952249: Has value (Has a (Has a (Collective Toolbox, Import support to Dc documents for a format), Implementation support level), Work-in-progress support)
+l8589954188: 348 310 275 l8589954186 312 l8589954187 311 # Ambiguous values (l8589954186, l8589954187) for overwritten node l8589952249
+l8589954189: 591 l8589954188 l8589952249 # Supersedes (l8589954188, l8589952249)
+l8589954190: 610 l8589952249 628 # Run 1 raw candidate for l8589952250: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589954191: 584 l8589951994 625 # Run 2 raw candidate for l8589952250: Has a (Has a (Collective Toolbox, General export support for a format), Implementation support level)

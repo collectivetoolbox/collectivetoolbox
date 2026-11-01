@@ -1,0 +1,100 @@
+l8589952892: 348 310 275 l8589952890 312 l8589952891 311 # Ambiguous values (l8589952890, l8589952891) for overwritten node l8589951925
+l8589952893: 591 l8589952892 l8589951925 # Supersedes (l8589952892, l8589951925)
+l8589952894: 610 l8589951925 l8589951846 # Run 1 raw candidate for l8589951926: Has value (Has a (DCE 3.01a (hex-encoded), File extension), ".hex_3_01a")
+l8589952895: 584 f649 619 # Run 2 raw candidate for l8589951926: Has a (Collective Toolbox, General import support for a format)
+l8589952896: 348 310 275 l8589952894 312 l8589952895 311 # Ambiguous values (l8589952894, l8589952895) for overwritten node l8589951926
+l8589952897: 591 l8589952896 l8589951926 # Supersedes (l8589952896, l8589951926)
+l8589952898: 584 f108 575 # Run 1 raw candidate for l8589951927: Has a (DCE 3.01a (raw hex-encoded), Nickname)
+l8589952899: 610 l8589951926 f101 # Run 2 raw candidate for l8589951927: Has value (Has a (Collective Toolbox, General import support for a format), DCE 3.0a (old translator))
+l8589952900: 348 310 275 l8589952898 312 l8589952899 311 # Ambiguous values (l8589952898, l8589952899) for overwritten node l8589951927
+l8589952901: 591 l8589952900 l8589951927 # Supersedes (l8589952900, l8589951927)
+l8589952902: 610 l8589951927 l8589951847 # Run 1 raw candidate for l8589951928: Has value (Has a (DCE 3.01a (raw hex-encoded), Nickname), "hex_3_01a_raw")
+l8589952903: 584 f649 619 # Run 2 raw candidate for l8589951928: Has a (Collective Toolbox, General import support for a format)
+l8589952904: 348 310 275 l8589952902 312 l8589952903 311 # Ambiguous values (l8589952902, l8589952903) for overwritten node l8589951928
+l8589952905: 591 l8589952904 l8589951928 # Supersedes (l8589952904, l8589951928)
+l8589952906: 584 f108 f264 # Run 1 raw candidate for l8589951929: Has a (DCE 3.01a (raw hex-encoded), File extension)
+l8589952907: 610 l8589951928 f102 # Run 2 raw candidate for l8589951929: Has value (Has a (Collective Toolbox, General import support for a format), dce2txt)
+l8589952908: 348 310 275 l8589952906 312 l8589952907 311 # Ambiguous values (l8589952906, l8589952907) for overwritten node l8589951929
+l8589952909: 591 l8589952908 l8589951929 # Supersedes (l8589952908, l8589951929)
+l8589952910: 610 l8589951929 l8589951848 # Run 1 raw candidate for l8589951930: Has value (Has a (DCE 3.01a (raw hex-encoded), File extension), ".hex_3_01a_raw")
+l8589952911: 584 f649 619 # Run 2 raw candidate for l8589951930: Has a (Collective Toolbox, General import support for a format)
+l8589952912: 348 310 275 l8589952910 312 l8589952911 311 # Ambiguous values (l8589952910, l8589952911) for overwritten node l8589951930
+l8589952913: 591 l8589952912 l8589951930 # Supersedes (l8589952912, l8589951930)
+l8589952914: 584 f109 575 # Run 1 raw candidate for l8589951931: Has a (Dc ID list (ASCII), Nickname)
+l8589952915: 610 l8589951930 f103 # Run 2 raw candidate for l8589951931: Has value (Has a (Collective Toolbox, General import support for a format), dce2hex)
+l8589952916: 348 310 275 l8589952914 312 l8589952915 311 # Ambiguous values (l8589952914, l8589952915) for overwritten node l8589951931
+l8589952917: 591 l8589952916 l8589951931 # Supersedes (l8589952916, l8589951931)
+l8589952918: 610 l8589951931 l8589951849 # Run 1 raw candidate for l8589951932: Has value (Has a (Dc ID list (ASCII), Nickname), "dc_id_list")
+l8589952919: 584 f649 619 # Run 2 raw candidate for l8589951932: Has a (Collective Toolbox, General import support for a format)
+l8589952920: 348 310 275 l8589952918 312 l8589952919 311 # Ambiguous values (l8589952918, l8589952919) for overwritten node l8589951932
+l8589952921: 591 l8589952920 l8589951932 # Supersedes (l8589952920, l8589951932)
+l8589952922: 584 f109 f264 # Run 1 raw candidate for l8589951933: Has a (Dc ID list (ASCII), File extension)
+l8589952923: 610 l8589951932 f104 # Run 2 raw candidate for l8589951933: Has value (Has a (Collective Toolbox, General import support for a format), hex2dce)
+l8589952924: 348 310 275 l8589952922 312 l8589952923 311 # Ambiguous values (l8589952922, l8589952923) for overwritten node l8589951933
+l8589952925: 591 l8589952924 l8589951933 # Supersedes (l8589952924, l8589951933)
+l8589952926: 610 l8589951933 l8589951850 # Run 1 raw candidate for l8589951934: Has value (Has a (Dc ID list (ASCII), File extension), ".dc_id_list")
+l8589952927: 584 f649 619 # Run 2 raw candidate for l8589951934: Has a (Collective Toolbox, General import support for a format)
+l8589952928: 348 310 275 l8589952926 312 l8589952927 311 # Ambiguous values (l8589952926, l8589952927) for overwritten node l8589951934
+l8589952929: 591 l8589952928 l8589951934 # Supersedes (l8589952928, l8589951934)
+l8589952930: 584 f111 575 # Run 1 raw candidate for l8589951935: Has a (UTF-8 (Base64-encoded, ASCII Dc ID list), Nickname)
+l8589952931: 610 l8589951934 f105 # Run 2 raw candidate for l8589951935: Has value (Has a (Collective Toolbox, General import support for a format), DCE 3.01a)
+l8589952932: 348 310 275 l8589952930 312 l8589952931 311 # Ambiguous values (l8589952930, l8589952931) for overwritten node l8589951935
+l8589952933: 591 l8589952932 l8589951935 # Supersedes (l8589952932, l8589951935)
+l8589952934: 610 l8589951935 l8589951851 # Run 1 raw candidate for l8589951936: Has value (Has a (UTF-8 (Base64-encoded, ASCII Dc ID list), Nickname), "utf8_dc64")
+l8589952935: 584 f649 619 # Run 2 raw candidate for l8589951936: Has a (Collective Toolbox, General import support for a format)
+l8589952936: 348 310 275 l8589952934 312 l8589952935 311 # Ambiguous values (l8589952934, l8589952935) for overwritten node l8589951936
+l8589952937: 591 l8589952936 l8589951936 # Supersedes (l8589952936, l8589951936)
+l8589952938: 584 f111 f264 # Run 1 raw candidate for l8589951937: Has a (UTF-8 (Base64-encoded, ASCII Dc ID list), File extension)
+l8589952939: 610 l8589951936 f106 # Run 2 raw candidate for l8589951937: Has value (Has a (Collective Toolbox, General import support for a format), DCE 3.01a (raw))
+l8589952940: 348 310 275 l8589952938 312 l8589952939 311 # Ambiguous values (l8589952938, l8589952939) for overwritten node l8589951937
+l8589952941: 591 l8589952940 l8589951937 # Supersedes (l8589952940, l8589951937)
+l8589952942: 610 l8589951937 l8589951852 # Run 1 raw candidate for l8589951938: Has value (Has a (UTF-8 (Base64-encoded, ASCII Dc ID list), File extension), ".utf8_dc64")
+l8589952943: 584 f649 619 # Run 2 raw candidate for l8589951938: Has a (Collective Toolbox, General import support for a format)
+l8589952944: 348 310 275 l8589952942 312 l8589952943 311 # Ambiguous values (l8589952942, l8589952943) for overwritten node l8589951938
+l8589952945: 591 l8589952944 l8589951938 # Supersedes (l8589952944, l8589951938)
+l8589952946: 584 f112 575 # Run 1 raw candidate for l8589951939: Has a (UTF-8 (Base64-encoded, ASCII Dc ID list; with headers), Nickname)
+l8589952947: 610 l8589951938 f107 # Run 2 raw candidate for l8589951939: Has value (Has a (Collective Toolbox, General import support for a format), DCE 3.01a (hex-encoded))
+l8589952948: 348 310 275 l8589952946 312 l8589952947 311 # Ambiguous values (l8589952946, l8589952947) for overwritten node l8589951939
+l8589952949: 591 l8589952948 l8589951939 # Supersedes (l8589952948, l8589951939)
+l8589952950: 610 l8589951939 l8589951853 # Run 1 raw candidate for l8589951940: Has value (Has a (UTF-8 (Base64-encoded, ASCII Dc ID list; with headers), Nickname), "utf8_dc64_enc")
+l8589952951: 584 f649 619 # Run 2 raw candidate for l8589951940: Has a (Collective Toolbox, General import support for a format)
+l8589952952: 348 310 275 l8589952950 312 l8589952951 311 # Ambiguous values (l8589952950, l8589952951) for overwritten node l8589951940
+l8589952953: 591 l8589952952 l8589951940 # Supersedes (l8589952952, l8589951940)
+l8589952954: 584 f112 f264 # Run 1 raw candidate for l8589951941: Has a (UTF-8 (Base64-encoded, ASCII Dc ID list; with headers), File extension)
+l8589952955: 610 l8589951940 f108 # Run 2 raw candidate for l8589951941: Has value (Has a (Collective Toolbox, General import support for a format), DCE 3.01a (raw hex-encoded))
+l8589952956: 348 310 275 l8589952954 312 l8589952955 311 # Ambiguous values (l8589952954, l8589952955) for overwritten node l8589951941
+l8589952957: 591 l8589952956 l8589951941 # Supersedes (l8589952956, l8589951941)
+l8589952958: 610 l8589951941 l8589951854 # Run 1 raw candidate for l8589951942: Has value (Has a (UTF-8 (Base64-encoded, ASCII Dc ID list; with headers), File extension), ".utf8_dc64_enc")
+l8589952959: 584 f649 619 # Run 2 raw candidate for l8589951942: Has a (Collective Toolbox, General import support for a format)
+l8589952960: 348 310 275 l8589952958 312 l8589952959 311 # Ambiguous values (l8589952958, l8589952959) for overwritten node l8589951942
+l8589952961: 591 l8589952960 l8589951942 # Supersedes (l8589952960, l8589951942)
+l8589952962: 584 f113 575 # Run 1 raw candidate for l8589951943: Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding), Nickname)
+l8589952963: 610 l8589951942 f109 # Run 2 raw candidate for l8589951943: Has value (Has a (Collective Toolbox, General import support for a format), Dc ID list (ASCII))
+l8589952964: 348 310 275 l8589952962 312 l8589952963 311 # Ambiguous values (l8589952962, l8589952963) for overwritten node l8589951943
+l8589952965: 591 l8589952964 l8589951943 # Supersedes (l8589952964, l8589951943)
+l8589952966: 610 l8589951943 l8589951855 # Run 1 raw candidate for l8589951944: Has value (Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding), Nickname), "utf8_dc64_bin")
+l8589952967: 584 f649 619 # Run 2 raw candidate for l8589951944: Has a (Collective Toolbox, General import support for a format)
+l8589952968: 348 310 275 l8589952966 312 l8589952967 311 # Ambiguous values (l8589952966, l8589952967) for overwritten node l8589951944
+l8589952969: 591 l8589952968 l8589951944 # Supersedes (l8589952968, l8589951944)
+l8589952970: 584 f113 f264 # Run 1 raw candidate for l8589951945: Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding), File extension)
+l8589952971: 610 l8589951944 f111 # Run 2 raw candidate for l8589951945: Has value (Has a (Collective Toolbox, General import support for a format), UTF-8 (Base64-encoded, ASCII Dc ID list))
+l8589952972: 348 310 275 l8589952970 312 l8589952971 311 # Ambiguous values (l8589952970, l8589952971) for overwritten node l8589951945
+l8589952973: 591 l8589952972 l8589951945 # Supersedes (l8589952972, l8589951945)
+l8589952974: 610 l8589951945 l8589951856 # Run 1 raw candidate for l8589951946: Has value (Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding), File extension), ".utf8_dc64_bin")
+l8589952975: 584 f649 619 # Run 2 raw candidate for l8589951946: Has a (Collective Toolbox, General import support for a format)
+l8589952976: 348 310 275 l8589952974 312 l8589952975 311 # Ambiguous values (l8589952974, l8589952975) for overwritten node l8589951946
+l8589952977: 591 l8589952976 l8589951946 # Supersedes (l8589952976, l8589951946)
+l8589952978: 584 f114 575 # Run 1 raw candidate for l8589951947: Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded), Nickname)
+l8589952979: 610 l8589951946 f112 # Run 2 raw candidate for l8589951947: Has value (Has a (Collective Toolbox, General import support for a format), UTF-8 (Base64-encoded, ASCII Dc ID list; with headers))
+l8589952980: 348 310 275 l8589952978 312 l8589952979 311 # Ambiguous values (l8589952978, l8589952979) for overwritten node l8589951947
+l8589952981: 591 l8589952980 l8589951947 # Supersedes (l8589952980, l8589951947)
+l8589952982: 610 l8589951947 l8589951857 # Run 1 raw candidate for l8589951948: Has value (Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded), Nickname), "utf8_dc64_bin_hex")
+l8589952983: 584 f649 619 # Run 2 raw candidate for l8589951948: Has a (Collective Toolbox, General import support for a format)
+l8589952984: 348 310 275 l8589952982 312 l8589952983 311 # Ambiguous values (l8589952982, l8589952983) for overwritten node l8589951948
+l8589952985: 591 l8589952984 l8589951948 # Supersedes (l8589952984, l8589951948)
+l8589952986: 584 f114 f264 # Run 1 raw candidate for l8589951949: Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded), File extension)
+l8589952987: 610 l8589951948 f113 # Run 2 raw candidate for l8589951949: Has value (Has a (Collective Toolbox, General import support for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding))
+l8589952988: 348 310 275 l8589952986 312 l8589952987 311 # Ambiguous values (l8589952986, l8589952987) for overwritten node l8589951949
+l8589952989: 591 l8589952988 l8589951949 # Supersedes (l8589952988, l8589951949)
+l8589952990: 610 l8589951949 l8589951858 # Run 1 raw candidate for l8589951950: Has value (Has a (UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded), File extension), ".utf8_dc64_bin_hex")
+l8589952991: 584 f649 619 # Run 2 raw candidate for l8589951950: Has a (Collective Toolbox, General import support for a format)
