@@ -63,7 +63,9 @@ feature-depth = 1
 # More documentation for the advisories section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
 [advisories]
+# Note that this will not catch yanked crates that are vendored using [patch.crates-io].
 yanked = "deny"
+
 # The path where the advisory databases are cloned/fetched into
 #db-path = "$CARGO_HOME/advisory-dbs"
 # The url(s) of the advisory databases to use
