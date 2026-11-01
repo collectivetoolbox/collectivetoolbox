@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6425 2298" width="6425" height="2298">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6425 2410" width="6425" height="2410">
 <defs>
   <marker id="arrow-down" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
     <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
@@ -20,7 +20,7 @@
     .edge-path:hover { stroke: #2563eb; stroke-width: 2.5; }
   ]]></style>
 </defs>
-<rect width="6425" height="2298" fill="#f8fafc" />
+<rect width="6425" height="2410" fill="#f8fafc" />
 <!-- Header Title & Subtitle -->
 <text x="40" y="42" class="header-title">Collective Toolbox – Workspace Crate Dependency Graph</text>
 <text x="40" y="65" class="header-sub">Base Crates at Top (0 Workspace Dependencies) → Arrows point down toward consumers (103 workspace crates)</text>
@@ -87,59 +87,59 @@
 <text x="35" y="2030.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 17</text>
 <line x1="35" y1="2086.0" x2="6385" y2="2086.0" class="layer-divider" />
 <text x="35" y="2142.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 18</text>
+<line x1="35" y1="2198.0" x2="6385" y2="2198.0" class="layer-divider" />
+<text x="35" y="2254.0" class="layer-label" text-anchor="start" dominant-baseline="middle">Layer 19</text>
 <!-- Edges -->
 <g id="edges">
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 307.5 406.0, 307.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 506.5 406.0, 506.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2695.5 142.0 C 2695.5 182.0, 3392.0 182.0, 3392.0 222.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3392.0 1710.0 C 3392.0 1750.0, 3392.0 1750.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1710.0 C 3193.0 1750.0, 3392.0 1750.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2894.5 1150.0 C 2894.5 1470.0, 3392.0 1470.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1150.0 C 3093.5 1470.0, 3392.0 1470.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1582.0, 3392.0 1582.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1598.0 C 3093.5 1694.0, 3392.0 1694.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1358.0, 3392.0 1358.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1134.0, 3392.0 1134.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1358.0, 3392.0 1358.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1822.0 C 3392.0 1862.0, 3392.0 1862.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1822.0 C 3193.0 1862.0, 3392.0 1862.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1150.0 C 3193.0 1526.0, 3392.0 1526.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 1190.0, 3392.0 1190.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1486.0 C 3093.5 1694.0, 3392.0 1694.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1710.0 C 3093.5 1806.0, 3392.0 1806.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1190.0, 3392.0 1190.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1414.0, 3392.0 1414.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 1190.0, 3392.0 1190.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1190.0, 3392.0 1190.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1414.0, 3392.0 1414.0, 3392.0 1902.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 6078.5 478.0 C 6078.5 518.0, 3690.5 518.0, 3690.5 558.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1486.0 C 3093.5 1638.0, 3193.0 1638.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3392.0 1710.0 C 3392.0 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1710.0 C 3193.0 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2894.5 1150.0 C 2894.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2098.5 926.0 C 2098.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1150.0 C 3093.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2894.5 478.0 C 2894.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1582.0, 3193.0 1582.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3690.5 1150.0 C 3690.5 1470.0, 3193.0 1470.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 1598.0 C 3093.5 1694.0, 3193.0 1694.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1134.0, 3193.0 1134.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1358.0, 3193.0 1358.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1598.0 C 3093.5 1750.0, 3193.0 1750.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1822.0 C 3392.0 1862.0, 3193.0 1862.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1822.0 C 3193.0 1862.0, 3193.0 1862.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2098.5 926.0 C 2098.5 1414.0, 3193.0 1414.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1150.0 C 3193.0 1526.0, 3193.0 1526.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 478.0 C 2894.5 1190.0, 3193.0 1190.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 478.0 C 3292.5 1190.0, 3193.0 1190.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1486.0 C 3093.5 1694.0, 3193.0 1694.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3591.0 1150.0 C 3591.0 1526.0, 3193.0 1526.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1710.0 C 3093.5 1806.0, 3193.0 1806.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 478.0 C 4685.5 1190.0, 3193.0 1190.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 926.0 C 3292.5 1414.0, 3193.0 1414.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4884.5 478.0 C 4884.5 1190.0, 3193.0 1190.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 6277.5 478.0 C 6277.5 1190.0, 3193.0 1190.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 926.0 C 5083.5 1414.0, 3193.0 1414.0, 3193.0 1902.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 705.5 406.0, 705.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 2795.0 1190.0, 2795.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 2894.5 1302.0, 2894.5 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1501.5 854.0, 1501.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 904.5 406.0, 904.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3093.5 1414.0, 3093.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3093.5 1526.0, 3093.5 1566.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1700.5 854.0, 1700.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 1899.5 854.0, 1899.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2496.5 926.0 C 2496.5 966.0, 3193.0 966.0, 3193.0 1006.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1103.5 478.0 C 1103.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1302.5 478.0 C 1302.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1501.5 478.0 C 1501.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1700.5 478.0 C 1700.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1899.5 478.0 C 1899.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2894.5 590.0 C 2894.5 1022.0, 3491.5 1022.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2098.5 478.0 C 2098.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2496.5 478.0 C 2496.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3491.5 1414.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1103.5 478.0 C 1103.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1302.5 478.0 C 1302.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1501.5 478.0 C 1501.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1700.5 478.0 C 1700.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 478.0 C 1899.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 590.0 C 2894.5 1078.0, 3491.5 1078.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2098.5 478.0 C 2098.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2496.5 478.0 C 2496.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3491.5 1526.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1103.5 406.0, 1103.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 1598.0 C 3491.5 1638.0, 3392.0 1638.0, 3392.0 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1710.0 C 3491.5 1750.0, 3392.0 1750.0, 3392.0 1790.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1302.5 406.0, 1302.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1501.5 406.0, 1501.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 1700.5 406.0, 1700.5 446.0" marker-end="url(#arrow-down)" />
@@ -148,25 +148,26 @@
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2098.5 406.0, 2098.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2297.5 406.0, 2297.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2496.5 406.0, 2496.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 1598.0 C 3491.5 1638.0, 3193.0 1638.0, 3193.0 1678.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1598.0 C 3292.5 1638.0, 3193.0 1638.0, 3193.0 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1710.0 C 3491.5 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1710.0 C 3292.5 1750.0, 3193.0 1750.0, 3193.0 1790.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2695.5 478.0 C 2695.5 574.0, 3392.0 574.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3491.5 590.0 C 3491.5 630.0, 3392.0 630.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 6078.5 478.0 C 6078.5 574.0, 3392.0 574.0, 3392.0 670.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 2894.5 1022.0, 2894.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 2894.5 1078.0, 2894.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3690.5 590.0 C 3690.5 854.0, 3292.5 854.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1078.0, 3292.5 1078.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3392.0 1038.0 C 3392.0 1078.0, 3292.5 1078.0, 3292.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 2994.0 1022.0, 2994.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 2994.0 1078.0, 2994.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 590.0 C 3690.5 910.0, 3193.0 910.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1134.0, 3193.0 1134.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2994.0 1150.0 C 2994.0 1190.0, 3193.0 1190.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1038.0 C 3392.0 1134.0, 3193.0 1134.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2098.5 854.0, 2098.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2695.5 406.0, 2695.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1501.5 926.0 C 1501.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 1486.0 C 3491.5 1526.0, 3491.5 1526.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 478.0 C 3491.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2695.5 926.0 C 2695.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5083.5 478.0 C 5083.5 1022.0, 3491.5 1022.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4685.5 926.0 C 4685.5 1246.0, 3491.5 1246.0, 3491.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1078.0, 3093.5 1078.0, 3093.5 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1501.5 926.0 C 1501.5 1302.0, 3491.5 1302.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1598.0 C 3491.5 1638.0, 3491.5 1638.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 478.0 C 3491.5 1078.0, 3491.5 1078.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2695.5 926.0 C 2695.5 1302.0, 3491.5 1302.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5083.5 478.0 C 5083.5 1078.0, 3491.5 1078.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4685.5 926.0 C 4685.5 1302.0, 3491.5 1302.0, 3491.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1038.0 C 3193.0 1078.0, 3193.0 1078.0, 3193.0 1118.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 2894.5 406.0, 2894.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 1700.5 926.0 C 1700.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 1899.5 926.0 C 1899.5 966.0, 3392.0 966.0, 3392.0 1006.0" marker-end="url(#arrow-down)" />
@@ -178,21 +179,21 @@
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3093.5 406.0, 3093.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3292.5 406.0, 3292.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3491.5 406.0, 3491.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 590.0 C 3093.5 966.0, 3093.5 966.0, 3093.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3790.0 1262.0 C 3790.0 1302.0, 3093.5 1302.0, 3093.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 590.0 C 3093.5 1022.0, 3093.5 1022.0, 3093.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 1374.0 C 3690.5 1414.0, 3093.5 1414.0, 3093.5 1454.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3690.5 406.0, 3690.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3690.5 478.0 C 3690.5 518.0, 3093.5 518.0, 3093.5 558.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3889.5 478.0 C 3889.5 518.0, 3093.5 518.0, 3093.5 558.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 3889.5 406.0, 3889.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 926.0 C 3491.5 1022.0, 3690.5 1022.0, 3690.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2994.0 1038.0 C 2994.0 1078.0, 3690.5 1078.0, 3690.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3690.5 1150.0 C 3690.5 1190.0, 3591.0 1190.0, 3591.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 926.0 C 3491.5 1022.0, 3591.0 1022.0, 3591.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2994.0 1038.0 C 2994.0 1078.0, 3591.0 1078.0, 3591.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3591.0 1150.0 C 3591.0 1190.0, 3392.0 1190.0, 3392.0 1230.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4088.5 406.0, 4088.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4287.5 406.0, 4287.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2496.5 854.0, 2496.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2695.5 854.0, 2695.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4486.5 406.0, 4486.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3093.5 1526.0, 3093.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1598.0 C 3292.5 1638.0, 3093.5 1638.0, 3093.5 1678.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 4685.5 406.0, 4685.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 2894.5 854.0, 2894.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3093.5 854.0, 3093.5 894.0" marker-end="url(#arrow-down)" />
@@ -203,8 +204,8 @@
   <path class="edge-path" d="M 3093.5 478.0 C 3093.5 742.0, 3790.0 742.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 5083.5 478.0 C 5083.5 742.0, 3790.0 742.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 4486.5 926.0 C 4486.5 966.0, 3790.0 966.0, 3790.0 1006.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3392.0 1190.0, 3392.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3591.0 1038.0 C 3591.0 1134.0, 3392.0 1134.0, 3392.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 3491.5 1302.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3591.0 1038.0 C 3591.0 1190.0, 3491.5 1190.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 3889.5 854.0, 3889.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4088.5 854.0, 4088.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 5879.5 478.0 C 5879.5 518.0, 3491.5 518.0, 3491.5 558.0" marker-end="url(#arrow-down)" />
@@ -218,60 +219,60 @@
   <path class="edge-path" d="M 3093.5 926.0 C 3093.5 966.0, 3591.0 966.0, 3591.0 1006.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 4884.5 854.0, 4884.5 894.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 814.0 C 3292.5 854.0, 5083.5 854.0, 5083.5 894.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 705.5 478.0 C 705.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 904.5 478.0 C 904.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 3491.5 1022.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 3491.5 1078.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4088.5 478.0 C 4088.5 798.0, 3491.5 798.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 702.0 C 3193.0 910.0, 3491.5 910.0, 3491.5 1118.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 1374.0 C 3491.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3690.5 926.0 C 3690.5 1246.0, 3292.5 1246.0, 3292.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 705.5 478.0 C 705.5 798.0, 3392.0 798.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 904.5 478.0 C 904.5 798.0, 3392.0 798.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 1899.5 926.0 C 1899.5 1022.0, 3392.0 1022.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2795.0 1038.0 C 2795.0 1078.0, 3392.0 1078.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4088.5 478.0 C 4088.5 798.0, 3392.0 798.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 702.0 C 3193.0 910.0, 3392.0 910.0, 3392.0 1118.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 1486.0 C 3292.5 1526.0, 3292.5 1526.0, 3292.5 1566.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 2994.0 1190.0, 2994.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2795.0 1262.0 C 2795.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3392.0 1262.0 C 3392.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3889.5 926.0 C 3889.5 1134.0, 3292.5 1134.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2994.0 1262.0 C 2994.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1486.0 C 3491.5 1526.0, 3292.5 1526.0, 3292.5 1566.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 926.0 C 3690.5 1302.0, 3292.5 1302.0, 3292.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1598.0 C 3292.5 1638.0, 3292.5 1638.0, 3292.5 1678.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 3093.5 1302.0, 3093.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 1374.0 C 2894.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 1374.0 C 3491.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3889.5 926.0 C 3889.5 1190.0, 3292.5 1190.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1414.0, 3292.5 1414.0, 3292.5 1454.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5282.5 406.0, 5282.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 506.5 478.0 C 506.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 478.0 C 3491.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4287.5 478.0 C 4287.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4486.5 478.0 C 4486.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2894.5 926.0 C 2894.5 1134.0, 3491.5 1134.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3790.0 1038.0 C 3790.0 1190.0, 3491.5 1190.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4287.5 926.0 C 4287.5 1134.0, 3491.5 1134.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 1150.0 C 3491.5 1246.0, 3491.5 1246.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 2994.0 1262.0 C 2994.0 1302.0, 3491.5 1302.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5282.5 478.0 C 5282.5 910.0, 3491.5 910.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3790.0 1262.0 C 3790.0 1302.0, 3491.5 1302.0, 3491.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 506.5 478.0 C 506.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 478.0 C 3491.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4287.5 478.0 C 4287.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4486.5 478.0 C 4486.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 2894.5 926.0 C 2894.5 1190.0, 3491.5 1190.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3790.0 1038.0 C 3790.0 1246.0, 3491.5 1246.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4287.5 926.0 C 4287.5 1190.0, 3491.5 1190.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1150.0 C 3392.0 1302.0, 3491.5 1302.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 1374.0 C 3093.5 1414.0, 3491.5 1414.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5282.5 478.0 C 5282.5 966.0, 3491.5 966.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3690.5 1374.0 C 3690.5 1414.0, 3491.5 1414.0, 3491.5 1454.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5481.5 406.0, 5481.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5680.5 406.0, 5680.5 446.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3193.0 1190.0, 3193.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 307.5 478.0 C 307.5 854.0, 3790.0 854.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1150.0 C 3292.5 1190.0, 3790.0 1190.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 478.0 C 3093.5 854.0, 3790.0 854.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 4088.5 926.0 C 4088.5 1078.0, 3790.0 1078.0, 3790.0 1230.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 3292.5 1302.0, 3292.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 307.5 478.0 C 307.5 910.0, 3690.5 910.0, 3690.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1302.0, 3690.5 1302.0, 3690.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 478.0 C 3093.5 910.0, 3690.5 910.0, 3690.5 1342.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 4088.5 926.0 C 4088.5 1134.0, 3690.5 1134.0, 3690.5 1342.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 5879.5 406.0, 5879.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 366.0 C 3292.5 406.0, 6078.5 406.0, 6078.5 446.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3392.0 254.0 C 3392.0 294.0, 3292.5 294.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2894.5 142.0 C 2894.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 142.0 C 3292.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3690.5 142.0 C 3690.5 238.0, 3292.5 238.0, 3292.5 334.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 1934.0 C 3292.5 1974.0, 3292.5 1974.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3392.0 1822.0 C 3392.0 1862.0, 3292.5 1862.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1822.0 C 3193.0 1862.0, 3292.5 1862.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5481.5 478.0 C 5481.5 1190.0, 3292.5 1190.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 5680.5 478.0 C 5680.5 1190.0, 3292.5 1190.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3193.0 1262.0 C 3193.0 1582.0, 3292.5 1582.0, 3292.5 1902.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 2046.0 C 3292.5 2086.0, 3292.5 2086.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1934.0 C 3392.0 1974.0, 3292.5 1974.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3193.0 1934.0 C 3193.0 1974.0, 3292.5 1974.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5481.5 478.0 C 5481.5 1246.0, 3292.5 1246.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 5680.5 478.0 C 5680.5 1246.0, 3292.5 1246.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 1374.0 C 3292.5 1694.0, 3292.5 1694.0, 3292.5 2014.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 6078.5 478.0 C 6078.5 518.0, 3292.5 518.0, 3292.5 558.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 4088.5 142.0 C 4088.5 350.0, 3292.5 350.0, 3292.5 558.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3292.5 590.0 C 3292.5 630.0, 3193.0 630.0, 3193.0 670.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 3193.0 254.0 C 3193.0 462.0, 3193.0 462.0, 3193.0 670.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3591.0 1262.0 C 3591.0 1694.0, 3292.5 1694.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3093.5 142.0 C 3093.5 1134.0, 3292.5 1134.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3491.5 142.0 C 3491.5 1134.0, 3292.5 1134.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
-  <path class="edge-path" d="M 3292.5 2046.0 C 3292.5 2086.0, 3292.5 2086.0, 3292.5 2126.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3392.0 1262.0 C 3392.0 1750.0, 3292.5 1750.0, 3292.5 2238.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3093.5 142.0 C 3093.5 1190.0, 3292.5 1190.0, 3292.5 2238.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3491.5 142.0 C 3491.5 1190.0, 3292.5 1190.0, 3292.5 2238.0" marker-end="url(#arrow-down)" />
+  <path class="edge-path" d="M 3292.5 2158.0 C 3292.5 2198.0, 3292.5 2198.0, 3292.5 2238.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2496.5 142.0 C 2496.5 182.0, 3193.0 182.0, 3193.0 222.0" marker-end="url(#arrow-down)" />
   <path class="edge-path" d="M 2297.5 926.0 C 2297.5 966.0, 2994.0 966.0, 2994.0 1006.0" marker-end="url(#arrow-down)" />
 </g>
@@ -327,15 +328,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-cli
-Layer: 15
+Layer: 16
 
-Depends on (12):
-  ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-dceutils, ctb-formats-docker, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
+Depends on (11):
+  ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-docker, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
 
 Depended on by (1):
   ctb-workspace-ipc</title>
-    <rect class="node-rect" x="3304.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
-    <text class="node-text" x="3392.0" y="1806.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-cli</text>
+    <rect class="node-rect" x="3304.5" y="1902.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1918.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-cli</text>
   </g>
   <g class="node">
     <title>Crate: ctb-dc-macro
@@ -351,15 +352,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats
-Layer: 15
+Layer: 16
 
-Depends on (16):
-  ctb-formats-archive, ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-dceutils, ctb-formats-dct-el, ctb-formats-docker, ctb-formats-dpkg, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-kaitai, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
+Depends on (15):
+  ctb-formats-archive, ctb-formats-compression-cli, ctb-formats-conversion, ctb-formats-dct-el, ctb-formats-docker, ctb-formats-dpkg, ctb-formats-internetarchive, ctb-formats-javascript, ctb-formats-kaitai, ctb-formats-pan, ctb-formats-pdf, ctb-formats-python, ctb-formats-stagel, ctb-formats-warc, ctb-formats-x86
 
 Depended on by (1):
   ctb-workspace-ipc</title>
-    <rect class="node-rect" x="3105.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3193.0" y="1806.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats</text>
+    <rect class="node-rect" x="3105.5" y="1902.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1918.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-alias
@@ -375,15 +376,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-apple-single-double
-Layer: 10
+Layer: 11
 
 Depends on (1):
   ctb-formats-dcstring
 
 Depended on by (1):
   ctb-io-file</title>
-    <rect class="node-rect" x="2707.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="2795.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-apple-single-double</text>
+    <rect class="node-rect" x="2807.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2894.5" y="1358.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-apple-single-double</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-apple-types
@@ -411,15 +412,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-archive
-Layer: 12
+Layer: 13
 
 Depends on (1):
   ctb-io-file
 
 Depended on by (1):
   ctb-formats</title>
-    <rect class="node-rect" x="3006.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3093.5" y="1470.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-archive</text>
+    <rect class="node-rect" x="3006.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-archive</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-base16b
@@ -459,15 +460,15 @@ Depended on by (2):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-compression
-Layer: 12
+Layer: 13
 
 Depends on (9):
   ctb-formats-compression-bzip, ctb-formats-compression-compact, ctb-formats-compression-compress, ctb-formats-compression-freeze, ctb-formats-compression-libraries, ctb-formats-compression-pack, ctb-formats-compression-rzip, ctb-formats-compression-szip, ctb-io-file
 
 Depended on by (1):
   ctb-formats-detection</title>
-    <rect class="node-rect" x="3404.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3491.5" y="1470.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression</text>
+    <rect class="node-rect" x="3404.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-compression-bzip
@@ -483,15 +484,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-compression-cli
-Layer: 14
+Layer: 15
 
 Depends on (1):
   ctb-formats-detection
 
 Depended on by (2):
   ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="3304.5" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3392.0" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-cli</text>
+    <rect class="node-rect" x="3304.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1806.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-compression-cli</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-compression-compact
@@ -591,15 +592,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-conversion
-Layer: 14
+Layer: 15
 
 Depends on (2):
   ctb-formats-detection, ctb-io-csc
 
 Depended on by (2):
   ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="3105.5" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3193.0" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-conversion</text>
+    <rect class="node-rect" x="3105.5" y="1790.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1806.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-conversion</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-ctb-asset-bundle
@@ -632,22 +633,22 @@ Layer: 9
 Depends on (2):
   ctb-formats-base64, ctb-formats-hexdump
 
-Depended on by (2):
-  ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="2807.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="2894.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dceutils</text>
+Depended on by (1):
+  ctb-formats-dcstring</title>
+    <rect class="node-rect" x="2906.5" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="2994.0" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dceutils</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-dcstring
-Layer: 9
+Layer: 10
 
-Depends on (3):
-  ctb-dc-macro, ctb-formats-checksum, ctb-formats-eite
+Depends on (4):
+  ctb-dc-macro, ctb-formats-checksum, ctb-formats-dceutils, ctb-formats-eite
 
 Depended on by (5):
   ctb-formats-apple-single-double, ctb-formats-text-extraction, ctb-io-environment, ctb-runtime, ctb-storage</title>
-    <rect class="node-rect" x="3205.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dcstring</text>
+    <rect class="node-rect" x="3105.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-dcstring</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-dct-el
@@ -675,15 +676,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-detection
-Layer: 13
+Layer: 14
 
 Depends on (6):
   ctb-formats-apple-types, ctb-formats-compression, ctb-formats-ipaddr, ctb-formats-mime, ctb-formats-uri, ctb-formats-uuid
 
 Depended on by (2):
   ctb-formats-compression-cli, ctb-formats-conversion</title>
-    <rect class="node-rect" x="3404.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3491.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-detection</text>
+    <rect class="node-rect" x="3404.0" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-detection</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-docker
@@ -694,8 +695,8 @@ Depends on (1):
 
 Depended on by (2):
   ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="3006.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3093.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-docker</text>
+    <rect class="node-rect" x="3105.5" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3193.0" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-docker</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-dpkg
@@ -783,15 +784,15 @@ Depended on by (2):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-javascript
-Layer: 11
+Layer: 12
 
 Depends on (2):
   ctb-formats-javascript-bootstrap-ts, ctb-storage
 
 Depended on by (2):
   ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="3006.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3093.5" y="1358.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-javascript</text>
+    <rect class="node-rect" x="3006.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1470.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-javascript</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-javascript-boa-host
@@ -838,8 +839,8 @@ Depends on (2):
 
 Depended on by (2):
   ctb-formats, ctb-formats-kaitai-spec-rust</title>
-    <rect class="node-rect" x="3603.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3690.5" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai</text>
+    <rect class="node-rect" x="3503.5" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3591.0" y="1134.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-kaitai-spec-rust
@@ -850,8 +851,8 @@ Depends on (1):
 
 Depended on by (1):
   ctoolbox</title>
-    <rect class="node-rect" x="3503.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3591.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai-spec-rust</text>
+    <rect class="node-rect" x="3304.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-kaitai-spec-rust</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-lnk
@@ -915,15 +916,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-pan
-Layer: 13
+Layer: 14
 
 Depends on (1):
   ctb-io
 
 Depended on by (2):
   ctb-cli, ctb-formats</title>
-    <rect class="node-rect" x="3006.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3093.5" y="1582.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-pan</text>
+    <rect class="node-rect" x="3006.0" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1694.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-pan</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-pdf
@@ -1023,15 +1024,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-formats-text-extraction
-Layer: 10
+Layer: 11
 
 Depends on (2):
   ctb-formats-dcstring, ctb-formats-wfscan
 
 Depended on by (1):
   ctb-io-file</title>
-    <rect class="node-rect" x="3304.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
-    <text class="node-text" x="3392.0" y="1246.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-text-extraction</text>
+    <rect class="node-rect" x="3404.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1358.0" fill="#064e3b" text-anchor="middle" dominant-baseline="middle">ctb-formats-text-extraction</text>
   </g>
   <g class="node">
     <title>Crate: ctb-formats-time
@@ -1186,56 +1187,56 @@ Depends on (6):
 
 Depended on by (1):
   ctb-io-webui</title>
-    <rect class="node-rect" x="3404.0" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
-    <text class="node-text" x="3491.5" y="1134.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-installer</text>
+    <rect class="node-rect" x="3304.5" y="1118.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3392.0" y="1134.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctb-installer</text>
   </g>
   <g class="node">
     <title>Crate: ctb-io
-Layer: 12
+Layer: 13
 
 Depends on (2):
   ctb-io-file, ctb-io-webui
 
 Depended on by (2):
   ctb-formats-pan, ctb-io-csc</title>
-    <rect class="node-rect" x="3205.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="1470.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io</text>
+    <rect class="node-rect" x="3205.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1582.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io</text>
   </g>
   <g class="node">
     <title>Crate: ctb-io-csc
-Layer: 13
+Layer: 14
 
 Depends on (2):
   ctb-formats-string, ctb-io
 
 Depended on by (1):
   ctb-formats-conversion</title>
-    <rect class="node-rect" x="3205.0" y="1566.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="1582.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-csc</text>
+    <rect class="node-rect" x="3205.0" y="1678.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1694.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-csc</text>
   </g>
   <g class="node">
     <title>Crate: ctb-io-environment
-Layer: 10
+Layer: 11
 
 Depends on (1):
   ctb-formats-dcstring
 
 Depended on by (2):
   ctb-io-file, ctb-io-webui</title>
-    <rect class="node-rect" x="2906.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
-    <text class="node-text" x="2994.0" y="1246.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-environment</text>
+    <rect class="node-rect" x="3006.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3093.5" y="1358.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-environment</text>
   </g>
   <g class="node">
     <title>Crate: ctb-io-file
-Layer: 11
+Layer: 12
 
 Depends on (4):
   ctb-formats-apple-single-double, ctb-formats-text-extraction, ctb-formats-time, ctb-io-environment
 
 Depended on by (3):
   ctb-formats-archive, ctb-formats-compression, ctb-io</title>
-    <rect class="node-rect" x="3205.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="1358.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-file</text>
+    <rect class="node-rect" x="3205.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1470.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-file</text>
   </g>
   <g class="node">
     <title>Crate: ctb-io-system
@@ -1251,15 +1252,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-io-webui
-Layer: 11
+Layer: 12
 
 Depends on (11):
   ctb-build-info, ctb-formats-ipaddr, ctb-formats-markdown, ctb-formats-multipart, ctb-formats-pem, ctb-formats-syndication, ctb-formats-useragent, ctb-installer, ctb-io-environment, ctb-io-system, ctb-storage
 
 Depended on by (1):
   ctb-io</title>
-    <rect class="node-rect" x="3404.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
-    <text class="node-text" x="3491.5" y="1358.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-webui</text>
+    <rect class="node-rect" x="3404.0" y="1454.0" width="175" height="32" rx="5" ry="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.3" />
+    <text class="node-text" x="3491.5" y="1470.0" fill="#7c2d12" text-anchor="middle" dominant-baseline="middle">ctb-io-webui</text>
   </g>
   <g class="node">
     <title>Crate: ctb-ipc-macro
@@ -1311,27 +1312,27 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-runtime
-Layer: 10
+Layer: 11
 
 Depends on (1):
   ctb-formats-dcstring
 
 Depended on by (1):
   ctb-workspace-ipc</title>
-    <rect class="node-rect" x="3105.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.3" />
-    <text class="node-text" x="3193.0" y="1246.0" fill="#312e81" text-anchor="middle" dominant-baseline="middle">ctb-runtime</text>
+    <rect class="node-rect" x="3205.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="1358.0" fill="#312e81" text-anchor="middle" dominant-baseline="middle">ctb-runtime</text>
   </g>
   <g class="node">
     <title>Crate: ctb-storage
-Layer: 10
+Layer: 11
 
 Depends on (4):
   ctb-api-client, ctb-formats-dcstring, ctb-formats-html, ctb-formats-troff
 
 Depended on by (2):
   ctb-formats-javascript, ctb-io-webui</title>
-    <rect class="node-rect" x="3702.5" y="1230.0" width="175" height="32" rx="5" ry="5" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3" />
-    <text class="node-text" x="3790.0" y="1246.0" fill="#1e3a8a" text-anchor="middle" dominant-baseline="middle">ctb-storage</text>
+    <rect class="node-rect" x="3603.0" y="1342.0" width="175" height="32" rx="5" ry="5" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3" />
+    <text class="node-text" x="3690.5" y="1358.0" fill="#1e3a8a" text-anchor="middle" dominant-baseline="middle">ctb-storage</text>
   </g>
   <g class="node">
     <title>Crate: ctb-storage-asset-bundle
@@ -1395,27 +1396,27 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctb-workspace
-Layer: 17
+Layer: 18
 
 Depends on (1):
   ctb-workspace-ipc
 
 Depended on by (1):
   ctoolbox</title>
-    <rect class="node-rect" x="3205.0" y="2014.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="2030.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace</text>
+    <rect class="node-rect" x="3205.0" y="2126.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="2142.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace</text>
   </g>
   <g class="node">
     <title>Crate: ctb-workspace-ipc
-Layer: 16
+Layer: 17
 
 Depends on (5):
   ctb-cli, ctb-formats, ctb-network, ctb-renderer, ctb-runtime
 
 Depended on by (1):
   ctb-workspace</title>
-    <rect class="node-rect" x="3205.0" y="1902.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="1918.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace-ipc</text>
+    <rect class="node-rect" x="3205.0" y="2014.0" width="175" height="32" rx="5" ry="5" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="2030.0" fill="#831843" text-anchor="middle" dominant-baseline="middle">ctb-workspace-ipc</text>
   </g>
   <g class="node">
     <title>Crate: ctb-workspace-ipc-macro
@@ -1455,15 +1456,15 @@ Depended on by (1):
   </g>
   <g class="node">
     <title>Crate: ctoolbox
-Layer: 18
+Layer: 19
 
 Depends on (4):
   ctb-formats-kaitai-spec-rust, ctb-nopersonality, ctb-v86-posix-init, ctb-workspace
 
 Depended on by (0):
   (none)</title>
-    <rect class="node-rect" x="3205.0" y="2126.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
-    <text class="node-text" x="3292.5" y="2142.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctoolbox</text>
+    <rect class="node-rect" x="3205.0" y="2238.0" width="175" height="32" rx="5" ry="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3" />
+    <text class="node-text" x="3292.5" y="2254.0" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">ctoolbox</text>
   </g>
   <g class="node">
     <title>Crate: egui_software_backend

@@ -101,7 +101,13 @@ if [[ -z "${CTB_SKIP_DOCS:-}" ]]; then
         elif command -v ctb >/dev/null 2>&1; then
             ctb python scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
         else
-            cargo run ${offline} --quiet -p ctb-formats-python --bin ctb-python -- scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
+            target_flag=""
+            if [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]]; then
+                target_flag="--target=x86_64-unknown-linux-musl"
+            elif [[ "$(uname -s)" == "Linux" && "$(uname -m)" =~ i[3-6]86 ]]; then
+                target_flag="--target=i586-unknown-linux-musl"
+            fi
+            cargo run ${offline} ${target_flag} --quiet -p ctb-formats-python --bin ctb-python -- scripts/workspace-depgraph.py -o docs/workspace-dependencies.generated.svg
         fi
     fi
     # Documentation needs to exist to build linter (it's fine if it's not up to date, but does need to be there).
