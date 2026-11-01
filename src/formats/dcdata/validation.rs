@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Comprehensive table validators for Document Characters (Dcs), Formats, and
 //! Global Graph Layout datasets.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

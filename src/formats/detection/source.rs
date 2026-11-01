@@ -444,7 +444,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Streamed and buffered payload abstractions for format detection.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

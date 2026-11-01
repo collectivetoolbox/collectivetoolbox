@@ -25,7 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! be encapsulated into UTF-8 using `dcl_basenb` (base17) armoring, replaced
 //! with UTF-8 replacement characters (`U+FFFD`), or skipped.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

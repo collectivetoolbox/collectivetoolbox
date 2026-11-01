@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! The key property is that adding a new method only requires changing the
 //! crate that defines the method; there is no central routing table to edit.
 
-#[expect(unused_imports, reason = "Standard workspace prelude")]
+#[allow(unused_imports, reason = "Standard workspace prelude")]
 use crate::utilities::*;
 
 use std::collections::HashMap;

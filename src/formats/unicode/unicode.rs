@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Conversion of scalars to surrogates and vice versa
 //! - UCS-2 encoding and decoding from scalars
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

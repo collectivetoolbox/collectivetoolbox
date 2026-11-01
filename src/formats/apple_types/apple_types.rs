@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Apple Uniform Type Identifier (UTI) and 4-character OS / Creator Type
 //! syntax parsing, validation, and detection.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

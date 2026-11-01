@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! DFS pre-order, DFS post-order), cycle/loop detection, filesystem boundary
 //! (`one_file_system`) containment, and conversion to [`FileEntity`].
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

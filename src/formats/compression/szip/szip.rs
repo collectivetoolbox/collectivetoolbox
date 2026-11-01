@@ -39,7 +39,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Implementation of the `szip` 1.11+ compression format (Michael Schindler, 1997-2000).
 
 use anyhow::anyhow;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -34,7 +34,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // - Error handling uses anyhow::Result. Warnings replicate original semantic
 //   intent (they are emitted, but decoding continues).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

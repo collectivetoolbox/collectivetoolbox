@@ -451,7 +451,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   PPTX, EPUB, APK, JAR, ODF) via Central Directory inspection without
 //!   eager in-memory decompression or unpacking.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -56,7 +56,7 @@ and Mark Adler for the decompression code. */
 //! Specification reference: `data/docs/compress-ncompress.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

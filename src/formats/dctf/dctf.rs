@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! DcTF and legacy DcUtf / "UTF-8e-128" encoding and decoding (UTF-8 extended to 128-bit integers)
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! descriptor-relative containment via POSIX `*at` calls and Linux `openat2`, or permit
 //! high-fidelity verbatim reproduction (for `csc` and trusted archives).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

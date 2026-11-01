@@ -70,7 +70,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! [^6]: This is an early version of the DCE 3.0a translator, not a separate format. Leave the output format blank when using this translator, since the same code handles both input and output. This is not tested or maintained, and may or may not work properly.
 //! [^7]: These are miscellaneous outdated translators, not separate formats. Leave the output format blank when using them, since the same code handles both input and output. These are not tested or maintained, and may or may not work properly.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

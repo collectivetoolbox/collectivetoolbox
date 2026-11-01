@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Freeze 1.0 format (`0x1F, 0x9E`, 4096-byte LZSS window, fixed Table 1, 315-symbol dynamic Huffman tree)
 
 use anyhow::anyhow;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

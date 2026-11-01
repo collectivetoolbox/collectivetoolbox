@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Provides deterministic and probabilistic primality testing for native
 //! unsigned integers and arbitrary-precision `Natural` numbers.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

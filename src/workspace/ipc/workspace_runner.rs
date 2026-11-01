@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! It runs the workspace's [`Workspace::run`] concurrently with this IPC loop.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

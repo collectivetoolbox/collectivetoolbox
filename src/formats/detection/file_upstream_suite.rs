@@ -450,7 +450,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! format detection engine, and provides live differential comparison against
 //! the system `file` command when available.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

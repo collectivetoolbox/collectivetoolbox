@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Kaitai Struct compiler backend generating Rust code.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[cfg(test)]
 pub(crate) use ctb_build_support::{dc_codegen, find_repository_root_from};
 pub(crate) use ctb_build_support::{fs2, sha2};
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -35,6 +35,7 @@ pub use crate as ctb_formats_dc_data;
 pub mod column_spec;
 #[path = "../../build_support/ctbnbdl.rs"]
 pub mod ctbnbdl;
+#[rustfmt::skip]
 #[path = "dc.generated.rs"]
 pub mod dc;
 pub mod dc_char;

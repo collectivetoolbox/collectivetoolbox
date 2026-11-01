@@ -25,7 +25,7 @@ SOFTWARE.
 
 //! Pan-style array manipulation helpers.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

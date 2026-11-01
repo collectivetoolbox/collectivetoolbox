@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Multipart filename extension peeling, format candidate chain derivation,
 //! and format chain specification formatting.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

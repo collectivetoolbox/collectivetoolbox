@@ -23,7 +23,7 @@ use ctb_formats_compression_bzip as bzip;
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 use ctb_formats_utilities::format_info::FormatInfoOptionExt;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

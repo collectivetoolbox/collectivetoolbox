@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! MIME media type string parsing, syntax validation, embedded datasets,
 //! extension lookup, and MIME inheritance graph relationships.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Detection of small specialized formats including IP address strings,
 //! checksums, UUIDs, mathematical expressions/relations, and base numerals.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -32,7 +32,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - **RSS 2.0**: Most common modern format, with Atom namespace for self-link.
 
 use crate::rss::rss_20::render_rss_20;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! `AlphaWord` uses a more complex file format/encoding. FIXME update this comment with details from `AlphaSync`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

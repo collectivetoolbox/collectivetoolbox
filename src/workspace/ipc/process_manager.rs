@@ -25,7 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! On Windows, children are placed into a Job Object configured to kill all
 //! processes on close; tree termination uses `TerminateJobObject`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

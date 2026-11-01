@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Type and schema resolver converting parsed YAML specs into resolved class trees.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

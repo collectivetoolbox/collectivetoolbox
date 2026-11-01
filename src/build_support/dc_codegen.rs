@@ -238,7 +238,7 @@ fn format_dc_code_from_records(records: &[DcConstRecord]) -> String {
     );
     out.push_str("//! Do not edit by hand.\n\n");
     out.push_str(
-        "#[expect(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\n",
+        "#[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\nuse crate::utilities::*;\n\n",
     );
     out.push_str(
         "pub use ctb_storage_minimal::global_graph_layout::{\n    SHORT_DC_REGION_END, SHORT_DC_REGION_START,\n};\n\n",

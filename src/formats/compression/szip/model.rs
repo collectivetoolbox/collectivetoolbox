@@ -38,7 +38,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Context probability model (`sz_mod4`) combining cache, MTF, and full fallback models.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

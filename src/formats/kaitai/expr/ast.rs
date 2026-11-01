@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Abstract Syntax Tree (AST) definitions for Kaitai Struct expressions.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

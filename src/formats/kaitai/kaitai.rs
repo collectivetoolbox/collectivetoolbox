@@ -54,6 +54,7 @@ use include_dir::{Dir, include_dir};
 
 pub mod codegen;
 pub mod expr;
+#[rustfmt::skip]
 #[path = "generated.generated.rs"]
 pub mod generated;
 pub mod parser;
@@ -74,6 +75,7 @@ pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&KAITAI_DATA_DIR, key)
 }
 
+#[rustfmt::skip]
 #[path = "generated/test_formats.generated.rs"]
 pub mod test_formats;
 pub use test_formats as formats;

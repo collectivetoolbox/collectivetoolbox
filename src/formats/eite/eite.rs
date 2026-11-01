@@ -122,7 +122,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //   across all supported formats ensuring round‑trip invariants and preservation of
 //   semantic properties (printability, newline normalization, variant fidelity).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -29,7 +29,7 @@ SOFTWARE.
 //! Panorama procedures, including variable declarations, assignments,
 //! control flow constructs, commands, function calls, and expressions.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

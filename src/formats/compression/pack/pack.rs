@@ -51,7 +51,7 @@ and Mark Adler for the decompression code. */
 //! This supports packing small inputs that would be rejected by original pack
 //! implementations.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

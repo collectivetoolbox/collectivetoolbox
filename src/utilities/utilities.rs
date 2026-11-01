@@ -71,9 +71,11 @@ pub mod testing;
 pub mod ui;
 pub mod workspace_path_resolution;
 pub use terminfo::Terminfo;
+#[rustfmt::skip]
 #[path = "format_id.generated.rs"]
 pub mod format_id;
 pub use format_id::{FormatCategory, FormatId, *};
+#[rustfmt::skip]
 #[path = "format_support.generated.rs"]
 pub mod format_support;
 pub use dc_char::DcChar;

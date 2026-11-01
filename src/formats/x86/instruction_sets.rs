@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Approach to this is inspired by https://github.com/IrreducibleOSS/instruction-set-analyzer though this is an independent reimplementation (and doesn't support iterating directories).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

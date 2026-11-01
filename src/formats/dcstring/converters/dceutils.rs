@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Unrepresentable characters are logged as warnings in [`FormatLog`], while DCE stateful-encoding control
 //! characters (`13..=16`, `112..=115`, `194`, `196..=199`, `205`) are preserved as-is when converting to Dc documents.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

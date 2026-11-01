@@ -37,7 +37,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! dcBasenb is a way of encoding arbitrary Dcs into runs of Unicode private-use
 //! characters; see dcbasenb.rs
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

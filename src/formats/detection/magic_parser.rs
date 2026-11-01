@@ -444,7 +444,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Parser for libmagic-style hierarchical magic signature rule files (`Magdir`).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

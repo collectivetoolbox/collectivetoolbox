@@ -444,7 +444,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Centralized registry of magic header signatures across format types.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

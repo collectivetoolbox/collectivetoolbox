@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Automatic ID assignment, in-place category CSV updater, and merged table
 //! generator for Document Characters (Dcs) and Formats.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

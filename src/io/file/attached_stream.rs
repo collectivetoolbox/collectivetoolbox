@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Attached stream integration for file entities, covering AppleSingle,
 //! AppleDouble, and Windows alternate data stream (ADS) companions and sidecars.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

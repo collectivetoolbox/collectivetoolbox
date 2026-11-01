@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Local node references (Dc 296 followed by a numeral) are `@L{number}@`.
 //! - Long Dcs are `@l{id}@`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

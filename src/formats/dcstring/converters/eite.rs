@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Conversion between EITE formats (`IntegerList`, SEMS, Ascii, `AsciiSafeSubset`) and `DcMstring`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

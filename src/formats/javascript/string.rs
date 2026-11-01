@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use boa_engine::Context as BoaContext;
 use boa_engine::property::PropertyKey;
 use ctb_utilities::Context;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

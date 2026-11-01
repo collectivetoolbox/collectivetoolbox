@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Build-time and runtime derivation of MIME type and extension mappings to
 //! authoritative Document Characters (Dcs) and Format IDs.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

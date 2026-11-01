@@ -45,7 +45,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   Includes the 12 Unicode mappings added in DCE 3.01a (`0x08..=0x0D`, `0x85`,
 //!   `0xFE00..=0xFE04` -> `Dc 116..=126`, `Dc 193`) alongside the 97 mappings from 3.0a.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

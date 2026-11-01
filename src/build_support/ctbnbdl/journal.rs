@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! `flock` guards on the repository's permanent ledger lock, standalone pending-transaction
 //! recovery, and full `.ctbnbdl` bundle `(id, tokens)` verification.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

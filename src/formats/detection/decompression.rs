@@ -448,7 +448,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! enabling inspection of inner payloads, identification of compound formats (e.g. `TarGz`),
 //! format chains (`@chain(f... > f...)`), and UNIX `file` compatibility mode (`-z` / `-Z`).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

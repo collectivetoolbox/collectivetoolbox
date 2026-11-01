@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Checksummed Copy (`csc`): Attempts to provide high-integrity, crash-safe, verified, resumable file tree copying. Not yet ready for production use. Has some caveats around its use - see docs/csc-safety.md. In particular, other applications modifying the source or target directory trees can completely mess it up.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

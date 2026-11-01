@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! This module defines the capability sets that control what each subprocess
 //! (runtime, network) is allowed to do via IPC.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace prelude"

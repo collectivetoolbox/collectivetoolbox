@@ -32,7 +32,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - `<<tag>payload>`: Decomposition tag (`<approx>`, `<equiv>`, `<semantic>`, etc.).
 //! - Bare words: Permitted as aliases in Character tables; disallowed in Format tables.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

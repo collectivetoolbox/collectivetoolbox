@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - RSS 0.92 and both RSS 0.91 variants only allow HTTP or FTP URLs
 //! - RSS 2.0 only allows IANA-registered URI schemes
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

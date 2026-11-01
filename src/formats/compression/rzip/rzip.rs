@@ -36,7 +36,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    forward-linked 13-byte chunk headers.
 
 use anyhow::{Context, Result, bail, ensure};
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

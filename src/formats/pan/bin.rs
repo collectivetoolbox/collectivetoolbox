@@ -29,7 +29,7 @@ SOFTWARE.
 //! It will output to stdout CSV file containing the header (from design sheet) and content (from data sheet) of the pan file.
 
 use clap::{Parser, Subcommand};
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

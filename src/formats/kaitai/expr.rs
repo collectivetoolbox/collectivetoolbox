@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Kaitai Struct expression language parsing and AST.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

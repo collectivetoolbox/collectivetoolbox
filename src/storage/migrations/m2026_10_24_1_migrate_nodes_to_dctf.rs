@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! from legacy `DcUtf` (`f89`) to `DcTF` (`f641`) and recomputing SHA-256
 //! checksums.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

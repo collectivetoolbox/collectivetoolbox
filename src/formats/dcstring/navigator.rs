@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Database-syntax-driven hierarchical navigator, reusable syntax arena, and
 //! projection policies for Document Character (`Dc`) streams and files.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

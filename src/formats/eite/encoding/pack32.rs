@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Any value exceeding `0x0010_FFFF` (i.e. `0x0011_0000..=u32::MAX`) will fail
 //! with an error when passed to `pack32`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! CLI tool to regenerate Kaitai Struct test files to meet ctoolbox repository
 //! standards (.generated.rs naming, #[`crate::ctb_test`], and safe conversions).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace binary prelude"

@@ -27,7 +27,7 @@ SOFTWARE.
 //! Day format is days between 1/1/4713 BC and the given date, with
 //! adjustment for Gregorian calendar.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

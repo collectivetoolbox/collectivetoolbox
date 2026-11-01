@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! dynamic effective-state prevalidation, `BATCH_COMMITTED` provenance verification, and
 //! cross-ownership protection between `csv` and `manual` graph nodes.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

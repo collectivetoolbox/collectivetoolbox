@@ -19,14 +19,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Library providing parsers, encoders, and conversion tools for data formats.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace prelude"

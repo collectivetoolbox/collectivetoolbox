@@ -59,7 +59,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use ctb_formats_html::entities::{escape_quoted_attr, escape_text};
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

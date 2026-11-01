@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    and encoded as Base64 encapsulation Dcs (127..=190)
 //! 5. Dc 7 (`End number`)
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

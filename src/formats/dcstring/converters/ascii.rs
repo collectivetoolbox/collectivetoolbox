@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Bidirectional converters between `DcMstring` and 7-bit ASCII documents,
 //! including the ASCII Safe Subset (printable ASCII with CRLF line endings).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

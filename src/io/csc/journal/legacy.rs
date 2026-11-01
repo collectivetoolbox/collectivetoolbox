@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! (`CTBMETA1`, `CTBMETA2`, `CTBMETA3`) with lossless in-memory conversion
 //! to standard Document Characters and `FileEntity` records.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

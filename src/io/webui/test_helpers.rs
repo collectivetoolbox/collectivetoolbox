@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard repository test boilerplate"
 )]
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace prelude"

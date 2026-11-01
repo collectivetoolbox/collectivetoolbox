@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! named type patterns (e.g. `string`, `identifier`), and script categorizations
 //! (e.g. `[script:EL Types]`).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

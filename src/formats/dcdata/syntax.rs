@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Provides AST definitions, lexer/parser, semantic and cross-reference validators,
 //! and resilient tag-soup pattern matchers for evaluating and processing DcText documents.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -34,6 +34,7 @@ use std::sync::{Arc, LazyLock};
 pub mod ast;
 pub mod parser;
 pub mod resolver;
+#[rustfmt::skip]
 #[path = "syntax/role.generated.rs"]
 pub mod role;
 pub mod validator;

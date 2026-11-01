@@ -38,7 +38,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Channel reordering and differential (delta) coding for multi-byte datatypes.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

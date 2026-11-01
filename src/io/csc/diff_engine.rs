@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Filesystem diffing engine comparing two filesystem trees or files using
 //! the exact same strictness and metadata verification rules as `csc copy`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

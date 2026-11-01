@@ -19,14 +19,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Subprocess runtime, job supervisor, and execution environment manager.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace prelude"

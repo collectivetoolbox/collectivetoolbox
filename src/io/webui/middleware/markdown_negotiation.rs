@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Non-HTML responses (e.g. JSON, CSS, images, streaming downloads) are left
 //!   unmodified without buffering.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

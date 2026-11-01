@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Shorthand tokens are strictly case-sensitive. Valid shorthands match
 //! `[flL]?\d+` or `u[0-9a-f]+`; non-matching strings are rejected.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

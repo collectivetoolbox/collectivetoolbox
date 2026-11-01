@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Parser for Kaitai Struct (`.ksy`) format definition files.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

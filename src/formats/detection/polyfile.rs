@@ -452,7 +452,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Byte-range attribution mapping parsed format structures to `[start, end)` spans.
 //! - Bounded nested archive member inspection for container files.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

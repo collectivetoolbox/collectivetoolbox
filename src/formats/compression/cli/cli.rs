@@ -25,7 +25,7 @@ use ctb_formats_detection::{
     FormatCategory, detect_file_format, detect_format_id,
 };
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

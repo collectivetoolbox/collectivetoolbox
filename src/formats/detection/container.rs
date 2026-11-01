@@ -453,7 +453,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - ZIP container signature inspector (DOCX, XLSX, PPTX, EPUB, APK, JAR, HWPX)
 //! - Transparent payload decompression probe (`compress.c`)
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

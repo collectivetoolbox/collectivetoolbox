@@ -36,7 +36,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   auxiliary companion file (such as `._<filename>`), keeping the data fork
 //!   in a separate plain file.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

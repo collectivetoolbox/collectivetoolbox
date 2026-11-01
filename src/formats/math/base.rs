@@ -56,7 +56,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - For raw byte sequence armoring and hexdumps, refer to `ctb_formats_armor`,
 //!   `ctb_formats_hexdump`, and `ctb_formats_base64`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

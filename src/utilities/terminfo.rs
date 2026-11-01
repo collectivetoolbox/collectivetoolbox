@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! (`use=`), unescapes string capabilities, and provides capability queries
 //! matching standard terminfo conventions without requiring the `tic` compiler.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

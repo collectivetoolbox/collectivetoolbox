@@ -38,7 +38,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Binary Indexed Tree (Fenwick Tree) probability model with symbol exclusion.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

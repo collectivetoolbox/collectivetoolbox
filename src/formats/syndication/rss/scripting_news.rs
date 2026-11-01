@@ -35,7 +35,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Specification for 2.0b1: <https://web.archive.org/web/19990902194349/http://my.userland.com/stories/storyReader$11>
 //! DTD: <https://web.archive.org/web/19980131193200if_/http://www.scripting.com:80/dtd/scriptingNews.dtd>
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -30,7 +30,7 @@ SOFTWARE.
     reason = "idiomatic module structure names"
 )]
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

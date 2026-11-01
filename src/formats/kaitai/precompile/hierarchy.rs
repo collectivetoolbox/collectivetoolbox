@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Class and type hierarchy representations for compilation.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

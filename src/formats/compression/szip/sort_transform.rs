@@ -38,7 +38,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Context sorting transformations: Order 0 (BWT), Order 4, and general Order N.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

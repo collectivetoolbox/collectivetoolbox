@@ -447,7 +447,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Adapted from extension and multi-layer disambiguation logic in
 //! `old/filedetect/polyfile` and `old/filedetect/binwalk`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

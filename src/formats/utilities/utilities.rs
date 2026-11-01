@@ -29,8 +29,10 @@ pub mod detection {
         pub use crate::extension_rule::{CaseSensitivity, ExtensionRule};
     }
 }
+#[rustfmt::skip]
 #[path = "encoding.generated.rs"]
 pub mod encoding;
+#[rustfmt::skip]
 #[path = "extension_data.generated.rs"]
 pub mod extension_data;
 pub mod format_info;
@@ -50,7 +52,7 @@ pub use cli_document::{
 };
 pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -42,7 +42,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! FNV primes are constructed according to the formula:
 //! `FNV_Prime = 256**k + 2**8 + b` where `k = int((5 + 2**s) / 12)`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

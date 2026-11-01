@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! and indexes active statements, supersessions (`Dc 591`), retractions (`Dc 592`),
 //! seed classification entities, value nodes, and `.Semantic:Pattern` rules at runtime.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

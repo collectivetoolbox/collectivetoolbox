@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! of short Document Characters (Dcs) using Format 199 and Base64 encapsulation Dcs
 //! (short Dcs 127..=190 and 195).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -27,7 +27,7 @@ SOFTWARE.
 
 use ctb_utilities::math::exact_float::u64_to_f64_exact;
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -34,7 +34,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Windows-1252, including Altura's fallback substitutions for glyphs that do
 //! not exist in both sets.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

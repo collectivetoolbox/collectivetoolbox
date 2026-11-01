@@ -25,7 +25,7 @@ SOFTWARE.
 
 //! Pan-format helpers used by formatting functions.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

@@ -59,7 +59,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! the specification (requiring the remainder length to be stored to decode the
 //! remainder correctly when it starts with a 0 bit and is not 16 bits long).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

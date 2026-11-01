@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! station arms (directly or relative to a reference datum), and calculate the
 //! loaded center of gravity across empty weight, occupants, and ballast.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

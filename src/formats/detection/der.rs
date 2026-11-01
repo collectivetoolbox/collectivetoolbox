@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! ASN.1 DER (Distinguished Encoding Rules) tag scanner, parser, and
 //! comparator matching upstream `file` (`src/der.c`, `src/der.h`).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

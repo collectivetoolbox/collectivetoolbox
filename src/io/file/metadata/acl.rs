@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! restoration outside xattrs. Supports Darwin ACLs (NFSv4/POSIX.1e draft 17)
 //! on macOS and FreeBSD NFSv4/POSIX.1e ACLs.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

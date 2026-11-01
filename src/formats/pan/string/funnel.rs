@@ -25,7 +25,7 @@ SOFTWARE.
 
 //! Funnel-style substring extraction.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

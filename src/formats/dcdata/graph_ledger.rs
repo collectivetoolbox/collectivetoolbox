@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! value nodes in the System block (`8589934592..=12884901887`), persisted as
 //! 100-node chunk files in `assets/data/graph/85899_34592.ctbnodes`, etc.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

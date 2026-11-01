@@ -121,7 +121,7 @@ pub fn generate_extension_data_code_from_index(
     out.push_str("use crate::detection::extension::ExtensionRule;\n");
     out.push_str("use crate::format_id::FormatId;\n");
     out.push_str(
-        "#[expect(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\n",
+        "#[allow(\n    unused_imports,\n    clippy::wildcard_imports,\n    reason = \"Standard workspace module prelude\"\n)]\n",
     );
     out.push_str("use ctb_utilities::*;\n\n");
 

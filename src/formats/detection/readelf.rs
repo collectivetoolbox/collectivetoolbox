@@ -475,7 +475,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
  * SUCH DAMAGE.
  */
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

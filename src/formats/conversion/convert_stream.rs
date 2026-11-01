@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! for structured document formats (e.g. `DcIntegerList`, `Sems`, `DcText`, `CscJournal`)
 //! and non-`DcMixed` exports to perform document-level parsing and serialization.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

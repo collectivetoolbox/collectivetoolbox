@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Move engine providing atomic zero-copy rename on the same filesystem and
 //! verified checksummed copy fallback across filesystem boundaries.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
