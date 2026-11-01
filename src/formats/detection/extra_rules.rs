@@ -913,37 +913,97 @@ pub fn detect_custom_text_format_candidate(
         return None;
     };
 
-    // 1. Check for DcText tokens @...
+    // 1. Check for @...@ token document formats (DcText, Dcts, CdceLegacy, Cdce)
     if sample_str.contains('@') {
         let parts: Vec<&str> = sample_str.split('@').collect();
         if parts.len() >= 3 {
-            let has_dctext_token = parts.iter().enumerate().any(|(idx, part)| {
-                if idx.checked_rem(2) == Some(1) && !part.is_empty() {
-                    part.chars().all(|c| c.is_ascii_digit())
-                        || ((part.starts_with('L') || part.starts_with('l'))
-                            && part.len() > 1
-                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+            let mut has_dctext_token = false;
+            let mut has_dcts_prefix_token = false;
+            let mut has_legacy_cdce_token = false;
+
+            let closed_parts_end = parts.len().saturating_sub(1);
+            for (idx, part) in parts.iter().enumerate() {
+                if idx < closed_parts_end
+                    && idx.checked_rem(2) == Some(1)
+                    && !part.is_empty()
+                {
+                    if part.chars().all(|c| c.is_ascii_digit()) {
+                        has_dctext_token = true;
+                        if let Ok(val) = part.parse::<u32>()
+                            && (1..=12).contains(&val)
+                        {
+                            has_legacy_cdce_token = true;
+                        }
+                    } else if part.starts_with('L')
+                        && part.len() > 1
+                        && part
+                            .get(1..)
+                            .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit()))
+                    {
+                        has_dctext_token = true;
+                    } else if (part.starts_with('l')
+                        && part.len() > 1
+                        && part
+                            .get(1..)
+                            .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
                         || ((part.starts_with('u') || part.starts_with('U'))
                             && part.len() > 1
-                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_hexdigit())))
+                            && part
+                                .get(1..)
+                                .is_some_and(|s| s.chars().all(|c| c.is_ascii_hexdigit())))
                         || ((part.starts_with('f') || part.starts_with('F'))
                             && part.len() > 1
-                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
-                } else {
-                    false
+                            && part
+                                .get(1..)
+                                .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+                    {
+                        has_dctext_token = true;
+                        has_dcts_prefix_token = true;
+                    }
                 }
-            });
+            }
 
             if has_dctext_token {
-                let fmt = FormatId::DcText;
+                let hint_ext = hint.and_then(|h| {
+                    h.extension.as_deref().or_else(|| {
+                        h.filename.as_deref().and_then(|f| {
+                            f.rsplit(['/', '\\'])
+                                .next()?
+                                .rsplit_once('.')
+                                .map(|(_, ext)| ext)
+                        })
+                    })
+                });
+                let fmt = if hint_ext
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("legacy_cdce"))
+                    && has_legacy_cdce_token
+                {
+                    FormatId::CdceLegacy
+                } else if hint_ext
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("cdce"))
+                {
+                    FormatId::Cdce
+                } else if hint_ext
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("dcts"))
+                    || has_dcts_prefix_token
+                {
+                    FormatId::Dcts
+                } else {
+                    FormatId::DcText
+                };
+
                 let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
                 let dc_id = mapping.map(|m| m.dc_id);
                 let mime = mapping
                     .and_then(|m| m.mime_types.first().cloned())
                     .or_else(|| Some("text/plain".to_string()));
+                // Reason for fallback: unmapped format identifier falls back to standard DcText document label
+                let description = mapping
+                    .map(|m| format!("{} document", m.label))
+                    .unwrap_or_else(|| "DcText document".to_string());
                 let mut score = 85u32;
                 let mut evidence = vec![DetectionEvidence::CtbRule {
-                    description: "DcText @token@ document".to_string(),
+                    description: format!("{} @token@ document", fmt.ident()),
                     score: 85,
                 }];
 
@@ -963,7 +1023,7 @@ pub fn detect_custom_text_format_candidate(
                     format_id: Some(fmt),
                     dc_id,
                     mime,
-                    description: "DcText document".to_string(),
+                    description,
                     confidence: ConfidenceTier::Strong,
                     score,
                     evidence,
@@ -1087,6 +1147,18 @@ mod tests {
         let input = b"Hello @65@ world";
         let cand = detect_custom_text_format_candidate(input, None).expect("detect dctext");
         assert_eq!(cand.format_id, Some(FormatId::DcText));
+
+        let dcts_input = b"Hello @u0041@ world";
+        let dcts_cand = detect_custom_text_format_candidate(dcts_input, None).expect("detect dcts");
+        assert_eq!(dcts_cand.format_id, Some(FormatId::Dcts));
+
+        let cdce_hint = DetectionHint {
+            filename: Some("datetime_string.legacy_cdce".to_string()),
+            ..Default::default()
+        };
+        let cdce_cand = detect_custom_text_format_candidate(b"@9@@2@1@3@@10@2012", Some(&cdce_hint))
+            .expect("detect legacy_cdce");
+        assert_eq!(cdce_cand.format_id, Some(FormatId::CdceLegacy));
 
         let compat_hint = DetectionHint {
             compat: true,

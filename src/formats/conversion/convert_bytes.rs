@@ -1119,4 +1119,127 @@ mod tests {
         .expect("macroman import");
         assert_eq!(mac_in.document, "caf\u{e9}");
     }
+
+    #[crate::ctb_test]
+    fn test_convert_dceutils_legacy_cdce_and_control_preservation() {
+        // 1. Autodetect and roundtrip all valid Weave .legacy_cdce fixtures
+        let fixtures: &[(&str, &[u8])] = &[
+            (
+                "datetime_string.legacy_cdce",
+                include_bytes!("../weave/fixtures/datetime_string.legacy_cdce"),
+            ),
+            (
+                "dce_number_format.legacy_cdce",
+                include_bytes!("../weave/fixtures/dce_number_format.legacy_cdce"),
+            ),
+            (
+                "dce_separator_level_1.legacy_cdce",
+                include_bytes!("../weave/fixtures/dce_separator_level_1.legacy_cdce"),
+            ),
+            (
+                "dce_separator_level_2.legacy_cdce",
+                include_bytes!("../weave/fixtures/dce_separator_level_2.legacy_cdce"),
+            ),
+        ];
+
+        for &(filename, raw_bytes) in fixtures {
+            let imported = convert_bytes_to_dcmstring(
+                raw_bytes,
+                Some(filename),
+                &DcConversionOptions::default(),
+            )
+            .expect("autodetect and import .legacy_cdce fixture");
+            assert_eq!(imported.detected_format, FormatId::CdceLegacy);
+            assert!(!imported.log.has_errors());
+            assert!(!imported.log.has_warnings());
+
+            let exported = convert_dcmstring_to_bytes(
+                &imported.document,
+                SupportedDcOutputFormat::CdceLegacy,
+                &DcExportOptions::default(),
+            )
+            .expect("export back to .legacy_cdce");
+            assert!(!exported.log.has_errors());
+            assert!(!exported.log.has_warnings());
+            assert_eq!(exported.bytes, raw_bytes, "roundtrip mismatch for {filename}");
+        }
+
+        // 2. Convert datetime_string.legacy_cdce -> DCE 3.01a -> DcMstring -> legacy_cdce
+        // Verify DCE stateful-encoding control characters (Dc 15, Dc 16, Dc 194, Dc 13, Dc 114,
+        // Dc 197, Dc 115, Dc 113) are preserved in DcMstring, ignored when exporting to legacy_cdce,
+        // and roundtrip back to DCE 3.01a.
+        let dt_bytes = include_bytes!("../weave/fixtures/datetime_string.legacy_cdce");
+        let dt_doc = convert_bytes_to_dcmstring(
+            dt_bytes,
+            Some("datetime_string.legacy_cdce"),
+            &DcConversionOptions::default(),
+        )
+        .expect("import datetime_string.legacy_cdce");
+
+        let dce_301a = convert_dcmstring_to_bytes(
+            &dt_doc.document,
+            SupportedDcOutputFormat::Dce_3_01a,
+            &DcExportOptions::default(),
+        )
+        .expect("export to DCE 3.01a");
+        assert!(dce_301a.bytes.starts_with(b"DCEe\x02\x01\x02\xfd"));
+        assert!(!dce_301a.log.has_warnings());
+
+        // Autodetect DCE 3.01a from magic bytes and import into DcMstring preserving control Dcs
+        let from_301a = convert_bytes_to_dcmstring(
+            &dce_301a.bytes,
+            None,
+            &DcConversionOptions::default(),
+        )
+        .expect("autodetect and import DCE 3.01a");
+        assert_eq!(from_301a.detected_format, FormatId::Dce_3_01a);
+
+        let dclist = from_301a.document.to_dc_string().unwrap().to_dclist();
+        let short_start = ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+        // Must preserve Begin DCE content (15), DCE Version Selectors (16), DCE Version Selector 3.01a (194),
+        // Begin unbounded content (114), Semantic Records (197), End unbounded content (115), End DCE content (113)
+        for ctrl_short in [15_u128, 16, 194, 13, 114, 197, 115, 113] {
+            assert!(
+                dclist.contains(&short_start.saturating_add(ctrl_short)),
+                "DcMstring imported from DCE 3.01a must preserve control Dc {ctrl_short}"
+            );
+        }
+
+        // Exporting DcMstring (with preserved DCE control Dcs) to legacy_cdce ignores control Dcs
+        let cdce_from_301a = convert_dcmstring_to_bytes(
+            &from_301a.document,
+            SupportedDcOutputFormat::CdceLegacy,
+            &DcExportOptions::default(),
+        )
+        .expect("export DCE 3.01a DcMstring to legacy_cdce");
+        assert_eq!(cdce_from_301a.bytes, dt_bytes);
+
+        // Exporting DcMstring (with preserved DCE control Dcs) back to DCE 3.01a roundtrips identically
+        let reencoded_301a = convert_dcmstring_to_bytes(
+            &from_301a.document,
+            SupportedDcOutputFormat::Dce_3_01a,
+            &DcExportOptions::default(),
+        )
+        .expect("re-export DCE 3.01a DcMstring to DCE 3.01a");
+        assert_eq!(reencoded_301a.bytes, dce_301a.bytes);
+
+        // 3. Verify unrepresentable Dcs (such as long Dcs and short Dcs > 12 in CdceLegacy) emit warnings
+        // because dceutils formats do not support Dc 308.
+        let mut unmappable_doc = DcMstring::new();
+        unmappable_doc.push_str("A");
+        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(1_114_420)); // short Dc 308 -> U+FFFD with warning
+        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(3_000_000)); // long Dc (> SHORT_DC_REGION_END) -> omitted with warning
+        let warn_export = convert_dcmstring_to_bytes(
+            &unmappable_doc,
+            SupportedDcOutputFormat::CdceLegacy,
+            &DcExportOptions::default(),
+        )
+        .expect("export with warnings");
+        assert_eq!(warn_export.bytes, b"A\xef\xbf\xbd");
+        assert!(warn_export.log.has_warnings());
+        assert!(
+            warn_export.log.get_warnings().len() >= 2,
+            "Expected warnings for unmappable short Dc 308 and long Dc 3000000"
+        );
+    }
 }
