@@ -4476,7 +4476,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_idempotent_csv_reconciliation_retracts_duplicates_and_matches_pre_step3_ledger()
+    fn test_idempotent_csv_reconciliation_retracts_duplicates_and_preserves_ambiguous_values()
     -> Result<()> {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         let repo_root = manifest_dir
@@ -4488,7 +4488,8 @@ mod tests {
         let full_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
         assert!(full_nodes.len() >= 23_752);
 
-        // 1. Re-running CSV reconciliation on the current ledger must be an idempotent 0-append no-op.
+        // 1. Re-running CSV reconciliation on the current ledger must be an idempotent 0-append no-op,
+        // and all 602 Dc 348 ("Ambiguous values") nodes in the committed ledger must remain active.
         let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
         let parsed_journal = inspect_ledger_journal(&journal_path)?;
         let committed_pairs = parsed_journal.committed_pairs;
@@ -4504,43 +4505,126 @@ mod tests {
         assert_eq!(noop_stats.nodes_retracted, 0);
         assert_eq!(noop_updated.len(), full_nodes.len());
 
-        // 2. Running general-purpose CSV reconciliation on the 23,136-node pre-Step-3 prefix
-        // (without any special-case logic for Dc 348 "Ambiguous values") must automatically
-        // retract the exact same 616 duplicate/shadowed/outdated statement nodes that were
-        // retracted in Step 3 (`l8589957728`..`l8589958343`), while leaving all Dc 348 nodes untouched.
-        let pre_step3_nodes = full_nodes[..23_136].to_vec();
-        let expected_retracted_targets: BTreeSet<u128> = full_nodes
-            [23_136..23_752]
+        let live_index =
+            crate::seed_graph::SeedGraphIndex::from_nodes(full_nodes);
+        let active_ambiguous_count = live_index
+            .nodes()
             .iter()
-            .map(|n| {
-                let Some((verb, subj, DcShorthand::Long(target_id))) =
-                    parse_statement_tokens(&n.tokens)
-                else {
-                    panic!(
-                        "Expected retraction statement in Step 3 suffix at l{}",
-                        n.id
-                    );
-                };
-                assert_eq!(verb, sh(DC_RETRACTS));
-                assert_eq!(subj, sh(DC_ENCLOSING_DOCUMENT));
-                target_id
+            .filter(|n| {
+                !live_index.inactive_ids.contains(&n.id)
+                    && crate::seed_graph::parse_ambiguous_values_tokens(
+                        &n.tokens,
+                    )
+                    .is_some()
             })
-            .collect();
-        assert_eq!(expected_retracted_targets.len(), 616);
+            .count();
+        assert_eq!(active_ambiguous_count, 602);
 
-        let pre_step3_pairs =
-            &committed_pairs[..committed_pairs.len().saturating_sub(1)];
-        let (_reconciled_items, _, reconciled_nodes, reconciled_stats) =
-            plan_csv_reconciliation_items_for_repo(
-                repo_root,
-                &pre_step3_nodes,
-                pre_step3_pairs,
-            )?;
-        assert_eq!(reconciled_stats.nodes_superseded, 3);
-        assert_eq!(reconciled_stats.nodes_retracted, 616);
+        // 2. Self-contained synthetic test: when an existing ledger contains duplicate active
+        // single-valued and multi-valued property statements alongside an active Dc 348
+        // ("Ambiguous values") list node, general-purpose CSV reconciliation retracts the
+        // duplicate statements via Dc 592 ("Retracts"), leaves the Dc 348 node untouched,
+        // and is idempotent on subsequent runs.
+        let defn = sample_dc_defn(900, "Test character", "Description text");
+        let scripts = BTreeSet::from([".Semantic".to_string()]);
+        let (mut seeded_nodes, _) = update_ledger_in_memory(
+            Vec::new(),
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
+        // Drop the trailing 2 provenance nodes (`638` + `610`) so the synthetic duplicate
+        // statements and Dc 348 list node are treated as pre-provenance CSV-owned seed nodes.
+        seeded_nodes.truncate(seeded_nodes.len().saturating_sub(2));
+
+        // Find the existing string value node for "Test character" (`Canonical name`, `Dc 572`)
+        // and for "test-alias" (`Informal alias`, `Dc 576`).
+        let name_tokens = encode_string_value_tokens("Test character");
+        let name_val_id = seeded_nodes
+            .iter()
+            .find(|n| n.tokens == name_tokens)
+            .context("Expected string value node for Canonical name")?
+            .id;
+        let alias_tokens = encode_string_value_tokens("test-alias");
+        let alias_val_id = seeded_nodes
+            .iter()
+            .find(|n| n.tokens == alias_tokens)
+            .context("Expected string value node for Informal alias")?
+            .id;
+
+        let next_id = seeded_nodes
+            .last()
+            .map_or(SYSTEM_REGION_START, |n| n.id.saturating_add(1));
+        let dup_single_has_a_id = next_id;
+        let dup_single_has_val_id = next_id.saturating_add(1);
+        let dup_multi_has_a_id = next_id.saturating_add(2);
+        let dup_multi_has_val_id = next_id.saturating_add(3);
+        let ambiguous_node_id = next_id.saturating_add(4);
+
+        seeded_nodes.push(LedgerNode {
+            id: dup_single_has_a_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_A),
+                DcShorthand::Short(900),
+                sh(DC_CANONICAL_NAME),
+            ),
+            comment: "Duplicate single-valued Has a".to_string(),
+        });
+        seeded_nodes.push(LedgerNode {
+            id: dup_single_has_val_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(dup_single_has_a_id),
+                DcShorthand::Long(name_val_id),
+            ),
+            comment: "Duplicate single-valued Has value".to_string(),
+        });
+        seeded_nodes.push(LedgerNode {
+            id: dup_multi_has_a_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_A),
+                DcShorthand::Short(900),
+                DcShorthand::Short(576),
+            ),
+            comment: "Duplicate multi-valued Has a".to_string(),
+        });
+        seeded_nodes.push(LedgerNode {
+            id: dup_multi_has_val_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(dup_multi_has_a_id),
+                DcShorthand::Long(alias_val_id),
+            ),
+            comment: "Duplicate multi-valued Has value".to_string(),
+        });
+        seeded_nodes.push(LedgerNode {
+            id: ambiguous_node_id,
+            tokens: vec![
+                DcShorthand::Short(348),
+                sh(DC_BEGIN_LIST),
+                DcShorthand::Short(275),
+                DcShorthand::Long(dup_single_has_val_id),
+                DcShorthand::Short(312),
+                DcShorthand::Long(dup_multi_has_val_id),
+                sh(DC_END_LIST),
+            ],
+            comment: "Ambiguous values candidate list".to_string(),
+        });
+
+        let pre_reconcile_len = seeded_nodes.len();
+        let (reconciled_nodes, reconciled_stats) = update_ledger_in_memory(
+            seeded_nodes,
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(reconciled_stats.nodes_superseded, 0);
+        assert_eq!(reconciled_stats.nodes_retracted, 4);
 
         let actual_retracted_targets: BTreeSet<u128> = reconciled_nodes
-            [23_136..]
+            [pre_reconcile_len..]
             .iter()
             .filter_map(|n| {
                 let (verb, subj, DcShorthand::Long(target_id)) =
@@ -4556,62 +4640,36 @@ mod tests {
                 }
             })
             .collect();
-        let diff: BTreeSet<_> = actual_retracted_targets
-            .symmetric_difference(&expected_retracted_targets)
-            .copied()
-            .collect();
-        // Step 3 retracted candidate 8589954890, but after CSV description updates for DCE (f95),
-        // candidate 8589954890 is superseded by the new description and candidate 8589954892 is retracted.
-        assert!(
-            diff.is_empty() || diff == BTreeSet::from([8589954890, 8589954892]),
-            "Unexpected retraction target differences: {diff:?}"
+        assert_eq!(
+            actual_retracted_targets,
+            BTreeSet::from([
+                dup_single_has_a_id,
+                dup_single_has_val_id,
+                dup_multi_has_a_id,
+                dup_multi_has_val_id,
+            ])
         );
 
-        // Verify all 602 active Dc 348 ("Ambiguous values") nodes remain active and untouched.
-        let index_before =
-            crate::seed_graph::SeedGraphIndex::from_nodes(pre_step3_nodes);
         let index_after = crate::seed_graph::SeedGraphIndex::from_nodes(
             reconciled_nodes.clone(),
         );
-        let active_ambiguous_before: BTreeSet<u128> = index_before
-            .nodes()
-            .iter()
-            .filter(|n| {
-                !index_before.inactive_ids.contains(&n.id)
-                    && crate::seed_graph::parse_ambiguous_values_tokens(
-                        &n.tokens,
-                    )
-                    .is_some()
-            })
-            .map(|n| n.id)
-            .collect();
-        let active_ambiguous_after: BTreeSet<u128> = index_after
-            .nodes()
-            .iter()
-            .filter(|n| {
-                !index_after.inactive_ids.contains(&n.id)
-                    && crate::seed_graph::parse_ambiguous_values_tokens(
-                        &n.tokens,
-                    )
-                    .is_some()
-            })
-            .map(|n| n.id)
-            .collect();
-        assert_eq!(active_ambiguous_before.len(), 602);
-        assert_eq!(active_ambiguous_after, active_ambiguous_before);
+        assert!(
+            !index_after.inactive_ids.contains(&ambiguous_node_id),
+            "Expected Dc 348 (Ambiguous values) node to remain active after duplicate retraction"
+        );
 
-        // 3. Re-running CSV reconciliation on `reconciled_nodes` must also be a 0-append no-op.
-        let (re_items, _, re_nodes, re_stats) =
-            plan_csv_reconciliation_items_for_repo(
-                repo_root,
-                &reconciled_nodes,
-                &committed_pairs,
-            )?;
-        assert_eq!(re_items.len(), 0);
+        // 3. Re-running CSV reconciliation on `reconciled_nodes` must be a 0-append no-op.
+        let (re_nodes, re_stats) = update_ledger_in_memory(
+            reconciled_nodes.clone(),
+            std::slice::from_ref(&defn),
+            &[],
+            &scripts,
+            None,
+        )?;
         assert_eq!(re_stats.nodes_appended, 0);
         assert_eq!(re_stats.nodes_superseded, 0);
         assert_eq!(re_stats.nodes_retracted, 0);
-        assert_eq!(re_nodes.len(), reconciled_nodes.len());
+        assert_eq!(re_nodes, reconciled_nodes);
 
         Ok(())
     }
