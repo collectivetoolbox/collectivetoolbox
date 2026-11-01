@@ -639,8 +639,8 @@ struct LedgerBuilder {
     /// All active direct binary statement node IDs per `(verb, subject, object)` in ascending `stmt_id` order.
     direct_stmts_all:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), Vec<u128>>,
-    /// Active statement node IDs that are shadowed or orphaned in the loaded graph.
-    shadowed_or_orphaned_stmt_ids: Vec<u128>,
+    /// Active statement node IDs that are structurally orphaned in the loaded graph.
+    orphaned_stmt_ids: Vec<u128>,
     /// Maps `@vary_as` nicknames to their `.Formats:format_variant` Dc shorthand.
     vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
@@ -767,7 +767,7 @@ impl LedgerBuilder {
             preferred_all_by_subj_val: index.preferred_all_by_subj_val,
             active_direct_stmts: index.active_direct_stmts,
             direct_stmts_all: index.direct_stmts_all,
-            shadowed_or_orphaned_stmt_ids: index.shadowed_or_orphaned_stmt_ids,
+            orphaned_stmt_ids: index.orphaned_stmt_ids,
             vary_as_to_format_variant,
         }
     }
@@ -1252,9 +1252,9 @@ impl LedgerBuilder {
                 .insert(nick.clone(), *variant_sh);
         }
 
-        // 0. Collect any shadowed or orphaned CSV-owned structural statement nodes for retraction.
+        // 0. Collect any orphaned CSV-owned structural statement nodes for retraction.
         let mut retract_targets: BTreeSet<u128> = BTreeSet::new();
-        for stmt_id in std::mem::take(&mut self.shadowed_or_orphaned_stmt_ids) {
+        for stmt_id in std::mem::take(&mut self.orphaned_stmt_ids) {
             if !self.is_manual_node(stmt_id) {
                 retract_targets.insert(stmt_id);
             }
@@ -1368,6 +1368,7 @@ impl LedgerBuilder {
                     .iter()
                     .position(|&(_, _, v)| v == val_tok)
                     .unwrap_or(0);
+                let kept_has_a_id = cands.get(keep_idx).map(|&(id, _, _)| id);
                 for (idx, &(other_has_a_id, other_has_val_id, _)) in
                     cands.iter().enumerate()
                 {
@@ -1376,7 +1377,9 @@ impl LedgerBuilder {
                         && !self.is_manual_node(other_has_val_id)
                     {
                         retract_targets.insert(other_has_val_id);
-                        retract_targets.insert(other_has_a_id);
+                        if Some(other_has_a_id) != kept_has_a_id {
+                            retract_targets.insert(other_has_a_id);
+                        }
                     }
                 }
                 if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
@@ -1504,39 +1507,44 @@ impl LedgerBuilder {
                 0usize
             };
 
+            let kept_has_a_id = cands.get(keep_idx).map(|c| c.has_a_id);
             for (idx, cand) in cands.iter().enumerate() {
                 if idx != keep_idx
                     && !self.is_manual_node(cand.has_a_id)
                     && !self.is_manual_node(cand.has_val_id)
                 {
-                    if let Some(pref_id) = cand.preferred_id
-                        && !self.is_manual_node(pref_id)
-                    {
-                        retract_targets.insert(pref_id);
-                    }
-                    let dup_qual_keys: Vec<(DcShorthand, DcShorthand)> = self
-                        .single_props_by_subj_prop
-                        .keys()
-                        .filter(|&&(s, _)| s == DcShorthand::Long(cand.has_a_id))
-                        .copied()
-                        .collect();
-                    for qk in dup_qual_keys {
-                        self.active_single_props.remove(&qk);
-                        if let Some(q_cands) =
-                            self.single_props_by_subj_prop.remove(&qk)
+                    retract_targets.insert(cand.has_val_id);
+                    if Some(cand.has_a_id) != kept_has_a_id {
+                        if let Some(pref_id) = cand.preferred_id
+                            && !self.is_manual_node(pref_id)
                         {
-                            for (q_has_a_id, q_has_val_id, _) in q_cands {
-                                if !self.is_manual_node(q_has_a_id)
-                                    && !self.is_manual_node(q_has_val_id)
-                                {
-                                    retract_targets.insert(q_has_val_id);
-                                    retract_targets.insert(q_has_a_id);
+                            retract_targets.insert(pref_id);
+                        }
+                        let dup_qual_keys: Vec<(DcShorthand, DcShorthand)> = self
+                            .single_props_by_subj_prop
+                            .keys()
+                            .filter(|&&(s, _)| {
+                                s == DcShorthand::Long(cand.has_a_id)
+                            })
+                            .copied()
+                            .collect();
+                        for qk in dup_qual_keys {
+                            self.active_single_props.remove(&qk);
+                            if let Some(q_cands) =
+                                self.single_props_by_subj_prop.remove(&qk)
+                            {
+                                for (q_has_a_id, q_has_val_id, _) in q_cands {
+                                    if !self.is_manual_node(q_has_a_id)
+                                        && !self.is_manual_node(q_has_val_id)
+                                    {
+                                        retract_targets.insert(q_has_val_id);
+                                        retract_targets.insert(q_has_a_id);
+                                    }
                                 }
                             }
                         }
+                        retract_targets.insert(cand.has_a_id);
                     }
-                    retract_targets.insert(cand.has_val_id);
-                    retract_targets.insert(cand.has_a_id);
                 }
             }
 
@@ -1682,34 +1690,41 @@ impl LedgerBuilder {
 
             // Retract any leftover unpaired removed values (and any qualifiers on their `has_a_id`)
             for (old_val_tok, has_a_id, old_has_val_id) in removed {
-                if let Some(pref_id) =
-                    self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
-                {
-                    retract_targets.insert(pref_id);
-                }
-                let qual_keys: Vec<(DcShorthand, DcShorthand)> = self
-                    .single_props_by_subj_prop
-                    .keys()
-                    .filter(|&&(s, _)| s == DcShorthand::Long(has_a_id))
-                    .copied()
-                    .collect();
-                for qk in qual_keys {
-                    self.active_single_props.remove(&qk);
-                    if let Some(q_cands) =
-                        self.single_props_by_subj_prop.remove(&qk)
+                let has_a_still_used = self
+                    .active_multi_props
+                    .values()
+                    .any(|&(kept_has_a_id, _)| kept_has_a_id == has_a_id);
+                retract_targets.insert(old_has_val_id);
+                if !has_a_still_used {
+                    if let Some(pref_id) = self
+                        .active_multi_preferred
+                        .remove(&(subj, prop, old_val_tok))
                     {
-                        for (q_has_a_id, q_has_val_id, _) in q_cands {
-                            if !self.is_manual_node(q_has_a_id)
-                                && !self.is_manual_node(q_has_val_id)
-                            {
-                                retract_targets.insert(q_has_val_id);
-                                retract_targets.insert(q_has_a_id);
+                        retract_targets.insert(pref_id);
+                    }
+                    let qual_keys: Vec<(DcShorthand, DcShorthand)> = self
+                        .single_props_by_subj_prop
+                        .keys()
+                        .filter(|&&(s, _)| s == DcShorthand::Long(has_a_id))
+                        .copied()
+                        .collect();
+                    for qk in qual_keys {
+                        self.active_single_props.remove(&qk);
+                        if let Some(q_cands) =
+                            self.single_props_by_subj_prop.remove(&qk)
+                        {
+                            for (q_has_a_id, q_has_val_id, _) in q_cands {
+                                if !self.is_manual_node(q_has_a_id)
+                                    && !self.is_manual_node(q_has_val_id)
+                                {
+                                    retract_targets.insert(q_has_val_id);
+                                    retract_targets.insert(q_has_a_id);
+                                }
                             }
                         }
                     }
+                    retract_targets.insert(has_a_id);
                 }
-                retract_targets.insert(old_has_val_id);
-                retract_targets.insert(has_a_id);
             }
 
             // Append any leftover unpaired added values
@@ -1824,6 +1839,7 @@ impl LedgerBuilder {
                     .iter()
                     .position(|&(_, _, v)| v == qual_val_tok)
                     .unwrap_or(0);
+                let kept_has_a_id = cands.get(keep_idx).map(|&(id, _, _)| id);
                 for (idx, &(other_has_a_id, other_has_val_id, _)) in
                     cands.iter().enumerate()
                 {
@@ -1832,12 +1848,15 @@ impl LedgerBuilder {
                         && !self.is_manual_node(other_has_val_id)
                     {
                         retract_targets.insert(other_has_val_id);
-                        retract_targets.insert(other_has_a_id);
+                        if Some(other_has_a_id) != kept_has_a_id {
+                            retract_targets.insert(other_has_a_id);
+                        }
                     }
                 }
-                if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
+                if let Some(&( kept_has_a_id, old_has_val_id, old_val_tok)) =
                     cands.get(keep_idx)
                 {
+                    let has_a_id = kept_has_a_id;
                     if old_val_tok != qual_val_tok {
                         ensure!(
                             !self.is_manual_node(has_a_id)

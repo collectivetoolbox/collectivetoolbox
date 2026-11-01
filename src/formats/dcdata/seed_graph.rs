@@ -186,9 +186,10 @@ pub struct SeedGraphIndex {
     /// Active direct binary statement subjects grouped by `(verb, object)` in ascending `stmt_id` order.
     pub(crate) direct_subjects_by_verb_obj:
         HashMap<(DcShorthand, DcShorthand), Vec<DcShorthand>>,
-    /// Active statement node IDs that are shadowed (e.g. an earlier active `610` on the same `584`
-    /// statement) or orphaned (e.g. an active `584` property statement with no active `610` value).
-    pub(crate) shadowed_or_orphaned_stmt_ids: Vec<u128>,
+    /// Active statement node IDs that are structurally orphaned (e.g. an active `584` property
+    /// statement with no active `610` value). Multiple active statements for the same property or
+    /// on the same `584` node are NOT shadowed here; all remain active in the index.
+    pub(crate) orphaned_stmt_ids: Vec<u128>,
 }
 
 /// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
@@ -491,10 +492,11 @@ impl SeedGraphIndex {
         let mut value_node_by_tokens = HashMap::new();
         let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
         let mut integer_by_node_id: HashMap<u128, u128> = HashMap::new();
-        let mut active_has_val_by_stmt: HashMap<u128, (u128, DcShorthand)> =
+        let mut active_has_val_by_stmt: HashMap<u128, Vec<(u128, DcShorthand)>> =
             HashMap::new();
-        let mut active_pref_qual_by_stmt: HashMap<u128, u128> = HashMap::new();
-        let mut shadowed_or_orphaned_stmt_ids: Vec<u128> = Vec::new();
+        let mut active_pref_qual_by_stmt: HashMap<u128, Vec<u128>> =
+            HashMap::new();
+        let mut orphaned_stmt_ids: Vec<u128> = Vec::new();
 
         for node in &nodes {
             if let Some(decoded_str) = decode_string_value_tokens(&node.tokens)
@@ -528,21 +530,18 @@ impl SeedGraphIndex {
                                         .is_some_and(|(v, _, _)| v == sh_has_a)
                                 });
                             if is_prop_has_a {
-                                if let Some((old_val_stmt_id, _)) =
-                                    active_has_val_by_stmt
-                                        .insert(has_a_id, (node.id, obj))
-                                {
-                                    shadowed_or_orphaned_stmt_ids
-                                        .push(old_val_stmt_id);
-                                }
+                                active_has_val_by_stmt
+                                    .entry(has_a_id)
+                                    .or_default()
+                                    .push((node.id, obj));
                             } else {
-                                shadowed_or_orphaned_stmt_ids.push(node.id);
+                                orphaned_stmt_ids.push(node.id);
                             }
                         } else {
                             inactive_ids.insert(node.id);
                         }
                     } else {
-                        shadowed_or_orphaned_stmt_ids.push(node.id);
+                        orphaned_stmt_ids.push(node.id);
                     }
                 } else if verb == sh_has_a && obj == sh_preferred {
                     if let DcShorthand::Long(has_a_id) = subj {
@@ -555,13 +554,10 @@ impl SeedGraphIndex {
                             });
                         if targets_has_a {
                             if !inactive_ids.contains(&has_a_id) {
-                                if let Some(old_pref_id) =
-                                    active_pref_qual_by_stmt
-                                        .insert(has_a_id, node.id)
-                                {
-                                    shadowed_or_orphaned_stmt_ids
-                                        .push(old_pref_id);
-                                }
+                                active_pref_qual_by_stmt
+                                    .entry(has_a_id)
+                                    .or_default()
+                                    .push(node.id);
                             } else {
                                 inactive_ids.insert(node.id);
                             }
@@ -649,123 +645,131 @@ impl SeedGraphIndex {
             }
 
             if verb == sh_has_a {
-                if let Some(&(has_val_id, val_tok)) =
-                    active_has_val_by_stmt.get(&node.id)
+                if let Some(has_vals) = active_has_val_by_stmt.get(&node.id)
+                    && !has_vals.is_empty()
                 {
-                    // Check if this names a seed entity (`584 l<seed_id> 572/574` -> `610 ... l<str_id>`).
-                    if let (
-                        DcShorthand::Long(seed_id),
-                        DcShorthand::Long(str_id),
-                    ) = (subj, val_tok)
-                    {
-                        if let (Some(&class_sh), Some(label)) = (
-                            seed_candidate_class.get(&seed_id),
-                            string_by_node_id.get(&str_id),
-                        ) {
-                            let key_opt = if class_sh == sh_bidi_class
-                                && obj == sh_prog_ident
-                            {
-                                Some(SeedEntityKey::BidiClass(label.clone()))
-                            } else if (class_sh == sh_char_gen_cat
-                                || class_sh == sh_dc_gen_cat)
-                                && obj == sh_prog_ident
-                            {
-                                Some(SeedEntityKey::GeneralCategory(
-                                    label.clone(),
-                                ))
-                            } else if (class_sh == sh_char_script
-                                || class_sh == sh_uni_script)
-                                && obj == sh_canon_name
-                            {
-                                Some(SeedEntityKey::Script(label.clone()))
-                            } else if class_sh == sh_entity_type
-                                && obj == sh_canon_name
-                            {
-                                Some(SeedEntityKey::NamedConstruct(
-                                    label.clone(),
-                                ))
-                            } else {
-                                None
-                            };
-                            if let Some(seed_key) = key_opt {
-                                if let Some(&existing_seed_id) =
-                                    seed_entity_ids.get(&seed_key)
+                    let pref_ids = active_pref_qual_by_stmt.get(&node.id);
+                    let first_pref_id =
+                        pref_ids.and_then(|ids| ids.last().copied());
+                    if let Some(ids) = pref_ids {
+                        for &extra_pref_id in
+                            ids.get(..ids.len().saturating_sub(1)).into_iter().flatten()
+                        {
+                            orphaned_stmt_ids.push(extra_pref_id);
+                        }
+                    }
+                    for &(has_val_id, val_tok) in has_vals {
+                        // Check if this names a seed entity (`584 l<seed_id> 572/574` -> `610 ... l<str_id>`).
+                        if let (
+                            DcShorthand::Long(seed_id),
+                            DcShorthand::Long(str_id),
+                        ) = (subj, val_tok)
+                        {
+                            if let (Some(&class_sh), Some(label)) = (
+                                seed_candidate_class.get(&seed_id),
+                                string_by_node_id.get(&str_id),
+                            ) {
+                                let key_opt = if class_sh == sh_bidi_class
+                                    && obj == sh_prog_ident
                                 {
-                                    if existing_seed_id != seed_id {
-                                        shadowed_or_orphaned_stmt_ids
-                                            .push(has_val_id);
-                                        shadowed_or_orphaned_stmt_ids
-                                            .push(node.id);
-                                        shadowed_or_orphaned_stmt_ids
-                                            .push(seed_id);
-                                        continue;
-                                    }
+                                    Some(SeedEntityKey::BidiClass(label.clone()))
+                                } else if (class_sh == sh_char_gen_cat
+                                    || class_sh == sh_dc_gen_cat)
+                                    && obj == sh_prog_ident
+                                {
+                                    Some(SeedEntityKey::GeneralCategory(
+                                        label.clone(),
+                                    ))
+                                } else if (class_sh == sh_char_script
+                                    || class_sh == sh_uni_script)
+                                    && obj == sh_canon_name
+                                {
+                                    Some(SeedEntityKey::Script(label.clone()))
+                                } else if class_sh == sh_entity_type
+                                    && obj == sh_canon_name
+                                {
+                                    Some(SeedEntityKey::NamedConstruct(
+                                        label.clone(),
+                                    ))
                                 } else {
-                                    seed_entity_by_id
-                                        .insert(seed_id, seed_key.clone());
-                                    seed_entity_ids.insert(seed_key, seed_id);
+                                    None
+                                };
+                                if let Some(seed_key) = key_opt {
+                                    if let Some(&existing_seed_id) =
+                                        seed_entity_ids.get(&seed_key)
+                                    {
+                                        if existing_seed_id != seed_id {
+                                            orphaned_stmt_ids.push(has_val_id);
+                                            orphaned_stmt_ids.push(node.id);
+                                            orphaned_stmt_ids.push(seed_id);
+                                            continue;
+                                        }
+                                    } else {
+                                        seed_entity_by_id
+                                            .insert(seed_id, seed_key.clone());
+                                        seed_entity_ids
+                                            .insert(seed_key, seed_id);
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if obj == sh_replacement {
-                        if let Some(&pref_id) =
-                            active_pref_qual_by_stmt.get(&node.id)
-                        {
-                            consumed_pref_qual_has_a_ids.insert(node.id);
-                            preferred_all_by_subj_val
-                                .entry((subj, val_tok))
-                                .or_default()
-                                .push((node.id, has_val_id, pref_id));
-                            if !active_preferred.contains_key(&(subj, val_tok))
-                            {
-                                active_preferred.insert(
-                                    (subj, val_tok),
-                                    (node.id, has_val_id, pref_id),
-                                );
-                                preferred_by_subject
-                                    .entry(subj)
+                        if obj == sh_replacement {
+                            if let Some(pref_id) = first_pref_id {
+                                consumed_pref_qual_has_a_ids.insert(node.id);
+                                preferred_all_by_subj_val
+                                    .entry((subj, val_tok))
                                     .or_default()
-                                    .push(val_tok);
+                                    .push((node.id, has_val_id, pref_id));
+                                if !active_preferred
+                                    .contains_key(&(subj, val_tok))
+                                {
+                                    active_preferred.insert(
+                                        (subj, val_tok),
+                                        (node.id, has_val_id, pref_id),
+                                    );
+                                    preferred_by_subject
+                                        .entry(subj)
+                                        .or_default()
+                                        .push(val_tok);
+                                }
+                                continue;
                             }
-                            continue;
                         }
-                    }
 
-                    if single_valued_props.contains(&obj) {
-                        single_props_by_subj_prop
-                            .entry((subj, obj))
-                            .or_default()
-                            .push((node.id, has_val_id, val_tok));
-                        active_single_props.insert(
-                            (subj, obj),
-                            (node.id, has_val_id, val_tok),
-                        );
-                    } else {
-                        let preferred_id =
-                            active_pref_qual_by_stmt.get(&node.id).copied();
-                        if let Some(pref_id) = preferred_id {
-                            consumed_pref_qual_has_a_ids.insert(node.id);
-                            active_multi_preferred
-                                .insert((subj, obj, val_tok), pref_id);
+                        if single_valued_props.contains(&obj) {
+                            single_props_by_subj_prop
+                                .entry((subj, obj))
+                                .or_default()
+                                .push((node.id, has_val_id, val_tok));
+                            active_single_props.insert(
+                                (subj, obj),
+                                (node.id, has_val_id, val_tok),
+                            );
+                        } else {
+                            let preferred_id = first_pref_id;
+                            if let Some(pref_id) = preferred_id {
+                                consumed_pref_qual_has_a_ids.insert(node.id);
+                                active_multi_preferred
+                                    .insert((subj, obj, val_tok), pref_id);
+                            }
+                            active_multi_props.insert(
+                                (subj, obj, val_tok),
+                                (node.id, has_val_id),
+                            );
+                            multi_props_by_subj_prop
+                                .entry((subj, obj))
+                                .or_default()
+                                .push(ActivePropertyValue {
+                                    has_a_id: node.id,
+                                    has_val_id,
+                                    value: val_tok,
+                                    preferred_id,
+                                });
                         }
-                        active_multi_props.insert(
-                            (subj, obj, val_tok),
-                            (node.id, has_val_id),
-                        );
-                        multi_props_by_subj_prop
-                            .entry((subj, obj))
-                            .or_default()
-                            .push(ActivePropertyValue {
-                                has_a_id: node.id,
-                                has_val_id,
-                                value: val_tok,
-                                preferred_id,
-                            });
                     }
                 } else {
-                    shadowed_or_orphaned_stmt_ids.push(node.id);
+                    orphaned_stmt_ids.push(node.id);
                 }
             } else {
                 direct_stmts_all
@@ -785,18 +789,18 @@ impl SeedGraphIndex {
             }
         }
 
-        for (&has_a_id, &pref_id) in &active_pref_qual_by_stmt {
+        for (&has_a_id, pref_ids) in &active_pref_qual_by_stmt {
             if !consumed_pref_qual_has_a_ids.contains(&has_a_id) {
-                shadowed_or_orphaned_stmt_ids.push(pref_id);
+                orphaned_stmt_ids.extend(pref_ids.iter().copied());
             }
         }
         for &seed_id in seed_candidate_class.keys() {
             if !seed_entity_by_id.contains_key(&seed_id) {
-                shadowed_or_orphaned_stmt_ids.push(seed_id);
+                orphaned_stmt_ids.push(seed_id);
             }
         }
-        shadowed_or_orphaned_stmt_ids.sort_unstable();
-        shadowed_or_orphaned_stmt_ids.dedup();
+        orphaned_stmt_ids.sort_unstable();
+        orphaned_stmt_ids.dedup();
 
         for list in multi_props_by_subj_prop.values_mut() {
             if list.iter().any(|e| e.preferred_id.is_some()) {
@@ -827,7 +831,7 @@ impl SeedGraphIndex {
             direct_stmts_all,
             direct_objects_by_verb_subj,
             direct_subjects_by_verb_obj,
-            shadowed_or_orphaned_stmt_ids,
+            orphaned_stmt_ids,
         }
     }
 
