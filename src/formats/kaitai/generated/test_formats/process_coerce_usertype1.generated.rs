@@ -100,7 +100,11 @@ impl KStruct for ProcessCoerceUsertype1 {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,7 +119,12 @@ impl KStruct for ProcessCoerceUsertype1 {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = 2_usize;
         for _i in 0_usize..l_records {
-            let t = Self::read_into::<_, ProcessCoerceUsertype1_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, ProcessCoerceUsertype1_Record>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.records.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -123,10 +132,11 @@ impl KStruct for ProcessCoerceUsertype1 {
         Ok(())
     }
 }
+impl ProcessCoerceUsertype1 {}
 impl ProcessCoerceUsertype1 {
-}
-impl ProcessCoerceUsertype1 {
-    pub fn records(&self) -> Ref<'_, Vec<OptRc<ProcessCoerceUsertype1_Record>>> {
+    pub fn records(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<ProcessCoerceUsertype1_Record>>> {
         self.records.borrow()
     }
 }
@@ -150,35 +160,51 @@ pub struct ProcessCoerceUsertype1_Foo {
     value: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
+impl TryFrom<&ProcessCoerceUsertype1_Foo>
+    for OptRc<ProcessCoerceUsertype1_Foo>
+{
     type Error = KError;
     fn try_from(v: &ProcessCoerceUsertype1_Foo) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
+impl TryFrom<&&ProcessCoerceUsertype1_Foo>
+    for OptRc<ProcessCoerceUsertype1_Foo>
+{
     type Error = KError;
     fn try_from(v: &&ProcessCoerceUsertype1_Foo) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for ProcessCoerceUsertype1_Foo {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for &ProcessCoerceUsertype1_Foo {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo>
+    for OptRc<ProcessCoerceUsertype1_Foo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for &OptRc<ProcessCoerceUsertype1_Foo> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo>
+    for &OptRc<ProcessCoerceUsertype1_Foo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -186,7 +212,11 @@ impl KStruct for ProcessCoerceUsertype1_Foo {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -204,8 +234,7 @@ impl KStruct for ProcessCoerceUsertype1_Foo {
         Ok(())
     }
 }
-impl ProcessCoerceUsertype1_Foo {
-}
+impl ProcessCoerceUsertype1_Foo {}
 impl ProcessCoerceUsertype1_Foo {
     pub fn value(&self) -> Ref<'_, u32> {
         self.value.borrow()
@@ -237,35 +266,59 @@ pub struct ProcessCoerceUsertype1_Record {
     f_buf: Cell<bool>,
     buf: RefCell<OptRc<ProcessCoerceUsertype1_Foo>>,
 }
-impl TryFrom<&ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
+impl TryFrom<&ProcessCoerceUsertype1_Record>
+    for OptRc<ProcessCoerceUsertype1_Record>
+{
     type Error = KError;
-    fn try_from(v: &ProcessCoerceUsertype1_Record) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &ProcessCoerceUsertype1_Record,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
+impl TryFrom<&&ProcessCoerceUsertype1_Record>
+    for OptRc<ProcessCoerceUsertype1_Record>
+{
     type Error = KError;
-    fn try_from(v: &&ProcessCoerceUsertype1_Record) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ProcessCoerceUsertype1_Record,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Record> for ProcessCoerceUsertype1_Record {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Record>
+    for ProcessCoerceUsertype1_Record
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Record> for &ProcessCoerceUsertype1_Record {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Record>
+    for &ProcessCoerceUsertype1_Record
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Record>
+    for OptRc<ProcessCoerceUsertype1_Record>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessCoerceUsertype1_Record> for &OptRc<ProcessCoerceUsertype1_Record> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceUsertype1_Record>
+    for &OptRc<ProcessCoerceUsertype1_Record>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
         Ok((*self).clone())
     }
 }
@@ -273,7 +326,11 @@ impl KStruct for ProcessCoerceUsertype1_Record {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -292,7 +349,12 @@ impl KStruct for ProcessCoerceUsertype1_Record {
             let _raw_buf_unproc = _io.read_bytes(4_usize)?;
             *self_rc.buf_unproc_raw.borrow_mut() = _raw_buf_unproc.clone();
             let _io_buf_unproc = BytesReader::from(_raw_buf_unproc);
-            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(&_io_buf_unproc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(
+                &_io_buf_unproc,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.buf_unproc.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -302,7 +364,12 @@ impl KStruct for ProcessCoerceUsertype1_Record {
             *self_rc.buf_proc_raw.borrow_mut() = _raw_buf_proc.clone();
             let _processed_buf_proc = process_xor_one(&_raw_buf_proc, 170_u8);
             let _io_buf_proc = BytesReader::from(_processed_buf_proc);
-            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(&_io_buf_proc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(
+                &_io_buf_proc,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.buf_proc.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -311,15 +378,22 @@ impl KStruct for ProcessCoerceUsertype1_Record {
     }
 }
 impl ProcessCoerceUsertype1_Record {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn buf(
-        &self
-    ) -> KResult<Ref<'_, OptRc<ProcessCoerceUsertype1_Foo>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn buf(&self) -> KResult<Ref<'_, OptRc<ProcessCoerceUsertype1_Foo>>> {
         let _io = self._io.borrow();
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
-        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) { self.buf_unproc().clone() } else { self.buf_proc().clone() }.clone();
+        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) {
+            self.buf_unproc().clone()
+        } else {
+            self.buf_proc().clone()
+        }
+        .clone();
         Ok(self.buf.borrow())
     }
 }

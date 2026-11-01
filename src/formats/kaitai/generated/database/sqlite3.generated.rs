@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use crate::generated::common::vlq_base128_be::VlqBase128Be;
 use crate::generated::common::vlq_base128_be::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * SQLite3 is a popular serverless SQL engine, implemented as a library
@@ -94,7 +94,11 @@ impl KStruct for Sqlite3 {
     type Root = Sqlite3;
     type Parent = Sqlite3;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -107,15 +111,25 @@ impl KStruct for Sqlite3 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(16_usize)?;
-        if !(*self_rc.magic() == vec![0x53u8, 0x51u8, 0x4cu8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x6fu8, 0x72u8, 0x6du8, 0x61u8, 0x74u8, 0x20u8, 0x33u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![
+                0x53u8, 0x51u8, 0x4cu8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8,
+                0x6fu8, 0x72u8, 0x6du8, 0x61u8, 0x74u8, 0x20u8, 0x33u8, 0x0u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_page_mod.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.write_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.write_version.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.read_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.read_version.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_space.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -141,7 +155,8 @@ impl KStruct for Sqlite3 {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_root_page.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.text_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.text_encoding.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.user_version.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -155,7 +170,12 @@ impl KStruct for Sqlite3 {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sqlite_version_number.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Sqlite3_BtreePage>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Sqlite3_BtreePage>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.root_page.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -163,16 +183,24 @@ impl KStruct for Sqlite3 {
     }
 }
 impl Sqlite3 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_page(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_page(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_page.get() {
             return Ok(self.len_page.borrow());
         }
         self.f_len_page.set(true);
-        *self.len_page.borrow_mut() = (if (to_i128(*self.len_page_mod())) == (to_i128(1)) { 65536_i32 } else { i32::from(*self.len_page_mod()) }).try_into()?;
+        *self.len_page.borrow_mut() =
+            (if (to_i128(*self.len_page_mod())) == (to_i128(1)) {
+                65536_i32
+            } else {
+                i32::from(*self.len_page_mod())
+            })
+            .try_into()?;
         Ok(self.len_page.borrow())
     }
 }
@@ -400,13 +428,15 @@ impl From<&Sqlite3_Encodings> for i64 {
             Sqlite3_Encodings::Utf8 => 1,
             Sqlite3_Encodings::Utf16le => 2,
             Sqlite3_Encodings::Utf16be => 3,
-            Sqlite3_Encodings::Unknown(v) => v
+            Sqlite3_Encodings::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Sqlite3_Encodings {
-    fn default() -> Self { Sqlite3_Encodings::Unknown(0) }
+    fn default() -> Self {
+        Sqlite3_Encodings::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -432,15 +462,16 @@ impl From<&Sqlite3_Versions> for i64 {
         match *v {
             Sqlite3_Versions::Legacy => 1,
             Sqlite3_Versions::Wal => 2,
-            Sqlite3_Versions::Unknown(v) => v
+            Sqlite3_Versions::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Sqlite3_Versions {
-    fn default() -> Self { Sqlite3_Versions::Unknown(0) }
+    fn default() -> Self {
+        Sqlite3_Versions::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Sqlite3_BtreePage {
@@ -492,7 +523,11 @@ impl KStruct for Sqlite3_BtreePage {
     type Root = Sqlite3;
     type Parent = Sqlite3;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -515,14 +550,21 @@ impl KStruct for Sqlite3_BtreePage {
         *self_rc.num_frag_free_bytes.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (((to_i128(*self_rc.page_type())) == (to_i128(2)))) || (((to_i128(*self_rc.page_type())) == (to_i128(5))))  {
+        if ((to_i128(*self_rc.page_type())) == (to_i128(2)))
+            || ((to_i128(*self_rc.page_type())) == (to_i128(5)))
+        {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.cells.borrow_mut() = Vec::new();
         let l_cells = usize::from(*self_rc.num_cells());
         for _i in 0_usize..l_cells {
-            let t = Self::read_into::<_, Sqlite3_RefCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Sqlite3_RefCell>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.cells.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -530,8 +572,7 @@ impl KStruct for Sqlite3_BtreePage {
         Ok(())
     }
 }
-impl Sqlite3_BtreePage {
-}
+impl Sqlite3_BtreePage {}
 impl Sqlite3_BtreePage {
     pub fn page_type(&self) -> Ref<'_, u8> {
         self.page_type.borrow()
@@ -607,22 +648,34 @@ impl TryFrom<&&Sqlite3_CellIndexInterior> for OptRc<Sqlite3_CellIndexInterior> {
     }
 }
 impl DowncastOptRc<Sqlite3_CellIndexInterior> for Sqlite3_CellIndexInterior {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Sqlite3_CellIndexInterior> for &Sqlite3_CellIndexInterior {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Sqlite3_CellIndexInterior> for OptRc<Sqlite3_CellIndexInterior> {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+impl DowncastOptRc<Sqlite3_CellIndexInterior>
+    for OptRc<Sqlite3_CellIndexInterior>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Sqlite3_CellIndexInterior> for &OptRc<Sqlite3_CellIndexInterior> {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+impl DowncastOptRc<Sqlite3_CellIndexInterior>
+    for &OptRc<Sqlite3_CellIndexInterior>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         Ok((*self).clone())
     }
 }
@@ -630,7 +683,11 @@ impl KStruct for Sqlite3_CellIndexInterior {
     type Root = Sqlite3;
     type Parent = Sqlite3_RefCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -647,18 +704,23 @@ impl KStruct for Sqlite3_CellIndexInterior {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
+        let _raw_payload =
+            _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
-        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(
+            &_io_payload,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Sqlite3_CellIndexInterior {
-}
+impl Sqlite3_CellIndexInterior {}
 impl Sqlite3_CellIndexInterior {
     pub fn left_child_page(&self) -> Ref<'_, u32> {
         self.left_child_page.borrow()
@@ -741,7 +803,11 @@ impl KStruct for Sqlite3_CellIndexLeaf {
     type Root = Sqlite3;
     type Parent = Sqlite3_RefCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -756,18 +822,23 @@ impl KStruct for Sqlite3_CellIndexLeaf {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
+        let _raw_payload =
+            _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
-        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(
+            &_io_payload,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Sqlite3_CellIndexLeaf {
-}
+impl Sqlite3_CellIndexLeaf {}
 impl Sqlite3_CellIndexLeaf {
     pub fn len_payload(&self) -> Ref<'_, OptRc<VlqBase128Be>> {
         self.len_payload.borrow()
@@ -846,7 +917,11 @@ impl KStruct for Sqlite3_CellPayload {
     type Root = Sqlite3;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -861,17 +936,40 @@ impl KStruct for Sqlite3_CellPayload {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_header_and_len.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_column_serials = _io.read_bytes(usize::try_from((*self_rc.len_header_and_len().value()?).saturating_sub(1_i32))?)?;
+        let _raw_column_serials = _io.read_bytes(usize::try_from(
+            (*self_rc.len_header_and_len().value()?).saturating_sub(1_i32),
+        )?)?;
         *self_rc.column_serials_raw.borrow_mut() = _raw_column_serials.clone();
         let _io_column_serials = BytesReader::from(_raw_column_serials);
-        let t = Self::read_into::<BytesReader, Sqlite3_Serials>(&_io_column_serials, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, Sqlite3_Serials>(
+            &_io_column_serials,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.column_serials.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.column_contents.borrow_mut() = Vec::new();
-        let l_column_contents = usize::try_from(self_rc.column_serials().entries().len())?;
+        let l_column_contents =
+            usize::try_from(self_rc.column_serials().entries().len())?;
         for _i in 0_usize..l_column_contents {
-            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params((self_rc.column_serials().entries().get(_i).ok_or(KError::CastError)?).clone()));
-            let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut Sqlite3_ColumnContent| {
+                Ok(t.set_params(
+                    (self_rc
+                        .column_serials()
+                        .entries()
+                        .get(_i)
+                        .ok_or(KError::CastError)?)
+                    .clone(),
+                ))
+            };
+            let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.column_contents.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -879,8 +977,7 @@ impl KStruct for Sqlite3_CellPayload {
         Ok(())
     }
 }
-impl Sqlite3_CellPayload {
-}
+impl Sqlite3_CellPayload {}
 impl Sqlite3_CellPayload {
     pub fn len_header_and_len(&self) -> Ref<'_, OptRc<VlqBase128Be>> {
         self.len_header_and_len.borrow()
@@ -892,7 +989,9 @@ impl Sqlite3_CellPayload {
     }
 }
 impl Sqlite3_CellPayload {
-    pub fn column_contents(&self) -> Ref<'_, Vec<OptRc<Sqlite3_ColumnContent>>> {
+    pub fn column_contents(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<Sqlite3_ColumnContent>>> {
         self.column_contents.borrow()
     }
 }
@@ -939,22 +1038,34 @@ impl TryFrom<&&Sqlite3_CellTableInterior> for OptRc<Sqlite3_CellTableInterior> {
     }
 }
 impl DowncastOptRc<Sqlite3_CellTableInterior> for Sqlite3_CellTableInterior {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Sqlite3_CellTableInterior> for &Sqlite3_CellTableInterior {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Sqlite3_CellTableInterior> for OptRc<Sqlite3_CellTableInterior> {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+impl DowncastOptRc<Sqlite3_CellTableInterior>
+    for OptRc<Sqlite3_CellTableInterior>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Sqlite3_CellTableInterior> for &OptRc<Sqlite3_CellTableInterior> {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+impl DowncastOptRc<Sqlite3_CellTableInterior>
+    for &OptRc<Sqlite3_CellTableInterior>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         Ok((*self).clone())
     }
 }
@@ -962,7 +1073,11 @@ impl KStruct for Sqlite3_CellTableInterior {
     type Root = Sqlite3;
     type Parent = Sqlite3_RefCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -983,8 +1098,7 @@ impl KStruct for Sqlite3_CellTableInterior {
         Ok(())
     }
 }
-impl Sqlite3_CellTableInterior {
-}
+impl Sqlite3_CellTableInterior {}
 impl Sqlite3_CellTableInterior {
     pub fn left_child_page(&self) -> Ref<'_, u32> {
         self.left_child_page.borrow()
@@ -1058,7 +1172,11 @@ impl KStruct for Sqlite3_CellTableLeaf {
     type Root = Sqlite3;
     type Parent = Sqlite3_RefCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1076,18 +1194,23 @@ impl KStruct for Sqlite3_CellTableLeaf {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.row_id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
+        let _raw_payload =
+            _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
-        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(
+            &_io_payload,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Sqlite3_CellTableLeaf {
-}
+impl Sqlite3_CellTableLeaf {}
 impl Sqlite3_CellTableLeaf {
     pub fn len_payload(&self) -> Ref<'_, OptRc<VlqBase128Be>> {
         self.len_payload.borrow()
@@ -1164,7 +1287,10 @@ impl From<u32> for Sqlite3_ColumnContent_AsInt {
 }
 impl TryFrom<&Sqlite3_ColumnContent_AsInt> for i64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &Sqlite3_ColumnContent_AsInt) -> Result<Self, Self::Error> {
         match e {
             Sqlite3_ColumnContent_AsInt::U1(v) => Ok(i64::try_from(*v)?),
@@ -1177,7 +1303,10 @@ impl TryFrom<&Sqlite3_ColumnContent_AsInt> for i64 {
 }
 impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u16 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &Sqlite3_ColumnContent_AsInt) -> Result<Self, Self::Error> {
         match e {
             Sqlite3_ColumnContent_AsInt::U1(v) => Ok(u16::try_from(*v)?),
@@ -1190,7 +1319,10 @@ impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u16 {
 }
 impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u32 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &Sqlite3_ColumnContent_AsInt) -> Result<Self, Self::Error> {
         match e {
             Sqlite3_ColumnContent_AsInt::U1(v) => Ok(u32::try_from(*v)?),
@@ -1203,7 +1335,10 @@ impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u32 {
 }
 impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &Sqlite3_ColumnContent_AsInt) -> Result<Self, Self::Error> {
         match e {
             Sqlite3_ColumnContent_AsInt::U1(v) => Ok(u64::try_from(*v)?),
@@ -1216,7 +1351,10 @@ impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u64 {
 }
 impl TryFrom<&Sqlite3_ColumnContent_AsInt> for u8 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &Sqlite3_ColumnContent_AsInt) -> Result<Self, Self::Error> {
         match e {
             Sqlite3_ColumnContent_AsInt::U1(v) => Ok(u8::try_from(*v)?),
@@ -1276,7 +1414,11 @@ impl KStruct for Sqlite3_ColumnContent {
     type Root = Sqlite3;
     type Parent = Sqlite3_CellPayload;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1289,25 +1431,32 @@ impl KStruct for Sqlite3_ColumnContent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.serial_type().code().value()? >= 1) && (*self_rc.serial_type().code().value()? <= 6)  {
+        if (*self_rc.serial_type().code().value()? >= 1)
+            && (*self_rc.serial_type().code().value()? <= 6)
+        {
             match *self_rc.serial_type().code().value()? {
                 1 => {
                     *self_rc.as_int.borrow_mut() = Some(_io.read_u1()?.into());
                 }
                 2 => {
-                    *self_rc.as_int.borrow_mut() = Some(_io.read_u2be()?.into());
+                    *self_rc.as_int.borrow_mut() =
+                        Some(_io.read_u2be()?.into());
                 }
                 3 => {
-                    *self_rc.as_int.borrow_mut() = Some(_io.read_bits_int_be(24)?.into());
+                    *self_rc.as_int.borrow_mut() =
+                        Some(_io.read_bits_int_be(24)?.into());
                 }
                 4 => {
-                    *self_rc.as_int.borrow_mut() = Some(_io.read_u4be()?.into());
+                    *self_rc.as_int.borrow_mut() =
+                        Some(_io.read_u4be()?.into());
                 }
                 5 => {
-                    *self_rc.as_int.borrow_mut() = Some(_io.read_bits_int_be(48)?.into());
+                    *self_rc.as_int.borrow_mut() =
+                        Some(_io.read_bits_int_be(48)?.into());
                 }
                 6 => {
-                    *self_rc.as_int.borrow_mut() = Some(_io.read_u8be()?.into());
+                    *self_rc.as_int.borrow_mut() =
+                        Some(_io.read_u8be()?.into());
                 }
                 _ => {}
             }
@@ -1320,10 +1469,17 @@ impl KStruct for Sqlite3_ColumnContent {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.serial_type().is_blob()? {
-            *self_rc.as_blob.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.serial_type().len_content()?)?)?;
+            *self_rc.as_blob.borrow_mut() = _io.read_bytes(usize::try_from(
+                *self_rc.serial_type().len_content()?,
+            )?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.as_str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.serial_type().len_content()?)?)?, "UTF-8")?;
+        *self_rc.as_str.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(
+                *self_rc.serial_type().len_content()?,
+            )?)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1339,12 +1495,15 @@ impl Sqlite3_ColumnContent {
         *self.serial_type.borrow_mut() = serial_type;
     }
 }
-impl Sqlite3_ColumnContent {
-}
+impl Sqlite3_ColumnContent {}
 impl Sqlite3_ColumnContent {
     pub fn as_int(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.as_int.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
+        self.as_int
+            .borrow()
+            .as_ref()
+            .and_then(|v| u64::try_from(v).ok())
+            .unwrap_or(0)
     }
     pub fn as_int_enum(&self) -> Ref<'_, Option<Sqlite3_ColumnContent_AsInt>> {
         self.as_int.borrow()
@@ -1480,12 +1639,16 @@ impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexInterior> {
     }
 }
 impl DowncastOptRc<Sqlite3_CellIndexInterior> for Sqlite3_RefCell_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         OptRc::<Sqlite3_CellIndexInterior>::try_from(self)
     }
 }
 impl DowncastOptRc<Sqlite3_CellIndexInterior> for &Sqlite3_RefCell_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1510,12 +1673,16 @@ impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableInterior> {
     }
 }
 impl DowncastOptRc<Sqlite3_CellTableInterior> for Sqlite3_RefCell_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         OptRc::<Sqlite3_CellTableInterior>::try_from(self)
     }
 }
 impl DowncastOptRc<Sqlite3_CellTableInterior> for &Sqlite3_RefCell_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1560,7 +1727,11 @@ impl KStruct for Sqlite3_RefCell {
     type Root = Sqlite3;
     type Parent = Sqlite3_BtreePage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1579,10 +1750,12 @@ impl KStruct for Sqlite3_RefCell {
     }
 }
 impl Sqlite3_RefCell {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Option<Sqlite3_RefCell_Body>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Option<Sqlite3_RefCell_Body>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
@@ -1590,21 +1763,49 @@ impl Sqlite3_RefCell {
         self.f_body.set(true);
         let _pos = _io.pos();
         _io.seek(usize::from(*self.ofs_body()))?;
-        match *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.page_type() {
+        match *self
+            ._parent
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingParent)?
+            .page_type()
+        {
             10 => {
-                let t = Self::read_into::<_, Sqlite3_CellIndexLeaf>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Sqlite3_CellIndexLeaf>(
+                    &*_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.body.borrow_mut() = Some(t);
             }
             13 => {
-                let t = Self::read_into::<_, Sqlite3_CellTableLeaf>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Sqlite3_CellTableLeaf>(
+                    &*_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.body.borrow_mut() = Some(t);
             }
             2 => {
-                let t = Self::read_into::<_, Sqlite3_CellIndexInterior>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Sqlite3_CellIndexInterior>(
+                    &*_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.body.borrow_mut() = Some(t);
             }
             5 => {
-                let t = Self::read_into::<_, Sqlite3_CellTableInterior>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Sqlite3_CellTableInterior>(
+                    &*_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -1680,7 +1881,11 @@ impl KStruct for Sqlite3_Serial {
     type Root = Sqlite3;
     type Parent = Sqlite3_Serials;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1700,41 +1905,55 @@ impl KStruct for Sqlite3_Serial {
     }
 }
 impl Sqlite3_Serial {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_blob(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_blob(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_blob.get() {
             return Ok(self.is_blob.borrow());
         }
         self.f_is_blob.set(true);
-        *self.is_blob.borrow_mut() = ( ((*self.code().value()? >= 12) && (modulo(i64::from(*self.code().value()?), 2_i64) == 0)) ).try_into()?;
+        *self.is_blob.borrow_mut() = ((*self.code().value()? >= 12)
+            && (modulo(i64::from(*self.code().value()?), 2_i64) == 0))
+            .try_into()?;
         Ok(self.is_blob.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_string(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_string(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string.get() {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() = ( ((*self.code().value()? >= 13) && (modulo(i64::from(*self.code().value()?), 2_i64) == 1)) ).try_into()?;
+        *self.is_string.borrow_mut() = ((*self.code().value()? >= 13)
+            && (modulo(i64::from(*self.code().value()?), 2_i64) == 1))
+            .try_into()?;
         Ok(self.is_string.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_content(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_content(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_content.get() {
             return Ok(self.len_content.borrow());
         }
         self.f_len_content.set(true);
         if *self.code().value()? >= 12 {
-            *self.len_content.borrow_mut() = (div_floor(i64::from((*self.code().value()?).saturating_sub(12_i32)), 2_i64)?).try_into()?;
+            *self.len_content.borrow_mut() = (div_floor(
+                i64::from((*self.code().value()?).saturating_sub(12_i32)),
+                2_i64,
+            )?)
+            .try_into()?;
         }
         Ok(self.len_content.borrow())
     }
@@ -1800,7 +2019,11 @@ impl KStruct for Sqlite3_Serials {
     type Root = Sqlite3;
     type Parent = Sqlite3_CellPayload;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1816,7 +2039,12 @@ impl KStruct for Sqlite3_Serials {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Sqlite3_Serial>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Sqlite3_Serial>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1826,8 +2054,7 @@ impl KStruct for Sqlite3_Serials {
         Ok(())
     }
 }
-impl Sqlite3_Serials {
-}
+impl Sqlite3_Serials {}
 impl Sqlite3_Serials {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Sqlite3_Serial>>> {
         self.entries.borrow()

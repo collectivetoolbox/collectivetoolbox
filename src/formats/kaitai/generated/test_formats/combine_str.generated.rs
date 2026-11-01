@@ -129,7 +129,11 @@ impl KStruct for CombineStr {
     type Root = CombineStr;
     type Parent = CombineStr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,21 +145,28 @@ impl KStruct for CombineStr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str_term.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "ASCII")?;
+        *self_rc.str_term.borrow_mut() = bytes_to_str(
+            &_io.read_bytes_term(124, false, true, true)?,
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_limit.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.str_limit.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_eos.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
+        *self_rc.str_eos.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl CombineStr {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_bytes(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_calc_bytes.get() {
             return Ok(self.calc_bytes.borrow());
@@ -164,82 +175,126 @@ impl CombineStr {
         *self.calc_bytes.borrow_mut() = vec![0x62u8, 0x61u8, 0x7au8];
         Ok(self.calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_or_calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_or_calc_bytes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_calc_or_calc_bytes.get() {
             return Ok(self.calc_or_calc_bytes.borrow());
         }
         self.f_calc_or_calc_bytes.set(true);
-        *self.calc_or_calc_bytes.borrow_mut() = if false { self.str_calc()?.to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
+        *self.calc_or_calc_bytes.borrow_mut() = if false {
+            self.str_calc()?.to_string()
+        } else {
+            self.str_calc_bytes()?.to_string()
+        }
+        .to_string();
         Ok(self.calc_or_calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn eos_or_calc(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn eos_or_calc(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_eos_or_calc.get() {
             return Ok(self.eos_or_calc.borrow());
         }
         self.f_eos_or_calc.set(true);
-        *self.eos_or_calc.borrow_mut() = if false { self.str_eos().to_string() } else { self.str_calc()?.to_string() }.to_string();
+        *self.eos_or_calc.borrow_mut() = if false {
+            self.str_eos().to_string()
+        } else {
+            self.str_calc()?.to_string()
+        }
+        .to_string();
         Ok(self.eos_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn eos_or_calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn eos_or_calc_bytes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_eos_or_calc_bytes.get() {
             return Ok(self.eos_or_calc_bytes.borrow());
         }
         self.f_eos_or_calc_bytes.set(true);
-        *self.eos_or_calc_bytes.borrow_mut() = if true { self.str_eos().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
+        *self.eos_or_calc_bytes.borrow_mut() = if true {
+            self.str_eos().to_string()
+        } else {
+            self.str_calc_bytes()?.to_string()
+        }
+        .to_string();
         Ok(self.eos_or_calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn limit_or_calc(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn limit_or_calc(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_limit_or_calc.get() {
             return Ok(self.limit_or_calc.borrow());
         }
         self.f_limit_or_calc.set(true);
-        *self.limit_or_calc.borrow_mut() = if false { self.str_limit().to_string() } else { self.str_calc()?.to_string() }.to_string();
+        *self.limit_or_calc.borrow_mut() = if false {
+            self.str_limit().to_string()
+        } else {
+            self.str_calc()?.to_string()
+        }
+        .to_string();
         Ok(self.limit_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn limit_or_calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn limit_or_calc_bytes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_limit_or_calc_bytes.get() {
             return Ok(self.limit_or_calc_bytes.borrow());
         }
         self.f_limit_or_calc_bytes.set(true);
-        *self.limit_or_calc_bytes.borrow_mut() = if true { self.str_limit().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
+        *self.limit_or_calc_bytes.borrow_mut() = if true {
+            self.str_limit().to_string()
+        } else {
+            self.str_calc_bytes()?.to_string()
+        }
+        .to_string();
         Ok(self.limit_or_calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn limit_or_eos(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn limit_or_eos(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_limit_or_eos.get() {
             return Ok(self.limit_or_eos.borrow());
         }
         self.f_limit_or_eos.set(true);
-        *self.limit_or_eos.borrow_mut() = if true { self.str_limit().to_string() } else { self.str_eos().to_string() }.to_string();
+        *self.limit_or_eos.borrow_mut() = if true {
+            self.str_limit().to_string()
+        } else {
+            self.str_eos().to_string()
+        }
+        .to_string();
         Ok(self.limit_or_eos.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn str_calc(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn str_calc(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str_calc.get() {
             return Ok(self.str_calc.borrow());
@@ -248,64 +303,95 @@ impl CombineStr {
         *self.str_calc.borrow_mut() = "bar".to_string();
         Ok(self.str_calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn str_calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn str_calc_bytes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str_calc_bytes.get() {
             return Ok(self.str_calc_bytes.borrow());
         }
         self.f_str_calc_bytes.set(true);
-        *self.str_calc_bytes.borrow_mut() = bytes_to_str(&*self.calc_bytes()?, "ASCII")?.to_string();
+        *self.str_calc_bytes.borrow_mut() =
+            bytes_to_str(&*self.calc_bytes()?, "ASCII")?.to_string();
         Ok(self.str_calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn term_or_calc(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn term_or_calc(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_term_or_calc.get() {
             return Ok(self.term_or_calc.borrow());
         }
         self.f_term_or_calc.set(true);
-        *self.term_or_calc.borrow_mut() = if true { self.str_term().to_string() } else { self.str_calc()?.to_string() }.to_string();
+        *self.term_or_calc.borrow_mut() = if true {
+            self.str_term().to_string()
+        } else {
+            self.str_calc()?.to_string()
+        }
+        .to_string();
         Ok(self.term_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn term_or_calc_bytes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn term_or_calc_bytes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_term_or_calc_bytes.get() {
             return Ok(self.term_or_calc_bytes.borrow());
         }
         self.f_term_or_calc_bytes.set(true);
-        *self.term_or_calc_bytes.borrow_mut() = if false { self.str_term().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
+        *self.term_or_calc_bytes.borrow_mut() = if false {
+            self.str_term().to_string()
+        } else {
+            self.str_calc_bytes()?.to_string()
+        }
+        .to_string();
         Ok(self.term_or_calc_bytes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn term_or_eos(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn term_or_eos(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_term_or_eos.get() {
             return Ok(self.term_or_eos.borrow());
         }
         self.f_term_or_eos.set(true);
-        *self.term_or_eos.borrow_mut() = if false { self.str_term().to_string() } else { self.str_eos().to_string() }.to_string();
+        *self.term_or_eos.borrow_mut() = if false {
+            self.str_term().to_string()
+        } else {
+            self.str_eos().to_string()
+        }
+        .to_string();
         Ok(self.term_or_eos.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn term_or_limit(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn term_or_limit(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_term_or_limit.get() {
             return Ok(self.term_or_limit.borrow());
         }
         self.f_term_or_limit.set(true);
-        *self.term_or_limit.borrow_mut() = if true { self.str_term().to_string() } else { self.str_limit().to_string() }.to_string();
+        *self.term_or_limit.borrow_mut() = if true {
+            self.str_term().to_string()
+        } else {
+            self.str_limit().to_string()
+        }
+        .to_string();
         Ok(self.term_or_limit.borrow())
     }
 }

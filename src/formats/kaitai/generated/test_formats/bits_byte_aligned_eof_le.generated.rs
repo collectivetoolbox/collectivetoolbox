@@ -102,7 +102,11 @@ impl KStruct for BitsByteAlignedEofLe {
     type Root = BitsByteAlignedEofLe;
     type Parent = BitsByteAlignedEofLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,8 +126,7 @@ impl KStruct for BitsByteAlignedEofLe {
         Ok(())
     }
 }
-impl BitsByteAlignedEofLe {
-}
+impl BitsByteAlignedEofLe {}
 impl BitsByteAlignedEofLe {
     pub fn prebuf(&self) -> Ref<'_, Vec<u8>> {
         self.prebuf.borrow()

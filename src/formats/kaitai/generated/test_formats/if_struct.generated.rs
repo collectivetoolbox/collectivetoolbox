@@ -102,7 +102,11 @@ impl KStruct for IfStruct {
     type Root = IfStruct;
     type Parent = IfStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,21 +118,35 @@ impl KStruct for IfStruct {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, IfStruct_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, IfStruct_Operation>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.op1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, IfStruct_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, IfStruct_Operation>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.op2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, IfStruct_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, IfStruct_Operation>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.op3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl IfStruct {
-}
+impl IfStruct {}
 impl IfStruct {
     pub fn op1(&self) -> Ref<'_, OptRc<IfStruct_Operation>> {
         self.op1.borrow()
@@ -202,7 +220,11 @@ impl KStruct for IfStruct_ArgStr {
     type Root = IfStruct;
     type Parent = IfStruct_Operation;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -216,14 +238,16 @@ impl KStruct for IfStruct_ArgStr {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "UTF-8")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len()))?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl IfStruct_ArgStr {
-}
+impl IfStruct_ArgStr {}
 impl IfStruct_ArgStr {
     pub fn len(&self) -> Ref<'_, u8> {
         self.len.borrow()
@@ -296,7 +320,11 @@ impl KStruct for IfStruct_ArgTuple {
     type Root = IfStruct;
     type Parent = IfStruct_Operation;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -316,8 +344,7 @@ impl KStruct for IfStruct_ArgTuple {
         Ok(())
     }
 }
-impl IfStruct_ArgTuple {
-}
+impl IfStruct_ArgTuple {}
 impl IfStruct_ArgTuple {
     pub fn num1(&self) -> Ref<'_, u8> {
         self.num1.borrow()
@@ -386,7 +413,11 @@ impl KStruct for IfStruct_Operation {
     type Root = IfStruct;
     type Parent = IfStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -402,13 +433,23 @@ impl KStruct for IfStruct_Operation {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if (to_i128(*self_rc.opcode())) == (to_i128(84)) {
-            let t = Self::read_into::<_, IfStruct_ArgTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, IfStruct_ArgTuple>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.arg_tuple.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if (to_i128(*self_rc.opcode())) == (to_i128(83)) {
-            let t = Self::read_into::<_, IfStruct_ArgStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, IfStruct_ArgStr>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.arg_str.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -416,8 +457,7 @@ impl KStruct for IfStruct_Operation {
         Ok(())
     }
 }
-impl IfStruct_Operation {
-}
+impl IfStruct_Operation {}
 impl IfStruct_Operation {
     pub fn opcode(&self) -> Ref<'_, u8> {
         self.opcode.borrow()

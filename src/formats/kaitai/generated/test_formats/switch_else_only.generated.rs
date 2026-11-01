@@ -79,7 +79,10 @@ impl From<i8> for SwitchElseOnly_PrimByte {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(i64::try_from(*v)?),
@@ -88,7 +91,10 @@ impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for i8 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(i8::try_from(*v)?),
@@ -97,7 +103,10 @@ impl TryFrom<&SwitchElseOnly_PrimByte> for i8 {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for u64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(u64::try_from(*v)?),
@@ -183,7 +192,11 @@ impl KStruct for SwitchElseOnly {
     type Root = SwitchElseOnly;
     type Parent = SwitchElseOnly;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,7 +220,12 @@ impl KStruct for SwitchElseOnly {
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.indicator().as_slice() {
             _ => {
-                let t = Self::read_into::<_, SwitchElseOnly_Data>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchElseOnly_Data>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.ut.borrow_mut() = Some(t);
             }
         }
@@ -216,8 +234,7 @@ impl KStruct for SwitchElseOnly {
         Ok(())
     }
 }
-impl SwitchElseOnly {
-}
+impl SwitchElseOnly {}
 impl SwitchElseOnly {
     pub fn opcode(&self) -> Ref<'_, i8> {
         self.opcode.borrow()
@@ -226,7 +243,11 @@ impl SwitchElseOnly {
 impl SwitchElseOnly {
     pub fn prim_byte(&self) -> i8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.prim_byte.borrow().as_ref().and_then(|v| i8::try_from(v).ok()).unwrap_or(0)
+        self.prim_byte
+            .borrow()
+            .as_ref()
+            .and_then(|v| i8::try_from(v).ok())
+            .unwrap_or(0)
     }
     pub fn prim_byte_enum(&self) -> Ref<'_, Option<SwitchElseOnly_PrimByte>> {
         self.prim_byte.borrow()
@@ -304,7 +325,11 @@ impl KStruct for SwitchElseOnly_Data {
     type Root = SwitchElseOnly;
     type Parent = SwitchElseOnly;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -322,8 +347,7 @@ impl KStruct for SwitchElseOnly_Data {
         Ok(())
     }
 }
-impl SwitchElseOnly_Data {
-}
+impl SwitchElseOnly_Data {}
 impl SwitchElseOnly_Data {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()

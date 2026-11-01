@@ -104,7 +104,11 @@ impl KStruct for CastToTop {
     type Root = CastToTop;
     type Parent = CastToTop;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,30 +127,40 @@ impl KStruct for CastToTop {
     }
 }
 impl CastToTop {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn header(
-        &self
-    ) -> KResult<Ref<'_, OptRc<CastToTop>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn header(&self) -> KResult<Ref<'_, OptRc<CastToTop>>> {
         let _io = self._io.borrow();
         if self.f_header.get() {
             return Ok(self.header.borrow());
         }
         let _pos = _io.pos();
         _io.seek(1_usize)?;
-        let t = Self::read_into::<_, CastToTop>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, CastToTop>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.header.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.header.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn header_casted(
-        &self
-    ) -> KResult<Ref<'_, OptRc<CastToTop>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn header_casted(&self) -> KResult<Ref<'_, OptRc<CastToTop>>> {
         let _io = self._io.borrow();
         if self.f_header_casted.get() {
             return Ok(self.header_casted.borrow());
         }
-        *self.header_casted.borrow_mut() = OptRc::<CastToTop>::try_from(&*(self.header()?))?.clone();
+        *self.header_casted.borrow_mut() =
+            OptRc::<CastToTop>::try_from(&*(self.header()?))?.clone();
         Ok(self.header_casted.borrow())
     }
 }

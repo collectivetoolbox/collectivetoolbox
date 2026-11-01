@@ -100,7 +100,11 @@ impl KStruct for ParamsCallExtraParens {
     type Root = ParamsCallExtraParens;
     type Parent = ParamsCallExtraParens;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,16 +116,23 @@ impl KStruct for ParamsCallExtraParens {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t : &mut ParamsCallExtraParens_MyStr1| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ParamsCallExtraParens_MyStr1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsCallExtraParens_MyStr1| {
+            Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?))
+        };
+        let t = Self::read_into_with_init::<_, ParamsCallExtraParens_MyStr1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.buf1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsCallExtraParens {
-}
+impl ParamsCallExtraParens {}
 impl ParamsCallExtraParens {
     pub fn buf1(&self) -> Ref<'_, OptRc<ParamsCallExtraParens_MyStr1>> {
         self.buf1.borrow()
@@ -149,35 +160,57 @@ pub struct ParamsCallExtraParens_MyStr1 {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
+impl TryFrom<&ParamsCallExtraParens_MyStr1>
+    for OptRc<ParamsCallExtraParens_MyStr1>
+{
     type Error = KError;
     fn try_from(v: &ParamsCallExtraParens_MyStr1) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
+impl TryFrom<&&ParamsCallExtraParens_MyStr1>
+    for OptRc<ParamsCallExtraParens_MyStr1>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsCallExtraParens_MyStr1) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsCallExtraParens_MyStr1,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for ParamsCallExtraParens_MyStr1 {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1>
+    for ParamsCallExtraParens_MyStr1
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for &ParamsCallExtraParens_MyStr1 {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1>
+    for &ParamsCallExtraParens_MyStr1
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1>
+    for OptRc<ParamsCallExtraParens_MyStr1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for &OptRc<ParamsCallExtraParens_MyStr1> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1>
+    for &OptRc<ParamsCallExtraParens_MyStr1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
         Ok((*self).clone())
     }
 }
@@ -185,7 +218,11 @@ impl KStruct for ParamsCallExtraParens_MyStr1 {
     type Root = ParamsCallExtraParens;
     type Parent = ParamsCallExtraParens;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -197,7 +234,10 @@ impl KStruct for ParamsCallExtraParens_MyStr1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
+        *self_rc.body.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(*self_rc.len())?)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -213,8 +253,7 @@ impl ParamsCallExtraParens_MyStr1 {
         *self.len.borrow_mut() = len;
     }
 }
-impl ParamsCallExtraParens_MyStr1 {
-}
+impl ParamsCallExtraParens_MyStr1 {}
 impl ParamsCallExtraParens_MyStr1 {
     pub fn body(&self) -> Ref<'_, String> {
         self.body.borrow()

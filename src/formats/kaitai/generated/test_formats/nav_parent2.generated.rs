@@ -102,7 +102,11 @@ impl KStruct for NavParent2 {
     type Root = NavParent2;
     type Parent = NavParent2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,7 +125,12 @@ impl KStruct for NavParent2 {
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.num_tags())?;
         for _i in 0_usize..l_tags {
-            let t = Self::read_into::<_, NavParent2_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, NavParent2_Tag>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.tags.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -129,8 +138,7 @@ impl KStruct for NavParent2 {
         Ok(())
     }
 }
-impl NavParent2 {
-}
+impl NavParent2 {}
 impl NavParent2 {
     pub fn ofs_tags(&self) -> Ref<'_, u32> {
         self.ofs_tags.borrow()
@@ -241,7 +249,11 @@ impl KStruct for NavParent2_Tag {
     type Root = NavParent2;
     type Parent = NavParent2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -253,7 +265,8 @@ impl KStruct for NavParent2_Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -264,21 +277,39 @@ impl KStruct for NavParent2_Tag {
     }
 }
 impl NavParent2_Tag {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn tag_content(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Option<NavParent2_Tag_TagContent>>> {
         let _io = self._io.borrow();
         if self.f_tag_content.get() {
             return Ok(self.tag_content.borrow());
         }
         self.f_tag_content.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs())?)?;
         match self.name().as_str() {
             "RAHC" => {
-                let t = Self::read_into::<_, NavParent2_Tag_TagChar>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, NavParent2_Tag_TagChar>(
+                    &io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.tag_content.borrow_mut() = Some(t);
             }
             _ => {}
@@ -364,7 +395,11 @@ impl KStruct for NavParent2_Tag_TagChar {
     type Root = NavParent2;
     type Parent = NavParent2_Tag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -376,14 +411,25 @@ impl KStruct for NavParent2_Tag_TagChar {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.content.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_items())?)?, "ASCII")?;
+        *self_rc.content.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(
+                *self_rc
+                    ._parent
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingParent)?
+                    .num_items(),
+            )?)?,
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParent2_Tag_TagChar {
-}
+impl NavParent2_Tag_TagChar {}
 impl NavParent2_Tag_TagChar {
     pub fn content(&self) -> Ref<'_, String> {
         self.content.borrow()

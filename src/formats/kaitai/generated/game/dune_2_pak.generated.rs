@@ -56,7 +56,11 @@ impl KStruct for Dune2Pak {
     type Root = Dune2Pak;
     type Parent = Dune2Pak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -68,10 +72,16 @@ impl KStruct for Dune2Pak {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let _raw_dir = _io.read_bytes(usize::try_from(*self_rc.dir_size()?)?)?;
+        let _raw_dir =
+            _io.read_bytes(usize::try_from(*self_rc.dir_size()?)?)?;
         *self_rc.dir_raw.borrow_mut() = _raw_dir.clone();
         let _io_dir = BytesReader::from(_raw_dir);
-        let t = Self::read_into::<BytesReader, Dune2Pak_Files>(&_io_dir, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, Dune2Pak_Files>(
+            &_io_dir,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.dir.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -79,10 +89,12 @@ impl KStruct for Dune2Pak {
     }
 }
 impl Dune2Pak {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn dir_size(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn dir_size(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_dir_size.get() {
             return Ok(self.dir_size.borrow());
@@ -169,7 +181,11 @@ impl KStruct for Dune2Pak_File {
     type Root = Dune2Pak;
     type Parent = Dune2Pak_Files;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -185,7 +201,10 @@ impl KStruct for Dune2Pak_File {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if (to_i128(*self_rc.ofs())) != (to_i128(0)) {
-            *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+            *self_rc.file_name.borrow_mut() = bytes_to_str(
+                &_io.read_bytes_term(0, false, true, true)?,
+                "ASCII",
+            )?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -203,49 +222,93 @@ impl Dune2Pak_File {
     }
 }
 impl Dune2Pak_File {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
         if (to_i128(*self.ofs())) != (to_i128(0)) {
-            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+            let io = KStream::clone(
+                &*self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io(),
+            );
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs())?)?;
-            *self.body.borrow_mut() = io.read_bytes(usize::try_from((u32::try_from(*self.next_ofs()?)?).saturating_sub(*self.ofs()))?)?;
+            *self.body.borrow_mut() = io.read_bytes(usize::try_from(
+                (u32::try_from(*self.next_ofs()?)?).saturating_sub(*self.ofs()),
+            )?)?;
             io.seek(_pos)?;
         }
         Ok(self.body.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn next_ofs(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn next_ofs(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_next_ofs.get() {
             return Ok(self.next_ofs.borrow());
         }
         self.f_next_ofs.set(true);
         if (to_i128(*self.ofs())) != (to_i128(0)) {
-            *self.next_ofs.borrow_mut() = (if (to_i128(*self.next_ofs0()?)) == (to_i128(0)) { u64::try_from(i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())?)? } else { u64::from(*self.next_ofs0()?) }).try_into()?;
+            *self.next_ofs.borrow_mut() =
+                (if (to_i128(*self.next_ofs0()?)) == (to_i128(0)) {
+                    u64::try_from(i64::try_from(
+                        self._root
+                            .get_value()
+                            .borrow()
+                            .upgrade()
+                            .as_ref()
+                            .ok_or(KError::MissingRoot)?
+                            ._io()
+                            .size(),
+                    )?)?
+                } else {
+                    u64::from(*self.next_ofs0()?)
+                })
+                .try_into()?;
         }
         Ok(self.next_ofs.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn next_ofs0(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn next_ofs0(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_next_ofs0.get() {
             return Ok(self.next_ofs0.borrow());
         }
         self.f_next_ofs0.set(true);
         if (to_i128(*self.ofs())) != (to_i128(0)) {
-            *self.next_ofs0.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.dir().files().get(usize::try_from((*self.idx()).saturating_add(1_u32))?).ok_or(KError::CastError)?.ofs()).try_into()?;
+            *self.next_ofs0.borrow_mut() = (*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                .dir()
+                .files()
+                .get(usize::try_from((*self.idx()).saturating_add(1_u32))?)
+                .ok_or(KError::CastError)?
+                .ofs())
+            .try_into()?;
         }
         Ok(self.next_ofs0.borrow())
     }
@@ -316,7 +379,11 @@ impl KStruct for Dune2Pak_Files {
     type Root = Dune2Pak;
     type Parent = Dune2Pak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -332,8 +399,18 @@ impl KStruct for Dune2Pak_Files {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t : &mut Dune2Pak_File| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
-                let t = Self::read_into_with_init::<_, Dune2Pak_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Dune2Pak_File| {
+                    Ok(t.set_params(
+                        (_i).try_into().map_err(|_| KError::CastError)?,
+                    ))
+                };
+                let t = Self::read_into_with_init::<_, Dune2Pak_File>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 self_rc.files.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -343,8 +420,7 @@ impl KStruct for Dune2Pak_Files {
         Ok(())
     }
 }
-impl Dune2Pak_Files {
-}
+impl Dune2Pak_Files {}
 impl Dune2Pak_Files {
     pub fn files(&self) -> Ref<'_, Vec<OptRc<Dune2Pak_File>>> {
         self.files.borrow()

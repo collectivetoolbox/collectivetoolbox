@@ -64,7 +64,11 @@ impl KStruct for MbrPartitionTable {
     type Root = MbrPartitionTable;
     type Parent = MbrPartitionTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,28 +85,37 @@ impl KStruct for MbrPartitionTable {
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = 4_usize;
         for _i in 0_usize..l_partitions {
-            let t = Self::read_into::<_, MbrPartitionTable_PartitionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, MbrPartitionTable_PartitionEntry>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.partitions.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_signature.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.boot_signature() == vec![0x55u8, 0xaau8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MbrPartitionTable {
-}
+impl MbrPartitionTable {}
 impl MbrPartitionTable {
     pub fn bootstrap_code(&self) -> Ref<'_, Vec<u8>> {
         self.bootstrap_code.borrow()
     }
 }
 impl MbrPartitionTable {
-    pub fn partitions(&self) -> Ref<'_, Vec<OptRc<MbrPartitionTable_PartitionEntry>>> {
+    pub fn partitions(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<MbrPartitionTable_PartitionEntry>>> {
         self.partitions.borrow()
     }
 }
@@ -178,7 +191,11 @@ impl KStruct for MbrPartitionTable_Chs {
     type Root = MbrPartitionTable;
     type Parent = MbrPartitionTable_PartitionEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -201,28 +218,36 @@ impl KStruct for MbrPartitionTable_Chs {
     }
 }
 impl MbrPartitionTable_Chs {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn cylinder(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn cylinder(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_cylinder.get() {
             return Ok(self.cylinder.borrow());
         }
         self.f_cylinder.set(true);
-        *self.cylinder.borrow_mut() = ((i32::from(*self.b3())).saturating_add((((i32::from(*self.b2())) & (192_i32))).wrapping_shl(2_u32))).try_into()?;
+        *self.cylinder.borrow_mut() = ((i32::from(*self.b3())).saturating_add(
+            ((i32::from(*self.b2())) & (192_i32)).wrapping_shl(2_u32),
+        ))
+        .try_into()?;
         Ok(self.cylinder.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sector(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sector(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sector.get() {
             return Ok(self.sector.borrow());
         }
         self.f_sector.set(true);
-        *self.sector.borrow_mut() = (((i32::from(*self.b2())) & (63_i32))).try_into()?;
+        *self.sector.borrow_mut() =
+            ((i32::from(*self.b2())) & (63_i32)).try_into()?;
         Ok(self.sector.borrow())
     }
 }
@@ -266,35 +291,59 @@ pub struct MbrPartitionTable_PartitionEntry {
     num_sectors: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
+impl TryFrom<&MbrPartitionTable_PartitionEntry>
+    for OptRc<MbrPartitionTable_PartitionEntry>
+{
     type Error = KError;
-    fn try_from(v: &MbrPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MbrPartitionTable_PartitionEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
+impl TryFrom<&&MbrPartitionTable_PartitionEntry>
+    for OptRc<MbrPartitionTable_PartitionEntry>
+{
     type Error = KError;
-    fn try_from(v: &&MbrPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MbrPartitionTable_PartitionEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for MbrPartitionTable_PartitionEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry>
+    for MbrPartitionTable_PartitionEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for &MbrPartitionTable_PartitionEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry>
+    for &MbrPartitionTable_PartitionEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry>
+    for OptRc<MbrPartitionTable_PartitionEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for &OptRc<MbrPartitionTable_PartitionEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry>
+    for &OptRc<MbrPartitionTable_PartitionEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -302,7 +351,11 @@ impl KStruct for MbrPartitionTable_PartitionEntry {
     type Root = MbrPartitionTable;
     type Parent = MbrPartitionTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -316,12 +369,22 @@ impl KStruct for MbrPartitionTable_PartitionEntry {
         let _io = io;
         *self_rc.status.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, MbrPartitionTable_Chs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, MbrPartitionTable_Chs>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.chs_start.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_type.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, MbrPartitionTable_Chs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, MbrPartitionTable_Chs>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.chs_end.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_start.borrow_mut() = _io.read_u4le()?;
@@ -332,8 +395,7 @@ impl KStruct for MbrPartitionTable_PartitionEntry {
         Ok(())
     }
 }
-impl MbrPartitionTable_PartitionEntry {
-}
+impl MbrPartitionTable_PartitionEntry {}
 impl MbrPartitionTable_PartitionEntry {
     pub fn status(&self) -> Ref<'_, u8> {
         self.status.borrow()

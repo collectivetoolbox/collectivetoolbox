@@ -166,7 +166,11 @@ impl KStruct for DebugSwitchUser {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -182,11 +186,21 @@ impl KStruct for DebugSwitchUser {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             1 => {
-                let t = Self::read_into::<_, DebugSwitchUser_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DebugSwitchUser_One>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             2 => {
-                let t = Self::read_into::<_, DebugSwitchUser_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DebugSwitchUser_Two>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -196,8 +210,7 @@ impl KStruct for DebugSwitchUser {
         Ok(())
     }
 }
-impl DebugSwitchUser {
-}
+impl DebugSwitchUser {}
 impl DebugSwitchUser {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()
@@ -264,7 +277,11 @@ impl KStruct for DebugSwitchUser_One {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -282,8 +299,7 @@ impl KStruct for DebugSwitchUser_One {
         Ok(())
     }
 }
-impl DebugSwitchUser_One {
-}
+impl DebugSwitchUser_One {}
 impl DebugSwitchUser_One {
     pub fn val(&self) -> Ref<'_, i16> {
         self.val.borrow()
@@ -345,7 +361,11 @@ impl KStruct for DebugSwitchUser_Two {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -363,8 +383,7 @@ impl KStruct for DebugSwitchUser_Two {
         Ok(())
     }
 }
-impl DebugSwitchUser_Two {
-}
+impl DebugSwitchUser_Two {}
 impl DebugSwitchUser_Two {
     pub fn val(&self) -> Ref<'_, u16> {
         self.val.borrow()

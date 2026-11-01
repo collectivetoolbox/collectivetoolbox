@@ -107,7 +107,11 @@ impl KStruct for BytesPadTermEqual {
     type Root = BytesPadTermEqual;
     type Parent = BytesPadTermEqual;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,20 +123,39 @@ impl KStruct for BytesPadTermEqual {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(64));
+        *self_rc.s1.borrow_mut() = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(64),
+            false,
+            Some(64),
+        );
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s2.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(43));
+        *self_rc.s2.borrow_mut() = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(64),
+            true,
+            Some(43),
+        );
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s3.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(43), false, Some(43));
+        *self_rc.s3.borrow_mut() = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(43),
+            false,
+            Some(43),
+        );
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s4.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(46), true, Some(46));
+        *self_rc.s4.borrow_mut() = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(46),
+            true,
+            Some(46),
+        );
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl BytesPadTermEqual {
-}
+impl BytesPadTermEqual {}
 impl BytesPadTermEqual {
     pub fn s1(&self) -> Ref<'_, Vec<u8>> {
         self.s1.borrow()

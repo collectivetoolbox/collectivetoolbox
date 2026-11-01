@@ -101,7 +101,11 @@ impl KStruct for ParamsPassStruct {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,19 +117,31 @@ impl KStruct for ParamsPassStruct {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ParamsPassStruct_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, ParamsPassStruct_Block>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.first.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassStruct_StructType| Ok(t.set_params(Struct::from_opt_rc(&(self_rc.first()))));
-        let t = Self::read_into_with_init::<_, ParamsPassStruct_StructType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassStruct_StructType| {
+            Ok(t.set_params(Struct::from_opt_rc(&(self_rc.first()))))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassStruct_StructType>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsPassStruct {
-}
+impl ParamsPassStruct {}
 impl ParamsPassStruct {
     pub fn first(&self) -> Ref<'_, OptRc<ParamsPassStruct_Block>> {
         self.first.borrow()
@@ -192,7 +208,11 @@ impl KStruct for ParamsPassStruct_Block {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,8 +230,7 @@ impl KStruct for ParamsPassStruct_Block {
         Ok(())
     }
 }
-impl ParamsPassStruct_Block {
-}
+impl ParamsPassStruct_Block {}
 impl ParamsPassStruct_Block {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()
@@ -238,35 +257,55 @@ pub struct ParamsPassStruct_StructType {
     bar: RefCell<OptRc<ParamsPassStruct_StructType_Baz>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ParamsPassStruct_StructType> for OptRc<ParamsPassStruct_StructType> {
+impl TryFrom<&ParamsPassStruct_StructType>
+    for OptRc<ParamsPassStruct_StructType>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassStruct_StructType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassStruct_StructType> for OptRc<ParamsPassStruct_StructType> {
+impl TryFrom<&&ParamsPassStruct_StructType>
+    for OptRc<ParamsPassStruct_StructType>
+{
     type Error = KError;
     fn try_from(v: &&ParamsPassStruct_StructType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType> for ParamsPassStruct_StructType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType>
+    for ParamsPassStruct_StructType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType> for &ParamsPassStruct_StructType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType>
+    for &ParamsPassStruct_StructType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType> for OptRc<ParamsPassStruct_StructType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType>
+    for OptRc<ParamsPassStruct_StructType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType> for &OptRc<ParamsPassStruct_StructType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType>
+    for &OptRc<ParamsPassStruct_StructType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -274,7 +313,11 @@ impl KStruct for ParamsPassStruct_StructType {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -286,8 +329,17 @@ impl KStruct for ParamsPassStruct_StructType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t : &mut ParamsPassStruct_StructType_Baz| Ok(t.set_params(Struct::from_opt_rc(&(self_rc.foo()))));
-        let t = Self::read_into_with_init::<_, ParamsPassStruct_StructType_Baz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassStruct_StructType_Baz| {
+            Ok(t.set_params(Struct::from_opt_rc(&(self_rc.foo()))))
+        };
+        let t =
+            Self::read_into_with_init::<_, ParamsPassStruct_StructType_Baz>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
         *self_rc.bar.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -304,8 +356,7 @@ impl ParamsPassStruct_StructType {
         *self.foo.borrow_mut() = foo;
     }
 }
-impl ParamsPassStruct_StructType {
-}
+impl ParamsPassStruct_StructType {}
 impl ParamsPassStruct_StructType {
     pub fn bar(&self) -> Ref<'_, OptRc<ParamsPassStruct_StructType_Baz>> {
         self.bar.borrow()
@@ -332,35 +383,59 @@ pub struct ParamsPassStruct_StructType_Baz {
     qux: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ParamsPassStruct_StructType_Baz> for OptRc<ParamsPassStruct_StructType_Baz> {
+impl TryFrom<&ParamsPassStruct_StructType_Baz>
+    for OptRc<ParamsPassStruct_StructType_Baz>
+{
     type Error = KError;
-    fn try_from(v: &ParamsPassStruct_StructType_Baz) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &ParamsPassStruct_StructType_Baz,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassStruct_StructType_Baz> for OptRc<ParamsPassStruct_StructType_Baz> {
+impl TryFrom<&&ParamsPassStruct_StructType_Baz>
+    for OptRc<ParamsPassStruct_StructType_Baz>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsPassStruct_StructType_Baz) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsPassStruct_StructType_Baz,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType_Baz> for ParamsPassStruct_StructType_Baz {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType_Baz>
+    for ParamsPassStruct_StructType_Baz
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType_Baz> for &ParamsPassStruct_StructType_Baz {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType_Baz>
+    for &ParamsPassStruct_StructType_Baz
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType_Baz> for OptRc<ParamsPassStruct_StructType_Baz> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType_Baz>
+    for OptRc<ParamsPassStruct_StructType_Baz>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassStruct_StructType_Baz> for &OptRc<ParamsPassStruct_StructType_Baz> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
+impl DowncastOptRc<ParamsPassStruct_StructType_Baz>
+    for &OptRc<ParamsPassStruct_StructType_Baz>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassStruct_StructType_Baz>, KError> {
         Ok((*self).clone())
     }
 }
@@ -368,7 +443,11 @@ impl KStruct for ParamsPassStruct_StructType_Baz {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct_StructType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -396,8 +475,7 @@ impl ParamsPassStruct_StructType_Baz {
         *self.foo.borrow_mut() = foo;
     }
 }
-impl ParamsPassStruct_StructType_Baz {
-}
+impl ParamsPassStruct_StructType_Baz {}
 impl ParamsPassStruct_StructType_Baz {
     pub fn qux(&self) -> Ref<'_, u8> {
         self.qux.borrow()

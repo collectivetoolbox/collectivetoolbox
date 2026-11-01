@@ -102,7 +102,11 @@ impl KStruct for Debug0 {
     type Root = Debug0;
     type Parent = Debug0;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,8 +132,7 @@ impl KStruct for Debug0 {
         Ok(())
     }
 }
-impl Debug0 {
-}
+impl Debug0 {}
 impl Debug0 {
     pub fn one(&self) -> Ref<'_, u8> {
         self.one.borrow()

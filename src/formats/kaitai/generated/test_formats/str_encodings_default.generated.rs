@@ -103,7 +103,11 @@ impl KStruct for StrEncodingsDefault {
     type Root = StrEncodingsDefault;
     type Parent = StrEncodingsDefault;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,17 +121,24 @@ impl KStruct for StrEncodingsDefault {
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str1.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_1()))?, "UTF-8")?;
+        *self_rc.str1.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_of_1()))?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, StrEncodingsDefault_Subtype>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, StrEncodingsDefault_Subtype>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.rest.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsDefault {
-}
+impl StrEncodingsDefault {}
 impl StrEncodingsDefault {
     pub fn len_of_1(&self) -> Ref<'_, u16> {
         self.len_of_1.borrow()
@@ -176,35 +187,55 @@ pub struct StrEncodingsDefault_Subtype {
     str3_raw: RefCell<Vec<u8>>,
     str4_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
+impl TryFrom<&StrEncodingsDefault_Subtype>
+    for OptRc<StrEncodingsDefault_Subtype>
+{
     type Error = KError;
     fn try_from(v: &StrEncodingsDefault_Subtype) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
+impl TryFrom<&&StrEncodingsDefault_Subtype>
+    for OptRc<StrEncodingsDefault_Subtype>
+{
     type Error = KError;
     fn try_from(v: &&StrEncodingsDefault_Subtype) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsDefault_Subtype> for StrEncodingsDefault_Subtype {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+impl DowncastOptRc<StrEncodingsDefault_Subtype>
+    for StrEncodingsDefault_Subtype
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsDefault_Subtype> for &StrEncodingsDefault_Subtype {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+impl DowncastOptRc<StrEncodingsDefault_Subtype>
+    for &StrEncodingsDefault_Subtype
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+impl DowncastOptRc<StrEncodingsDefault_Subtype>
+    for OptRc<StrEncodingsDefault_Subtype>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsDefault_Subtype> for &OptRc<StrEncodingsDefault_Subtype> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+impl DowncastOptRc<StrEncodingsDefault_Subtype>
+    for &OptRc<StrEncodingsDefault_Subtype>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
         Ok((*self).clone())
     }
 }
@@ -212,7 +243,11 @@ impl KStruct for StrEncodingsDefault_Subtype {
     type Root = StrEncodingsDefault;
     type Parent = StrEncodingsDefault;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -226,22 +261,30 @@ impl KStruct for StrEncodingsDefault_Subtype {
         let _io = io;
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str2.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_2()))?, "UTF-8")?;
+        *self_rc.str2.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_of_2()))?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str3.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_3()))?, "SJIS")?;
+        *self_rc.str3.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_of_3()))?,
+            "SJIS",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str4.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_4()))?, "IBM437")?;
+        *self_rc.str4.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_of_4()))?,
+            "IBM437",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsDefault_Subtype {
-}
+impl StrEncodingsDefault_Subtype {}
 impl StrEncodingsDefault_Subtype {
     pub fn len_of_2(&self) -> Ref<'_, u16> {
         self.len_of_2.borrow()

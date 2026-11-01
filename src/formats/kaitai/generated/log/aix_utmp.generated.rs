@@ -54,7 +54,11 @@ impl KStruct for AixUtmp {
     type Root = AixUtmp;
     type Parent = AixUtmp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -70,7 +74,12 @@ impl KStruct for AixUtmp {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, AixUtmp_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, AixUtmp_Record>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -80,8 +89,7 @@ impl KStruct for AixUtmp {
         Ok(())
     }
 }
-impl AixUtmp {
-}
+impl AixUtmp {}
 impl AixUtmp {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<AixUtmp_Record>>> {
         self.records.borrow()
@@ -145,15 +153,16 @@ impl From<&AixUtmp_EntryType> for i64 {
             AixUtmp_EntryType::UserProcess => 7,
             AixUtmp_EntryType::DeadProcess => 8,
             AixUtmp_EntryType::Accounting => 9,
-            AixUtmp_EntryType::Unknown(v) => v
+            AixUtmp_EntryType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for AixUtmp_EntryType {
-    fn default() -> Self { AixUtmp_EntryType::Unknown(0) }
+    fn default() -> Self {
+        AixUtmp_EntryType::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct AixUtmp_ExitStatus {
@@ -200,7 +209,11 @@ impl KStruct for AixUtmp_ExitStatus {
     type Root = AixUtmp;
     type Parent = AixUtmp_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,8 +233,7 @@ impl KStruct for AixUtmp_ExitStatus {
         Ok(())
     }
 }
-impl AixUtmp_ExitStatus {
-}
+impl AixUtmp_ExitStatus {}
 
 /**
  * process termination status
@@ -312,7 +324,11 @@ impl KStruct for AixUtmp_Record {
     type Root = AixUtmp;
     type Parent = AixUtmp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -324,22 +340,32 @@ impl KStruct for AixUtmp_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
+        *self_rc.user.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.inittab_id.borrow_mut() = bytes_to_str(&_io.read_bytes(14_usize)?, "ascii")?;
+        *self_rc.inittab_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(14_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.device.borrow_mut() = bytes_to_str(&_io.read_bytes(64_usize)?, "ascii")?;
+        *self_rc.device.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(64_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_u8be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() = i64::from(_io.read_s2be()?).try_into()?;
+        *self_rc.r#type.borrow_mut() =
+            i64::from(_io.read_s2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_s8be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, AixUtmp_ExitStatus>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, AixUtmp_ExitStatus>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.exit_status.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.hostname.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
+        *self_rc.hostname.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dbl_word_pad.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -351,8 +377,7 @@ impl KStruct for AixUtmp_Record {
         Ok(())
     }
 }
-impl AixUtmp_Record {
-}
+impl AixUtmp_Record {}
 
 /**
  * User login name

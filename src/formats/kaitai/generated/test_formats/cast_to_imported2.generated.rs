@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::hello_world::HelloWorld;
 use super::hello_world::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct CastToImported2 {
@@ -104,7 +104,11 @@ impl KStruct for CastToImported2 {
     type Root = CastToImported2;
     type Parent = CastToImported2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,15 +135,19 @@ impl CastToImported2 {
     }
 }
 impl CastToImported2 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn hw(
-        &self
-    ) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn hw(&self) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
         let _io = self._io.borrow();
         if self.f_hw.get() {
             return Ok(self.hw.borrow());
         }
-        *self.hw.borrow_mut() = DowncastOptRc::<HelloWorld>::downcast_optrc(&(self.hw_param()))?.clone();
+        *self.hw.borrow_mut() =
+            DowncastOptRc::<HelloWorld>::downcast_optrc(&(self.hw_param()))?
+                .clone();
         Ok(self.hw.borrow())
     }
 }

@@ -105,7 +105,11 @@ impl KStruct for EnumDeepLiterals {
     type Root = EnumDeepLiterals;
     type Parent = EnumDeepLiterals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,28 +130,36 @@ impl KStruct for EnumDeepLiterals {
     }
 }
 impl EnumDeepLiterals {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_pet_1_ok(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_pet_1_ok(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_pet_1_ok.get() {
             return Ok(self.is_pet_1_ok.borrow());
         }
         self.f_is_pet_1_ok.set(true);
-        *self.is_pet_1_ok.borrow_mut() = (*self.pet_1() == EnumDeepLiterals_Container1_Animal::Cat).try_into()?;
+        *self.is_pet_1_ok.borrow_mut() = (*self.pet_1()
+            == EnumDeepLiterals_Container1_Animal::Cat)
+            .try_into()?;
         Ok(self.is_pet_1_ok.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_pet_2_ok(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_pet_2_ok(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_pet_2_ok.get() {
             return Ok(self.is_pet_2_ok.borrow());
         }
         self.f_is_pet_2_ok.set(true);
-        *self.is_pet_2_ok.borrow_mut() = (*self.pet_2() == EnumDeepLiterals_Container1_Container2_Animal::Hare).try_into()?;
+        *self.is_pet_2_ok.borrow_mut() = (*self.pet_2()
+            == EnumDeepLiterals_Container1_Container2_Animal::Hare)
+            .try_into()?;
         Ok(self.is_pet_2_ok.borrow())
     }
 }
@@ -157,7 +169,9 @@ impl EnumDeepLiterals {
     }
 }
 impl EnumDeepLiterals {
-    pub fn pet_2(&self) -> Ref<'_, EnumDeepLiterals_Container1_Container2_Animal> {
+    pub fn pet_2(
+        &self,
+    ) -> Ref<'_, EnumDeepLiterals_Container1_Container2_Animal> {
         self.pet_2.borrow()
     }
 }
@@ -180,35 +194,55 @@ pub struct EnumDeepLiterals_Container1 {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EnumDeepLiterals_Container1> for OptRc<EnumDeepLiterals_Container1> {
+impl TryFrom<&EnumDeepLiterals_Container1>
+    for OptRc<EnumDeepLiterals_Container1>
+{
     type Error = KError;
     fn try_from(v: &EnumDeepLiterals_Container1) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EnumDeepLiterals_Container1> for OptRc<EnumDeepLiterals_Container1> {
+impl TryFrom<&&EnumDeepLiterals_Container1>
+    for OptRc<EnumDeepLiterals_Container1>
+{
     type Error = KError;
     fn try_from(v: &&EnumDeepLiterals_Container1) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1> for EnumDeepLiterals_Container1 {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1>
+    for EnumDeepLiterals_Container1
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1> for &EnumDeepLiterals_Container1 {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1>
+    for &EnumDeepLiterals_Container1
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1> for OptRc<EnumDeepLiterals_Container1> {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1>
+    for OptRc<EnumDeepLiterals_Container1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1> for &OptRc<EnumDeepLiterals_Container1> {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1>
+    for &OptRc<EnumDeepLiterals_Container1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1>, KError> {
         Ok((*self).clone())
     }
 }
@@ -216,7 +250,11 @@ impl KStruct for EnumDeepLiterals_Container1 {
     type Root = EnumDeepLiterals;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -232,8 +270,7 @@ impl KStruct for EnumDeepLiterals_Container1 {
         Ok(())
     }
 }
-impl EnumDeepLiterals_Container1 {
-}
+impl EnumDeepLiterals_Container1 {}
 impl EnumDeepLiterals_Container1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -271,15 +308,16 @@ impl From<&EnumDeepLiterals_Container1_Animal> for i64 {
             EnumDeepLiterals_Container1_Animal::Dog => 4,
             EnumDeepLiterals_Container1_Animal::Cat => 7,
             EnumDeepLiterals_Container1_Animal::Chicken => 12,
-            EnumDeepLiterals_Container1_Animal::Unknown(v) => v
+            EnumDeepLiterals_Container1_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for EnumDeepLiterals_Container1_Animal {
-    fn default() -> Self { EnumDeepLiterals_Container1_Animal::Unknown(0) }
+    fn default() -> Self {
+        EnumDeepLiterals_Container1_Animal::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumDeepLiterals_Container1_Container2 {
@@ -288,35 +326,59 @@ pub struct EnumDeepLiterals_Container1_Container2 {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EnumDeepLiterals_Container1_Container2> for OptRc<EnumDeepLiterals_Container1_Container2> {
+impl TryFrom<&EnumDeepLiterals_Container1_Container2>
+    for OptRc<EnumDeepLiterals_Container1_Container2>
+{
     type Error = KError;
-    fn try_from(v: &EnumDeepLiterals_Container1_Container2) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &EnumDeepLiterals_Container1_Container2,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EnumDeepLiterals_Container1_Container2> for OptRc<EnumDeepLiterals_Container1_Container2> {
+impl TryFrom<&&EnumDeepLiterals_Container1_Container2>
+    for OptRc<EnumDeepLiterals_Container1_Container2>
+{
     type Error = KError;
-    fn try_from(v: &&EnumDeepLiterals_Container1_Container2) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&EnumDeepLiterals_Container1_Container2,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1_Container2> for EnumDeepLiterals_Container1_Container2 {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1_Container2>
+    for EnumDeepLiterals_Container1_Container2
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1_Container2> for &EnumDeepLiterals_Container1_Container2 {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1_Container2>
+    for &EnumDeepLiterals_Container1_Container2
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1_Container2> for OptRc<EnumDeepLiterals_Container1_Container2> {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1_Container2>
+    for OptRc<EnumDeepLiterals_Container1_Container2>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EnumDeepLiterals_Container1_Container2> for &OptRc<EnumDeepLiterals_Container1_Container2> {
-    fn downcast_optrc(&self) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeepLiterals_Container1_Container2>
+    for &OptRc<EnumDeepLiterals_Container1_Container2>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<EnumDeepLiterals_Container1_Container2>, KError> {
         Ok((*self).clone())
     }
 }
@@ -324,7 +386,11 @@ impl KStruct for EnumDeepLiterals_Container1_Container2 {
     type Root = EnumDeepLiterals;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -340,8 +406,7 @@ impl KStruct for EnumDeepLiterals_Container1_Container2 {
         Ok(())
     }
 }
-impl EnumDeepLiterals_Container1_Container2 {
-}
+impl EnumDeepLiterals_Container1_Container2 {}
 impl EnumDeepLiterals_Container1_Container2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -363,12 +428,16 @@ pub enum EnumDeepLiterals_Container1_Container2_Animal {
 
 impl TryFrom<i64> for EnumDeepLiterals_Container1_Container2_Animal {
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<EnumDeepLiterals_Container1_Container2_Animal> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<EnumDeepLiterals_Container1_Container2_Animal> {
         match flag {
             4 => Ok(EnumDeepLiterals_Container1_Container2_Animal::Canary),
             7 => Ok(EnumDeepLiterals_Container1_Container2_Animal::Turtle),
             12 => Ok(EnumDeepLiterals_Container1_Container2_Animal::Hare),
-            _ => Ok(EnumDeepLiterals_Container1_Container2_Animal::Unknown(flag)),
+            _ => {
+                Ok(EnumDeepLiterals_Container1_Container2_Animal::Unknown(flag))
+            }
         }
     }
 }
@@ -379,12 +448,13 @@ impl From<&EnumDeepLiterals_Container1_Container2_Animal> for i64 {
             EnumDeepLiterals_Container1_Container2_Animal::Canary => 4,
             EnumDeepLiterals_Container1_Container2_Animal::Turtle => 7,
             EnumDeepLiterals_Container1_Container2_Animal::Hare => 12,
-            EnumDeepLiterals_Container1_Container2_Animal::Unknown(v) => v
+            EnumDeepLiterals_Container1_Container2_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for EnumDeepLiterals_Container1_Container2_Animal {
-    fn default() -> Self { EnumDeepLiterals_Container1_Container2_Animal::Unknown(0) }
+    fn default() -> Self {
+        EnumDeepLiterals_Container1_Container2_Animal::Unknown(0)
+    }
 }
-

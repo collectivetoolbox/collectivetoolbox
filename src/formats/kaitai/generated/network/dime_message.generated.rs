@@ -64,7 +64,11 @@ impl KStruct for DimeMessage {
     type Root = DimeMessage;
     type Parent = DimeMessage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -80,7 +84,12 @@ impl KStruct for DimeMessage {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DimeMessage_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DimeMessage_Record>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -90,8 +99,7 @@ impl KStruct for DimeMessage {
         Ok(())
     }
 }
-impl DimeMessage {
-}
+impl DimeMessage {}
 impl DimeMessage {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<DimeMessage_Record>>> {
         self.records.borrow()
@@ -140,15 +148,16 @@ impl From<&DimeMessage_TypeFormats> for i64 {
             DimeMessage_TypeFormats::AbsoluteUri => 2,
             DimeMessage_TypeFormats::Unknown => 3,
             DimeMessage_TypeFormats::None => 4,
-            DimeMessage_TypeFormats::UnknownVariant(v) => v
+            DimeMessage_TypeFormats::UnknownVariant(v) => v,
         }
     }
 }
 
 impl Default for DimeMessage_TypeFormats {
-    fn default() -> Self { DimeMessage_TypeFormats::UnknownVariant(0) }
+    fn default() -> Self {
+        DimeMessage_TypeFormats::UnknownVariant(0)
+    }
 }
-
 
 /**
  * one element of the option field
@@ -178,22 +187,34 @@ impl TryFrom<&&DimeMessage_OptionElement> for OptRc<DimeMessage_OptionElement> {
     }
 }
 impl DowncastOptRc<DimeMessage_OptionElement> for DimeMessage_OptionElement {
-    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<DimeMessage_OptionElement> for &DimeMessage_OptionElement {
-    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DimeMessage_OptionElement> for OptRc<DimeMessage_OptionElement> {
-    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+impl DowncastOptRc<DimeMessage_OptionElement>
+    for OptRc<DimeMessage_OptionElement>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DimeMessage_OptionElement> for &OptRc<DimeMessage_OptionElement> {
-    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+impl DowncastOptRc<DimeMessage_OptionElement>
+    for &OptRc<DimeMessage_OptionElement>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
         Ok((*self).clone())
     }
 }
@@ -201,7 +222,11 @@ impl KStruct for DimeMessage_OptionElement {
     type Root = DimeMessage;
     type Parent = DimeMessage_OptionField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -217,14 +242,14 @@ impl KStruct for DimeMessage_OptionElement {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_element.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.element_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_element()))?;
+        *self_rc.element_data.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.len_element()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DimeMessage_OptionElement {
-}
+impl DimeMessage_OptionElement {}
 impl DimeMessage_OptionElement {
     pub fn element_format(&self) -> Ref<'_, u16> {
         self.element_format.borrow()
@@ -296,7 +321,9 @@ impl DowncastOptRc<DimeMessage_OptionField> for OptRc<DimeMessage_OptionField> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DimeMessage_OptionField> for &OptRc<DimeMessage_OptionField> {
+impl DowncastOptRc<DimeMessage_OptionField>
+    for &OptRc<DimeMessage_OptionField>
+{
     fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionField>, KError> {
         Ok((*self).clone())
     }
@@ -305,7 +332,11 @@ impl KStruct for DimeMessage_OptionField {
     type Root = DimeMessage;
     type Parent = DimeMessage_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,7 +352,12 @@ impl KStruct for DimeMessage_OptionField {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DimeMessage_OptionElement>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DimeMessage_OptionElement>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.option_elements.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -331,10 +367,11 @@ impl KStruct for DimeMessage_OptionField {
         Ok(())
     }
 }
+impl DimeMessage_OptionField {}
 impl DimeMessage_OptionField {
-}
-impl DimeMessage_OptionField {
-    pub fn option_elements(&self) -> Ref<'_, Vec<OptRc<DimeMessage_OptionElement>>> {
+    pub fn option_elements(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<DimeMessage_OptionElement>>> {
         self.option_elements.borrow()
     }
 }
@@ -399,7 +436,11 @@ impl KStruct for DimeMessage_Padding {
     type Root = DimeMessage;
     type Parent = DimeMessage_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -411,14 +452,17 @@ impl KStruct for DimeMessage_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc.boundary_padding.borrow_mut() =
+            _io.read_bytes(usize::try_from(modulo(
+                i64::from((0_i32).saturating_sub(to_i32(_io.pos()))),
+                4_i64,
+            ))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DimeMessage_Padding {
-}
+impl DimeMessage_Padding {}
 impl DimeMessage_Padding {
     pub fn boundary_padding(&self) -> Ref<'_, Vec<u8>> {
         self.boundary_padding.borrow()
@@ -510,7 +554,11 @@ impl KStruct for DimeMessage_Record {
     type Root = DimeMessage;
     type Parent = DimeMessage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -530,7 +578,9 @@ impl KStruct for DimeMessage_Record {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_chunk_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.type_format.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
+        *self_rc.type_format.borrow_mut() =
+            i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes())
+                .try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -543,36 +593,68 @@ impl KStruct for DimeMessage_Record {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_options = _io.read_bytes(usize::from(*self_rc.len_options()))?;
+        let _raw_options =
+            _io.read_bytes(usize::from(*self_rc.len_options()))?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
-        let t = Self::read_into::<BytesReader, DimeMessage_OptionField>(&_io_options, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, DimeMessage_OptionField>(
+            &_io_options,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.options.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DimeMessage_Padding>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.options_padding.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_id()))?, "ASCII")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_id()))?,
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DimeMessage_Padding>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.id_padding.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_type()))?, "ASCII")?;
+        *self_rc.r#type.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_type()))?,
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DimeMessage_Padding>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.type_padding.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        *self_rc.data.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DimeMessage_Padding>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.data_padding.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DimeMessage_Record {
-}
+impl DimeMessage_Record {}
 
 /**
  * DIME format version (always 1)

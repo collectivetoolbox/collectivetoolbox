@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::some_ip::SomeIp;
 use super::some_ip::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct SomeIpContainer {
@@ -51,7 +51,11 @@ impl KStruct for SomeIpContainer {
     type Root = SomeIpContainer;
     type Parent = SomeIpContainer;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,8 +81,7 @@ impl KStruct for SomeIpContainer {
         Ok(())
     }
 }
-impl SomeIpContainer {
-}
+impl SomeIpContainer {}
 impl SomeIpContainer {
     pub fn some_ip_packages(&self) -> Ref<'_, Vec<OptRc<SomeIp>>> {
         self.some_ip_packages.borrow()

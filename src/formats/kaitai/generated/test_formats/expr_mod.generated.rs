@@ -109,7 +109,11 @@ impl KStruct for ExprMod {
     type Root = ExprMod;
     type Parent = ExprMod;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,52 +134,67 @@ impl KStruct for ExprMod {
     }
 }
 impl ExprMod {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn mod_neg_const(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn mod_neg_const(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mod_neg_const.get() {
             return Ok(self.mod_neg_const.borrow());
         }
         self.f_mod_neg_const.set(true);
-        *self.mod_neg_const.borrow_mut() = (modulo(i64::from((0_i32).saturating_sub(to_i32(9837))), 13_i64)).try_into()?;
+        *self.mod_neg_const.borrow_mut() =
+            (modulo(i64::from((0_i32).saturating_sub(to_i32(9837))), 13_i64))
+                .try_into()?;
         Ok(self.mod_neg_const.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn mod_neg_seq(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn mod_neg_seq(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mod_neg_seq.get() {
             return Ok(self.mod_neg_seq.borrow());
         }
         self.f_mod_neg_seq.set(true);
-        *self.mod_neg_seq.borrow_mut() = (modulo(i64::from(*self.int_s()), 13_i64)).try_into()?;
+        *self.mod_neg_seq.borrow_mut() =
+            (modulo(i64::from(*self.int_s()), 13_i64)).try_into()?;
         Ok(self.mod_neg_seq.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn mod_pos_const(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn mod_pos_const(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mod_pos_const.get() {
             return Ok(self.mod_pos_const.borrow());
         }
         self.f_mod_pos_const.set(true);
-        *self.mod_pos_const.borrow_mut() = (modulo(9837_i64, 13_i64)).try_into()?;
+        *self.mod_pos_const.borrow_mut() =
+            (modulo(9837_i64, 13_i64)).try_into()?;
         Ok(self.mod_pos_const.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn mod_pos_seq(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn mod_pos_seq(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mod_pos_seq.get() {
             return Ok(self.mod_pos_seq.borrow());
         }
         self.f_mod_pos_seq.set(true);
-        *self.mod_pos_seq.borrow_mut() = ((*self.int_u()).checked_rem(13_u32).ok_or(KError::CastError)?).try_into()?;
+        *self.mod_pos_seq.borrow_mut() = ((*self.int_u())
+            .checked_rem(13_u32)
+            .ok_or(KError::CastError)?)
+        .try_into()?;
         Ok(self.mod_pos_seq.borrow())
     }
 }

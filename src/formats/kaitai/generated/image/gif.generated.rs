@@ -31,7 +31,8 @@ pub struct Gif {
     pub(crate) _parent: SharedType<Gif>,
     pub(crate) _self_shared: SharedType<Self>,
     hdr: RefCell<OptRc<Gif_Header>>,
-    logical_screen_descriptor: RefCell<OptRc<Gif_LogicalScreenDescriptorStruct>>,
+    logical_screen_descriptor:
+        RefCell<OptRc<Gif_LogicalScreenDescriptorStruct>>,
     global_color_table: RefCell<OptRc<Gif_ColorTable>>,
     blocks: RefCell<Vec<OptRc<Gif_Block>>>,
     _io: RefCell<BytesReader>,
@@ -73,7 +74,11 @@ impl KStruct for Gif {
     type Root = Gif;
     type Parent = Gif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,18 +90,38 @@ impl KStruct for Gif {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Gif_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Gif_Header>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Gif_LogicalScreenDescriptorStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Gif_LogicalScreenDescriptorStruct>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.logical_screen_descriptor.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.logical_screen_descriptor().has_color_table()? {
-            let _raw_global_color_table = _io.read_bytes(usize::try_from((*self_rc.logical_screen_descriptor().color_table_size()?).saturating_mul(3_i32))?)?;
-            *self_rc.global_color_table_raw.borrow_mut() = _raw_global_color_table.clone();
-            let _io_global_color_table = BytesReader::from(_raw_global_color_table);
-            let t = Self::read_into::<BytesReader, Gif_ColorTable>(&_io_global_color_table, Some(self_rc._root.clone()), None)?.into();
+            let _raw_global_color_table = _io.read_bytes(usize::try_from(
+                (*self_rc.logical_screen_descriptor().color_table_size()?)
+                    .saturating_mul(3_i32),
+            )?)?;
+            *self_rc.global_color_table_raw.borrow_mut() =
+                _raw_global_color_table.clone();
+            let _io_global_color_table =
+                BytesReader::from(_raw_global_color_table);
+            let t = Self::read_into::<BytesReader, Gif_ColorTable>(
+                &_io_global_color_table,
+                Some(self_rc._root.clone()),
+                None,
+            )?
+            .into();
             *self_rc.global_color_table.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -104,12 +129,23 @@ impl KStruct for Gif {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Gif_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_Block>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.blocks.borrow_mut().push(t);
                 let _t_blocks = self_rc.blocks.borrow();
-                let Some(_tmpa) = _t_blocks.last() else { break; };
+                let Some(_tmpa) = _t_blocks.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if  (_io.is_eof()) || (*_tmpa.block_type() == Gif_BlockType::EndOfFile)  { break; }
+                if (_io.is_eof())
+                    || (*_tmpa.block_type() == Gif_BlockType::EndOfFile)
+                {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -117,15 +153,16 @@ impl KStruct for Gif {
         Ok(())
     }
 }
-impl Gif {
-}
+impl Gif {}
 impl Gif {
     pub fn hdr(&self) -> Ref<'_, OptRc<Gif_Header>> {
         self.hdr.borrow()
     }
 }
 impl Gif {
-    pub fn logical_screen_descriptor(&self) -> Ref<'_, OptRc<Gif_LogicalScreenDescriptorStruct>> {
+    pub fn logical_screen_descriptor(
+        &self,
+    ) -> Ref<'_, OptRc<Gif_LogicalScreenDescriptorStruct>> {
         self.logical_screen_descriptor.borrow()
     }
 }
@@ -185,13 +222,15 @@ impl From<&Gif_BlockType> for i64 {
             Gif_BlockType::Extension => 33,
             Gif_BlockType::LocalImageDescriptor => 44,
             Gif_BlockType::EndOfFile => 59,
-            Gif_BlockType::Unknown(v) => v
+            Gif_BlockType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Gif_BlockType {
-    fn default() -> Self { Gif_BlockType::Unknown(0) }
+    fn default() -> Self {
+        Gif_BlockType::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -220,15 +259,16 @@ impl From<&Gif_ExtensionLabel> for i64 {
             Gif_ExtensionLabel::GraphicControl => 249,
             Gif_ExtensionLabel::Comment => 254,
             Gif_ExtensionLabel::Application => 255,
-            Gif_ExtensionLabel::Unknown(v) => v
+            Gif_ExtensionLabel::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Gif_ExtensionLabel {
-    fn default() -> Self { Gif_ExtensionLabel::Unknown(0) }
+    fn default() -> Self {
+        Gif_ExtensionLabel::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Gif_ApplicationId {
@@ -278,7 +318,11 @@ impl KStruct for Gif_ApplicationId {
     type Root = Gif;
     type Parent = Gif_ExtApplication;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -293,19 +337,23 @@ impl KStruct for Gif_ApplicationId {
         *self_rc.len_bytes.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (11).try_into()?;
         if !(*self_rc.len_bytes() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/application_id/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/application_id/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.application_identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.application_identifier.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.application_auth_code.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc.application_auth_code.borrow_mut() =
+            _io.read_bytes(3_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gif_ApplicationId {
-}
+impl Gif_ApplicationId {}
 impl Gif_ApplicationId {
     pub fn len_bytes(&self) -> Ref<'_, u8> {
         self.len_bytes.borrow()
@@ -403,12 +451,16 @@ impl TryFrom<&&Gif_Block_Body> for OptRc<Gif_LocalImageDescriptor> {
     }
 }
 impl DowncastOptRc<Gif_LocalImageDescriptor> for Gif_Block_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         OptRc::<Gif_LocalImageDescriptor>::try_from(self)
     }
 }
 impl DowncastOptRc<Gif_LocalImageDescriptor> for &Gif_Block_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -453,7 +505,11 @@ impl KStruct for Gif_Block {
     type Root = Gif;
     type Parent = Gif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -465,15 +521,26 @@ impl KStruct for Gif_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.block_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.block_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.block_type() {
             Gif_BlockType::Extension => {
-                let t = Self::read_into::<_, Gif_Extension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_Extension>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Gif_BlockType::LocalImageDescriptor => {
-                let t = Self::read_into::<_, Gif_LocalImageDescriptor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_LocalImageDescriptor>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -483,8 +550,7 @@ impl KStruct for Gif_Block {
         Ok(())
     }
 }
-impl Gif_Block {
-}
+impl Gif_Block {}
 impl Gif_Block {
     pub fn block_type(&self) -> Ref<'_, Gif_BlockType> {
         self.block_type.borrow()
@@ -555,7 +621,11 @@ impl KStruct for Gif_ColorTable {
     type Root = Gif;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -571,7 +641,12 @@ impl KStruct for Gif_ColorTable {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Gif_ColorTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_ColorTableEntry>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -581,8 +656,7 @@ impl KStruct for Gif_ColorTable {
         Ok(())
     }
 }
-impl Gif_ColorTable {
-}
+impl Gif_ColorTable {}
 impl Gif_ColorTable {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Gif_ColorTableEntry>>> {
         self.entries.borrow()
@@ -646,7 +720,11 @@ impl KStruct for Gif_ColorTableEntry {
     type Root = Gif;
     type Parent = Gif_ColorTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -668,8 +746,7 @@ impl KStruct for Gif_ColorTableEntry {
         Ok(())
     }
 }
-impl Gif_ColorTableEntry {
-}
+impl Gif_ColorTableEntry {}
 impl Gif_ColorTableEntry {
     pub fn red(&self) -> Ref<'_, u8> {
         self.red.borrow()
@@ -742,7 +819,11 @@ impl KStruct for Gif_ExtApplication {
     type Root = Gif;
     type Parent = Gif_Extension;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -754,19 +835,33 @@ impl KStruct for Gif_ExtApplication {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Gif_ApplicationId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Gif_ApplicationId>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.application_id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subblocks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Gif_Subblock>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Gif_Subblock>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 self_rc.subblocks.borrow_mut().push(t);
                 let _t_subblocks = self_rc.subblocks.borrow();
-                let Some(_tmpa) = _t_subblocks.last() else { break; };
+                let Some(_tmpa) = _t_subblocks.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) { break; }
+                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -774,8 +869,7 @@ impl KStruct for Gif_ExtApplication {
         Ok(())
     }
 }
-impl Gif_ExtApplication {
-}
+impl Gif_ExtApplication {}
 impl Gif_ExtApplication {
     pub fn application_id(&self) -> Ref<'_, OptRc<Gif_ApplicationId>> {
         self.application_id.borrow()
@@ -854,7 +948,11 @@ impl KStruct for Gif_ExtGraphicControl {
     type Root = Gif;
     type Parent = Gif_Extension;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -868,7 +966,10 @@ impl KStruct for Gif_ExtGraphicControl {
         let _io = io;
         *self_rc.block_size.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.block_size() == vec![0x4u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/ext_graphic_control/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/ext_graphic_control/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
@@ -879,7 +980,10 @@ impl KStruct for Gif_ExtGraphicControl {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/ext_graphic_control/seq/4".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/ext_graphic_control/seq/4".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -887,28 +991,34 @@ impl KStruct for Gif_ExtGraphicControl {
     }
 }
 impl Gif_ExtGraphicControl {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn transparent_color_flag(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn transparent_color_flag(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_transparent_color_flag.get() {
             return Ok(self.transparent_color_flag.borrow());
         }
         self.f_transparent_color_flag.set(true);
-        *self.transparent_color_flag.borrow_mut() = (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
+        *self.transparent_color_flag.borrow_mut() =
+            (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
         Ok(self.transparent_color_flag.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn user_input_flag(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn user_input_flag(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_user_input_flag.get() {
             return Ok(self.user_input_flag.borrow());
         }
         self.f_user_input_flag.set(true);
-        *self.user_input_flag.borrow_mut() = (((i32::from(*self.flags())) & (2_i32)) != 0).try_into()?;
+        *self.user_input_flag.borrow_mut() =
+            (((i32::from(*self.flags())) & (2_i32)) != 0).try_into()?;
         Ok(self.user_input_flag.borrow())
     }
 }
@@ -1090,7 +1200,11 @@ impl KStruct for Gif_Extension {
     type Root = Gif;
     type Parent = Gif_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1106,19 +1220,39 @@ impl KStruct for Gif_Extension {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.label() {
             Gif_ExtensionLabel::Application => {
-                let t = Self::read_into::<_, Gif_ExtApplication>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_ExtApplication>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Gif_ExtensionLabel::Comment => {
-                let t = Self::read_into::<_, Gif_Subblocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Gif_Subblocks>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Gif_ExtensionLabel::GraphicControl => {
-                let t = Self::read_into::<_, Gif_ExtGraphicControl>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Gif_ExtGraphicControl>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                let t = Self::read_into::<_, Gif_Subblocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Gif_Subblocks>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
@@ -1127,8 +1261,7 @@ impl KStruct for Gif_Extension {
         Ok(())
     }
 }
-impl Gif_Extension {
-}
+impl Gif_Extension {}
 impl Gif_Extension {
     pub fn label(&self) -> Ref<'_, Gif_ExtensionLabel> {
         self.label.borrow()
@@ -1201,7 +1334,11 @@ impl KStruct for Gif_Header {
     type Root = Gif;
     type Parent = Gif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1215,17 +1352,20 @@ impl KStruct for Gif_Header {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x49u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.version.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc.version.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gif_Header {
-}
+impl Gif_Header {}
 impl Gif_Header {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -1302,7 +1442,11 @@ impl KStruct for Gif_ImageData {
     type Root = Gif;
     type Parent = Gif_LocalImageDescriptor;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1316,15 +1460,19 @@ impl KStruct for Gif_ImageData {
         let _io = io;
         *self_rc.lzw_min_code_size.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Gif_Subblocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Gif_Subblocks>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.subblocks.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gif_ImageData {
-}
+impl Gif_ImageData {}
 impl Gif_ImageData {
     pub fn lzw_min_code_size(&self) -> Ref<'_, u8> {
         self.lzw_min_code_size.borrow()
@@ -1383,22 +1531,34 @@ impl TryFrom<&&Gif_LocalImageDescriptor> for OptRc<Gif_LocalImageDescriptor> {
     }
 }
 impl DowncastOptRc<Gif_LocalImageDescriptor> for Gif_LocalImageDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Gif_LocalImageDescriptor> for &Gif_LocalImageDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Gif_LocalImageDescriptor> for OptRc<Gif_LocalImageDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+impl DowncastOptRc<Gif_LocalImageDescriptor>
+    for OptRc<Gif_LocalImageDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Gif_LocalImageDescriptor> for &OptRc<Gif_LocalImageDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+impl DowncastOptRc<Gif_LocalImageDescriptor>
+    for &OptRc<Gif_LocalImageDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1406,7 +1566,11 @@ impl KStruct for Gif_LocalImageDescriptor {
     type Root = Gif;
     type Parent = Gif_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1430,14 +1594,28 @@ impl KStruct for Gif_LocalImageDescriptor {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_color_table()? {
-            let _raw_local_color_table = _io.read_bytes(usize::try_from((*self_rc.color_table_size()?).saturating_mul(3_i32))?)?;
-            *self_rc.local_color_table_raw.borrow_mut() = _raw_local_color_table.clone();
-            let _io_local_color_table = BytesReader::from(_raw_local_color_table);
-            let t = Self::read_into::<BytesReader, Gif_ColorTable>(&_io_local_color_table, Some(self_rc._root.clone()), None)?.into();
+            let _raw_local_color_table = _io.read_bytes(usize::try_from(
+                (*self_rc.color_table_size()?).saturating_mul(3_i32),
+            )?)?;
+            *self_rc.local_color_table_raw.borrow_mut() =
+                _raw_local_color_table.clone();
+            let _io_local_color_table =
+                BytesReader::from(_raw_local_color_table);
+            let t = Self::read_into::<BytesReader, Gif_ColorTable>(
+                &_io_local_color_table,
+                Some(self_rc._root.clone()),
+                None,
+            )?
+            .into();
             *self_rc.local_color_table.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, Gif_ImageData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Gif_ImageData>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.image_data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -1445,52 +1623,65 @@ impl KStruct for Gif_LocalImageDescriptor {
     }
 }
 impl Gif_LocalImageDescriptor {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn color_table_size(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn color_table_size(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_color_table_size.get() {
             return Ok(self.color_table_size.borrow());
         }
         self.f_color_table_size.set(true);
-        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32)))).try_into()?;
+        *self.color_table_size.borrow_mut() = ((2_i32)
+            .wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32))))
+        .try_into()?;
         Ok(self.color_table_size.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn has_color_table(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn has_color_table(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_color_table.get() {
             return Ok(self.has_color_table.borrow());
         }
         self.f_has_color_table.set(true);
-        *self.has_color_table.borrow_mut() = (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
+        *self.has_color_table.borrow_mut() =
+            (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
         Ok(self.has_color_table.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn has_interlace(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn has_interlace(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_interlace.get() {
             return Ok(self.has_interlace.borrow());
         }
         self.f_has_interlace.set(true);
-        *self.has_interlace.borrow_mut() = (((i32::from(*self.flags())) & (64_i32)) != 0).try_into()?;
+        *self.has_interlace.borrow_mut() =
+            (((i32::from(*self.flags())) & (64_i32)) != 0).try_into()?;
         Ok(self.has_interlace.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn has_sorted_color_table(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn has_sorted_color_table(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_sorted_color_table.get() {
             return Ok(self.has_sorted_color_table.borrow());
         }
         self.f_has_sorted_color_table.set(true);
-        *self.has_sorted_color_table.borrow_mut() = (((i32::from(*self.flags())) & (32_i32)) != 0).try_into()?;
+        *self.has_sorted_color_table.borrow_mut() =
+            (((i32::from(*self.flags())) & (32_i32)) != 0).try_into()?;
         Ok(self.has_sorted_color_table.borrow())
     }
 }
@@ -1566,35 +1757,59 @@ pub struct Gif_LogicalScreenDescriptorStruct {
     f_has_color_table: Cell<bool>,
     has_color_table: RefCell<bool>,
 }
-impl TryFrom<&Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
+impl TryFrom<&Gif_LogicalScreenDescriptorStruct>
+    for OptRc<Gif_LogicalScreenDescriptorStruct>
+{
     type Error = KError;
-    fn try_from(v: &Gif_LogicalScreenDescriptorStruct) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &Gif_LogicalScreenDescriptorStruct,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
+impl TryFrom<&&Gif_LogicalScreenDescriptorStruct>
+    for OptRc<Gif_LogicalScreenDescriptorStruct>
+{
     type Error = KError;
-    fn try_from(v: &&Gif_LogicalScreenDescriptorStruct) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&Gif_LogicalScreenDescriptorStruct,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for Gif_LogicalScreenDescriptorStruct {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct>
+    for Gif_LogicalScreenDescriptorStruct
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for &Gif_LogicalScreenDescriptorStruct {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct>
+    for &Gif_LogicalScreenDescriptorStruct
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct>
+    for OptRc<Gif_LogicalScreenDescriptorStruct>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for &OptRc<Gif_LogicalScreenDescriptorStruct> {
-    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct>
+    for &OptRc<Gif_LogicalScreenDescriptorStruct>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1602,7 +1817,11 @@ impl KStruct for Gif_LogicalScreenDescriptorStruct {
     type Root = Gif;
     type Parent = Gif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1629,28 +1848,35 @@ impl KStruct for Gif_LogicalScreenDescriptorStruct {
     }
 }
 impl Gif_LogicalScreenDescriptorStruct {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn color_table_size(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn color_table_size(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_color_table_size.get() {
             return Ok(self.color_table_size.borrow());
         }
         self.f_color_table_size.set(true);
-        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32)))).try_into()?;
+        *self.color_table_size.borrow_mut() = ((2_i32)
+            .wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32))))
+        .try_into()?;
         Ok(self.color_table_size.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn has_color_table(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn has_color_table(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_color_table.get() {
             return Ok(self.has_color_table.borrow());
         }
         self.f_has_color_table.set(true);
-        *self.has_color_table.borrow_mut() = (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
+        *self.has_color_table.borrow_mut() =
+            (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
         Ok(self.has_color_table.borrow())
     }
 }
@@ -1737,7 +1963,11 @@ impl KStruct for Gif_Subblock {
     type Root = Gif;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1751,14 +1981,14 @@ impl KStruct for Gif_Subblock {
         let _io = io;
         *self_rc.len_bytes.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.bytes.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_bytes()))?;
+        *self_rc.bytes.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.len_bytes()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gif_Subblock {
-}
+impl Gif_Subblock {}
 impl Gif_Subblock {
     pub fn len_bytes(&self) -> Ref<'_, u8> {
         self.len_bytes.borrow()
@@ -1830,7 +2060,11 @@ impl KStruct for Gif_Subblocks {
     type Root = Gif;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1846,12 +2080,21 @@ impl KStruct for Gif_Subblocks {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Gif_Subblock>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Gif_Subblock>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else { break; };
+                let Some(_tmpa) = _t_entries.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) { break; }
+                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1859,8 +2102,7 @@ impl KStruct for Gif_Subblocks {
         Ok(())
     }
 }
-impl Gif_Subblocks {
-}
+impl Gif_Subblocks {}
 impl Gif_Subblocks {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Gif_Subblock>>> {
         self.entries.borrow()

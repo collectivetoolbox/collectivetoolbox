@@ -100,7 +100,11 @@ impl KStruct for NavParentFalse2 {
     type Root = NavParentFalse2;
     type Parent = NavParentFalse2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,15 +116,19 @@ impl KStruct for NavParentFalse2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NavParentFalse2_Child>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NavParentFalse2_Child>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.parentless.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParentFalse2 {
-}
+impl NavParentFalse2 {}
 impl NavParentFalse2 {
     pub fn parentless(&self) -> Ref<'_, OptRc<NavParentFalse2_Child>> {
         self.parentless.borrow()
@@ -182,7 +190,11 @@ impl KStruct for NavParentFalse2_Child {
     type Root = NavParentFalse2;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -200,8 +212,7 @@ impl KStruct for NavParentFalse2_Child {
         Ok(())
     }
 }
-impl NavParentFalse2_Child {
-}
+impl NavParentFalse2_Child {}
 impl NavParentFalse2_Child {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

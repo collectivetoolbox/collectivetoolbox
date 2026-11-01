@@ -106,7 +106,11 @@ impl KStruct for BufferedStruct {
     type Root = BufferedStruct;
     type Parent = BufferedStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,7 +127,12 @@ impl KStruct for BufferedStruct {
         let _raw_block1 = _io.read_bytes(usize::try_from(*self_rc.len1())?)?;
         *self_rc.block1_raw.borrow_mut() = _raw_block1.clone();
         let _io_block1 = BytesReader::from(_raw_block1);
-        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(
+            &_io_block1,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len2.borrow_mut() = _io.read_u4le()?;
@@ -131,7 +140,12 @@ impl KStruct for BufferedStruct {
         let _raw_block2 = _io.read_bytes(usize::try_from(*self_rc.len2())?)?;
         *self_rc.block2_raw.borrow_mut() = _raw_block2.clone();
         let _io_block2 = BytesReader::from(_raw_block2);
-        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(
+            &_io_block2,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.block2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.finisher.borrow_mut() = _io.read_u4le()?;
@@ -140,8 +154,7 @@ impl KStruct for BufferedStruct {
         Ok(())
     }
 }
-impl BufferedStruct {
-}
+impl BufferedStruct {}
 impl BufferedStruct {
     pub fn len1(&self) -> Ref<'_, u32> {
         self.len1.borrow()
@@ -234,7 +247,11 @@ impl KStruct for BufferedStruct_Block {
     type Root = BufferedStruct;
     type Parent = BufferedStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -254,8 +271,7 @@ impl KStruct for BufferedStruct_Block {
         Ok(())
     }
 }
-impl BufferedStruct_Block {
-}
+impl BufferedStruct_Block {}
 impl BufferedStruct_Block {
     pub fn number1(&self) -> Ref<'_, u32> {
         self.number1.borrow()

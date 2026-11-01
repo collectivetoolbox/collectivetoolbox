@@ -105,7 +105,11 @@ impl KStruct for EnumOfValueInst {
     type Root = EnumOfValueInst;
     type Parent = EnumOfValueInst;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,28 +130,43 @@ impl KStruct for EnumOfValueInst {
     }
 }
 impl EnumOfValueInst {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn pet_3(
-        &self
-    ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn pet_3(&self) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
         let _io = self._io.borrow();
         if self.f_pet_3.get() {
             return Ok(self.pet_3.borrow());
         }
         self.f_pet_3.set(true);
-        *self.pet_3.borrow_mut() = i64::from(if *self.pet_1() == EnumOfValueInst_Animal::Cat { 4_i32 } else { 12_i32 }).try_into()?;
+        *self.pet_3.borrow_mut() =
+            i64::from(if *self.pet_1() == EnumOfValueInst_Animal::Cat {
+                4_i32
+            } else {
+                12_i32
+            })
+            .try_into()?;
         Ok(self.pet_3.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn pet_4(
-        &self
-    ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn pet_4(&self) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
         let _io = self._io.borrow();
         if self.f_pet_4.get() {
             return Ok(self.pet_4.borrow());
         }
         self.f_pet_4.set(true);
-        *self.pet_4.borrow_mut() = if *self.pet_1() == EnumOfValueInst_Animal::Cat { EnumOfValueInst_Animal::Dog.clone() } else { EnumOfValueInst_Animal::Chicken.clone() };
+        *self.pet_4.borrow_mut() =
+            if *self.pet_1() == EnumOfValueInst_Animal::Cat {
+                EnumOfValueInst_Animal::Dog.clone()
+            } else {
+                EnumOfValueInst_Animal::Chicken.clone()
+            };
         Ok(self.pet_4.borrow())
     }
 }
@@ -198,12 +217,13 @@ impl From<&EnumOfValueInst_Animal> for i64 {
             EnumOfValueInst_Animal::Dog => 4,
             EnumOfValueInst_Animal::Cat => 7,
             EnumOfValueInst_Animal::Chicken => 12,
-            EnumOfValueInst_Animal::Unknown(v) => v
+            EnumOfValueInst_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for EnumOfValueInst_Animal {
-    fn default() -> Self { EnumOfValueInst_Animal::Unknown(0) }
+    fn default() -> Self {
+        EnumOfValueInst_Animal::Unknown(0)
+    }
 }
-

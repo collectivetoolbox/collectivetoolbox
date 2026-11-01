@@ -70,7 +70,11 @@ impl KStruct for Exif {
     type Root = Exif;
     type Parent = Exif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -84,15 +88,19 @@ impl KStruct for Exif {
         let _io = io;
         *self_rc.endianness.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Exif_ExifBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Exif_ExifBody>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Exif {
-}
+impl Exif {}
 impl Exif {
     pub fn endianness(&self) -> Ref<'_, u16> {
         self.endianness.borrow()
@@ -230,13 +238,15 @@ impl From<&Exif_FieldType> for i64 {
             Exif_FieldType::Double => 12,
             Exif_FieldType::Ifd => 13,
             Exif_FieldType::Utf8 => 129,
-            Exif_FieldType::Unknown(v) => v
+            Exif_FieldType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Exif_FieldType {
-    fn default() -> Self { Exif_FieldType::Unknown(0) }
+    fn default() -> Self {
+        Exif_FieldType::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -352,13 +362,15 @@ impl From<&Exif_GpsTag> for i64 {
             Exif_GpsTag::GpsDateStamp => 29,
             Exif_GpsTag::GpsDifferential => 30,
             Exif_GpsTag::GpsHPositioningError => 31,
-            Exif_GpsTag::Unknown(v) => v
+            Exif_GpsTag::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Exif_GpsTag {
-    fn default() -> Self { Exif_GpsTag::Unknown(0) }
+    fn default() -> Self {
+        Exif_GpsTag::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -1763,15 +1775,16 @@ impl From<&Exif_Tag> for i64 {
             Exif_Tag::Sharpness2 => 65110,
             Exif_Tag::Smoothness => 65111,
             Exif_Tag::MoireFilter => 65112,
-            Exif_Tag::Unknown(v) => v
+            Exif_Tag::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Exif_Tag {
-    fn default() -> Self { Exif_Tag::Unknown(0) }
+    fn default() -> Self {
+        Exif_Tag::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Exif_ExifBody {
@@ -1821,7 +1834,11 @@ impl KStruct for Exif_ExifBody {
     type Root = Exif;
     type Parent = Exif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1833,7 +1850,15 @@ impl KStruct for Exif_ExifBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.endianness() {
+        match *self_rc
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .endianness()
+        {
             18761 => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -1843,15 +1868,28 @@ impl KStruct for Exif_ExifBody {
             _ => {}
         }
         if *self_rc._is_le.borrow() == 0 {
-            return Err(KError::UndecidedEndianness { src_path: "/types/exif_body".to_string() });
+            return Err(KError::UndecidedEndianness {
+                src_path: "/types/exif_body".to_string(),
+            });
         }
-        *self_rc.magic.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc.magic.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u2le()?
+        } else {
+            _io.read_u2be()?
+        };
         let expected: u16 = (42).try_into()?;
         if !(*self_rc.magic() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/exif_body/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/exif_body/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_ifd0.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.ofs_ifd0.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1863,18 +1901,26 @@ impl Exif_ExifBody {
     }
 }
 impl Exif_ExifBody {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ifd0(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ifd0(&self) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
         let _io = self._io.borrow();
         if self.f_ifd0.get() {
             return Ok(self.ifd0.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_ifd0())?)?;
-        let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(false));
-        let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(&*_io, Some(self._root.clone()), None, &f)?.into();
+        let f = |t: &mut Exif_ExifBody_Ifd| Ok(t.set_params(false));
+        let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(
+            &*_io,
+            Some(self._root.clone()),
+            None,
+            &f,
+        )?
+        .into();
         *self.ifd0.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.ifd0.borrow())
@@ -1924,22 +1970,34 @@ impl TryFrom<&&Exif_ExifBody_AsciiString> for OptRc<Exif_ExifBody_AsciiString> {
     }
 }
 impl DowncastOptRc<Exif_ExifBody_AsciiString> for Exif_ExifBody_AsciiString {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Exif_ExifBody_AsciiString> for &Exif_ExifBody_AsciiString {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Exif_ExifBody_AsciiString> for OptRc<Exif_ExifBody_AsciiString> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+impl DowncastOptRc<Exif_ExifBody_AsciiString>
+    for OptRc<Exif_ExifBody_AsciiString>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Exif_ExifBody_AsciiString> for &OptRc<Exif_ExifBody_AsciiString> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+impl DowncastOptRc<Exif_ExifBody_AsciiString>
+    for &OptRc<Exif_ExifBody_AsciiString>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1947,7 +2005,11 @@ impl KStruct for Exif_ExifBody_AsciiString {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1959,7 +2021,8 @@ impl KStruct for Exif_ExifBody_AsciiString {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = _io.read_bytes_term(0, false, true, false)?;
+        *self_rc.value.borrow_mut() =
+            _io.read_bytes_term(0, false, true, false)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1970,8 +2033,7 @@ impl Exif_ExifBody_AsciiString {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_AsciiString {
-}
+impl Exif_ExifBody_AsciiString {}
 
 /**
  * According to the core Exif standard, this should be ASCII, but in
@@ -2060,7 +2122,11 @@ impl KStruct for Exif_ExifBody_Doubles {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2073,9 +2139,24 @@ impl KStruct for Exif_ExifBody_Doubles {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f8le()? } else { _io.read_f8be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_f8le()?
+                } else {
+                    _io.read_f8be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -2087,8 +2168,7 @@ impl Exif_ExifBody_Doubles {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Doubles {
-}
+impl Exif_ExifBody_Doubles {}
 impl Exif_ExifBody_Doubles {
     pub fn values(&self) -> Ref<'_, Vec<f64>> {
         self.values.borrow()
@@ -2151,7 +2231,11 @@ impl KStruct for Exif_ExifBody_Floats {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2164,9 +2248,24 @@ impl KStruct for Exif_ExifBody_Floats {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f4le()? } else { _io.read_f4be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_f4le()?
+                } else {
+                    _io.read_f4be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -2178,8 +2277,7 @@ impl Exif_ExifBody_Floats {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Floats {
-}
+impl Exif_ExifBody_Floats {}
 impl Exif_ExifBody_Floats {
     pub fn values(&self) -> Ref<'_, Vec<f32>> {
         self.values.borrow()
@@ -2248,7 +2346,11 @@ impl KStruct for Exif_ExifBody_Ifd {
     type Root = Exif;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2260,19 +2362,38 @@ impl KStruct for Exif_ExifBody_Ifd {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.num_fields.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc.num_fields.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u2le()?
+        } else {
+            _io.read_u2be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fields.borrow_mut() = Vec::new();
         let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
             let _raw_fields = _io.read_bytes(12_usize)?;
             let _io_fields = BytesReader::from(_raw_fields);
-            let f = |t : &mut Exif_ExifBody_IfdField| Ok(t.set_endian(*self_rc._is_le.borrow()));
-            let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_IfdField>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut Exif_ExifBody_IfdField| {
+                Ok(t.set_endian(*self_rc._is_le.borrow()))
+            };
+            let t = Self::read_into_with_init::<
+                BytesReader,
+                Exif_ExifBody_IfdField,
+            >(
+                &_io_fields,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.fields.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_next_ifd.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.ofs_next_ifd.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2294,10 +2415,12 @@ impl Exif_ExifBody_Ifd {
     }
 }
 impl Exif_ExifBody_Ifd {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn next_ifd(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn next_ifd(&self) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
         let _io = self._io.borrow();
         if self.f_next_ifd.get() {
             return Ok(self.next_ifd.borrow());
@@ -2305,8 +2428,16 @@ impl Exif_ExifBody_Ifd {
         if (to_i128(*self.ofs_next_ifd())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_next_ifd())?)?;
-            let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(*self.is_gps_ifd()));
-            let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(&*_io, Some(self._root.clone()), None, &f)?.into();
+            let f = |t: &mut Exif_ExifBody_Ifd| {
+                Ok(t.set_params(*self.is_gps_ifd()))
+            };
+            let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(
+                &*_io,
+                Some(self._root.clone()),
+                None,
+                &f,
+            )?
+            .into();
             *self.next_ifd.borrow_mut() = t;
             _io.seek(_pos)?;
         }
@@ -2387,7 +2518,9 @@ pub enum Exif_ExifBody_IfdField_Data {
     Exif_ExifBody_Utf8String(OptRc<Exif_ExifBody_Utf8String>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_AsciiString> {
+impl TryFrom<&Exif_ExifBody_IfdField_Data>
+    for OptRc<Exif_ExifBody_AsciiString>
+{
     type Error = KError;
     fn try_from(v: &Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
         if let Exif_ExifBody_IfdField_Data::Exif_ExifBody_AsciiString(x) = v {
@@ -2396,19 +2529,25 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_AsciiString> 
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_AsciiString> {
+impl TryFrom<&&Exif_ExifBody_IfdField_Data>
+    for OptRc<Exif_ExifBody_AsciiString>
+{
     type Error = KError;
     fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_AsciiString> for Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         OptRc::<Exif_ExifBody_AsciiString>::try_from(self)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_AsciiString> for &Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -2636,19 +2775,25 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Srationals> {
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Srationals> {
+impl TryFrom<&&Exif_ExifBody_IfdField_Data>
+    for OptRc<Exif_ExifBody_Srationals>
+{
     type Error = KError;
     fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Srationals> for Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         OptRc::<Exif_ExifBody_Srationals>::try_from(self)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Srationals> for &Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -2696,19 +2841,25 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Utf8String> {
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Utf8String> {
+impl TryFrom<&&Exif_ExifBody_IfdField_Data>
+    for OptRc<Exif_ExifBody_Utf8String>
+{
     type Error = KError;
     fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Utf8String> for Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         OptRc::<Exif_ExifBody_Utf8String>::try_from(self)
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Utf8String> for &Exif_ExifBody_IfdField_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -2773,7 +2924,11 @@ impl KStruct for Exif_ExifBody_IfdField {
     type Root = Exif;
     type Parent = Exif_ExifBody_Ifd;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2785,15 +2940,28 @@ impl KStruct for Exif_ExifBody_IfdField {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc.tag_raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u2le()?
+        } else {
+            _io.read_u2be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.field_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
+        *self_rc.field_type.borrow_mut() =
+            i64::from(_io.read_u2()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_values.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.num_values.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.has_immediate_data()?) {
-            *self_rc.ofs_data.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc.ofs_data.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+                _io.read_u4le()?
+            } else {
+                _io.read_u4be()?
+            };
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -2806,177 +2974,396 @@ impl Exif_ExifBody_IfdField {
     }
 }
 impl Exif_ExifBody_IfdField {
-
     /**
      * Size in bytes of a single value of type `field_type`, or 0 if
      * `field_type` is not one of the known types (in which case the size
      * cannot be determined and `data` will be empty).
      * \sa <https://www.media.mit.edu/pia/Research/deepview/exif.html#DataForm> Source
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn bytes_per_value(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn bytes_per_value(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_bytes_per_value.get() {
             return Ok(self.bytes_per_value.borrow());
         }
         self.f_bytes_per_value.set(true);
-        *self.bytes_per_value.borrow_mut() = (if  (*self.field_type() == Exif_FieldType::Byte) || (*self.field_type() == Exif_FieldType::Ascii) || (*self.field_type() == Exif_FieldType::Sbyte) || (*self.field_type() == Exif_FieldType::Undefined) || (*self.field_type() == Exif_FieldType::Utf8)  { 1_i32 } else { if  (*self.field_type() == Exif_FieldType::Short) || (*self.field_type() == Exif_FieldType::Sshort)  { 2_i32 } else { if  (*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Slong) || (*self.field_type() == Exif_FieldType::Float) || (*self.field_type() == Exif_FieldType::Ifd)  { 4_i32 } else { if  (*self.field_type() == Exif_FieldType::Rational) || (*self.field_type() == Exif_FieldType::Srational) || (*self.field_type() == Exif_FieldType::Double)  { 8_i32 } else { 0_i32 } } } }).try_into()?;
+        *self.bytes_per_value.borrow_mut() = (if (*self.field_type()
+            == Exif_FieldType::Byte)
+            || (*self.field_type() == Exif_FieldType::Ascii)
+            || (*self.field_type() == Exif_FieldType::Sbyte)
+            || (*self.field_type() == Exif_FieldType::Undefined)
+            || (*self.field_type() == Exif_FieldType::Utf8)
+        {
+            1_i32
+        } else {
+            if (*self.field_type() == Exif_FieldType::Short)
+                || (*self.field_type() == Exif_FieldType::Sshort)
+            {
+                2_i32
+            } else {
+                if (*self.field_type() == Exif_FieldType::Long)
+                    || (*self.field_type() == Exif_FieldType::Slong)
+                    || (*self.field_type() == Exif_FieldType::Float)
+                    || (*self.field_type() == Exif_FieldType::Ifd)
+                {
+                    4_i32
+                } else {
+                    if (*self.field_type() == Exif_FieldType::Rational)
+                        || (*self.field_type() == Exif_FieldType::Srational)
+                        || (*self.field_type() == Exif_FieldType::Double)
+                    {
+                        8_i32
+                    } else {
+                        0_i32
+                    }
+                }
+            }
+        })
+        .try_into()?;
         Ok(self.bytes_per_value.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn data(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Option<Exif_ExifBody_IfdField_Data>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
         }
         self.f_data.set(true);
-        let io = if *self.has_immediate_data()? { Clone::clone(&*(_io)) } else { Clone::clone(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io())) };
+        let io = if *self.has_immediate_data()? {
+            Clone::clone(&*(_io))
+        } else {
+            Clone::clone(
+                &*(self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io()),
+            )
+        };
         let _pos = io.pos();
-        io.seek(usize::try_from(if *self.has_immediate_data()? { 8_u32 } else { *self.ofs_data() })?)?;
+        io.seek(usize::try_from(if *self.has_immediate_data()? {
+            8_u32
+        } else {
+            *self.ofs_data()
+        })?)?;
         match *self.field_type() {
             Exif_FieldType::Ascii => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_AsciiString| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_AsciiString>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_AsciiString| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_AsciiString,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Double => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Doubles| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Doubles>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Doubles| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Doubles,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Float => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Floats| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Floats>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Floats| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Floats,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Ifd => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Longs| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Longs>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Longs| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Longs,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Long => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Longs| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Longs>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Longs| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Longs,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Rational => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Rationals| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Rationals>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Rationals| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Rationals,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Sbyte => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Sbytes| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Sbytes>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Sbytes| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Sbytes,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Short => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Shorts| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Shorts>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Shorts| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Shorts,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Slong => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Slongs| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Slongs>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Slongs| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Slongs,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Srational => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Srationals| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Srationals>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Srationals| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Srationals,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Sshort => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Sshorts| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Sshorts>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Sshorts| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Sshorts,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             Exif_FieldType::Utf8 => {
-                *self.data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
+                *self.data_raw.borrow_mut() =
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let f = |t : &mut Exif_ExifBody_Utf8String| Ok(t.set_endian(*self._is_le.borrow()));
-                let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_Utf8String>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+                let f = |t: &mut Exif_ExifBody_Utf8String| {
+                    Ok(t.set_endian(*self._is_le.borrow()))
+                };
+                let t = Self::read_into_with_init::<
+                    BytesReader,
+                    Exif_ExifBody_Utf8String,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                    &f,
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self.data.borrow_mut() = Some(io.read_bytes(usize::try_from(*self.len_data()?)?)?.into());
+                *self.data.borrow_mut() = Some(
+                    io.read_bytes(usize::try_from(*self.len_data()?)?)?.into(),
+                );
             }
         }
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn gps_tag(
-        &self
-    ) -> KResult<Ref<'_, Exif_GpsTag>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn gps_tag(&self) -> KResult<Ref<'_, Exif_GpsTag>> {
         let _io = self._io.borrow();
         if self.f_gps_tag.get() {
             return Ok(self.gps_tag.borrow());
         }
         self.f_gps_tag.set(true);
-        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_gps_ifd() {
-            *self.gps_tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
+        if *self
+            ._parent
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingParent)?
+            .is_gps_ifd()
+        {
+            *self.gps_tag.borrow_mut() =
+                i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.gps_tag.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn has_immediate_data(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn has_immediate_data(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_immediate_data.get() {
             return Ok(self.has_immediate_data.borrow());
         }
         self.f_has_immediate_data.set(true);
-        *self.has_immediate_data.borrow_mut() = (*self.len_data()? <= 4).try_into()?;
+        *self.has_immediate_data.borrow_mut() =
+            (*self.len_data()? <= 4).try_into()?;
         Ok(self.has_immediate_data.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_data(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_data(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_data.get() {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = ((u32::try_from(*self.bytes_per_value()?)?).saturating_mul(*self.num_values())).try_into()?;
+        *self.len_data.borrow_mut() =
+            ((u32::try_from(*self.bytes_per_value()?)?)
+                .saturating_mul(*self.num_values()))
+            .try_into()?;
         Ok(self.len_data.borrow())
     }
 
@@ -2996,35 +3383,101 @@ impl Exif_ExifBody_IfdField {
      * any integer type. In practice, real files most likely only use one
      * of the three types supported by Exiv2, so we stick with that.
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sub_ifd(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sub_ifd(&self) -> KResult<Ref<'_, OptRc<Exif_ExifBody_Ifd>>> {
         let _io = self._io.borrow();
         if self.f_sub_ifd.get() {
             return Ok(self.sub_ifd.borrow());
         }
-        if  (((to_i128(*self.num_values())) == (to_i128(1)))) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (((to_i128(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)) >= (to_i128(0))))) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) )  {
-            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        if ((to_i128(*self.num_values())) == (to_i128(1)))
+            && ((*self.field_type() == Exif_FieldType::Long)
+                || (*self.field_type() == Exif_FieldType::Ifd)
+                || ((*self.field_type() == Exif_FieldType::Slong)
+                    && ((to_i128(
+                        *OptRc::<Exif_ExifBody_Slongs>::try_from(
+                            &*((self.data()?)
+                                .as_ref()
+                                .ok_or(KError::CastError)?),
+                        )?
+                        .values()
+                        .first()
+                        .ok_or(KError::EmptyIterator)?,
+                    )) >= (to_i128(0)))))
+            && ((*self.tag()? == Exif_Tag::ExifOffset)
+                || (*self.tag()? == Exif_Tag::InteropOffset)
+                || (*self.tag()? == Exif_Tag::GpsInfo))
+        {
+            let io = KStream::clone(
+                &*self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io(),
+            );
             let _pos = io.pos();
-            io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)? } else { *OptRc::<Exif_ExifBody_Longs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)? })?)?;
-            let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(*self.tag()? == Exif_Tag::GpsInfo));
-            let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(&io, Some(self._root.clone()), None, &f)?.into();
+            io.seek(usize::try_from(
+                if *self.field_type() == Exif_FieldType::Slong {
+                    u32::try_from(
+                        *OptRc::<Exif_ExifBody_Slongs>::try_from(
+                            &*((self.data()?)
+                                .as_ref()
+                                .ok_or(KError::CastError)?),
+                        )?
+                        .values()
+                        .first()
+                        .ok_or(KError::EmptyIterator)?,
+                    )?
+                } else {
+                    *OptRc::<Exif_ExifBody_Longs>::try_from(
+                        &*((self.data()?).as_ref().ok_or(KError::CastError)?),
+                    )?
+                    .values()
+                    .first()
+                    .ok_or(KError::EmptyIterator)?
+                },
+            )?)?;
+            let f = |t: &mut Exif_ExifBody_Ifd| {
+                Ok(t.set_params(*self.tag()? == Exif_Tag::GpsInfo))
+            };
+            let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(
+                &io,
+                Some(self._root.clone()),
+                None,
+                &f,
+            )?
+            .into();
             *self.sub_ifd.borrow_mut() = t;
             io.seek(_pos)?;
         }
         Ok(self.sub_ifd.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn tag(
-        &self
-    ) -> KResult<Ref<'_, Exif_Tag>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn tag(&self) -> KResult<Ref<'_, Exif_Tag>> {
         let _io = self._io.borrow();
         if self.f_tag.get() {
             return Ok(self.tag.borrow());
         }
         self.f_tag.set(true);
-        if !(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_gps_ifd()) {
+        if !(*self
+            ._parent
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingParent)?
+            .is_gps_ifd())
+        {
             *self.tag.borrow_mut() = i64::from(*self.tag_raw()).try_into()?;
         }
         Ok(self.tag.borrow())
@@ -3117,7 +3570,11 @@ impl KStruct for Exif_ExifBody_Longs {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3130,9 +3587,24 @@ impl KStruct for Exif_ExifBody_Longs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_u4le()?
+                } else {
+                    _io.read_u4be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -3144,8 +3616,7 @@ impl Exif_ExifBody_Longs {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Longs {
-}
+impl Exif_ExifBody_Longs {}
 impl Exif_ExifBody_Longs {
     pub fn values(&self) -> Ref<'_, Vec<u32>> {
         self.values.borrow()
@@ -3211,7 +3682,11 @@ impl KStruct for Exif_ExifBody_Rational {
     type Root = Exif;
     type Parent = Exif_ExifBody_Rationals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3223,9 +3698,17 @@ impl KStruct for Exif_ExifBody_Rational {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -3237,7 +3720,6 @@ impl Exif_ExifBody_Rational {
     }
 }
 impl Exif_ExifBody_Rational {
-
     /**
      * If denominator is zero, this instance is disabled to prevent
      * `ZeroDivisionError` in Python.
@@ -3247,17 +3729,21 @@ impl Exif_ExifBody_Rational {
      * type `field_type::rational`):
      * <https://github.com/python-pillow/Pillow/blob/807d689a83738027b6f6e0f219a6a6dd30e01c08/Tests/images/exif-dpi-zerodivision.jpg>
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, f64>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
         if (to_i128(*self.value_den())) != (to_i128(0)) {
-            *self.value.borrow_mut() = (((((to_f64(*self.value_num())) + (0.0))) / (to_f64(*self.value_den())))).try_into()?;
+            *self.value.borrow_mut() = (((to_f64(*self.value_num())) + (0.0))
+                / (to_f64(*self.value_den())))
+            .try_into()?;
         }
         Ok(self.value.borrow())
     }
@@ -3328,7 +3814,9 @@ impl DowncastOptRc<Exif_ExifBody_Rationals> for OptRc<Exif_ExifBody_Rationals> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Rationals> for &OptRc<Exif_ExifBody_Rationals> {
+impl DowncastOptRc<Exif_ExifBody_Rationals>
+    for &OptRc<Exif_ExifBody_Rationals>
+{
     fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
         Ok((*self).clone())
     }
@@ -3337,7 +3825,11 @@ impl KStruct for Exif_ExifBody_Rationals {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3350,10 +3842,27 @@ impl KStruct for Exif_ExifBody_Rationals {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            let f = |t : &mut Exif_ExifBody_Rational| Ok(t.set_endian(*self_rc._is_le.borrow()));
-            let t = Self::read_into_with_init::<_, Exif_ExifBody_Rational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut Exif_ExifBody_Rational| {
+                Ok(t.set_endian(*self_rc._is_le.borrow()))
+            };
+            let t = Self::read_into_with_init::<_, Exif_ExifBody_Rational>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.values.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -3366,8 +3875,7 @@ impl Exif_ExifBody_Rationals {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Rationals {
-}
+impl Exif_ExifBody_Rationals {}
 impl Exif_ExifBody_Rationals {
     pub fn values(&self) -> Ref<'_, Vec<OptRc<Exif_ExifBody_Rational>>> {
         self.values.borrow()
@@ -3430,7 +3938,11 @@ impl KStruct for Exif_ExifBody_Sbytes {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3443,7 +3955,16 @@ impl KStruct for Exif_ExifBody_Sbytes {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_s1()?);
         }
@@ -3457,8 +3978,7 @@ impl Exif_ExifBody_Sbytes {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Sbytes {
-}
+impl Exif_ExifBody_Sbytes {}
 impl Exif_ExifBody_Sbytes {
     pub fn values(&self) -> Ref<'_, Vec<i8>> {
         self.values.borrow()
@@ -3521,7 +4041,11 @@ impl KStruct for Exif_ExifBody_Shorts {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3534,9 +4058,24 @@ impl KStruct for Exif_ExifBody_Shorts {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_u2le()?
+                } else {
+                    _io.read_u2be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -3548,8 +4087,7 @@ impl Exif_ExifBody_Shorts {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Shorts {
-}
+impl Exif_ExifBody_Shorts {}
 impl Exif_ExifBody_Shorts {
     pub fn values(&self) -> Ref<'_, Vec<u16>> {
         self.values.borrow()
@@ -3612,7 +4150,11 @@ impl KStruct for Exif_ExifBody_Slongs {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3625,9 +4167,24 @@ impl KStruct for Exif_ExifBody_Slongs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_s4le()?
+                } else {
+                    _io.read_s4be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -3639,8 +4196,7 @@ impl Exif_ExifBody_Slongs {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Slongs {
-}
+impl Exif_ExifBody_Slongs {}
 impl Exif_ExifBody_Slongs {
     pub fn values(&self) -> Ref<'_, Vec<i32>> {
         self.values.borrow()
@@ -3697,7 +4253,9 @@ impl DowncastOptRc<Exif_ExifBody_Srational> for OptRc<Exif_ExifBody_Srational> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Srational> for &OptRc<Exif_ExifBody_Srational> {
+impl DowncastOptRc<Exif_ExifBody_Srational>
+    for &OptRc<Exif_ExifBody_Srational>
+{
     fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srational>, KError> {
         Ok((*self).clone())
     }
@@ -3706,7 +4264,11 @@ impl KStruct for Exif_ExifBody_Srational {
     type Root = Exif;
     type Parent = Exif_ExifBody_Srationals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3718,9 +4280,17 @@ impl KStruct for Exif_ExifBody_Srational {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_s4le()?
+        } else {
+            _io.read_s4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_s4le()?
+        } else {
+            _io.read_s4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -3732,7 +4302,6 @@ impl Exif_ExifBody_Srational {
     }
 }
 impl Exif_ExifBody_Srational {
-
     /**
      * If denominator is zero, this instance is disabled to prevent
      * `ZeroDivisionError` in Python.
@@ -3741,17 +4310,21 @@ impl Exif_ExifBody_Srational {
      * `tag::exposure_compensation` of type `field_type::srational`:
      * <https://github.com/drewnoakes/metadata-extractor-images/blob/651ad0e67aa8d43d358ad05f9bc07b52d8b9ac6e/jpg/Reconyx%20Hyperfire%20HP4K.jpg>
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, f64>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
         if (to_i128(*self.value_den())) != (to_i128(0)) {
-            *self.value.borrow_mut() = (((((to_f64(*self.value_num())) + (0.0))) / (to_f64(*self.value_den())))).try_into()?;
+            *self.value.borrow_mut() = (((to_f64(*self.value_num())) + (0.0))
+                / (to_f64(*self.value_den())))
+            .try_into()?;
         }
         Ok(self.value.borrow())
     }
@@ -3808,22 +4381,34 @@ impl TryFrom<&&Exif_ExifBody_Srationals> for OptRc<Exif_ExifBody_Srationals> {
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Srationals> for Exif_ExifBody_Srationals {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Srationals> for &Exif_ExifBody_Srationals {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Srationals> for OptRc<Exif_ExifBody_Srationals> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+impl DowncastOptRc<Exif_ExifBody_Srationals>
+    for OptRc<Exif_ExifBody_Srationals>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Srationals> for &OptRc<Exif_ExifBody_Srationals> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+impl DowncastOptRc<Exif_ExifBody_Srationals>
+    for &OptRc<Exif_ExifBody_Srationals>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
         Ok((*self).clone())
     }
 }
@@ -3831,7 +4416,11 @@ impl KStruct for Exif_ExifBody_Srationals {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3844,10 +4433,27 @@ impl KStruct for Exif_ExifBody_Srationals {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            let f = |t : &mut Exif_ExifBody_Srational| Ok(t.set_endian(*self_rc._is_le.borrow()));
-            let t = Self::read_into_with_init::<_, Exif_ExifBody_Srational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut Exif_ExifBody_Srational| {
+                Ok(t.set_endian(*self_rc._is_le.borrow()))
+            };
+            let t = Self::read_into_with_init::<_, Exif_ExifBody_Srational>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.values.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -3860,8 +4466,7 @@ impl Exif_ExifBody_Srationals {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Srationals {
-}
+impl Exif_ExifBody_Srationals {}
 impl Exif_ExifBody_Srationals {
     pub fn values(&self) -> Ref<'_, Vec<OptRc<Exif_ExifBody_Srational>>> {
         self.values.borrow()
@@ -3924,7 +4529,11 @@ impl KStruct for Exif_ExifBody_Sshorts {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3937,9 +4546,24 @@ impl KStruct for Exif_ExifBody_Sshorts {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.values.borrow_mut() = Vec::new();
-        let l_values = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_values())?;
+        let l_values = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .num_values(),
+        )?;
         for _i in 0_usize..l_values {
-            self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? });
+            self_rc.values.borrow_mut().push(
+                if *self_rc._is_le.borrow() == 1 {
+                    _io.read_s2le()?
+                } else {
+                    _io.read_s2be()?
+                },
+            );
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -3951,8 +4575,7 @@ impl Exif_ExifBody_Sshorts {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Sshorts {
-}
+impl Exif_ExifBody_Sshorts {}
 impl Exif_ExifBody_Sshorts {
     pub fn values(&self) -> Ref<'_, Vec<i16>> {
         self.values.borrow()
@@ -3992,22 +4615,34 @@ impl TryFrom<&&Exif_ExifBody_Utf8String> for OptRc<Exif_ExifBody_Utf8String> {
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Utf8String> for Exif_ExifBody_Utf8String {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Exif_ExifBody_Utf8String> for &Exif_ExifBody_Utf8String {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Utf8String> for OptRc<Exif_ExifBody_Utf8String> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+impl DowncastOptRc<Exif_ExifBody_Utf8String>
+    for OptRc<Exif_ExifBody_Utf8String>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Exif_ExifBody_Utf8String> for &OptRc<Exif_ExifBody_Utf8String> {
-    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+impl DowncastOptRc<Exif_ExifBody_Utf8String>
+    for &OptRc<Exif_ExifBody_Utf8String>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
         Ok((*self).clone())
     }
 }
@@ -4015,7 +4650,11 @@ impl KStruct for Exif_ExifBody_Utf8String {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4027,7 +4666,10 @@ impl KStruct for Exif_ExifBody_Utf8String {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, false)?, "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &_io.read_bytes_term(0, false, true, false)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -4038,8 +4680,7 @@ impl Exif_ExifBody_Utf8String {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Exif_ExifBody_Utf8String {
-}
+impl Exif_ExifBody_Utf8String {}
 impl Exif_ExifBody_Utf8String {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

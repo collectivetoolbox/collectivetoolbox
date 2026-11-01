@@ -101,7 +101,11 @@ impl KStruct for ValidFailRangeBytes {
     type Root = ValidFailRangeBytes;
     type Parent = ValidFailRangeBytes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,18 +119,24 @@ impl KStruct for ValidFailRangeBytes {
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bytes(2_usize)?;
         if !((*(self_rc.foo())).as_slice() >= (vec![0x50u8]).as_slice()) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::LessThan,
+                src_path: "/seq/0".to_string(),
+            }));
         }
-        if !((*(self_rc.foo())).as_slice() <= (vec![0x50u8, 0x31u8]).as_slice()) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
+        if !((*(self_rc.foo())).as_slice() <= (vec![0x50u8, 0x31u8]).as_slice())
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRangeBytes {
-}
+impl ValidFailRangeBytes {}
 impl ValidFailRangeBytes {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

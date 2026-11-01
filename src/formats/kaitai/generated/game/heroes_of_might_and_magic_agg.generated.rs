@@ -34,22 +34,34 @@ impl TryFrom<&&HeroesOfMightAndMagicAgg> for OptRc<HeroesOfMightAndMagicAgg> {
     }
 }
 impl DowncastOptRc<HeroesOfMightAndMagicAgg> for HeroesOfMightAndMagicAgg {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<HeroesOfMightAndMagicAgg> for &HeroesOfMightAndMagicAgg {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg> for OptRc<HeroesOfMightAndMagicAgg> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg>
+    for OptRc<HeroesOfMightAndMagicAgg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg> for &OptRc<HeroesOfMightAndMagicAgg> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg>
+    for &OptRc<HeroesOfMightAndMagicAgg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
         Ok((*self).clone())
     }
 }
@@ -57,7 +69,11 @@ impl KStruct for HeroesOfMightAndMagicAgg {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -74,7 +90,12 @@ impl KStruct for HeroesOfMightAndMagicAgg {
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::from(*self_rc.num_files());
         for _i in 0_usize..l_entries {
-            let t = Self::read_into::<_, HeroesOfMightAndMagicAgg_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, HeroesOfMightAndMagicAgg_Entry>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.entries.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -83,9 +104,13 @@ impl KStruct for HeroesOfMightAndMagicAgg {
     }
 }
 impl HeroesOfMightAndMagicAgg {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn filenames(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<HeroesOfMightAndMagicAgg_Filename>>>> {
         let _io = self._io.borrow();
         if self.f_filenames.get() {
@@ -93,15 +118,32 @@ impl HeroesOfMightAndMagicAgg {
         }
         self.f_filenames.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add(*self.entries().last().ok_or(KError::EmptyIterator)?.size()))?)?;
+        _io.seek(usize::try_from(
+            (*self.entries().last().ok_or(KError::EmptyIterator)?.offset())
+                .saturating_add(
+                    *self.entries().last().ok_or(KError::EmptyIterator)?.size(),
+                ),
+        )?)?;
         *self.filenames_raw.borrow_mut() = Vec::new();
         *self.filenames.borrow_mut() = Vec::new();
         let l_filenames = usize::from(*self.num_files());
         for _i in 0_usize..l_filenames {
-            self.filenames_raw.borrow_mut().push(_io.read_bytes(15_usize)?.into());
+            self.filenames_raw
+                .borrow_mut()
+                .push(_io.read_bytes(15_usize)?.into());
             let filenames_raw = self.filenames_raw.borrow();
-            let _io_filenames_raw = BytesReader::from(filenames_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, HeroesOfMightAndMagicAgg_Filename>(&_io_filenames_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_filenames_raw = BytesReader::from(
+                filenames_raw.last().ok_or(KError::EmptyIterator)?.clone(),
+            );
+            let t = Self::read_into::<
+                BytesReader,
+                HeroesOfMightAndMagicAgg_Filename,
+            >(
+                &_io_filenames_raw,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             self.filenames.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -114,7 +156,9 @@ impl HeroesOfMightAndMagicAgg {
     }
 }
 impl HeroesOfMightAndMagicAgg {
-    pub fn entries(&self) -> Ref<'_, Vec<OptRc<HeroesOfMightAndMagicAgg_Entry>>> {
+    pub fn entries(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<HeroesOfMightAndMagicAgg_Entry>>> {
         self.entries.borrow()
     }
 }
@@ -148,35 +192,59 @@ pub struct HeroesOfMightAndMagicAgg_Entry {
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
 }
-impl TryFrom<&HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
+impl TryFrom<&HeroesOfMightAndMagicAgg_Entry>
+    for OptRc<HeroesOfMightAndMagicAgg_Entry>
+{
     type Error = KError;
-    fn try_from(v: &HeroesOfMightAndMagicAgg_Entry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &HeroesOfMightAndMagicAgg_Entry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
+impl TryFrom<&&HeroesOfMightAndMagicAgg_Entry>
+    for OptRc<HeroesOfMightAndMagicAgg_Entry>
+{
     type Error = KError;
-    fn try_from(v: &&HeroesOfMightAndMagicAgg_Entry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&HeroesOfMightAndMagicAgg_Entry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for HeroesOfMightAndMagicAgg_Entry {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry>
+    for HeroesOfMightAndMagicAgg_Entry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for &HeroesOfMightAndMagicAgg_Entry {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry>
+    for &HeroesOfMightAndMagicAgg_Entry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry>
+    for OptRc<HeroesOfMightAndMagicAgg_Entry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for &OptRc<HeroesOfMightAndMagicAgg_Entry> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry>
+    for &OptRc<HeroesOfMightAndMagicAgg_Entry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -184,7 +252,11 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -209,10 +281,12 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
     }
 }
 impl HeroesOfMightAndMagicAgg_Entry {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
@@ -220,7 +294,8 @@ impl HeroesOfMightAndMagicAgg_Entry {
         self.f_body.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.offset())?)?;
-        *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size())?)?;
+        *self.body.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self.size())?)?;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
     }
@@ -265,35 +340,59 @@ pub struct HeroesOfMightAndMagicAgg_Filename {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
+impl TryFrom<&HeroesOfMightAndMagicAgg_Filename>
+    for OptRc<HeroesOfMightAndMagicAgg_Filename>
+{
     type Error = KError;
-    fn try_from(v: &HeroesOfMightAndMagicAgg_Filename) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &HeroesOfMightAndMagicAgg_Filename,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
+impl TryFrom<&&HeroesOfMightAndMagicAgg_Filename>
+    for OptRc<HeroesOfMightAndMagicAgg_Filename>
+{
     type Error = KError;
-    fn try_from(v: &&HeroesOfMightAndMagicAgg_Filename) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&HeroesOfMightAndMagicAgg_Filename,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for HeroesOfMightAndMagicAgg_Filename {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename>
+    for HeroesOfMightAndMagicAgg_Filename
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for &HeroesOfMightAndMagicAgg_Filename {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename>
+    for &HeroesOfMightAndMagicAgg_Filename
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename>
+    for OptRc<HeroesOfMightAndMagicAgg_Filename>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for &OptRc<HeroesOfMightAndMagicAgg_Filename> {
-    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename>
+    for &OptRc<HeroesOfMightAndMagicAgg_Filename>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
         Ok((*self).clone())
     }
 }
@@ -301,7 +400,11 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -313,14 +416,14 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.str.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl HeroesOfMightAndMagicAgg_Filename {
-}
+impl HeroesOfMightAndMagicAgg_Filename {}
 impl HeroesOfMightAndMagicAgg_Filename {
     pub fn str(&self) -> Ref<'_, String> {
         self.str.borrow()

@@ -101,7 +101,11 @@ impl KStruct for EosExceptionBytes {
     type Root = EosExceptionBytes;
     type Parent = EosExceptionBytes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,15 +120,19 @@ impl KStruct for EosExceptionBytes {
         let _raw_envelope = _io.read_bytes(6_usize)?;
         *self_rc.envelope_raw.borrow_mut() = _raw_envelope.clone();
         let _io_envelope = BytesReader::from(_raw_envelope);
-        let t = Self::read_into::<BytesReader, EosExceptionBytes_Data>(&_io_envelope, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, EosExceptionBytes_Data>(
+            &_io_envelope,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.envelope.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EosExceptionBytes {
-}
+impl EosExceptionBytes {}
 impl EosExceptionBytes {
     pub fn envelope(&self) -> Ref<'_, OptRc<EosExceptionBytes_Data>> {
         self.envelope.borrow()
@@ -192,7 +200,11 @@ impl KStruct for EosExceptionBytes_Data {
     type Root = EosExceptionBytes;
     type Parent = EosExceptionBytes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,8 +222,7 @@ impl KStruct for EosExceptionBytes_Data {
         Ok(())
     }
 }
-impl EosExceptionBytes_Data {
-}
+impl EosExceptionBytes_Data {}
 impl EosExceptionBytes_Data {
     pub fn buf(&self) -> Ref<'_, Vec<u8>> {
         self.buf.borrow()

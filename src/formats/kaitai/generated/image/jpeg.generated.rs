@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::exif::Exif;
 use super::exif::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * JPEG File Interchange Format, or JFIF, or, more colloquially known
@@ -70,7 +70,11 @@ impl KStruct for Jpeg {
     type Root = Jpeg;
     type Parent = Jpeg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -86,7 +90,12 @@ impl KStruct for Jpeg {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Jpeg_Segment>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Jpeg_Segment>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.segments.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -96,8 +105,7 @@ impl KStruct for Jpeg {
         Ok(())
     }
 }
-impl Jpeg {
-}
+impl Jpeg {}
 impl Jpeg {
     pub fn segments(&self) -> Ref<'_, Vec<OptRc<Jpeg_Segment>>> {
         self.segments.borrow()
@@ -146,15 +154,16 @@ impl From<&Jpeg_ComponentId> for i64 {
             Jpeg_ComponentId::Cr => 3,
             Jpeg_ComponentId::I => 4,
             Jpeg_ComponentId::Q => 5,
-            Jpeg_ComponentId::Unknown(v) => v
+            Jpeg_ComponentId::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Jpeg_ComponentId {
-    fn default() -> Self { Jpeg_ComponentId::Unknown(0) }
+    fn default() -> Self {
+        Jpeg_ComponentId::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Jpeg_ExifInJpeg {
@@ -202,7 +211,11 @@ impl KStruct for Jpeg_ExifInJpeg {
     type Root = Jpeg;
     type Parent = Jpeg_SegmentApp1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -216,21 +229,24 @@ impl KStruct for Jpeg_ExifInJpeg {
         let _io = io;
         *self_rc.extra_zero.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.extra_zero() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/exif_in_jpeg/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/exif_in_jpeg/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_data = _io.read_bytes_full()?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
-        let t = Self::read_into::<BytesReader, Exif>(&_io_data, None, None)?.into();
+        let t =
+            Self::read_into::<BytesReader, Exif>(&_io_data, None, None)?.into();
         *self_rc.data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Jpeg_ExifInJpeg {
-}
+impl Jpeg_ExifInJpeg {}
 impl Jpeg_ExifInJpeg {
     pub fn extra_zero(&self) -> Ref<'_, Vec<u8>> {
         self.extra_zero.borrow()
@@ -455,7 +471,11 @@ impl KStruct for Jpeg_Segment {
     type Root = Jpeg;
     type Parent = Jpeg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -469,49 +489,102 @@ impl KStruct for Jpeg_Segment {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xffu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/segment/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/segment/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.marker.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi) && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi)  {
+        if (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi)
+            && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi)
+        {
             *self_rc.length.borrow_mut() = _io.read_u2be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi) && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi)  {
+        if (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi)
+            && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi)
+        {
             match *self_rc.marker() {
                 Jpeg_Segment_MarkerEnum::App0 => {
-                    *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into();
+                    *self_rc.data_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(
+                            (i32::from(*self_rc.length()))
+                                .saturating_sub(2_i32),
+                        )?)?
+                        .into();
                     let data_raw = self_rc.data_raw.borrow();
                     let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                    let t = Self::read_into::<BytesReader, Jpeg_SegmentApp0>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, Jpeg_SegmentApp0>(
+                        &_t_data_raw_io,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                     *self_rc.data.borrow_mut() = Some(t);
                 }
                 Jpeg_Segment_MarkerEnum::App1 => {
-                    *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into();
+                    *self_rc.data_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(
+                            (i32::from(*self_rc.length()))
+                                .saturating_sub(2_i32),
+                        )?)?
+                        .into();
                     let data_raw = self_rc.data_raw.borrow();
                     let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                    let t = Self::read_into::<BytesReader, Jpeg_SegmentApp1>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, Jpeg_SegmentApp1>(
+                        &_t_data_raw_io,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                     *self_rc.data.borrow_mut() = Some(t);
                 }
                 Jpeg_Segment_MarkerEnum::Sof0 => {
-                    *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into();
+                    *self_rc.data_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(
+                            (i32::from(*self_rc.length()))
+                                .saturating_sub(2_i32),
+                        )?)?
+                        .into();
                     let data_raw = self_rc.data_raw.borrow();
                     let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                    let t = Self::read_into::<BytesReader, Jpeg_SegmentSof0>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, Jpeg_SegmentSof0>(
+                        &_t_data_raw_io,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                     *self_rc.data.borrow_mut() = Some(t);
                 }
                 Jpeg_Segment_MarkerEnum::Sos => {
-                    *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into();
+                    *self_rc.data_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(
+                            (i32::from(*self_rc.length()))
+                                .saturating_sub(2_i32),
+                        )?)?
+                        .into();
                     let data_raw = self_rc.data_raw.borrow();
                     let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                    let t = Self::read_into::<BytesReader, Jpeg_SegmentSos>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, Jpeg_SegmentSos>(
+                        &_t_data_raw_io,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                     *self_rc.data.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into());
+                    *self_rc.data.borrow_mut() = Some(
+                        _io.read_bytes(usize::try_from(
+                            (i32::from(*self_rc.length()))
+                                .saturating_sub(2_i32),
+                        )?)?
+                        .into(),
+                    );
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -525,8 +598,7 @@ impl KStruct for Jpeg_Segment {
         Ok(())
     }
 }
-impl Jpeg_Segment {
-}
+impl Jpeg_Segment {}
 impl Jpeg_Segment {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -684,15 +756,16 @@ impl From<&Jpeg_Segment_MarkerEnum> for i64 {
             Jpeg_Segment_MarkerEnum::App14 => 238,
             Jpeg_Segment_MarkerEnum::App15 => 239,
             Jpeg_Segment_MarkerEnum::Com => 254,
-            Jpeg_Segment_MarkerEnum::Unknown(v) => v
+            Jpeg_Segment_MarkerEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Jpeg_Segment_MarkerEnum {
-    fn default() -> Self { Jpeg_Segment_MarkerEnum::Unknown(0) }
+    fn default() -> Self {
+        Jpeg_Segment_MarkerEnum::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Jpeg_SegmentApp0 {
@@ -748,7 +821,11 @@ impl KStruct for Jpeg_SegmentApp0 {
     type Root = Jpeg;
     type Parent = Jpeg_Segment;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -760,13 +837,15 @@ impl KStruct for Jpeg_SegmentApp0 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self_rc.magic.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_minor.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.density_units.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.density_units.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.density_x.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -776,14 +855,18 @@ impl KStruct for Jpeg_SegmentApp0 {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.thumbnail_y.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.thumbnail.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.thumbnail_x()).saturating_mul(*self_rc.thumbnail_y()))).saturating_mul(3_i32))?)?;
+        *self_rc.thumbnail.borrow_mut() = _io.read_bytes(usize::try_from(
+            (i32::from(
+                (*self_rc.thumbnail_x()).saturating_mul(*self_rc.thumbnail_y()),
+            ))
+            .saturating_mul(3_i32),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Jpeg_SegmentApp0 {
-}
+impl Jpeg_SegmentApp0 {}
 impl Jpeg_SegmentApp0 {
     pub fn magic(&self) -> Ref<'_, String> {
         self.magic.borrow()
@@ -896,15 +979,16 @@ impl From<&Jpeg_SegmentApp0_DensityUnit> for i64 {
             Jpeg_SegmentApp0_DensityUnit::NoUnits => 0,
             Jpeg_SegmentApp0_DensityUnit::PixelsPerInch => 1,
             Jpeg_SegmentApp0_DensityUnit::PixelsPerCm => 2,
-            Jpeg_SegmentApp0_DensityUnit::Unknown(v) => v
+            Jpeg_SegmentApp0_DensityUnit::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Jpeg_SegmentApp0_DensityUnit {
-    fn default() -> Self { Jpeg_SegmentApp0_DensityUnit::Unknown(0) }
+    fn default() -> Self {
+        Jpeg_SegmentApp0_DensityUnit::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Jpeg_SegmentApp1 {
@@ -985,7 +1069,11 @@ impl KStruct for Jpeg_SegmentApp1 {
     type Root = Jpeg;
     type Parent = Jpeg_Segment;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -997,11 +1085,17 @@ impl KStruct for Jpeg_SegmentApp1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.magic.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.magic().as_str() {
             "Exif" => {
-                let t = Self::read_into::<_, Jpeg_ExifInJpeg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Jpeg_ExifInJpeg>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -1011,8 +1105,7 @@ impl KStruct for Jpeg_SegmentApp1 {
         Ok(())
     }
 }
-impl Jpeg_SegmentApp1 {
-}
+impl Jpeg_SegmentApp1 {}
 impl Jpeg_SegmentApp1 {
     pub fn magic(&self) -> Ref<'_, String> {
         self.magic.borrow()
@@ -1083,7 +1176,11 @@ impl KStruct for Jpeg_SegmentSof0 {
     type Root = Jpeg;
     type Parent = Jpeg_Segment;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1106,7 +1203,12 @@ impl KStruct for Jpeg_SegmentSof0 {
         *self_rc.components.borrow_mut() = Vec::new();
         let l_components = usize::from(*self_rc.num_components());
         for _i in 0_usize..l_components {
-            let t = Self::read_into::<_, Jpeg_SegmentSof0_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Jpeg_SegmentSof0_Component>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.components.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1114,8 +1216,7 @@ impl KStruct for Jpeg_SegmentSof0 {
         Ok(())
     }
 }
-impl Jpeg_SegmentSof0 {
-}
+impl Jpeg_SegmentSof0 {}
 impl Jpeg_SegmentSof0 {
     pub fn bits_per_sample(&self) -> Ref<'_, u8> {
         self.bits_per_sample.borrow()
@@ -1137,7 +1238,9 @@ impl Jpeg_SegmentSof0 {
     }
 }
 impl Jpeg_SegmentSof0 {
-    pub fn components(&self) -> Ref<'_, Vec<OptRc<Jpeg_SegmentSof0_Component>>> {
+    pub fn components(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<Jpeg_SegmentSof0_Component>>> {
         self.components.borrow()
     }
 }
@@ -1167,35 +1270,51 @@ pub struct Jpeg_SegmentSof0_Component {
     f_sampling_y: Cell<bool>,
     sampling_y: RefCell<i32>,
 }
-impl TryFrom<&Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
+impl TryFrom<&Jpeg_SegmentSof0_Component>
+    for OptRc<Jpeg_SegmentSof0_Component>
+{
     type Error = KError;
     fn try_from(v: &Jpeg_SegmentSof0_Component) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
+impl TryFrom<&&Jpeg_SegmentSof0_Component>
+    for OptRc<Jpeg_SegmentSof0_Component>
+{
     type Error = KError;
     fn try_from(v: &&Jpeg_SegmentSof0_Component) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<Jpeg_SegmentSof0_Component> for Jpeg_SegmentSof0_Component {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Jpeg_SegmentSof0_Component> for &Jpeg_SegmentSof0_Component {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+impl DowncastOptRc<Jpeg_SegmentSof0_Component>
+    for OptRc<Jpeg_SegmentSof0_Component>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Jpeg_SegmentSof0_Component> for &OptRc<Jpeg_SegmentSof0_Component> {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+impl DowncastOptRc<Jpeg_SegmentSof0_Component>
+    for &OptRc<Jpeg_SegmentSof0_Component>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1203,7 +1322,11 @@ impl KStruct for Jpeg_SegmentSof0_Component {
     type Root = Jpeg;
     type Parent = Jpeg_SegmentSof0;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1226,28 +1349,36 @@ impl KStruct for Jpeg_SegmentSof0_Component {
     }
 }
 impl Jpeg_SegmentSof0_Component {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sampling_x(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sampling_x(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sampling_x.get() {
             return Ok(self.sampling_x.borrow());
         }
         self.f_sampling_x.set(true);
-        *self.sampling_x.borrow_mut() = ((((i32::from(*self.sampling_factors())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
+        *self.sampling_x.borrow_mut() =
+            (((i32::from(*self.sampling_factors())) & (240_i32))
+                .wrapping_shr(4_u32))
+            .try_into()?;
         Ok(self.sampling_x.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sampling_y(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sampling_y(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sampling_y.get() {
             return Ok(self.sampling_y.borrow());
         }
         self.f_sampling_y.set(true);
-        *self.sampling_y.borrow_mut() = (((i32::from(*self.sampling_factors())) & (15_i32))).try_into()?;
+        *self.sampling_y.borrow_mut() =
+            ((i32::from(*self.sampling_factors())) & (15_i32)).try_into()?;
         Ok(self.sampling_y.borrow())
     }
 }
@@ -1330,7 +1461,11 @@ impl KStruct for Jpeg_SegmentSos {
     type Root = Jpeg;
     type Parent = Jpeg_Segment;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1347,7 +1482,12 @@ impl KStruct for Jpeg_SegmentSos {
         *self_rc.components.borrow_mut() = Vec::new();
         let l_components = usize::from(*self_rc.num_components());
         for _i in 0_usize..l_components {
-            let t = Self::read_into::<_, Jpeg_SegmentSos_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Jpeg_SegmentSos_Component>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.components.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1361,8 +1501,7 @@ impl KStruct for Jpeg_SegmentSos {
         Ok(())
     }
 }
-impl Jpeg_SegmentSos {
-}
+impl Jpeg_SegmentSos {}
 
 /**
  * Number of components in scan
@@ -1442,22 +1581,34 @@ impl TryFrom<&&Jpeg_SegmentSos_Component> for OptRc<Jpeg_SegmentSos_Component> {
     }
 }
 impl DowncastOptRc<Jpeg_SegmentSos_Component> for Jpeg_SegmentSos_Component {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Jpeg_SegmentSos_Component> for &Jpeg_SegmentSos_Component {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Jpeg_SegmentSos_Component> for OptRc<Jpeg_SegmentSos_Component> {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+impl DowncastOptRc<Jpeg_SegmentSos_Component>
+    for OptRc<Jpeg_SegmentSos_Component>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Jpeg_SegmentSos_Component> for &OptRc<Jpeg_SegmentSos_Component> {
-    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+impl DowncastOptRc<Jpeg_SegmentSos_Component>
+    for &OptRc<Jpeg_SegmentSos_Component>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1465,7 +1616,11 @@ impl KStruct for Jpeg_SegmentSos_Component {
     type Root = Jpeg;
     type Parent = Jpeg_SegmentSos;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1485,8 +1640,7 @@ impl KStruct for Jpeg_SegmentSos_Component {
         Ok(())
     }
 }
-impl Jpeg_SegmentSos_Component {
-}
+impl Jpeg_SegmentSos_Component {}
 
 /**
  * Scan component selector

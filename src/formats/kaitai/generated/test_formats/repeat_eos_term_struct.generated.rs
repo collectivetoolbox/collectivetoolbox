@@ -101,7 +101,11 @@ impl KStruct for RepeatEosTermStruct {
     type Root = RepeatEosTermStruct;
     type Parent = RepeatEosTermStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,9 +121,18 @@ impl KStruct for RepeatEosTermStruct {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let _raw_records = _io.read_bytes_term(178, true, true, true)?;
+                let _raw_records =
+                    _io.read_bytes_term(178, true, true, true)?;
                 let _io_records = BytesReader::from(_raw_records);
-                let t = Self::read_into::<BytesReader, RepeatEosTermStruct_BytesWrapper>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    RepeatEosTermStruct_BytesWrapper,
+                >(
+                    &_io_records,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -129,10 +142,11 @@ impl KStruct for RepeatEosTermStruct {
         Ok(())
     }
 }
+impl RepeatEosTermStruct {}
 impl RepeatEosTermStruct {
-}
-impl RepeatEosTermStruct {
-    pub fn records(&self) -> Ref<'_, Vec<OptRc<RepeatEosTermStruct_BytesWrapper>>> {
+    pub fn records(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<RepeatEosTermStruct_BytesWrapper>>> {
         self.records.borrow()
     }
 }
@@ -161,35 +175,59 @@ pub struct RepeatEosTermStruct_BytesWrapper {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&RepeatEosTermStruct_BytesWrapper> for OptRc<RepeatEosTermStruct_BytesWrapper> {
+impl TryFrom<&RepeatEosTermStruct_BytesWrapper>
+    for OptRc<RepeatEosTermStruct_BytesWrapper>
+{
     type Error = KError;
-    fn try_from(v: &RepeatEosTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &RepeatEosTermStruct_BytesWrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&RepeatEosTermStruct_BytesWrapper> for OptRc<RepeatEosTermStruct_BytesWrapper> {
+impl TryFrom<&&RepeatEosTermStruct_BytesWrapper>
+    for OptRc<RepeatEosTermStruct_BytesWrapper>
+{
     type Error = KError;
-    fn try_from(v: &&RepeatEosTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&RepeatEosTermStruct_BytesWrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper> for RepeatEosTermStruct_BytesWrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper>
+    for RepeatEosTermStruct_BytesWrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper> for &RepeatEosTermStruct_BytesWrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper>
+    for &RepeatEosTermStruct_BytesWrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper> for OptRc<RepeatEosTermStruct_BytesWrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper>
+    for OptRc<RepeatEosTermStruct_BytesWrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper> for &OptRc<RepeatEosTermStruct_BytesWrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatEosTermStruct_BytesWrapper>
+    for &OptRc<RepeatEosTermStruct_BytesWrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatEosTermStruct_BytesWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -197,7 +235,11 @@ impl KStruct for RepeatEosTermStruct_BytesWrapper {
     type Root = RepeatEosTermStruct;
     type Parent = RepeatEosTermStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,8 +257,7 @@ impl KStruct for RepeatEosTermStruct_BytesWrapper {
         Ok(())
     }
 }
-impl RepeatEosTermStruct_BytesWrapper {
-}
+impl RepeatEosTermStruct_BytesWrapper {}
 impl RepeatEosTermStruct_BytesWrapper {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()

@@ -82,22 +82,34 @@ impl TryFrom<&&RepeatUntilCalcArrayType> for OptRc<RepeatUntilCalcArrayType> {
     }
 }
 impl DowncastOptRc<RepeatUntilCalcArrayType> for RepeatUntilCalcArrayType {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<RepeatUntilCalcArrayType> for &RepeatUntilCalcArrayType {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType> for OptRc<RepeatUntilCalcArrayType> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType>
+    for OptRc<RepeatUntilCalcArrayType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType> for &OptRc<RepeatUntilCalcArrayType> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType>
+    for &OptRc<RepeatUntilCalcArrayType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -105,7 +117,11 @@ impl KStruct for RepeatUntilCalcArrayType {
     type Root = RepeatUntilCalcArrayType;
     type Parent = RepeatUntilCalcArrayType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,12 +139,24 @@ impl KStruct for RepeatUntilCalcArrayType {
             loop {
                 let _raw_records = _io.read_bytes(5_usize)?;
                 let _io_records = BytesReader::from(_raw_records);
-                let t = Self::read_into::<BytesReader, RepeatUntilCalcArrayType_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    RepeatUntilCalcArrayType_Record,
+                >(
+                    &_io_records,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 let _t_records = self_rc.records.borrow();
-                let Some(_tmpa) = _t_records.last() else { break; };
+                let Some(_tmpa) = _t_records.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if (to_i128(*_tmpa.marker())) == (to_i128(170)) { break; }
+                if (to_i128(*_tmpa.marker())) == (to_i128(170)) {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -137,20 +165,32 @@ impl KStruct for RepeatUntilCalcArrayType {
     }
 }
 impl RepeatUntilCalcArrayType {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn first_rec(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<RepeatUntilCalcArrayType_Record>>> {
         let _io = self._io.borrow();
         if self.f_first_rec.get() {
             return Ok(self.first_rec.borrow());
         }
-        *self.first_rec.borrow_mut() = self.recs_accessor()?.first().ok_or(KError::EmptyIterator)?.clone();
+        *self.first_rec.borrow_mut() = self
+            .recs_accessor()?
+            .first()
+            .ok_or(KError::EmptyIterator)?
+            .clone();
         Ok(self.first_rec.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn recs_accessor(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<RepeatUntilCalcArrayType_Record>>>> {
         let _io = self._io.borrow();
         if self.f_recs_accessor.get() {
@@ -162,7 +202,9 @@ impl RepeatUntilCalcArrayType {
     }
 }
 impl RepeatUntilCalcArrayType {
-    pub fn records(&self) -> Ref<'_, Vec<OptRc<RepeatUntilCalcArrayType_Record>>> {
+    pub fn records(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<RepeatUntilCalcArrayType_Record>>> {
         self.records.borrow()
     }
 }
@@ -192,35 +234,59 @@ pub struct RepeatUntilCalcArrayType_Record {
     body: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
+impl TryFrom<&RepeatUntilCalcArrayType_Record>
+    for OptRc<RepeatUntilCalcArrayType_Record>
+{
     type Error = KError;
-    fn try_from(v: &RepeatUntilCalcArrayType_Record) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &RepeatUntilCalcArrayType_Record,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
+impl TryFrom<&&RepeatUntilCalcArrayType_Record>
+    for OptRc<RepeatUntilCalcArrayType_Record>
+{
     type Error = KError;
-    fn try_from(v: &&RepeatUntilCalcArrayType_Record) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&RepeatUntilCalcArrayType_Record,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for RepeatUntilCalcArrayType_Record {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record>
+    for RepeatUntilCalcArrayType_Record
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for &RepeatUntilCalcArrayType_Record {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record>
+    for &RepeatUntilCalcArrayType_Record
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record>
+    for OptRc<RepeatUntilCalcArrayType_Record>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for &OptRc<RepeatUntilCalcArrayType_Record> {
-    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record>
+    for &OptRc<RepeatUntilCalcArrayType_Record>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
         Ok((*self).clone())
     }
 }
@@ -228,7 +294,11 @@ impl KStruct for RepeatUntilCalcArrayType_Record {
     type Root = RepeatUntilCalcArrayType;
     type Parent = RepeatUntilCalcArrayType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -248,8 +318,7 @@ impl KStruct for RepeatUntilCalcArrayType_Record {
         Ok(())
     }
 }
-impl RepeatUntilCalcArrayType_Record {
-}
+impl RepeatUntilCalcArrayType_Record {}
 impl RepeatUntilCalcArrayType_Record {
     pub fn marker(&self) -> Ref<'_, u8> {
         self.marker.borrow()

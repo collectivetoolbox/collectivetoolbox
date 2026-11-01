@@ -102,7 +102,11 @@ impl KStruct for BitsUnalignedB32Be {
     type Root = BitsUnalignedB32Be;
     type Parent = BitsUnalignedB32Be;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,8 +128,7 @@ impl KStruct for BitsUnalignedB32Be {
         Ok(())
     }
 }
-impl BitsUnalignedB32Be {
-}
+impl BitsUnalignedB32Be {}
 impl BitsUnalignedB32Be {
     pub fn a(&self) -> Ref<'_, bool> {
         self.a.borrow()

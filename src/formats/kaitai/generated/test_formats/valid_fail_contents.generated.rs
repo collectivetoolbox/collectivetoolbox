@@ -100,7 +100,11 @@ impl KStruct for ValidFailContents {
     type Root = ValidFailContents;
     type Parent = ValidFailContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,15 +118,17 @@ impl KStruct for ValidFailContents {
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.foo() == vec![0x51u8, 0x41u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailContents {
-}
+impl ValidFailContents {}
 impl ValidFailContents {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

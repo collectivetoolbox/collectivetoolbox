@@ -71,7 +71,11 @@ impl KStruct for Tga {
     type Root = Tga;
     type Parent = Tga;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,9 +89,11 @@ impl KStruct for Tga {
         let _io = io;
         *self_rc.image_id_len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.color_map_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.color_map_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.image_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.image_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_map_ofs.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -107,14 +113,23 @@ impl KStruct for Tga {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.img_descriptor.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.image_id.borrow_mut() = _io.read_bytes(usize::from(*self_rc.image_id_len()))?;
+        *self_rc.image_id.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.image_id_len()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.color_map_type() == Tga_ColorMapEnum::HasColorMap {
             *self_rc.color_map.borrow_mut() = Vec::new();
             let l_color_map = usize::from(*self_rc.num_color_map());
             for _i in 0_usize..l_color_map {
-                self_rc.color_map.borrow_mut().push(_io.read_bytes(usize::try_from(div_floor(i64::from((i32::from(*self_rc.color_map_depth())).saturating_add(7_i32)), 8_i64)?)?)?);
+                self_rc.color_map.borrow_mut().push(
+                    _io.read_bytes(usize::try_from(div_floor(
+                        i64::from(
+                            (i32::from(*self_rc.color_map_depth()))
+                                .saturating_add(7_i32),
+                        ),
+                        8_i64,
+                    )?)?)?,
+                );
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -123,17 +138,26 @@ impl KStruct for Tga {
     }
 }
 impl Tga {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn footer(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Tga_TgaFooter>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn footer(&self) -> KResult<Ref<'_, OptRc<Tga_TgaFooter>>> {
         let _io = self._io.borrow();
         if self.f_footer.get() {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(26_i64))?)?;
-        let t = Self::read_into::<_, Tga_TgaFooter>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        _io.seek(usize::try_from(
+            (i64::try_from(_io.size())?).saturating_sub(26_i64),
+        )?)?;
+        let t = Self::read_into::<_, Tga_TgaFooter>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.footer.borrow())
@@ -278,13 +302,15 @@ impl From<&Tga_ColorMapEnum> for i64 {
         match *v {
             Tga_ColorMapEnum::NoColorMap => 0,
             Tga_ColorMapEnum::HasColorMap => 1,
-            Tga_ColorMapEnum::Unknown(v) => v
+            Tga_ColorMapEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Tga_ColorMapEnum {
-    fn default() -> Self { Tga_ColorMapEnum::Unknown(0) }
+    fn default() -> Self {
+        Tga_ColorMapEnum::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -325,15 +351,16 @@ impl From<&Tga_ImageTypeEnum> for i64 {
             Tga_ImageTypeEnum::RleColorMapped => 9,
             Tga_ImageTypeEnum::RleTrueColor => 10,
             Tga_ImageTypeEnum::RleBw => 11,
-            Tga_ImageTypeEnum::Unknown(v) => v
+            Tga_ImageTypeEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Tga_ImageTypeEnum {
-    fn default() -> Self { Tga_ImageTypeEnum::Unknown(0) }
+    fn default() -> Self {
+        Tga_ImageTypeEnum::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Tga_TgaExtArea {
@@ -400,7 +427,11 @@ impl KStruct for Tga_TgaExtArea {
     type Root = Tga;
     type Parent = Tga_TgaFooter;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -414,21 +445,28 @@ impl KStruct for Tga_TgaExtArea {
         let _io = io;
         *self_rc.ext_area_size.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.author_name.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc.author_name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comments.borrow_mut() = Vec::new();
         let l_comments = 4_usize;
         for _i in 0_usize..l_comments {
-            self_rc.comments.borrow_mut().push(bytes_to_str(&_io.read_bytes(81_usize)?, "ASCII")?);
+            self_rc
+                .comments
+                .borrow_mut()
+                .push(bytes_to_str(&_io.read_bytes(81_usize)?, "ASCII")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_bytes(12_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.job_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc.job_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.job_time.borrow_mut() = bytes_to_str(&_io.read_bytes(6_usize)?, "ASCII")?;
+        *self_rc.job_time.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(6_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.software_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc.software_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.software_version.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -450,8 +488,7 @@ impl KStruct for Tga_TgaExtArea {
         Ok(())
     }
 }
-impl Tga_TgaExtArea {
-}
+impl Tga_TgaExtArea {}
 
 /**
  * Extension area size in bytes (always 495)
@@ -665,7 +702,11 @@ impl KStruct for Tga_TgaFooter {
     type Root = Tga;
     type Parent = Tga;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -688,10 +729,12 @@ impl KStruct for Tga_TgaFooter {
     }
 }
 impl Tga_TgaFooter {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ext_area(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Tga_TgaExtArea>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ext_area(&self) -> KResult<Ref<'_, OptRc<Tga_TgaExtArea>>> {
         let _io = self._io.borrow();
         if self.f_ext_area.get() {
             return Ok(self.ext_area.borrow());
@@ -699,22 +742,35 @@ impl Tga_TgaFooter {
         if *self.is_valid()? {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ext_area_ofs())?)?;
-            let t = Self::read_into::<_, Tga_TgaExtArea>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Tga_TgaExtArea>(
+                &*_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             *self.ext_area.borrow_mut() = t;
             _io.seek(_pos)?;
         }
         Ok(self.ext_area.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_valid(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_valid(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_valid.get() {
             return Ok(self.is_valid.borrow());
         }
         self.f_is_valid.set(true);
-        *self.is_valid.borrow_mut() = (*self.version_magic() == vec![0x54u8, 0x52u8, 0x55u8, 0x45u8, 0x56u8, 0x49u8, 0x53u8, 0x49u8, 0x4fu8, 0x4eu8, 0x2du8, 0x58u8, 0x46u8, 0x49u8, 0x4cu8, 0x45u8, 0x2eu8, 0x0u8]).try_into()?;
+        *self.is_valid.borrow_mut() = (*self.version_magic()
+            == vec![
+                0x54u8, 0x52u8, 0x55u8, 0x45u8, 0x56u8, 0x49u8, 0x53u8, 0x49u8,
+                0x4fu8, 0x4eu8, 0x2du8, 0x58u8, 0x46u8, 0x49u8, 0x4cu8, 0x45u8,
+                0x2eu8, 0x0u8,
+            ])
+        .try_into()?;
         Ok(self.is_valid.borrow())
     }
 }

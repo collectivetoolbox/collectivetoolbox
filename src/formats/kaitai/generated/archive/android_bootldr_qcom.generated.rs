@@ -162,7 +162,11 @@ impl KStruct for AndroidBootldrQcom {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -175,8 +179,15 @@ impl KStruct for AndroidBootldrQcom {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.magic() == vec![0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![
+                0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_images.borrow_mut() = _io.read_u4le()?;
@@ -188,7 +199,12 @@ impl KStruct for AndroidBootldrQcom {
         *self_rc.img_headers.borrow_mut() = Vec::new();
         let l_img_headers = usize::try_from(*self_rc.num_images())?;
         for _i in 0_usize..l_img_headers {
-            let t = Self::read_into::<_, AndroidBootldrQcom_ImgHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, AndroidBootldrQcom_ImgHeader>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.img_headers.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -197,9 +213,13 @@ impl KStruct for AndroidBootldrQcom {
     }
 }
 impl AndroidBootldrQcom {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn img_bodies(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<AndroidBootldrQcom_ImgBody>>>> {
         let _io = self._io.borrow();
         if self.f_img_bodies.get() {
@@ -211,8 +231,18 @@ impl AndroidBootldrQcom {
         *self.img_bodies.borrow_mut() = Vec::new();
         let l_img_bodies = usize::try_from(*self.num_images())?;
         for _i in 0_usize..l_img_bodies {
-            let f = |t : &mut AndroidBootldrQcom_ImgBody| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
-            let t = Self::read_into_with_init::<_, AndroidBootldrQcom_ImgBody>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+            let f = |t: &mut AndroidBootldrQcom_ImgBody| {
+                Ok(t.set_params(
+                    (_i).try_into().map_err(|_| KError::CastError)?,
+                ))
+            };
+            let t = Self::read_into_with_init::<_, AndroidBootldrQcom_ImgBody>(
+                &*_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self.img_bodies.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -263,7 +293,9 @@ impl AndroidBootldrQcom {
     }
 }
 impl AndroidBootldrQcom {
-    pub fn img_headers(&self) -> Ref<'_, Vec<OptRc<AndroidBootldrQcom_ImgHeader>>> {
+    pub fn img_headers(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<AndroidBootldrQcom_ImgHeader>>> {
         self.img_headers.borrow()
     }
 }
@@ -291,35 +323,51 @@ pub struct AndroidBootldrQcom_ImgBody {
     f_img_header: Cell<bool>,
     img_header: RefCell<OptRc<AndroidBootldrQcom_ImgHeader>>,
 }
-impl TryFrom<&AndroidBootldrQcom_ImgBody> for OptRc<AndroidBootldrQcom_ImgBody> {
+impl TryFrom<&AndroidBootldrQcom_ImgBody>
+    for OptRc<AndroidBootldrQcom_ImgBody>
+{
     type Error = KError;
     fn try_from(v: &AndroidBootldrQcom_ImgBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&AndroidBootldrQcom_ImgBody> for OptRc<AndroidBootldrQcom_ImgBody> {
+impl TryFrom<&&AndroidBootldrQcom_ImgBody>
+    for OptRc<AndroidBootldrQcom_ImgBody>
+{
     type Error = KError;
     fn try_from(v: &&AndroidBootldrQcom_ImgBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<AndroidBootldrQcom_ImgBody> for AndroidBootldrQcom_ImgBody {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<AndroidBootldrQcom_ImgBody> for &AndroidBootldrQcom_ImgBody {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgBody> for OptRc<AndroidBootldrQcom_ImgBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgBody>
+    for OptRc<AndroidBootldrQcom_ImgBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgBody> for &OptRc<AndroidBootldrQcom_ImgBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgBody>
+    for &OptRc<AndroidBootldrQcom_ImgBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -327,7 +375,11 @@ impl KStruct for AndroidBootldrQcom_ImgBody {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -339,7 +391,8 @@ impl KStruct for AndroidBootldrQcom_ImgBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.img_header()?.len_body())?)?;
+        *self_rc.body.borrow_mut() = _io
+            .read_bytes(usize::try_from(*self_rc.img_header()?.len_body())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -356,15 +409,29 @@ impl AndroidBootldrQcom_ImgBody {
     }
 }
 impl AndroidBootldrQcom_ImgBody {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn img_header(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<AndroidBootldrQcom_ImgHeader>>> {
         let _io = self._io.borrow();
         if self.f_img_header.get() {
             return Ok(self.img_header.borrow());
         }
-        *self.img_header.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.img_headers().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.clone();
+        *self.img_header.borrow_mut() = self
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .img_headers()
+            .get(usize::try_from(*self.idx())?)
+            .ok_or(KError::CastError)?
+            .clone();
         Ok(self.img_header.borrow())
     }
 }
@@ -400,35 +467,57 @@ pub struct AndroidBootldrQcom_ImgHeader {
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&AndroidBootldrQcom_ImgHeader> for OptRc<AndroidBootldrQcom_ImgHeader> {
+impl TryFrom<&AndroidBootldrQcom_ImgHeader>
+    for OptRc<AndroidBootldrQcom_ImgHeader>
+{
     type Error = KError;
     fn try_from(v: &AndroidBootldrQcom_ImgHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&AndroidBootldrQcom_ImgHeader> for OptRc<AndroidBootldrQcom_ImgHeader> {
+impl TryFrom<&&AndroidBootldrQcom_ImgHeader>
+    for OptRc<AndroidBootldrQcom_ImgHeader>
+{
     type Error = KError;
-    fn try_from(v: &&AndroidBootldrQcom_ImgHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AndroidBootldrQcom_ImgHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgHeader> for AndroidBootldrQcom_ImgHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgHeader>
+    for AndroidBootldrQcom_ImgHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgHeader> for &AndroidBootldrQcom_ImgHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgHeader>
+    for &AndroidBootldrQcom_ImgHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgHeader> for OptRc<AndroidBootldrQcom_ImgHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgHeader>
+    for OptRc<AndroidBootldrQcom_ImgHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndroidBootldrQcom_ImgHeader> for &OptRc<AndroidBootldrQcom_ImgHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
+impl DowncastOptRc<AndroidBootldrQcom_ImgHeader>
+    for &OptRc<AndroidBootldrQcom_ImgHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AndroidBootldrQcom_ImgHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -436,7 +525,11 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -448,7 +541,15 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(64_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -456,8 +557,7 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
         Ok(())
     }
 }
-impl AndroidBootldrQcom_ImgHeader {
-}
+impl AndroidBootldrQcom_ImgHeader {}
 impl AndroidBootldrQcom_ImgHeader {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()

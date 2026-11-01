@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::imported_and_abs::ImportedAndAbs;
 use super::imported_and_abs::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsAbsAbs {
@@ -103,7 +103,11 @@ impl KStruct for ImportsAbsAbs {
     type Root = ImportsAbsAbs;
     type Parent = ImportsAbsAbs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,8 +128,7 @@ impl KStruct for ImportsAbsAbs {
         Ok(())
     }
 }
-impl ImportsAbsAbs {
-}
+impl ImportsAbsAbs {}
 impl ImportsAbsAbs {
     pub fn one(&self) -> Ref<'_, u8> {
         self.one.borrow()

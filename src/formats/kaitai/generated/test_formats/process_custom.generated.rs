@@ -106,7 +106,11 @@ impl KStruct for ProcessCustom {
     type Root = ProcessCustom;
     type Parent = ProcessCustom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,20 +122,36 @@ impl KStruct for ProcessCustom {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf1.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(7)? & 0xff)?, true, &[32u8, 48u8, 64u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf1.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(
+            u8::try_from(i64::try_from(7)? & 0xff)?,
+            true,
+            &[32u8, 48u8, 64u8],
+        )
+        .decode(&_io.read_bytes(5_usize)?)
+        .map_err(|e| KError::BytesDecodingError { msg: e })?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.buf2.borrow_mut() = crate::custom_fx::Nested::Deeply::CustomFx::new(u8::try_from(i64::try_from(7)? & 0xff)?).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf2.borrow_mut() =
+            crate::custom_fx::Nested::Deeply::CustomFx::new(u8::try_from(
+                i64::try_from(7)? & 0xff,
+            )?)
+            .decode(&_io.read_bytes(5_usize)?)
+            .map_err(|e| KError::BytesDecodingError { msg: e })?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.buf3.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?, false, &[0u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf3.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(
+            u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?,
+            false,
+            &[0u8],
+        )
+        .decode(&_io.read_bytes(5_usize)?)
+        .map_err(|e| KError::BytesDecodingError { msg: e })?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessCustom {
-}
+impl ProcessCustom {}
 impl ProcessCustom {
     pub fn buf1(&self) -> Ref<'_, Vec<u8>> {
         self.buf1.borrow()

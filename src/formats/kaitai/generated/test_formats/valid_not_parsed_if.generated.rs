@@ -101,7 +101,11 @@ impl KStruct for ValidNotParsedIf {
     type Root = ValidNotParsedIf;
     type Parent = ValidNotParsedIf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,7 +122,10 @@ impl KStruct for ValidNotParsedIf {
             *self_rc.not_parsed.borrow_mut() = _io.read_u1()?;
             let expected: u8 = (42).try_into()?;
             if !(*self_rc.not_parsed() == expected) {
-                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+                return Err(KError::ValidationFailed(ValidationFailedError {
+                    kind: ValidationKind::NotEqual,
+                    src_path: "/seq/0".to_string(),
+                }));
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -127,7 +134,10 @@ impl KStruct for ValidNotParsedIf {
             *self_rc.parsed.borrow_mut() = _io.read_u1()?;
             let expected: u8 = (80).try_into()?;
             if !(*self_rc.parsed() == expected) {
-                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
+                return Err(KError::ValidationFailed(ValidationFailedError {
+                    kind: ValidationKind::NotEqual,
+                    src_path: "/seq/1".to_string(),
+                }));
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -135,8 +145,7 @@ impl KStruct for ValidNotParsedIf {
         Ok(())
     }
 }
-impl ValidNotParsedIf {
-}
+impl ValidNotParsedIf {}
 impl ValidNotParsedIf {
     pub fn not_parsed(&self) -> Ref<'_, u8> {
         self.not_parsed.borrow()

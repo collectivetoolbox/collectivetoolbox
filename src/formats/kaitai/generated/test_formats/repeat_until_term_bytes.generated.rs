@@ -102,7 +102,11 @@ impl KStruct for RepeatUntilTermBytes {
     type Root = RepeatUntilTermBytes;
     type Parent = RepeatUntilTermBytes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,11 +122,18 @@ impl KStruct for RepeatUntilTermBytes {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records1.borrow_mut().push(_io.read_bytes_term(170, false, true, true)?);
+                self_rc
+                    .records1
+                    .borrow_mut()
+                    .push(_io.read_bytes_term(170, false, true, true)?);
                 let _t_records1 = self_rc.records1.borrow();
-                let Some(_tmpa) = _t_records1.last() else { break; };
+                let Some(_tmpa) = _t_records1.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if _tmpa.len() == 0 { break; }
+                if _tmpa.len() == 0 {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -130,11 +141,18 @@ impl KStruct for RepeatUntilTermBytes {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records2.borrow_mut().push(_io.read_bytes_term(170, true, true, true)?);
+                self_rc
+                    .records2
+                    .borrow_mut()
+                    .push(_io.read_bytes_term(170, true, true, true)?);
                 let _t_records2 = self_rc.records2.borrow();
-                let Some(_tmpa) = _t_records2.last() else { break; };
+                let Some(_tmpa) = _t_records2.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if *_tmpa != vec![0xaau8] { break; }
+                if *_tmpa != vec![0xaau8] {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -142,11 +160,23 @@ impl KStruct for RepeatUntilTermBytes {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records3.borrow_mut().push(_io.read_bytes_term(85, false, false, true)?);
+                self_rc
+                    .records3
+                    .borrow_mut()
+                    .push(_io.read_bytes_term(85, false, false, true)?);
                 let _t_records3 = self_rc.records3.borrow();
-                let Some(_tmpa) = _t_records3.last() else { break; };
+                let Some(_tmpa) = _t_records3.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if *_tmpa == *self_rc.records1().last().ok_or(KError::EmptyIterator)? { break; }
+                if *_tmpa
+                    == *self_rc
+                        .records1()
+                        .last()
+                        .ok_or(KError::EmptyIterator)?
+                {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -154,8 +184,7 @@ impl KStruct for RepeatUntilTermBytes {
         Ok(())
     }
 }
-impl RepeatUntilTermBytes {
-}
+impl RepeatUntilTermBytes {}
 impl RepeatUntilTermBytes {
     pub fn records1(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records1.borrow()

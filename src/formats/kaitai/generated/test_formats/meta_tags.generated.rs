@@ -99,7 +99,11 @@ impl KStruct for MetaTags {
     type Root = MetaTags;
     type Parent = MetaTags;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,8 +119,7 @@ impl KStruct for MetaTags {
         Ok(())
     }
 }
-impl MetaTags {
-}
+impl MetaTags {}
 impl MetaTags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

@@ -109,7 +109,11 @@ impl KStruct for ExprIntDiv {
     type Root = ExprIntDiv;
     type Parent = ExprIntDiv;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,52 +134,69 @@ impl KStruct for ExprIntDiv {
     }
 }
 impl ExprIntDiv {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn div_neg_const(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn div_neg_const(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_div_neg_const.get() {
             return Ok(self.div_neg_const.borrow());
         }
         self.f_div_neg_const.set(true);
-        *self.div_neg_const.borrow_mut() = (div_floor(i64::from((0_i32).saturating_sub(to_i32(9837))), 13_i64)?).try_into()?;
+        *self.div_neg_const.borrow_mut() = (div_floor(
+            i64::from((0_i32).saturating_sub(to_i32(9837))),
+            13_i64,
+        )?)
+        .try_into()?;
         Ok(self.div_neg_const.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn div_neg_seq(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn div_neg_seq(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_div_neg_seq.get() {
             return Ok(self.div_neg_seq.borrow());
         }
         self.f_div_neg_seq.set(true);
-        *self.div_neg_seq.borrow_mut() = (div_floor(i64::from(*self.int_s()), 13_i64)?).try_into()?;
+        *self.div_neg_seq.borrow_mut() =
+            (div_floor(i64::from(*self.int_s()), 13_i64)?).try_into()?;
         Ok(self.div_neg_seq.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn div_pos_const(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn div_pos_const(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_div_pos_const.get() {
             return Ok(self.div_pos_const.borrow());
         }
         self.f_div_pos_const.set(true);
-        *self.div_pos_const.borrow_mut() = (div_floor(9837_i64, 13_i64)?).try_into()?;
+        *self.div_pos_const.borrow_mut() =
+            (div_floor(9837_i64, 13_i64)?).try_into()?;
         Ok(self.div_pos_const.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn div_pos_seq(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn div_pos_seq(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_div_pos_seq.get() {
             return Ok(self.div_pos_seq.borrow());
         }
         self.f_div_pos_seq.set(true);
-        *self.div_pos_seq.borrow_mut() = ((*self.int_u()).checked_div(13_u32).ok_or(KError::CastError)?).try_into()?;
+        *self.div_pos_seq.borrow_mut() = ((*self.int_u())
+            .checked_div(13_u32)
+            .ok_or(KError::CastError)?)
+        .try_into()?;
         Ok(self.div_pos_seq.borrow())
     }
 }

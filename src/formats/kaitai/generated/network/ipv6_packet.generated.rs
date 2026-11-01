@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::protocol_body::ProtocolBody;
 use super::protocol_body::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct Ipv6Packet {
@@ -62,7 +62,11 @@ impl KStruct for Ipv6Packet {
     type Root = Ipv6Packet;
     type Parent = Ipv6Packet;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,8 +95,17 @@ impl KStruct for Ipv6Packet {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dst_ipv6_addr.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, None, None, &f)?.into();
+        let f = |t: &mut ProtocolBody| {
+            Ok(t.set_params(
+                (*self_rc.next_header_type())
+                    .try_into()
+                    .map_err(|_| KError::CastError)?,
+            ))
+        };
+        let t = Self::read_into_with_init::<_, ProtocolBody>(
+            &*_io, None, None, &f,
+        )?
+        .into();
         *self_rc.next_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rest.borrow_mut() = _io.read_bytes_full()?;
@@ -101,8 +114,7 @@ impl KStruct for Ipv6Packet {
         Ok(())
     }
 }
-impl Ipv6Packet {
-}
+impl Ipv6Packet {}
 impl Ipv6Packet {
     pub fn version(&self) -> Ref<'_, u64> {
         self.version.borrow()

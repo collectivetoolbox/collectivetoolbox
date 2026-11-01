@@ -100,7 +100,11 @@ impl KStruct for Enum1 {
     type Root = Enum1;
     type Parent = Enum1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,15 +116,19 @@ impl KStruct for Enum1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Enum1_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Enum1_MainObj>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.main.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Enum1 {
-}
+impl Enum1 {}
 impl Enum1 {
     pub fn main(&self) -> Ref<'_, OptRc<Enum1_MainObj>> {
         self.main.borrow()
@@ -182,7 +190,11 @@ impl KStruct for Enum1_MainObj {
     type Root = Enum1;
     type Parent = Enum1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,15 +206,19 @@ impl KStruct for Enum1_MainObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Enum1_MainObj_SubmainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Enum1_MainObj_SubmainObj>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.submain.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Enum1_MainObj {
-}
+impl Enum1_MainObj {}
 impl Enum1_MainObj {
     pub fn submain(&self) -> Ref<'_, OptRc<Enum1_MainObj_SubmainObj>> {
         self.submain.borrow()
@@ -245,15 +261,16 @@ impl From<&Enum1_MainObj_Animal> for i64 {
             Enum1_MainObj_Animal::Dog => 4,
             Enum1_MainObj_Animal::Cat => 7,
             Enum1_MainObj_Animal::Chicken => 12,
-            Enum1_MainObj_Animal::Unknown(v) => v
+            Enum1_MainObj_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Enum1_MainObj_Animal {
-    fn default() -> Self { Enum1_MainObj_Animal::Unknown(0) }
+    fn default() -> Self {
+        Enum1_MainObj_Animal::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Enum1_MainObj_SubmainObj {
@@ -277,22 +294,34 @@ impl TryFrom<&&Enum1_MainObj_SubmainObj> for OptRc<Enum1_MainObj_SubmainObj> {
     }
 }
 impl DowncastOptRc<Enum1_MainObj_SubmainObj> for Enum1_MainObj_SubmainObj {
-    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Enum1_MainObj_SubmainObj> for &Enum1_MainObj_SubmainObj {
-    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Enum1_MainObj_SubmainObj> for OptRc<Enum1_MainObj_SubmainObj> {
-    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+impl DowncastOptRc<Enum1_MainObj_SubmainObj>
+    for OptRc<Enum1_MainObj_SubmainObj>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Enum1_MainObj_SubmainObj> for &OptRc<Enum1_MainObj_SubmainObj> {
-    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+impl DowncastOptRc<Enum1_MainObj_SubmainObj>
+    for &OptRc<Enum1_MainObj_SubmainObj>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -300,7 +329,11 @@ impl KStruct for Enum1_MainObj_SubmainObj {
     type Root = Enum1;
     type Parent = Enum1_MainObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -320,8 +353,7 @@ impl KStruct for Enum1_MainObj_SubmainObj {
         Ok(())
     }
 }
-impl Enum1_MainObj_SubmainObj {
-}
+impl Enum1_MainObj_SubmainObj {}
 impl Enum1_MainObj_SubmainObj {
     pub fn pet_1(&self) -> Ref<'_, Enum1_MainObj_Animal> {
         self.pet_1.borrow()

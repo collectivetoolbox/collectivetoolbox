@@ -114,7 +114,11 @@ impl KStruct for ExprIoTernary {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,13 +135,23 @@ impl KStruct for ExprIoTernary {
         let _raw_obj1 = _io.read_bytes(4_usize)?;
         *self_rc.obj1_raw.borrow_mut() = _raw_obj1.clone();
         let _io_obj1 = BytesReader::from(_raw_obj1);
-        let t = Self::read_into::<BytesReader, ExprIoTernary_One>(&_io_obj1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, ExprIoTernary_One>(
+            &_io_obj1,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.obj1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_obj2 = _io.read_bytes(8_usize)?;
         *self_rc.obj2_raw.borrow_mut() = _raw_obj2.clone();
         let _io_obj2 = BytesReader::from(_raw_obj2);
-        let t = Self::read_into::<BytesReader, ExprIoTernary_Two>(&_io_obj2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, ExprIoTernary_Two>(
+            &_io_obj2,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.obj2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -145,63 +159,102 @@ impl KStruct for ExprIoTernary {
     }
 }
 impl ExprIoTernary {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn one_or_two_io(
-        &self
-    ) -> KResult<Ref<'_, BytesReader>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn one_or_two_io(&self) -> KResult<Ref<'_, BytesReader>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_io.get() {
             return Ok(self.one_or_two_io.borrow());
         }
         self.f_one_or_two_io.set(true);
-        *self.one_or_two_io.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) };
+        *self.one_or_two_io.borrow_mut() =
+            if (to_i128(*self.flag())) == (to_i128(64)) {
+                Clone::clone(&*(self.obj1()._io()))
+            } else {
+                Clone::clone(&*(self.obj2()._io()))
+            };
         Ok(self.one_or_two_io.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn one_or_two_io_size1(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn one_or_two_io_size1(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_io_size1.get() {
             return Ok(self.one_or_two_io_size1.borrow());
         }
         self.f_one_or_two_io_size1.set(true);
-        *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).try_into()?;
+        *self.one_or_two_io_size1.borrow_mut() = (i64::try_from(
+            if (to_i128(*self.flag())) == (to_i128(64)) {
+                Clone::clone(&*(self.obj1()._io()))
+            } else {
+                Clone::clone(&*(self.obj2()._io()))
+            }
+            .size(),
+        )?)
+        .try_into()?;
         Ok(self.one_or_two_io_size1.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn one_or_two_io_size2(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn one_or_two_io_size2(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_io_size2.get() {
             return Ok(self.one_or_two_io_size2.borrow());
         }
         self.f_one_or_two_io_size2.set(true);
-        *self.one_or_two_io_size2.borrow_mut() = ((i64::try_from(self.one_or_two_io()?.size())?)).try_into()?;
+        *self.one_or_two_io_size2.borrow_mut() =
+            (i64::try_from(self.one_or_two_io()?.size())?).try_into()?;
         Ok(self.one_or_two_io_size2.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn one_or_two_io_size_add_3(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn one_or_two_io_size_add_3(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_io_size_add_3.get() {
             return Ok(self.one_or_two_io_size_add_3.borrow());
         }
         self.f_one_or_two_io_size_add_3.set(true);
-        *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).saturating_add(3_i64)).try_into()?;
+        *self.one_or_two_io_size_add_3.borrow_mut() = ((i64::try_from(
+            if (to_i128(*self.flag())) == (to_i128(64)) {
+                Clone::clone(&*(self.obj1()._io()))
+            } else {
+                Clone::clone(&*(self.obj2()._io()))
+            }
+            .size(),
+        )?)
+        .saturating_add(3_i64))
+        .try_into()?;
         Ok(self.one_or_two_io_size_add_3.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn one_or_two_obj(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Struct>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn one_or_two_obj(&self) -> KResult<Ref<'_, OptRc<Struct>>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_obj.get() {
             return Ok(self.one_or_two_obj.borrow());
         }
-        *self.one_or_two_obj.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(64)) { Struct::from_opt_rc(&(self.obj1())) } else { Struct::from_opt_rc(&(self.obj2())) }.clone();
+        *self.one_or_two_obj.borrow_mut() =
+            if (to_i128(*self.flag())) == (to_i128(64)) {
+                Struct::from_opt_rc(&(self.obj1()))
+            } else {
+                Struct::from_opt_rc(&(self.obj2()))
+            }
+            .clone();
         Ok(self.one_or_two_obj.borrow())
     }
 }
@@ -286,7 +339,11 @@ impl KStruct for ExprIoTernary_One {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -304,8 +361,7 @@ impl KStruct for ExprIoTernary_One {
         Ok(())
     }
 }
-impl ExprIoTernary_One {
-}
+impl ExprIoTernary_One {}
 impl ExprIoTernary_One {
     pub fn one(&self) -> Ref<'_, u8> {
         self.one.borrow()
@@ -367,7 +423,11 @@ impl KStruct for ExprIoTernary_Two {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -385,8 +445,7 @@ impl KStruct for ExprIoTernary_Two {
         Ok(())
     }
 }
-impl ExprIoTernary_Two {
-}
+impl ExprIoTernary_Two {}
 impl ExprIoTernary_Two {
     pub fn two(&self) -> Ref<'_, u8> {
         self.two.borrow()

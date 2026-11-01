@@ -100,7 +100,11 @@ impl KStruct for SwitchIntegers {
     type Root = SwitchIntegers;
     type Parent = SwitchIntegers;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,7 +120,12 @@ impl KStruct for SwitchIntegers {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, SwitchIntegers_Opcode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchIntegers_Opcode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.opcodes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -126,8 +135,7 @@ impl KStruct for SwitchIntegers {
         Ok(())
     }
 }
-impl SwitchIntegers {
-}
+impl SwitchIntegers {}
 impl SwitchIntegers {
     pub fn opcodes(&self) -> Ref<'_, Vec<OptRc<SwitchIntegers_Opcode>>> {
         self.opcodes.borrow()
@@ -183,7 +191,10 @@ impl From<u64> for SwitchIntegers_Opcode_Body {
 }
 impl TryFrom<&SwitchIntegers_Opcode_Body> for i64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchIntegers_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers_Opcode_Body::U1(v) => Ok(i64::try_from(*v)?),
@@ -195,7 +206,10 @@ impl TryFrom<&SwitchIntegers_Opcode_Body> for i64 {
 }
 impl TryFrom<&SwitchIntegers_Opcode_Body> for u16 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchIntegers_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers_Opcode_Body::U1(v) => Ok(u16::try_from(*v)?),
@@ -207,7 +221,10 @@ impl TryFrom<&SwitchIntegers_Opcode_Body> for u16 {
 }
 impl TryFrom<&SwitchIntegers_Opcode_Body> for u32 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchIntegers_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers_Opcode_Body::U1(v) => Ok(u32::try_from(*v)?),
@@ -219,7 +236,10 @@ impl TryFrom<&SwitchIntegers_Opcode_Body> for u32 {
 }
 impl TryFrom<&SwitchIntegers_Opcode_Body> for u64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchIntegers_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers_Opcode_Body::U1(v) => Ok(u64::try_from(*v)?),
@@ -231,7 +251,10 @@ impl TryFrom<&SwitchIntegers_Opcode_Body> for u64 {
 }
 impl TryFrom<&SwitchIntegers_Opcode_Body> for u8 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &SwitchIntegers_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers_Opcode_Body::U1(v) => Ok(u8::try_from(*v)?),
@@ -289,7 +312,11 @@ impl KStruct for SwitchIntegers_Opcode {
     type Root = SwitchIntegers;
     type Parent = SwitchIntegers;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -323,8 +350,7 @@ impl KStruct for SwitchIntegers_Opcode {
         Ok(())
     }
 }
-impl SwitchIntegers_Opcode {
-}
+impl SwitchIntegers_Opcode {}
 impl SwitchIntegers_Opcode {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()
@@ -333,7 +359,11 @@ impl SwitchIntegers_Opcode {
 impl SwitchIntegers_Opcode {
     pub fn body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
+        self.body
+            .borrow()
+            .as_ref()
+            .and_then(|v| u64::try_from(v).ok())
+            .unwrap_or(0)
     }
     pub fn body_enum(&self) -> Ref<'_, Option<SwitchIntegers_Opcode_Body>> {
         self.body.borrow()

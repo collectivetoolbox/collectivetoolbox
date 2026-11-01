@@ -100,7 +100,11 @@ impl KStruct for SwitchBytearray {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,7 +120,12 @@ impl KStruct for SwitchBytearray {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, SwitchBytearray_Opcode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchBytearray_Opcode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.opcodes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -126,8 +135,7 @@ impl KStruct for SwitchBytearray {
         Ok(())
     }
 }
-impl SwitchBytearray {
-}
+impl SwitchBytearray {}
 impl SwitchBytearray {
     pub fn opcodes(&self) -> Ref<'_, Vec<OptRc<SwitchBytearray_Opcode>>> {
         self.opcodes.borrow()
@@ -160,62 +168,92 @@ pub enum SwitchBytearray_Opcode_Body {
     SwitchBytearray_Opcode_Intval(OptRc<SwitchBytearray_Opcode_Intval>),
     SwitchBytearray_Opcode_Strval(OptRc<SwitchBytearray_Opcode_Strval>),
 }
-impl TryFrom<&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Intval> {
+impl TryFrom<&SwitchBytearray_Opcode_Body>
+    for OptRc<SwitchBytearray_Opcode_Intval>
+{
     type Error = KError;
     fn try_from(v: &SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchBytearray_Opcode_Body::SwitchBytearray_Opcode_Intval(x) = v {
+        if let SwitchBytearray_Opcode_Body::SwitchBytearray_Opcode_Intval(x) = v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Intval> {
+impl TryFrom<&&SwitchBytearray_Opcode_Body>
+    for OptRc<SwitchBytearray_Opcode_Intval>
+{
     type Error = KError;
     fn try_from(v: &&SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for SwitchBytearray_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for SwitchBytearray_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         OptRc::<SwitchBytearray_Opcode_Intval>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &SwitchBytearray_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for &SwitchBytearray_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SwitchBytearray_Opcode_Intval>> for SwitchBytearray_Opcode_Body {
+impl From<OptRc<SwitchBytearray_Opcode_Intval>>
+    for SwitchBytearray_Opcode_Body
+{
     fn from(v: OptRc<SwitchBytearray_Opcode_Intval>) -> Self {
         Self::SwitchBytearray_Opcode_Intval(v)
     }
 }
-impl TryFrom<&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Strval> {
+impl TryFrom<&SwitchBytearray_Opcode_Body>
+    for OptRc<SwitchBytearray_Opcode_Strval>
+{
     type Error = KError;
     fn try_from(v: &SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchBytearray_Opcode_Body::SwitchBytearray_Opcode_Strval(x) = v {
+        if let SwitchBytearray_Opcode_Body::SwitchBytearray_Opcode_Strval(x) = v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Strval> {
+impl TryFrom<&&SwitchBytearray_Opcode_Body>
+    for OptRc<SwitchBytearray_Opcode_Strval>
+{
     type Error = KError;
     fn try_from(v: &&SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for SwitchBytearray_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for SwitchBytearray_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         OptRc::<SwitchBytearray_Opcode_Strval>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &SwitchBytearray_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for &SwitchBytearray_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SwitchBytearray_Opcode_Strval>> for SwitchBytearray_Opcode_Body {
+impl From<OptRc<SwitchBytearray_Opcode_Strval>>
+    for SwitchBytearray_Opcode_Body
+{
     fn from(v: OptRc<SwitchBytearray_Opcode_Strval>) -> Self {
         Self::SwitchBytearray_Opcode_Strval(v)
     }
@@ -256,7 +294,11 @@ impl KStruct for SwitchBytearray_Opcode {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -272,11 +314,21 @@ impl KStruct for SwitchBytearray_Opcode {
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.code().as_slice() {
             [73] => {
-                let t = Self::read_into::<_, SwitchBytearray_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchBytearray_Opcode_Intval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             [83] => {
-                let t = Self::read_into::<_, SwitchBytearray_Opcode_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchBytearray_Opcode_Strval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -286,8 +338,7 @@ impl KStruct for SwitchBytearray_Opcode {
         Ok(())
     }
 }
-impl SwitchBytearray_Opcode {
-}
+impl SwitchBytearray_Opcode {}
 impl SwitchBytearray_Opcode {
     pub fn code(&self) -> Ref<'_, Vec<u8>> {
         self.code.borrow()
@@ -323,35 +374,59 @@ pub struct SwitchBytearray_Opcode_Intval {
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
+impl TryFrom<&SwitchBytearray_Opcode_Intval>
+    for OptRc<SwitchBytearray_Opcode_Intval>
+{
     type Error = KError;
-    fn try_from(v: &SwitchBytearray_Opcode_Intval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SwitchBytearray_Opcode_Intval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
+impl TryFrom<&&SwitchBytearray_Opcode_Intval>
+    for OptRc<SwitchBytearray_Opcode_Intval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchBytearray_Opcode_Intval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchBytearray_Opcode_Intval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for SwitchBytearray_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for SwitchBytearray_Opcode_Intval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &SwitchBytearray_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for &SwitchBytearray_Opcode_Intval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for OptRc<SwitchBytearray_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &OptRc<SwitchBytearray_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval>
+    for &OptRc<SwitchBytearray_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -359,7 +434,11 @@ impl KStruct for SwitchBytearray_Opcode_Intval {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -377,8 +456,7 @@ impl KStruct for SwitchBytearray_Opcode_Intval {
         Ok(())
     }
 }
-impl SwitchBytearray_Opcode_Intval {
-}
+impl SwitchBytearray_Opcode_Intval {}
 impl SwitchBytearray_Opcode_Intval {
     pub fn value(&self) -> Ref<'_, u8> {
         self.value.borrow()
@@ -404,35 +482,59 @@ pub struct SwitchBytearray_Opcode_Strval {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
+impl TryFrom<&SwitchBytearray_Opcode_Strval>
+    for OptRc<SwitchBytearray_Opcode_Strval>
+{
     type Error = KError;
-    fn try_from(v: &SwitchBytearray_Opcode_Strval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SwitchBytearray_Opcode_Strval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
+impl TryFrom<&&SwitchBytearray_Opcode_Strval>
+    for OptRc<SwitchBytearray_Opcode_Strval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchBytearray_Opcode_Strval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchBytearray_Opcode_Strval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for SwitchBytearray_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for SwitchBytearray_Opcode_Strval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &SwitchBytearray_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for &SwitchBytearray_Opcode_Strval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for OptRc<SwitchBytearray_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &OptRc<SwitchBytearray_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval>
+    for &OptRc<SwitchBytearray_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -440,7 +542,11 @@ impl KStruct for SwitchBytearray_Opcode_Strval {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -452,14 +558,14 @@ impl KStruct for SwitchBytearray_Opcode_Strval {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.value.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SwitchBytearray_Opcode_Strval {
-}
+impl SwitchBytearray_Opcode_Strval {}
 impl SwitchBytearray_Opcode_Strval {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

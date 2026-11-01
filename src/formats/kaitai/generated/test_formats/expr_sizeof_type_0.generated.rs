@@ -101,7 +101,11 @@ impl KStruct for ExprSizeofType0 {
     type Root = ExprSizeofType0;
     type Parent = ExprSizeofType0;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,10 +122,12 @@ impl KStruct for ExprSizeofType0 {
     }
 }
 impl ExprSizeofType0 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sizeof_block(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sizeof_block(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block.get() {
             return Ok(self.sizeof_block.borrow());
@@ -190,7 +196,11 @@ impl KStruct for ExprSizeofType0_Block {
     type Root = ExprSizeofType0;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -212,8 +222,7 @@ impl KStruct for ExprSizeofType0_Block {
         Ok(())
     }
 }
-impl ExprSizeofType0_Block {
-}
+impl ExprSizeofType0_Block {}
 impl ExprSizeofType0_Block {
     pub fn a(&self) -> Ref<'_, u8> {
         self.a.borrow()

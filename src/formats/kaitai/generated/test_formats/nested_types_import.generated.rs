@@ -53,16 +53,16 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::nested_types3::NestedTypes3;
-use super::nested_types3::*;
+use super::nested_types3::NestedTypes3_SubtypeA_SubtypeC_SubtypeD;
 use super::nested_types3::NestedTypes3_SubtypeA_SubtypeCc;
-use super::nested_types3::*;
 use super::nested_types3::NestedTypes3_SubtypeB;
 use super::nested_types3::*;
-use super::nested_types3::NestedTypes3_SubtypeA_SubtypeC_SubtypeD;
 use super::nested_types3::*;
+use super::nested_types3::*;
+use super::nested_types3::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct NestedTypesImport {
@@ -110,7 +110,11 @@ impl KStruct for NestedTypesImport {
     type Root = NestedTypesImport;
     type Parent = NestedTypesImport;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,28 +126,36 @@ impl KStruct for NestedTypesImport {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeCc>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeCc>(
+            &*_io, None, None,
+        )?
+        .into();
         *self_rc.a_cc.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeC_SubtypeD>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeC_SubtypeD>(
+            &*_io, None, None,
+        )?
+        .into();
         *self_rc.a_c_d.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes3_SubtypeB>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, NestedTypes3_SubtypeB>(&*_io, None, None)?
+            .into();
         *self_rc.b.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedTypesImport {
-}
+impl NestedTypesImport {}
 impl NestedTypesImport {
     pub fn a_cc(&self) -> Ref<'_, OptRc<NestedTypes3_SubtypeA_SubtypeCc>> {
         self.a_cc.borrow()
     }
 }
 impl NestedTypesImport {
-    pub fn a_c_d(&self) -> Ref<'_, OptRc<NestedTypes3_SubtypeA_SubtypeC_SubtypeD>> {
+    pub fn a_c_d(
+        &self,
+    ) -> Ref<'_, OptRc<NestedTypes3_SubtypeA_SubtypeC_SubtypeD>> {
         self.a_c_d.borrow()
     }
 }

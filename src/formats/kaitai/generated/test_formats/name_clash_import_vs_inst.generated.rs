@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::integers::Integers;
 use super::integers::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct NameClashImportVsInst {
@@ -105,7 +105,11 @@ impl KStruct for NameClashImportVsInst {
     type Root = NameClashImportVsInst;
     type Parent = NameClashImportVsInst;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,10 +126,12 @@ impl KStruct for NameClashImportVsInst {
     }
 }
 impl NameClashImportVsInst {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn integers(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Integers>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn integers(&self) -> KResult<Ref<'_, OptRc<Integers>>> {
         let _io = self._io.borrow();
         if self.f_integers.get() {
             return Ok(self.integers.borrow());
@@ -137,10 +143,12 @@ impl NameClashImportVsInst {
         _io.seek(_pos)?;
         Ok(self.integers.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn std(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn std(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_std.get() {
             return Ok(self.std.borrow());

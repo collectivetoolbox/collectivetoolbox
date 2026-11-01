@@ -65,35 +65,51 @@ pub struct DebugArrayUserEofException {
     array_of_cats: RefCell<Vec<OptRc<DebugArrayUserEofException_Cat>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
+impl TryFrom<&DebugArrayUserEofException>
+    for OptRc<DebugArrayUserEofException>
+{
     type Error = KError;
     fn try_from(v: &DebugArrayUserEofException) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
+impl TryFrom<&&DebugArrayUserEofException>
+    for OptRc<DebugArrayUserEofException>
+{
     type Error = KError;
     fn try_from(v: &&DebugArrayUserEofException) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<DebugArrayUserEofException> for DebugArrayUserEofException {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<DebugArrayUserEofException> for &DebugArrayUserEofException {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException>
+    for OptRc<DebugArrayUserEofException>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException> for &OptRc<DebugArrayUserEofException> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException>
+    for &OptRc<DebugArrayUserEofException>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException>, KError> {
         Ok((*self).clone())
     }
 }
@@ -101,7 +117,11 @@ impl KStruct for DebugArrayUserEofException {
     type Root = DebugArrayUserEofException;
     type Parent = DebugArrayUserEofException;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,17 +133,27 @@ impl KStruct for DebugArrayUserEofException {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DebugArrayUserEofException_Cat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DebugArrayUserEofException_Cat>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.one_cat.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
-            let t: OptRc<DebugArrayUserEofException_Cat> = OptRc::from(DebugArrayUserEofException_Cat::default());
-            let (root_in, parent_in) = (Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()));
+            let t: OptRc<DebugArrayUserEofException_Cat> =
+                OptRc::from(DebugArrayUserEofException_Cat::default());
+            let (root_in, parent_in) = (
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            );
             let root = Self::downcast(root_in, t.clone(), true);
             let parent = Self::downcast(parent_in, t.clone(), false);
-            let res = DebugArrayUserEofException_Cat::read(&t, &*_io, root, parent);
+            let res =
+                DebugArrayUserEofException_Cat::read(&t, &*_io, root, parent);
             self_rc.array_of_cats.borrow_mut().push(t);
             res?;
         }
@@ -132,15 +162,16 @@ impl KStruct for DebugArrayUserEofException {
         Ok(())
     }
 }
-impl DebugArrayUserEofException {
-}
+impl DebugArrayUserEofException {}
 impl DebugArrayUserEofException {
     pub fn one_cat(&self) -> Ref<'_, OptRc<DebugArrayUserEofException_Cat>> {
         self.one_cat.borrow()
     }
 }
 impl DebugArrayUserEofException {
-    pub fn array_of_cats(&self) -> Ref<'_, Vec<OptRc<DebugArrayUserEofException_Cat>>> {
+    pub fn array_of_cats(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<DebugArrayUserEofException_Cat>>> {
         self.array_of_cats.borrow()
     }
 }
@@ -165,35 +196,59 @@ pub struct DebugArrayUserEofException_Cat {
     chirp: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
+impl TryFrom<&DebugArrayUserEofException_Cat>
+    for OptRc<DebugArrayUserEofException_Cat>
+{
     type Error = KError;
-    fn try_from(v: &DebugArrayUserEofException_Cat) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &DebugArrayUserEofException_Cat,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
+impl TryFrom<&&DebugArrayUserEofException_Cat>
+    for OptRc<DebugArrayUserEofException_Cat>
+{
     type Error = KError;
-    fn try_from(v: &&DebugArrayUserEofException_Cat) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&DebugArrayUserEofException_Cat,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException_Cat> for DebugArrayUserEofException_Cat {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException_Cat>
+    for DebugArrayUserEofException_Cat
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException_Cat> for &DebugArrayUserEofException_Cat {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException_Cat>
+    for &DebugArrayUserEofException_Cat
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException_Cat>
+    for OptRc<DebugArrayUserEofException_Cat>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DebugArrayUserEofException_Cat> for &OptRc<DebugArrayUserEofException_Cat> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserEofException_Cat>
+    for &OptRc<DebugArrayUserEofException_Cat>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
         Ok((*self).clone())
     }
 }
@@ -201,7 +256,11 @@ impl KStruct for DebugArrayUserEofException_Cat {
     type Root = DebugArrayUserEofException;
     type Parent = DebugArrayUserEofException;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -221,8 +280,7 @@ impl KStruct for DebugArrayUserEofException_Cat {
         Ok(())
     }
 }
-impl DebugArrayUserEofException_Cat {
-}
+impl DebugArrayUserEofException_Cat {}
 impl DebugArrayUserEofException_Cat {
     pub fn meow(&self) -> Ref<'_, u8> {
         self.meow.borrow()

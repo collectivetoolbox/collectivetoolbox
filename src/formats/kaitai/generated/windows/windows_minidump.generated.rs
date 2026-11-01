@@ -70,7 +70,11 @@ impl KStruct for WindowsMinidump {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -84,12 +88,18 @@ impl KStruct for WindowsMinidump {
         let _io = io;
         *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x4du8, 0x44u8, 0x4du8, 0x50u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic2.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic2() == vec![0x93u8, 0xa7u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
@@ -109,10 +119,12 @@ impl KStruct for WindowsMinidump {
     }
 }
 impl WindowsMinidump {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn streams(
-        &self
-    ) -> KResult<Ref<'_, Vec<OptRc<WindowsMinidump_Dir>>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn streams(&self) -> KResult<Ref<'_, Vec<OptRc<WindowsMinidump_Dir>>>> {
         let _io = self._io.borrow();
         if self.f_streams.get() {
             return Ok(self.streams.borrow());
@@ -123,7 +135,12 @@ impl WindowsMinidump {
         *self.streams.borrow_mut() = Vec::new();
         let l_streams = usize::try_from(*self.num_streams())?;
         for _i in 0_usize..l_streams {
-            let t = Self::read_into::<_, WindowsMinidump_Dir>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, WindowsMinidump_Dir>(
+                &*_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             self.streams.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -345,15 +362,16 @@ impl From<&WindowsMinidump_StreamTypes> for i64 {
             WindowsMinidump_StreamTypes::MdLinuxAuxv => 1197932552,
             WindowsMinidump_StreamTypes::MdLinuxMaps => 1197932553,
             WindowsMinidump_StreamTypes::MdLinuxDsoDebug => 1197932554,
-            WindowsMinidump_StreamTypes::Unknown(v) => v
+            WindowsMinidump_StreamTypes::Unknown(v) => v,
         }
     }
 }
 
 impl Default for WindowsMinidump_StreamTypes {
-    fn default() -> Self { WindowsMinidump_StreamTypes::Unknown(0) }
+    fn default() -> Self {
+        WindowsMinidump_StreamTypes::Unknown(0)
+    }
 }
-
 
 /**
  * \sa <https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_directory> Source
@@ -382,28 +400,41 @@ pub enum WindowsMinidump_Dir_Data {
     WindowsMinidump_ThreadList(OptRc<WindowsMinidump_ThreadList>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ExceptionStream> {
+impl TryFrom<&WindowsMinidump_Dir_Data>
+    for OptRc<WindowsMinidump_ExceptionStream>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
-        if let WindowsMinidump_Dir_Data::WindowsMinidump_ExceptionStream(x) = v {
+        if let WindowsMinidump_Dir_Data::WindowsMinidump_ExceptionStream(x) = v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ExceptionStream> {
+impl TryFrom<&&WindowsMinidump_Dir_Data>
+    for OptRc<WindowsMinidump_ExceptionStream>
+{
     type Error = KError;
     fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for WindowsMinidump_Dir_Data
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         OptRc::<WindowsMinidump_ExceptionStream>::try_from(self)
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for &WindowsMinidump_Dir_Data
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -412,7 +443,9 @@ impl From<OptRc<WindowsMinidump_ExceptionStream>> for WindowsMinidump_Dir_Data {
         Self::WindowsMinidump_ExceptionStream(v)
     }
 }
-impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> {
+impl TryFrom<&WindowsMinidump_Dir_Data>
+    for OptRc<WindowsMinidump_Memory64List>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
         if let WindowsMinidump_Dir_Data::WindowsMinidump_Memory64List(x) = v {
@@ -421,19 +454,25 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> 
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> {
+impl TryFrom<&&WindowsMinidump_Dir_Data>
+    for OptRc<WindowsMinidump_Memory64List>
+{
     type Error = KError;
     fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<WindowsMinidump_Memory64List> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         OptRc::<WindowsMinidump_Memory64List>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsMinidump_Memory64List> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -458,12 +497,16 @@ impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MemoryList> {
     }
 }
 impl DowncastOptRc<WindowsMinidump_MemoryList> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         OptRc::<WindowsMinidump_MemoryList>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsMinidump_MemoryList> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -488,12 +531,16 @@ impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MiscInfo> {
     }
 }
 impl DowncastOptRc<WindowsMinidump_MiscInfo> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         OptRc::<WindowsMinidump_MiscInfo>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsMinidump_MiscInfo> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -518,12 +565,16 @@ impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_SystemInfo> {
     }
 }
 impl DowncastOptRc<WindowsMinidump_SystemInfo> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         OptRc::<WindowsMinidump_SystemInfo>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsMinidump_SystemInfo> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -548,12 +599,16 @@ impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ThreadList> {
     }
 }
 impl DowncastOptRc<WindowsMinidump_ThreadList> for WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         OptRc::<WindowsMinidump_ThreadList>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsMinidump_ThreadList> for &WindowsMinidump_Dir_Data {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -618,7 +673,11 @@ impl KStruct for WindowsMinidump_Dir {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -630,7 +689,8 @@ impl KStruct for WindowsMinidump_Dir {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.stream_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.stream_type.borrow_mut() =
+            i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -641,10 +701,12 @@ impl KStruct for WindowsMinidump_Dir {
     }
 }
 impl WindowsMinidump_Dir {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn data(
-        &self
-    ) -> KResult<Ref<'_, Option<WindowsMinidump_Dir_Data>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn data(&self) -> KResult<Ref<'_, Option<WindowsMinidump_Dir_Data>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
@@ -654,49 +716,97 @@ impl WindowsMinidump_Dir {
         _io.seek(usize::try_from(*self.ofs_data())?)?;
         match *self.stream_type() {
             WindowsMinidump_StreamTypes::Exception => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_ExceptionStream>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    WindowsMinidump_ExceptionStream,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             WindowsMinidump_StreamTypes::Memory64List => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_Memory64List>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    WindowsMinidump_Memory64List,
+                >(
+                    &_t_data_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.data.borrow_mut() = Some(t);
             }
             WindowsMinidump_StreamTypes::MemoryList => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_MemoryList>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, WindowsMinidump_MemoryList>(
+                        &_t_data_raw_io,
+                        Some(self._root.clone()),
+                        Some(self._self_shared.clone()),
+                    )?
+                    .into();
                 *self.data.borrow_mut() = Some(t);
             }
             WindowsMinidump_StreamTypes::MiscInfo => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_MiscInfo>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, WindowsMinidump_MiscInfo>(
+                        &_t_data_raw_io,
+                        Some(self._root.clone()),
+                        Some(self._self_shared.clone()),
+                    )?
+                    .into();
                 *self.data.borrow_mut() = Some(t);
             }
             WindowsMinidump_StreamTypes::SystemInfo => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_SystemInfo>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, WindowsMinidump_SystemInfo>(
+                        &_t_data_raw_io,
+                        Some(self._root.clone()),
+                        Some(self._self_shared.clone()),
+                    )?
+                    .into();
                 *self.data.borrow_mut() = Some(t);
             }
             WindowsMinidump_StreamTypes::ThreadList => {
-                *self.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
+                *self.data_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into();
                 let data_raw = self.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsMinidump_ThreadList>(&_t_data_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, WindowsMinidump_ThreadList>(
+                        &_t_data_raw_io,
+                        Some(self._root.clone()),
+                        Some(self._self_shared.clone()),
+                    )?
+                    .into();
                 *self.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self.len_data())?)?.into());
+                *self.data.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(*self.len_data())?)?.into(),
+                );
             }
         }
         _io.seek(_pos)?;
@@ -757,35 +867,59 @@ pub struct WindowsMinidump_ExceptionRecord {
     params: RefCell<Vec<u64>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
+impl TryFrom<&WindowsMinidump_ExceptionRecord>
+    for OptRc<WindowsMinidump_ExceptionRecord>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_ExceptionRecord) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_ExceptionRecord,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
+impl TryFrom<&&WindowsMinidump_ExceptionRecord>
+    for OptRc<WindowsMinidump_ExceptionRecord>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_ExceptionRecord) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_ExceptionRecord,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for WindowsMinidump_ExceptionRecord {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord>
+    for WindowsMinidump_ExceptionRecord
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for &WindowsMinidump_ExceptionRecord {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord>
+    for &WindowsMinidump_ExceptionRecord
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord>
+    for OptRc<WindowsMinidump_ExceptionRecord>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for &OptRc<WindowsMinidump_ExceptionRecord> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord>
+    for &OptRc<WindowsMinidump_ExceptionRecord>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
         Ok((*self).clone())
     }
 }
@@ -793,7 +927,11 @@ impl KStruct for WindowsMinidump_ExceptionRecord {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_ExceptionStream;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -827,8 +965,7 @@ impl KStruct for WindowsMinidump_ExceptionRecord {
         Ok(())
     }
 }
-impl WindowsMinidump_ExceptionRecord {
-}
+impl WindowsMinidump_ExceptionRecord {}
 impl WindowsMinidump_ExceptionRecord {
     pub fn code(&self) -> Ref<'_, u32> {
         self.code.borrow()
@@ -904,35 +1041,59 @@ pub struct WindowsMinidump_ExceptionStream {
     thread_context: RefCell<OptRc<WindowsMinidump_LocationDescriptor>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
+impl TryFrom<&WindowsMinidump_ExceptionStream>
+    for OptRc<WindowsMinidump_ExceptionStream>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_ExceptionStream) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_ExceptionStream,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
+impl TryFrom<&&WindowsMinidump_ExceptionStream>
+    for OptRc<WindowsMinidump_ExceptionStream>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_ExceptionStream) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_ExceptionStream,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for WindowsMinidump_ExceptionStream {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for WindowsMinidump_ExceptionStream
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &WindowsMinidump_ExceptionStream {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for &WindowsMinidump_ExceptionStream
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for OptRc<WindowsMinidump_ExceptionStream>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &OptRc<WindowsMinidump_ExceptionStream> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+impl DowncastOptRc<WindowsMinidump_ExceptionStream>
+    for &OptRc<WindowsMinidump_ExceptionStream>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
         Ok((*self).clone())
     }
 }
@@ -940,7 +1101,11 @@ impl KStruct for WindowsMinidump_ExceptionStream {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -956,18 +1121,27 @@ impl KStruct for WindowsMinidump_ExceptionStream {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsMinidump_ExceptionRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, WindowsMinidump_ExceptionRecord>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.exception_rec.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.thread_context.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsMinidump_ExceptionStream {
-}
+impl WindowsMinidump_ExceptionStream {}
 impl WindowsMinidump_ExceptionStream {
     pub fn thread_id(&self) -> Ref<'_, u32> {
         self.thread_id.borrow()
@@ -979,12 +1153,16 @@ impl WindowsMinidump_ExceptionStream {
     }
 }
 impl WindowsMinidump_ExceptionStream {
-    pub fn exception_rec(&self) -> Ref<'_, OptRc<WindowsMinidump_ExceptionRecord>> {
+    pub fn exception_rec(
+        &self,
+    ) -> Ref<'_, OptRc<WindowsMinidump_ExceptionRecord>> {
         self.exception_rec.borrow()
     }
 }
 impl WindowsMinidump_ExceptionStream {
-    pub fn thread_context(&self) -> Ref<'_, OptRc<WindowsMinidump_LocationDescriptor>> {
+    pub fn thread_context(
+        &self,
+    ) -> Ref<'_, OptRc<WindowsMinidump_LocationDescriptor>> {
         self.thread_context.borrow()
     }
 }
@@ -1015,35 +1193,59 @@ pub struct WindowsMinidump_LocationDescriptor {
     f_data: Cell<bool>,
     data: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
+impl TryFrom<&WindowsMinidump_LocationDescriptor>
+    for OptRc<WindowsMinidump_LocationDescriptor>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_LocationDescriptor) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_LocationDescriptor,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
+impl TryFrom<&&WindowsMinidump_LocationDescriptor>
+    for OptRc<WindowsMinidump_LocationDescriptor>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_LocationDescriptor) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_LocationDescriptor,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for WindowsMinidump_LocationDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor>
+    for WindowsMinidump_LocationDescriptor
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for &WindowsMinidump_LocationDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor>
+    for &WindowsMinidump_LocationDescriptor
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor>
+    for OptRc<WindowsMinidump_LocationDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for &OptRc<WindowsMinidump_LocationDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor>
+    for &OptRc<WindowsMinidump_LocationDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1051,7 +1253,11 @@ impl KStruct for WindowsMinidump_LocationDescriptor {
     type Root = WindowsMinidump;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1072,19 +1278,31 @@ impl KStruct for WindowsMinidump_LocationDescriptor {
     }
 }
 impl WindowsMinidump_LocationDescriptor {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn data(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn data(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
         }
         self.f_data.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_data())?)?;
-        *self.data.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data())?)?;
+        *self.data.borrow_mut() =
+            io.read_bytes(usize::try_from(*self.len_data())?)?;
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
@@ -1125,35 +1343,57 @@ pub struct WindowsMinidump_Memory64List {
     mem_ranges: RefCell<Vec<OptRc<WindowsMinidump_MemoryDescriptor64>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
+impl TryFrom<&WindowsMinidump_Memory64List>
+    for OptRc<WindowsMinidump_Memory64List>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_Memory64List) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
+impl TryFrom<&&WindowsMinidump_Memory64List>
+    for OptRc<WindowsMinidump_Memory64List>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_Memory64List) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_Memory64List,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_Memory64List> for WindowsMinidump_Memory64List {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+impl DowncastOptRc<WindowsMinidump_Memory64List>
+    for WindowsMinidump_Memory64List
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_Memory64List> for &WindowsMinidump_Memory64List {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+impl DowncastOptRc<WindowsMinidump_Memory64List>
+    for &WindowsMinidump_Memory64List
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+impl DowncastOptRc<WindowsMinidump_Memory64List>
+    for OptRc<WindowsMinidump_Memory64List>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_Memory64List> for &OptRc<WindowsMinidump_Memory64List> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+impl DowncastOptRc<WindowsMinidump_Memory64List>
+    for &OptRc<WindowsMinidump_Memory64List>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1161,7 +1401,11 @@ impl KStruct for WindowsMinidump_Memory64List {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1180,7 +1424,12 @@ impl KStruct for WindowsMinidump_Memory64List {
         *self_rc.mem_ranges.borrow_mut() = Vec::new();
         let l_mem_ranges = usize::try_from(*self_rc.num_mem_ranges())?;
         for _i in 0_usize..l_mem_ranges {
-            let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor64>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor64>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.mem_ranges.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1188,8 +1437,7 @@ impl KStruct for WindowsMinidump_Memory64List {
         Ok(())
     }
 }
-impl WindowsMinidump_Memory64List {
-}
+impl WindowsMinidump_Memory64List {}
 impl WindowsMinidump_Memory64List {
     pub fn num_mem_ranges(&self) -> Ref<'_, u64> {
         self.num_mem_ranges.borrow()
@@ -1201,7 +1449,9 @@ impl WindowsMinidump_Memory64List {
     }
 }
 impl WindowsMinidump_Memory64List {
-    pub fn mem_ranges(&self) -> Ref<'_, Vec<OptRc<WindowsMinidump_MemoryDescriptor64>>> {
+    pub fn mem_ranges(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<WindowsMinidump_MemoryDescriptor64>>> {
         self.mem_ranges.borrow()
     }
 }
@@ -1230,35 +1480,59 @@ pub struct WindowsMinidump_MemoryDescriptor {
     memory: RefCell<OptRc<WindowsMinidump_LocationDescriptor>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
+impl TryFrom<&WindowsMinidump_MemoryDescriptor>
+    for OptRc<WindowsMinidump_MemoryDescriptor>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_MemoryDescriptor) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_MemoryDescriptor,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
+impl TryFrom<&&WindowsMinidump_MemoryDescriptor>
+    for OptRc<WindowsMinidump_MemoryDescriptor>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_MemoryDescriptor) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_MemoryDescriptor,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for WindowsMinidump_MemoryDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor>
+    for WindowsMinidump_MemoryDescriptor
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for &WindowsMinidump_MemoryDescriptor {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor>
+    for &WindowsMinidump_MemoryDescriptor
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor>
+    for OptRc<WindowsMinidump_MemoryDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for &OptRc<WindowsMinidump_MemoryDescriptor> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor>
+    for &OptRc<WindowsMinidump_MemoryDescriptor>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1266,7 +1540,11 @@ impl KStruct for WindowsMinidump_MemoryDescriptor {
     type Root = WindowsMinidump;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1280,15 +1558,19 @@ impl KStruct for WindowsMinidump_MemoryDescriptor {
         let _io = io;
         *self_rc.addr_memory_range.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.memory.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsMinidump_MemoryDescriptor {
-}
+impl WindowsMinidump_MemoryDescriptor {}
 impl WindowsMinidump_MemoryDescriptor {
     pub fn addr_memory_range(&self) -> Ref<'_, u64> {
         self.addr_memory_range.borrow()
@@ -1324,35 +1606,59 @@ pub struct WindowsMinidump_MemoryDescriptor64 {
     len_data: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
+impl TryFrom<&WindowsMinidump_MemoryDescriptor64>
+    for OptRc<WindowsMinidump_MemoryDescriptor64>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_MemoryDescriptor64) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_MemoryDescriptor64,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
+impl TryFrom<&&WindowsMinidump_MemoryDescriptor64>
+    for OptRc<WindowsMinidump_MemoryDescriptor64>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_MemoryDescriptor64) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_MemoryDescriptor64,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for WindowsMinidump_MemoryDescriptor64 {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64>
+    for WindowsMinidump_MemoryDescriptor64
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for &WindowsMinidump_MemoryDescriptor64 {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64>
+    for &WindowsMinidump_MemoryDescriptor64
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64>
+    for OptRc<WindowsMinidump_MemoryDescriptor64>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for &OptRc<WindowsMinidump_MemoryDescriptor64> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64>
+    for &OptRc<WindowsMinidump_MemoryDescriptor64>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1360,7 +1666,11 @@ impl KStruct for WindowsMinidump_MemoryDescriptor64 {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Memory64List;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1380,8 +1690,7 @@ impl KStruct for WindowsMinidump_MemoryDescriptor64 {
         Ok(())
     }
 }
-impl WindowsMinidump_MemoryDescriptor64 {
-}
+impl WindowsMinidump_MemoryDescriptor64 {}
 impl WindowsMinidump_MemoryDescriptor64 {
     pub fn addr_memory_range(&self) -> Ref<'_, u64> {
         self.addr_memory_range.borrow()
@@ -1417,35 +1726,51 @@ pub struct WindowsMinidump_MemoryList {
     mem_ranges: RefCell<Vec<OptRc<WindowsMinidump_MemoryDescriptor>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
+impl TryFrom<&WindowsMinidump_MemoryList>
+    for OptRc<WindowsMinidump_MemoryList>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_MemoryList) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
+impl TryFrom<&&WindowsMinidump_MemoryList>
+    for OptRc<WindowsMinidump_MemoryList>
+{
     type Error = KError;
     fn try_from(v: &&WindowsMinidump_MemoryList) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_MemoryList> for WindowsMinidump_MemoryList {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_MemoryList> for &WindowsMinidump_MemoryList {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryList>
+    for OptRc<WindowsMinidump_MemoryList>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_MemoryList> for &OptRc<WindowsMinidump_MemoryList> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+impl DowncastOptRc<WindowsMinidump_MemoryList>
+    for &OptRc<WindowsMinidump_MemoryList>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1453,7 +1778,11 @@ impl KStruct for WindowsMinidump_MemoryList {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1470,7 +1799,12 @@ impl KStruct for WindowsMinidump_MemoryList {
         *self_rc.mem_ranges.borrow_mut() = Vec::new();
         let l_mem_ranges = usize::try_from(*self_rc.num_mem_ranges())?;
         for _i in 0_usize..l_mem_ranges {
-            let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
+            let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                None,
+            )?
+            .into();
             self_rc.mem_ranges.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1478,15 +1812,16 @@ impl KStruct for WindowsMinidump_MemoryList {
         Ok(())
     }
 }
-impl WindowsMinidump_MemoryList {
-}
+impl WindowsMinidump_MemoryList {}
 impl WindowsMinidump_MemoryList {
     pub fn num_mem_ranges(&self) -> Ref<'_, u32> {
         self.num_mem_ranges.borrow()
     }
 }
 impl WindowsMinidump_MemoryList {
-    pub fn mem_ranges(&self) -> Ref<'_, Vec<OptRc<WindowsMinidump_MemoryDescriptor>>> {
+    pub fn mem_ranges(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<WindowsMinidump_MemoryDescriptor>>> {
         self.mem_ranges.borrow()
     }
 }
@@ -1518,35 +1853,59 @@ pub struct WindowsMinidump_MinidumpString {
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
+impl TryFrom<&WindowsMinidump_MinidumpString>
+    for OptRc<WindowsMinidump_MinidumpString>
+{
     type Error = KError;
-    fn try_from(v: &WindowsMinidump_MinidumpString) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsMinidump_MinidumpString,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
+impl TryFrom<&&WindowsMinidump_MinidumpString>
+    for OptRc<WindowsMinidump_MinidumpString>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsMinidump_MinidumpString) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsMinidump_MinidumpString,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MinidumpString> for WindowsMinidump_MinidumpString {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+impl DowncastOptRc<WindowsMinidump_MinidumpString>
+    for WindowsMinidump_MinidumpString
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MinidumpString> for &WindowsMinidump_MinidumpString {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+impl DowncastOptRc<WindowsMinidump_MinidumpString>
+    for &WindowsMinidump_MinidumpString
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+impl DowncastOptRc<WindowsMinidump_MinidumpString>
+    for OptRc<WindowsMinidump_MinidumpString>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_MinidumpString> for &OptRc<WindowsMinidump_MinidumpString> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+impl DowncastOptRc<WindowsMinidump_MinidumpString>
+    for &OptRc<WindowsMinidump_MinidumpString>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1554,7 +1913,11 @@ impl KStruct for WindowsMinidump_MinidumpString {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_SystemInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1568,14 +1931,16 @@ impl KStruct for WindowsMinidump_MinidumpString {
         let _io = io;
         *self_rc.len_str.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_str())?)?, "UTF-16LE")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(*self_rc.len_str())?)?,
+            "UTF-16LE",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsMinidump_MinidumpString {
-}
+impl WindowsMinidump_MinidumpString {}
 impl WindowsMinidump_MinidumpString {
     pub fn len_str(&self) -> Ref<'_, u32> {
         self.len_str.borrow()
@@ -1638,22 +2003,34 @@ impl TryFrom<&&WindowsMinidump_MiscInfo> for OptRc<WindowsMinidump_MiscInfo> {
     }
 }
 impl DowncastOptRc<WindowsMinidump_MiscInfo> for WindowsMinidump_MiscInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_MiscInfo> for &WindowsMinidump_MiscInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_MiscInfo> for OptRc<WindowsMinidump_MiscInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+impl DowncastOptRc<WindowsMinidump_MiscInfo>
+    for OptRc<WindowsMinidump_MiscInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_MiscInfo> for &OptRc<WindowsMinidump_MiscInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+impl DowncastOptRc<WindowsMinidump_MiscInfo>
+    for &OptRc<WindowsMinidump_MiscInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1661,7 +2038,11 @@ impl KStruct for WindowsMinidump_MiscInfo {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1699,8 +2080,7 @@ impl KStruct for WindowsMinidump_MiscInfo {
         Ok(())
     }
 }
-impl WindowsMinidump_MiscInfo {
-}
+impl WindowsMinidump_MiscInfo {}
 impl WindowsMinidump_MiscInfo {
     pub fn len_info(&self) -> Ref<'_, u32> {
         self.len_info.borrow()
@@ -1795,35 +2175,51 @@ pub struct WindowsMinidump_SystemInfo {
     f_service_pack: Cell<bool>,
     service_pack: RefCell<OptRc<WindowsMinidump_MinidumpString>>,
 }
-impl TryFrom<&WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
+impl TryFrom<&WindowsMinidump_SystemInfo>
+    for OptRc<WindowsMinidump_SystemInfo>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_SystemInfo) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
+impl TryFrom<&&WindowsMinidump_SystemInfo>
+    for OptRc<WindowsMinidump_SystemInfo>
+{
     type Error = KError;
     fn try_from(v: &&WindowsMinidump_SystemInfo) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_SystemInfo> for WindowsMinidump_SystemInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_SystemInfo> for &WindowsMinidump_SystemInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+impl DowncastOptRc<WindowsMinidump_SystemInfo>
+    for OptRc<WindowsMinidump_SystemInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_SystemInfo> for &OptRc<WindowsMinidump_SystemInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+impl DowncastOptRc<WindowsMinidump_SystemInfo>
+    for &OptRc<WindowsMinidump_SystemInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1831,7 +2227,11 @@ impl KStruct for WindowsMinidump_SystemInfo {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1843,7 +2243,8 @@ impl KStruct for WindowsMinidump_SystemInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.cpu_arch.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.cpu_arch.borrow_mut() =
+            i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cpu_level.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1872,19 +2273,37 @@ impl KStruct for WindowsMinidump_SystemInfo {
     }
 }
 impl WindowsMinidump_SystemInfo {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn service_pack(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<WindowsMinidump_MinidumpString>>> {
         let _io = self._io.borrow();
         if self.f_service_pack.get() {
             return Ok(self.service_pack.borrow());
         }
         if (to_i128(*self.ofs_service_pack())) > (to_i128(0)) {
-            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+            let io = KStream::clone(
+                &*self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io(),
+            );
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_service_pack())?)?;
-            let t = Self::read_into::<_, WindowsMinidump_MinidumpString>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, WindowsMinidump_MinidumpString>(
+                &io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             *self.service_pack.borrow_mut() = t;
             io.seek(_pos)?;
         }
@@ -1994,15 +2413,16 @@ impl From<&WindowsMinidump_SystemInfo_CpuArchs> for i64 {
             WindowsMinidump_SystemInfo_CpuArchs::Ia64 => 6,
             WindowsMinidump_SystemInfo_CpuArchs::Amd64 => 9,
             WindowsMinidump_SystemInfo_CpuArchs::Unknown => 65535,
-            WindowsMinidump_SystemInfo_CpuArchs::UnknownVariant(v) => v
+            WindowsMinidump_SystemInfo_CpuArchs::UnknownVariant(v) => v,
         }
     }
 }
 
 impl Default for WindowsMinidump_SystemInfo_CpuArchs {
-    fn default() -> Self { WindowsMinidump_SystemInfo_CpuArchs::UnknownVariant(0) }
+    fn default() -> Self {
+        WindowsMinidump_SystemInfo_CpuArchs::UnknownVariant(0)
+    }
 }
-
 
 /**
  * \sa <https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_thread> Source
@@ -2058,7 +2478,11 @@ impl KStruct for WindowsMinidump_Thread {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_ThreadList;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2080,18 +2504,27 @@ impl KStruct for WindowsMinidump_Thread {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.teb.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, WindowsMinidump_MemoryDescriptor>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.stack.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, WindowsMinidump_LocationDescriptor>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.thread_context.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsMinidump_Thread {
-}
+impl WindowsMinidump_Thread {}
 impl WindowsMinidump_Thread {
     pub fn thread_id(&self) -> Ref<'_, u32> {
         self.thread_id.borrow()
@@ -2127,7 +2560,9 @@ impl WindowsMinidump_Thread {
     }
 }
 impl WindowsMinidump_Thread {
-    pub fn thread_context(&self) -> Ref<'_, OptRc<WindowsMinidump_LocationDescriptor>> {
+    pub fn thread_context(
+        &self,
+    ) -> Ref<'_, OptRc<WindowsMinidump_LocationDescriptor>> {
         self.thread_context.borrow()
     }
 }
@@ -2156,35 +2591,51 @@ pub struct WindowsMinidump_ThreadList {
     threads: RefCell<Vec<OptRc<WindowsMinidump_Thread>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
+impl TryFrom<&WindowsMinidump_ThreadList>
+    for OptRc<WindowsMinidump_ThreadList>
+{
     type Error = KError;
     fn try_from(v: &WindowsMinidump_ThreadList) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
+impl TryFrom<&&WindowsMinidump_ThreadList>
+    for OptRc<WindowsMinidump_ThreadList>
+{
     type Error = KError;
     fn try_from(v: &&WindowsMinidump_ThreadList) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_ThreadList> for WindowsMinidump_ThreadList {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsMinidump_ThreadList> for &WindowsMinidump_ThreadList {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+impl DowncastOptRc<WindowsMinidump_ThreadList>
+    for OptRc<WindowsMinidump_ThreadList>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsMinidump_ThreadList> for &OptRc<WindowsMinidump_ThreadList> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+impl DowncastOptRc<WindowsMinidump_ThreadList>
+    for &OptRc<WindowsMinidump_ThreadList>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2192,7 +2643,11 @@ impl KStruct for WindowsMinidump_ThreadList {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2209,7 +2664,12 @@ impl KStruct for WindowsMinidump_ThreadList {
         *self_rc.threads.borrow_mut() = Vec::new();
         let l_threads = usize::try_from(*self_rc.num_threads())?;
         for _i in 0_usize..l_threads {
-            let t = Self::read_into::<_, WindowsMinidump_Thread>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, WindowsMinidump_Thread>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.threads.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2217,8 +2677,7 @@ impl KStruct for WindowsMinidump_ThreadList {
         Ok(())
     }
 }
-impl WindowsMinidump_ThreadList {
-}
+impl WindowsMinidump_ThreadList {}
 impl WindowsMinidump_ThreadList {
     pub fn num_threads(&self) -> Ref<'_, u32> {
         self.num_threads.borrow()

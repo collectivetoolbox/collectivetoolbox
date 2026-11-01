@@ -102,7 +102,11 @@ impl KStruct for ParamsPassArrayIo {
     type Root = ParamsPassArrayIo;
     type Parent = ParamsPassArrayIo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,19 +121,46 @@ impl KStruct for ParamsPassArrayIo {
         let _raw_first = _io.read_bytes(1_usize)?;
         *self_rc.first_raw.borrow_mut() = _raw_first.clone();
         let _io_first = BytesReader::from(_raw_first);
-        let t = Self::read_into::<BytesReader, ParamsPassArrayIo_Block>(&_io_first, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, ParamsPassArrayIo_Block>(
+            &_io_first,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.first.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassArrayIo_ParamType| Ok(t.set_params((vec![Clone::clone(&*(self_rc.first()._io())), Clone::clone(&*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io()))]).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassArrayIo_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassArrayIo_ParamType| {
+            Ok(t.set_params(
+                (vec![
+                    Clone::clone(&*(self_rc.first()._io())),
+                    Clone::clone(
+                        &*(self_rc
+                            ._root
+                            .get_value()
+                            .borrow()
+                            .upgrade()
+                            .as_ref()
+                            .ok_or(KError::MissingRoot)?
+                            ._io()),
+                    ),
+                ])
+                .clone(),
+            ))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassArrayIo_ParamType>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsPassArrayIo {
-}
+impl ParamsPassArrayIo {}
 impl ParamsPassArrayIo {
     pub fn first(&self) -> Ref<'_, OptRc<ParamsPassArrayIo_Block>> {
         self.first.borrow()
@@ -192,7 +223,9 @@ impl DowncastOptRc<ParamsPassArrayIo_Block> for OptRc<ParamsPassArrayIo_Block> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassArrayIo_Block> for &OptRc<ParamsPassArrayIo_Block> {
+impl DowncastOptRc<ParamsPassArrayIo_Block>
+    for &OptRc<ParamsPassArrayIo_Block>
+{
     fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayIo_Block>, KError> {
         Ok((*self).clone())
     }
@@ -201,7 +234,11 @@ impl KStruct for ParamsPassArrayIo_Block {
     type Root = ParamsPassArrayIo;
     type Parent = ParamsPassArrayIo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -219,8 +256,7 @@ impl KStruct for ParamsPassArrayIo_Block {
         Ok(())
     }
 }
-impl ParamsPassArrayIo_Block {
-}
+impl ParamsPassArrayIo_Block {}
 impl ParamsPassArrayIo_Block {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()
@@ -248,35 +284,55 @@ pub struct ParamsPassArrayIo_ParamType {
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ParamsPassArrayIo_ParamType> for OptRc<ParamsPassArrayIo_ParamType> {
+impl TryFrom<&ParamsPassArrayIo_ParamType>
+    for OptRc<ParamsPassArrayIo_ParamType>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassArrayIo_ParamType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassArrayIo_ParamType> for OptRc<ParamsPassArrayIo_ParamType> {
+impl TryFrom<&&ParamsPassArrayIo_ParamType>
+    for OptRc<ParamsPassArrayIo_ParamType>
+{
     type Error = KError;
     fn try_from(v: &&ParamsPassArrayIo_ParamType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayIo_ParamType> for ParamsPassArrayIo_ParamType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassArrayIo_ParamType>
+    for ParamsPassArrayIo_ParamType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayIo_ParamType> for &ParamsPassArrayIo_ParamType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassArrayIo_ParamType>
+    for &ParamsPassArrayIo_ParamType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayIo_ParamType> for OptRc<ParamsPassArrayIo_ParamType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassArrayIo_ParamType>
+    for OptRc<ParamsPassArrayIo_ParamType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassArrayIo_ParamType> for &OptRc<ParamsPassArrayIo_ParamType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassArrayIo_ParamType>
+    for &OptRc<ParamsPassArrayIo_ParamType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayIo_ParamType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -284,7 +340,11 @@ impl KStruct for ParamsPassArrayIo_ParamType {
     type Root = ParamsPassArrayIo;
     type Parent = ParamsPassArrayIo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -296,7 +356,14 @@ impl KStruct for ParamsPassArrayIo_ParamType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::try_from(i64::try_from(self_rc.arg_streams().get(0_usize).ok_or(KError::CastError)?.size())?)?)?;
+        *self_rc.buf.borrow_mut() =
+            _io.read_bytes(usize::try_from(i64::try_from(
+                self_rc
+                    .arg_streams()
+                    .get(0_usize)
+                    .ok_or(KError::CastError)?
+                    .size(),
+            )?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -312,8 +379,7 @@ impl ParamsPassArrayIo_ParamType {
         *self.arg_streams.borrow_mut() = arg_streams;
     }
 }
-impl ParamsPassArrayIo_ParamType {
-}
+impl ParamsPassArrayIo_ParamType {}
 impl ParamsPassArrayIo_ParamType {
     pub fn buf(&self) -> Ref<'_, Vec<u8>> {
         self.buf.borrow()
