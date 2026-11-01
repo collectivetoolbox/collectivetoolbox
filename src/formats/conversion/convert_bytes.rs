@@ -373,6 +373,31 @@ pub fn convert_bytes_to_dcmstring(
         | SupportedDcInputFormat::AlphaSmartNeoLowCtlUaPc => {
             single_byte_encoding_to_dcmstring(resolved_format.to_format_id(), bytes)?
         }
+        SupportedDcInputFormat::CdceLegacy
+        | SupportedDcInputFormat::CdceLegacyStrict
+        | SupportedDcInputFormat::DcIdList
+        | SupportedDcInputFormat::Dce
+        | SupportedDcInputFormat::DceHex
+        | SupportedDcInputFormat::Dce_3_0a
+        | SupportedDcInputFormat::Dce_3_0a_raw
+        | SupportedDcInputFormat::Dce_3_0a_hex
+        | SupportedDcInputFormat::Dce_3_0a_raw_hex
+        | SupportedDcInputFormat::Dce_3_01a
+        | SupportedDcInputFormat::Dce_3_01a_raw
+        | SupportedDcInputFormat::Dce_3_01a_hex
+        | SupportedDcInputFormat::Dce_3_01a_raw_hex
+        | SupportedDcInputFormat::Utf8_Dc64
+        | SupportedDcInputFormat::Utf8_Dc64_enc
+        | SupportedDcInputFormat::Utf8_Dc64_bin
+        | SupportedDcInputFormat::Utf8_Dc64_bin_hex
+        | SupportedDcInputFormat::Utf8_Dc64_bin_enc
+        | SupportedDcInputFormat::Utf8_Dc64_bin_enc_hex => {
+            ctb_formats_dcstring::converters::dceutils::dceutils_to_dcmstring_with_options(
+                bytes,
+                resolved_format.primary_cli_name(),
+                options.permissive,
+            )?
+        }
     };
 
     Ok(DcConversionResult {
@@ -479,6 +504,31 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaMac
         | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaPc => {
             dcmstring_to_single_byte_encoding(format.to_format_id(), doc)?
+        }
+        SupportedDcOutputFormat::CdceLegacy
+        | SupportedDcOutputFormat::DcIdList
+        | SupportedDcOutputFormat::Dce
+        | SupportedDcOutputFormat::DceHex
+        | SupportedDcOutputFormat::Dce_3_0a
+        | SupportedDcOutputFormat::Dce_3_0a_raw
+        | SupportedDcOutputFormat::Dce_3_0a_hex
+        | SupportedDcOutputFormat::Dce_3_0a_raw_hex
+        | SupportedDcOutputFormat::Dce_3_01a
+        | SupportedDcOutputFormat::Dce_3_01a_raw
+        | SupportedDcOutputFormat::Dce_3_01a_hex
+        | SupportedDcOutputFormat::Dce_3_01a_raw_hex
+        | SupportedDcOutputFormat::HtmlLegacyCdce
+        | SupportedDcOutputFormat::HtmlLegacyCdceSnippet
+        | SupportedDcOutputFormat::Utf8_Dc64
+        | SupportedDcOutputFormat::Utf8_Dc64_enc
+        | SupportedDcOutputFormat::Utf8_Dc64_bin
+        | SupportedDcOutputFormat::Utf8_Dc64_bin_hex
+        | SupportedDcOutputFormat::Utf8_Dc64_bin_enc
+        | SupportedDcOutputFormat::Utf8_Dc64_bin_enc_hex => {
+            ctb_formats_dcstring::converters::dceutils::dcmstring_to_dceutils(
+                doc,
+                format.primary_cli_name(),
+            )?
         }
         SupportedDcOutputFormat::Elad => {
             bail!("Export to format {format:?} is not yet implemented");

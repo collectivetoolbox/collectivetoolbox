@@ -141,8 +141,3 @@ Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
 Caused by:
     Encapsulation size 192097702246800632426538688442588496000 exceeds addressable memory at offset 124783
 
-# Rename dcsh files; truncate
-
-src/formats/dcdata/data-src/nodes/allocated/ contains many .dcsh-named files, but they are not dcsh files. They could be renamed to .ctbnode-incoming or something like that, and that registered as a new format Dc, and support added for converting from it so I can read those files.
-
-The ones that have already been added should also probably be cleaned up once the relevant .cscnodes file has reached 100 nodes and is thus closed, unless that breaks something. At any rate, >5300 files that presumably will consider growing is impractical for one folder. ledger-journal.jsonl also seems likely to continue growing indefinitely and should likely have a similar periodic clean-up.

@@ -69,6 +69,7 @@ fn parse_comma_short_dcs(
         match piece.parse::<u32>() {
             Ok(val) => out.push(val),
             Err(_) => {
+                // Reason for fallback: diagnostic token index saturates at u64::MAX if usize exceeds 64 bits.
                 log.import_error(
                     u64::try_from(idx).unwrap_or(u64::MAX),
                     &format!("Invalid short Dc ID token '{piece}' in dceutils stream"),
@@ -329,6 +330,7 @@ pub fn dcmstring_to_dceutils(
             ) {
                 for (idx, &short_id) in short_dcs.iter().enumerate() {
                     if matches!(short_id, 116..=126 | 193) {
+                        // Reason for fallback: diagnostic character index saturates at u64::MAX if usize exceeds 64 bits.
                         log.export_warning(
                             u64::try_from(idx).unwrap_or(u64::MAX),
                             &format!(
