@@ -1724,8 +1724,9 @@ mod tests {
                 .any(|warning| warning.contains("native conversion range"))
         );
         crate::apply_entity_metadata(
-                &path, None, &metadata, false, false, true, true
-            ).unwrap_err();
+            &path, None, &metadata, false, false, true, true,
+        )
+        .unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1763,7 +1764,8 @@ mod tests {
                 .is_some_and(|value| Arc::ptr_eq(value, &environment))
         );
         encoded
-                .decode::<FileEntity>(&DcProjectionPolicy::strict()).unwrap_err();
+            .decode::<FileEntity>(&DcProjectionPolicy::strict())
+            .unwrap_err();
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
         ensure!(
@@ -2157,17 +2159,20 @@ mod tests {
             errors: Vec::new(),
         };
         metadata::check_metadata_replication(
-                &path, &metadata, true, false, true
-            ).unwrap_err();
+            &path, &metadata, true, false, true,
+        )
+        .unwrap_err();
         metadata::check_metadata_replication(
-                &path, &metadata, false, false, true
-            ).unwrap();
+            &path, &metadata, false, false, true,
+        )
+        .unwrap();
         if let Some(ref mut ts) = metadata.timestamps {
             ts.birthtime_sec = None;
         }
         metadata::check_metadata_replication(
-                &path, &metadata, false, false, true
-            ).unwrap_err();
+            &path, &metadata, false, false, true,
+        )
+        .unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -2212,7 +2217,8 @@ mod tests {
             }
             source.push_char(DcChar::from_short(402));
             source
-                    .decode::<AppleMetadata>(&DcProjectionPolicy::strict()).unwrap_err();
+                .decode::<AppleMetadata>(&DcProjectionPolicy::strict())
+                .unwrap_err();
         }
         Ok(())
     }
@@ -2373,12 +2379,13 @@ mod tests {
             metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
         metadata::check_metadata_replication(
-                &path,
-                &entity.metadata,
-                true,
-                false,
-                true
-            ).unwrap_err();
+            &path,
+            &entity.metadata,
+            true,
+            false,
+            true,
+        )
+        .unwrap_err();
         let warnings = metadata::check_metadata_replication(
             &path,
             &entity.metadata,
@@ -2444,8 +2451,9 @@ mod tests {
             )
         );
         crate::materializer::apply_entity_metadata(
-                &missing, None, &requested, false, false, true, true,
-            ).unwrap_err();
+            &missing, None, &requested, false, false, true, true,
+        )
+        .unwrap_err();
         #[cfg(windows)]
         {
             requested.mode = Some(0o444);
@@ -2468,12 +2476,13 @@ mod tests {
             );
         }
         metadata::check_metadata_replication(
-                &temp.path().join("missing"),
-                &entity.metadata,
-                false,
-                false,
-                true
-            ).unwrap_err();
+            &temp.path().join("missing"),
+            &entity.metadata,
+            false,
+            false,
+            true,
+        )
+        .unwrap_err();
         let options = EntityAuditOptions {
             best_effort: false,
             ..Default::default()

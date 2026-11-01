@@ -4146,7 +4146,9 @@ mod tests {
         );
         let mut encapsulated = DcMstring::new();
         encapsulated.push_binary(b"payload");
-        encapsulated.replace_source_field(22..23, &source).unwrap_err();
+        encapsulated
+            .replace_source_field(22..23, &source)
+            .unwrap_err();
         Ok(())
     }
 
@@ -4192,7 +4194,8 @@ mod tests {
         view.replace_annotation(inode, &updated).unwrap_err();
         let other_view = source.inspect::<SourceNestedRecord>();
         other_view
-                .replace_annotation(inode, &updated.inner).unwrap_err();
+            .replace_annotation(inode, &updated.inner)
+            .unwrap_err();
         let number = view
             .fields()
             .iter()
@@ -4212,8 +4215,9 @@ mod tests {
         original.inner.encode_dc_field("inode", &mut duplicate)?;
         updated.inner.encode_dc_field("inode", &mut duplicate)?;
         duplicate
-                .inspect::<SampleFileRecord>()
-                .replace_field("inode", &updated.inner).unwrap_err();
+            .inspect::<SampleFileRecord>()
+            .replace_field("inode", &updated.inner)
+            .unwrap_err();
         Ok(())
     }
 
@@ -4411,7 +4415,9 @@ mod tests {
                 encoding.encode_entry_end(&mut duplicate);
             }
             encoding.encode_end(&mut duplicate);
-            duplicate.decode::<BTreeMap<String, u64>>(&strict).unwrap_err();
+            duplicate
+                .decode::<BTreeMap<String, u64>>(&strict)
+                .unwrap_err();
         }
         for separators in [false, true] {
             let mut encoded = DcMstring::new();
@@ -4423,7 +4429,9 @@ mod tests {
                 encoded.push_char(DcChar::from_short(312));
             }
             1u64.encode_dc_mixed(&mut encoded)?;
-            encoded.decode::<BTreeMap<String, u64>>(&strict).unwrap_err();
+            encoded
+                .decode::<BTreeMap<String, u64>>(&strict)
+                .unwrap_err();
         }
         let mut legacy = DcMstring::new();
         legacy.push_char(DC_BEGIN_KV_MAP);
@@ -5418,7 +5426,9 @@ mod tests {
         original.encode_dc_field("optional_size", &mut with_unknown)?;
         with_unknown.push_char(DcChar::from_short(318));
 
-        with_unknown.decode::<SampleFileRecord>(&strict).unwrap_err();
+        with_unknown
+            .decode::<SampleFileRecord>(&strict)
+            .unwrap_err();
         assert_eq!(
             with_unknown.decode::<SampleFileRecord>(&forgiving)?,
             original

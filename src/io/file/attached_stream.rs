@@ -1804,12 +1804,13 @@ mod tests {
             std::fs::write(&companion, b"original")?;
             let before = std::fs::symlink_metadata(&companion)?;
             write_apple_double_companion(
-                    &entity,
-                    &path,
-                    &sandbox,
-                    style,
-                    ExistingEntryPolicy::Refuse
-                ).unwrap_err();
+                &entity,
+                &path,
+                &sandbox,
+                style,
+                ExistingEntryPolicy::Refuse,
+            )
+            .unwrap_err();
             assert_eq!(std::fs::read(&companion)?, b"original");
             assert_eq!(
                 std::fs::metadata(&companion)?.modified()?,
@@ -1891,12 +1892,13 @@ mod tests {
                 ..Default::default()
             });
             write_apple_double_companion(
-                    &entity,
-                    &path,
-                    &sandbox,
-                    AppleDoubleStyle::Alongside,
-                    ExistingEntryPolicy::Refuse
-                ).unwrap_err();
+                &entity,
+                &path,
+                &sandbox,
+                AppleDoubleStyle::Alongside,
+                ExistingEntryPolicy::Refuse,
+            )
+            .unwrap_err();
             assert_eq!(std::fs::read_link(&companion)?, target);
             assert_eq!(std::fs::read(&path)?, b"primary");
             if dangling {
@@ -1965,12 +1967,13 @@ mod tests {
                     timestamps.mtime_nsec = 1_000_000_000;
                 }
                 write_apple_double_companion(
-                        &invalid,
-                        &path,
-                        &sandbox,
-                        AppleDoubleStyle::Alongside,
-                        existing
-                    ).unwrap_err();
+                    &invalid,
+                    &path,
+                    &sandbox,
+                    AppleDoubleStyle::Alongside,
+                    existing,
+                )
+                .unwrap_err();
                 assert_eq!(std::fs::read(&companion)?, b"original");
                 assert_eq!(std::fs::read(&path)?, b"primary");
                 assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
@@ -1978,12 +1981,13 @@ mod tests {
         }
         entity.identity.relative_path = Some(PathBuf::from("../../file"));
         write_apple_double_companion(
-                &entity,
-                &path,
-                &sandbox,
-                AppleDoubleStyle::Zip,
-                ExistingEntryPolicy::Replace
-            ).unwrap_err();
+            &entity,
+            &path,
+            &sandbox,
+            AppleDoubleStyle::Zip,
+            ExistingEntryPolicy::Replace,
+        )
+        .unwrap_err();
         assert_eq!(std::fs::read(&companion)?, b"original");
         assert_eq!(std::fs::read(&path)?, b"primary");
         assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);

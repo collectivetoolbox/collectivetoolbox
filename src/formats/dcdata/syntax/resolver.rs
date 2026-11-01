@@ -2447,10 +2447,11 @@ mod tests {
         incompatible.syntax = None;
         incompatible.decompositions = vec!["<equiv>397".to_owned()];
         DatasetRuleResolver::load_from_dataset(
-                &[incompatible, original.clone()],
-                &[],
-                Some(&named)
-            ).unwrap_err();
+            &[incompatible, original.clone()],
+            &[],
+            Some(&named),
+        )
+        .unwrap_err();
         Ok(())
     }
 
@@ -2754,10 +2755,11 @@ mod tests {
         rival_close.decompositions.clear();
 
         DatasetRuleResolver::load_from_dataset(
-                &[list_open.clone(), list_close.clone(), rival_close],
-                &[],
-                None,
-            ).unwrap_err();
+            &[list_open.clone(), list_close.clone(), rival_close],
+            &[],
+            None,
+        )
+        .unwrap_err();
 
         // 2. Opener's syntax rule ending with a closer (9701) that conflicts with its declared @closes closer (311)
         let mut mismatched_open = list_open.clone();
@@ -2765,10 +2767,11 @@ mod tests {
             ":~ [type] [element] (312 [element])* 9701",
         )?);
         DatasetRuleResolver::load_from_dataset(
-                &[mismatched_open, list_close.clone()],
-                &[],
-                None,
-            ).unwrap_err();
+            &[mismatched_open, list_close.clone()],
+            &[],
+            None,
+        )
+        .unwrap_err();
 
         Ok(())
     }

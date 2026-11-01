@@ -474,9 +474,10 @@ mod tests {
                 .is_some_and(|value| Arc::ptr_eq(value, &definition))
         );
         SharedRecord::decode_json_with_context(
-                json,
-                &SharedValueContext::default()
-            ).unwrap_err();
+            json,
+            &SharedValueContext::default(),
+        )
+        .unwrap_err();
         let empty = SharedRecord { definition: None };
         assert_eq!(
             SharedRecord::decode_json_with_context(
@@ -522,13 +523,15 @@ mod tests {
         encode_shared_reference(&mut duplicate, "definition", "source")?;
         duplicate.push_char(DcChar::from_short(402));
         duplicate
-                .decode_with_context::<SharedRecord>(&context, &strict).unwrap_err();
+            .decode_with_context::<SharedRecord>(&context, &strict)
+            .unwrap_err();
         let mut unknown = DcMstring::new();
         unknown.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut unknown, "unknown", "source")?;
         unknown.push_char(DcChar::from_short(402));
         unknown
-                .decode_with_context::<SharedRecord>(&context, &strict).unwrap_err();
+            .decode_with_context::<SharedRecord>(&context, &strict)
+            .unwrap_err();
         Ok(())
     }
 
@@ -711,7 +714,8 @@ mod tests {
         );
         let decoded = shared_from_json::<u64>(encoded.clone(), &context)?;
         assert!(Arc::ptr_eq(&original, &decoded));
-        shared_from_json::<u64>(encoded, &SharedValueContext::default()).unwrap_err();
+        shared_from_json::<u64>(encoded, &SharedValueContext::default())
+            .unwrap_err();
         context.resolve::<String>("source").unwrap_err();
         assert!(context.insert("source", Arc::new(9u64)).is_err());
         let distinct = Arc::new(43u64);

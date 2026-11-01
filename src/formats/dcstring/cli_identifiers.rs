@@ -274,26 +274,30 @@ mod tests {
 
         // Idiosyncratic / non-standard formats are rejected
         execute_cli_short_dc(&ShortDcArgs {
-                id: "dc:296".to_string(),
-                info: false,
-            }).unwrap_err();
+            id: "dc:296".to_string(),
+            info: false,
+        })
+        .unwrap_err();
 
         execute_cli_short_dc(&ShortDcArgs {
-                id: "0x128".to_string(),
-                info: false,
-            }).unwrap_err();
+            id: "0x128".to_string(),
+            info: false,
+        })
+        .unwrap_err();
 
         // Local shorthand L42 cannot be mapped to a single GID
         execute_cli_short_dc(&ShortDcArgs {
-                id: "L42".to_string(),
-                info: false,
-            }).unwrap_err();
+            id: "L42".to_string(),
+            info: false,
+        })
+        .unwrap_err();
 
         // Invalid shorthand returns an error
         execute_cli_short_dc(&ShortDcArgs {
-                id: "F80".to_string(),
-                info: false,
-            }).unwrap_err();
+            id: "F80".to_string(),
+            info: false,
+        })
+        .unwrap_err();
     }
 
     #[crate::ctb_test]

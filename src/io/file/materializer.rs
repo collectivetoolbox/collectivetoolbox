@@ -2903,14 +2903,15 @@ mod tests {
         entity.identity.relative_path = Some("strict-birthtime".into());
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
         materialize_entity(
-                &entity,
-                Some(&mut payload),
-                &sandbox,
-                &MaterializeOptions {
-                    check_birthtime: true,
-                    ..Default::default()
-                }
-            ).unwrap_err();
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &MaterializeOptions {
+                check_birthtime: true,
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
         entity.identity.relative_path = Some("unknown-native".into());
         entity
             .metadata
@@ -2924,11 +2925,12 @@ mod tests {
             );
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
         materialize_entity(
-                &entity,
-                Some(&mut payload),
-                &sandbox,
-                &MaterializeOptions::default()
-            ).unwrap_err();
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &MaterializeOptions::default(),
+        )
+        .unwrap_err();
         entity.identity.relative_path = Some("best-effort".into());
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
         let receipt = materialize_entity(
@@ -3043,11 +3045,12 @@ mod tests {
             let mut payload =
                 crate::MemoryPayloadSource::new(b"primary".to_vec())?;
             materialize_entity(
-                    &entity,
-                    Some(&mut payload),
-                    &sandbox,
-                    mode_opts
-                ).unwrap_err();
+                &entity,
+                Some(&mut payload),
+                &sandbox,
+                mode_opts,
+            )
+            .unwrap_err();
             assert!(!temporary.path().join(rel_name).try_exists()?);
             assert!(
                 !temporary
@@ -3438,11 +3441,12 @@ mod tests {
             };
             let mut invalid_payload = MemoryPayloadSource::new(bytes).unwrap();
             materialize_entity(
-                    &invalid_entity,
-                    Some(&mut invalid_payload),
-                    &dest_dir,
-                    &options,
-                ).unwrap_err();
+                &invalid_entity,
+                Some(&mut invalid_payload),
+                &dest_dir,
+                &options,
+            )
+            .unwrap_err();
             assert_eq!(fs::read(&target_path).unwrap(), payload_bytes);
             assert_eq!(
                 fs::read_dir(target_path.parent().unwrap()).unwrap().count(),
@@ -3852,11 +3856,12 @@ mod tests {
         // Materialization should fall back to linear copy and succeed completely without failing
         let mut strict_payload = DiskPayloadSource::open(&src_path).unwrap();
         materializer::materialize_entity(
-                &entity,
-                Some(&mut strict_payload),
-                &dest_dir,
-                &MaterializeOptions::default()
-            ).unwrap_err();
+            &entity,
+            Some(&mut strict_payload),
+            &dest_dir,
+            &MaterializeOptions::default(),
+        )
+        .unwrap_err();
         assert!(!dest_path.exists());
         materializer::materialize_entity(
             &entity,
@@ -4038,11 +4043,12 @@ mod tests {
             fs::write(&target, b"existing destination").unwrap();
             let mut payload = MemoryPayloadSource::new(bytes).unwrap();
             materialize_entity(
-                    &entity,
-                    Some(&mut payload),
-                    &dest_dir,
-                    &options
-                ).unwrap_err();
+                &entity,
+                Some(&mut payload),
+                &dest_dir,
+                &options,
+            )
+            .unwrap_err();
             assert_eq!(fs::read(&target).unwrap(), b"existing destination");
             assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
         }
@@ -4224,11 +4230,12 @@ mod tests {
         let mut strict_payload =
             crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         materialize_entity(
-                &entity,
-                Some(&mut strict_payload),
-                &dest_dir,
-                &MaterializeOptions::default()
-            ).unwrap_err();
+            &entity,
+            Some(&mut strict_payload),
+            &dest_dir,
+            &MaterializeOptions::default(),
+        )
+        .unwrap_err();
         assert!(!temp.path().join("invalid_sparse.bin").exists());
         let mut payload =
             crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
@@ -4300,8 +4307,7 @@ mod tests {
         };
 
         let normal_destination =
-            SandboxableDir::create_or_open(temp.path().join("normal"))
-                .unwrap();
+            SandboxableDir::create_or_open(temp.path().join("normal")).unwrap();
         let mut normal_payload =
             crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let normal = materialize_entity(

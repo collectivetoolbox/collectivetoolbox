@@ -1622,7 +1622,8 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let mut str_mst = DcMstring::new();
     str_mst.push_char(DC_BEGIN_LIST);
     str_mst.push_char(DC_TYPE_ANY);
-    string_arr.first()
+    string_arr
+        .first()
         .context("Missing elem 0")?
         .encode_dc_mixed(&mut str_mst)?;
     str_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
@@ -1647,7 +1648,8 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let mut opt_mst = DcMstring::new();
     opt_mst.push_char(DC_BEGIN_LIST);
     opt_mst.push_char(DC_TYPE_ANY);
-    opt_arr.first()
+    opt_arr
+        .first()
         .context("Missing opt 0")?
         .encode_dc_mixed(&mut opt_mst)?;
     opt_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);

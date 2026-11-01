@@ -1892,10 +1892,11 @@ mod tests {
                 .is_err()
         );
         sandbox
-                .ensure_dir_all(
-                    Path::new("owned/child"),
-                    PathTraversalPolicy::StrictSandboxed
-                ).unwrap_err();
+            .ensure_dir_all(
+                Path::new("owned/child"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap_err();
         assert!(!root.join("moved/child").exists());
         fs::rename(&root, temp.path().join("moved-root")).unwrap();
         fs::create_dir(&root).unwrap();

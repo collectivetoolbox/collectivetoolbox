@@ -1110,45 +1110,49 @@ mod tests {
 
         // 1. Missing `# @provenance`
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &[(
-                    "01.ctbnode-incoming".to_string(),
-                    "sha".to_string(),
-                    "u61 u62\n".to_string()
-                )],
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &[(
+                "01.ctbnode-incoming".to_string(),
+                "sha".to_string(),
+                "u61 u62\n".to_string(),
+            )],
+        )
+        .unwrap_err();
 
         // 2. `# @provenance: manual` without `# @rationale:`
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &[(
-                    "01.ctbnode-incoming".to_string(),
-                    "sha".to_string(),
-                    "# @provenance: manual\nu61 u62\n".to_string()
-                )],
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &[(
+                "01.ctbnode-incoming".to_string(),
+                "sha".to_string(),
+                "# @provenance: manual\nu61 u62\n".to_string(),
+            )],
+        )
+        .unwrap_err();
 
         // 3. Self-reference (`l<next_id>`) and forward reference (`l<next_id + 1>`)
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &[(
-                    "01.ctbnode-incoming".to_string(),
-                    "sha".to_string(),
-                    format!("# @provenance: csv\n586 l{next_id} 571\n"),
-                )],
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &[(
+                "01.ctbnode-incoming".to_string(),
+                "sha".to_string(),
+                format!("# @provenance: csv\n586 l{next_id} 571\n"),
+            )],
+        )
+        .unwrap_err();
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &[(
-                    "01.ctbnode-incoming".to_string(),
-                    "sha".to_string(),
-                    format!("# @provenance: csv\n586 l{} 571\n", next_id + 1),
-                )],
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &[(
+                "01.ctbnode-incoming".to_string(),
+                "sha".to_string(),
+                format!("# @provenance: csv\n586 l{} 571\n", next_id + 1),
+            )],
+        )
+        .unwrap_err();
 
         // 4. Malformed `Dc 348 "Ambiguous values"` list (< 2 candidates or duplicate candidates)
         prevalidate_and_plan_inbox_items(
@@ -1195,14 +1199,15 @@ mod tests {
             .collect::<Vec<_>>()
             .join(" ");
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &[(
-                    "01.ctbnode-incoming".to_string(),
-                    "sha".to_string(),
-                    format!("# @provenance: csv\n{dup_body}\n"),
-                )],
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &[(
+                "01.ctbnode-incoming".to_string(),
+                "sha".to_string(),
+                format!("# @provenance: csv\n{dup_body}\n"),
+            )],
+        )
+        .unwrap_err();
 
         // 7. Authorized active duplicate succeeds when `# @allow-duplicate-of: l8589934592` is declared
         let planned = prevalidate_and_plan_inbox_items(
@@ -1248,10 +1253,11 @@ mod tests {
             "# @provenance: csv\nu78 u79\n".to_string(),
         ));
         prevalidate_and_plan_inbox_items(
-                &baseline_nodes,
-                &prov_map,
-                &bad_batch
-            ).unwrap_err();
+            &baseline_nodes,
+            &prov_map,
+            &bad_batch,
+        )
+        .unwrap_err();
 
         // With `# @allow-duplicate-of: l<next_id>`, item 3 succeeds!
         batch.push((

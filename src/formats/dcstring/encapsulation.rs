@@ -923,10 +923,11 @@ mod tests {
         parse_text(&bad_length).unwrap_err();
         let mut arena = crate::DcSyntaxArena::new();
         crate::DcDocumentNavigator::parse_arena(
-                bad_length.as_bytes(),
-                &mut arena,
-                &crate::DcProjectionPolicy::strict()
-            ).unwrap_err();
+            bad_length.as_bytes(),
+            &mut arena,
+            &crate::DcProjectionPolicy::strict(),
+        )
+        .unwrap_err();
         let unsupported = checksum_text(
             FormatId::Md5.dc_char().context("Missing MD5 type")?,
             &[0u8; 16],

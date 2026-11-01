@@ -1081,9 +1081,7 @@ mod challenger_framing_and_operators {
         )?;
         let t_validate_meta = t2.elapsed();
 
-        println!(
-            "validate_dc_mixed_strict with metadata: {t_validate_meta:?}"
-        );
+        println!("validate_dc_mixed_strict with metadata: {t_validate_meta:?}");
         ensure!(
             t_validate_meta < std::time::Duration::from_millis(50),
             "validate_dc_mixed_strict with metadata took too long ({t_validate_meta:?})"

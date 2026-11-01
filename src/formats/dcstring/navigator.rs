@@ -1998,7 +1998,7 @@ mod tests {
             );
             return Ok(());
         }
-        
+
         std::thread::Builder::new()
             .stack_size(512 * 1024)
             .spawn(|| -> Result<()> {

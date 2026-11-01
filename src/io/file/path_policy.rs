@@ -376,11 +376,12 @@ mod tests {
 
         // PreserveVerbatim allows escaping target
         validate_symlink_target(
-                &dest_root,
-                &symlink_path,
-                escaping_target,
-                SymlinkValidationPolicy::PreserveVerbatim,
-            ).unwrap();
+            &dest_root,
+            &symlink_path,
+            escaping_target,
+            SymlinkValidationPolicy::PreserveVerbatim,
+        )
+        .unwrap();
 
         // RejectEscapingSymlinks catches it
         let res = validate_symlink_target(

@@ -1636,7 +1636,10 @@ mod tests {
             .position(|r| r == "dir_a/file_a1.txt")
             .unwrap();
         let pos_dir = rel_paths.iter().position(|r| r == "dir_a").unwrap();
-        let pos_root = rel_paths.iter().position(std::string::String::is_empty).unwrap();
+        let pos_root = rel_paths
+            .iter()
+            .position(std::string::String::is_empty)
+            .unwrap();
 
         assert!(
             pos_file < pos_dir,
