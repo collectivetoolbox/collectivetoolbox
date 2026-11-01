@@ -158,7 +158,7 @@ def parse_statement_tokens(tokens: list[str]) -> tuple[str, str, str] | None:
     def read_atom(pos: int) -> tuple[str, int] | None:
         if pos >= len(tokens):
             return None
-        if tokens[pos] == "258":
+        if tokens[pos] == "255":
             if pos + 1 >= len(tokens):
                 return None
             return tokens[pos + 1], pos + 2
@@ -193,7 +193,7 @@ def compute_effective_inactive_ids(nodes_in_order: list[tuple[int, list[str]]]) 
         if verb == "591":
             if obj.startswith("l") and obj[1:].isdigit():
                 inactive_ids.add(int(obj[1:]))
-        elif verb == "592" and subj == "257":
+        elif verb == "592" and subj == "615":
             if obj.startswith("l") and obj[1:].isdigit():
                 inactive_ids.add(int(obj[1:]))
     return inactive_ids
@@ -577,7 +577,7 @@ def main() -> None:
         stmt = parse_statement_tokens(tokens)
         if stmt is not None:
             verb, subj, obj = stmt
-            if verb == "591" or (verb == "592" and subj == "257"):
+            if verb == "591" or (verb == "592" and subj == "615"):
                 inactive_ids = compute_effective_inactive_ids(sim_nodes_order)
                 active_by_tokens.clear()
                 for n_id, t_list in sim_nodes_order:

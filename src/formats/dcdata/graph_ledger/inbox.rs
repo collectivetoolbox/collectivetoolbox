@@ -218,7 +218,9 @@ pub fn parse_dcsh_inbox_file(
         "{filename}: expected exactly 1 non-comment node body line, found {}",
         body_lines.len()
     );
-    let (line_no, raw_body) = body_lines[0];
+    let &(line_no, raw_body) = body_lines.first().with_context(|| {
+        format!("{filename}: missing node body line")
+    })?;
     let (token_part, inline_comment) =
         if let Some((lhs, rhs)) = raw_body.split_once('#') {
             let c = rhs.trim();
