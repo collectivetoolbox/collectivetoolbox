@@ -96,3 +96,5 @@ l8589954886: 610 l8589952423 627 # Run 1 raw candidate for l8589952424: Has valu
 l8589954887: 588 f98 f97 # Run 2 raw candidate for l8589952424: Is based on (DCE 3.0a (raw), DCE 3.0a)
 l8589954888: 348 310 275 l8589954886 312 l8589954887 311 # Ambiguous values (l8589954886, l8589954887) for overwritten node l8589952424
 l8589954889: 591 l8589954888 l8589952424 # Supersedes (l8589954888, l8589952424)
+l8589954890: 610 l8589951812 l8589952482 # Run 1 branch-resolved candidate for l8589951813: Has value (Has a (DCE (automatic version selection), Description), "DCE stateful binary character encoding (auto-detects DCE 3.0a / 3.01a on import; exports DCE 3.0a). Does not support Dc 308; repertoire is limited to mapped short Dcs.")
+l8589954891: 591 l8589954890 l8589952486 # Supersedes (l8589954890, l8589952486)

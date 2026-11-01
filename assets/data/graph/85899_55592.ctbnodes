@@ -1,0 +1,100 @@
+l8589955592: 610 l8589953314 f106 # Run 1 branch-resolved candidate for l8589952032: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), DCE 3.01a (raw))
+l8589955593: 591 l8589955592 l8589953318 # Supersedes (l8589955592, l8589953318)
+l8589955594: 348 310 275 l8589955592 312 l8589953319 311 # Ambiguous values (l8589955592, l8589953319) for overwritten node l8589952032
+l8589955595: 591 l8589955594 l8589953320 # Supersedes (l8589955594, l8589953320)
+l8589955596: 610 l8589953319 f118 # Run 2 branch-resolved candidate for l8589952033: Has value (Has a (Collective Toolbox, General export support for a format), HTML (snippet) (legacy CDCE output))
+l8589955597: 591 l8589955596 l8589953323 # Supersedes (l8589955596, l8589953323)
+l8589955598: 348 310 275 l8589953322 312 l8589955596 311 # Ambiguous values (l8589953322, l8589955596) for overwritten node l8589952033
+l8589955599: 591 l8589955598 l8589953324 # Supersedes (l8589955598, l8589953324)
+l8589955600: 610 l8589953322 f107 # Run 1 branch-resolved candidate for l8589952034: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), DCE 3.01a (hex-encoded))
+l8589955601: 591 l8589955600 l8589953326 # Supersedes (l8589955600, l8589953326)
+l8589955602: 348 310 275 l8589955600 312 l8589953327 311 # Ambiguous values (l8589955600, l8589953327) for overwritten node l8589952034
+l8589955603: 591 l8589955602 l8589953328 # Supersedes (l8589955602, l8589953328)
+l8589955604: 610 l8589953327 f93 # Run 2 branch-resolved candidate for l8589952035: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), CDCE (legacy))
+l8589955605: 591 l8589955604 l8589953331 # Supersedes (l8589955604, l8589953331)
+l8589955606: 348 310 275 l8589953330 312 l8589955604 311 # Ambiguous values (l8589953330, l8589955604) for overwritten node l8589952035
+l8589955607: 591 l8589955606 l8589953332 # Supersedes (l8589955606, l8589953332)
+l8589955608: 610 l8589953330 f108 # Run 1 branch-resolved candidate for l8589952036: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), DCE 3.01a (raw hex-encoded))
+l8589955609: 591 l8589955608 l8589953334 # Supersedes (l8589955608, l8589953334)
+l8589955610: 348 310 275 l8589955608 312 l8589953335 311 # Ambiguous values (l8589955608, l8589953335) for overwritten node l8589952036
+l8589955611: 591 l8589955610 l8589953336 # Supersedes (l8589955610, l8589953336)
+l8589955612: 610 l8589953335 f95 # Run 2 branch-resolved candidate for l8589952037: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE (automatic version selection))
+l8589955613: 591 l8589955612 l8589953339 # Supersedes (l8589955612, l8589953339)
+l8589955614: 348 310 275 l8589953338 312 l8589955612 311 # Ambiguous values (l8589953338, l8589955612) for overwritten node l8589952037
+l8589955615: 591 l8589955614 l8589953340 # Supersedes (l8589955614, l8589953340)
+l8589955616: 610 l8589953338 f109 # Run 1 branch-resolved candidate for l8589952038: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), Dc ID list (ASCII))
+l8589955617: 591 l8589955616 l8589953342 # Supersedes (l8589955616, l8589953342)
+l8589955618: 348 310 275 l8589955616 312 l8589953343 311 # Ambiguous values (l8589955616, l8589953343) for overwritten node l8589952038
+l8589955619: 591 l8589955618 l8589953344 # Supersedes (l8589955618, l8589953344)
+l8589955620: 610 l8589953343 f96 # Run 2 branch-resolved candidate for l8589952039: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE (hex-encoded))
+l8589955621: 591 l8589955620 l8589953347 # Supersedes (l8589955620, l8589953347)
+l8589955622: 348 310 275 l8589953346 312 l8589955620 311 # Ambiguous values (l8589953346, l8589955620) for overwritten node l8589952039
+l8589955623: 591 l8589955622 l8589953348 # Supersedes (l8589955622, l8589953348)
+l8589955624: 610 l8589953346 f111 # Run 1 branch-resolved candidate for l8589952040: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, ASCII Dc ID list))
+l8589955625: 591 l8589955624 l8589953350 # Supersedes (l8589955624, l8589953350)
+l8589955626: 348 310 275 l8589955624 312 l8589953351 311 # Ambiguous values (l8589955624, l8589953351) for overwritten node l8589952040
+l8589955627: 591 l8589955626 l8589953352 # Supersedes (l8589955626, l8589953352)
+l8589955628: 610 l8589953351 f97 # Run 2 branch-resolved candidate for l8589952041: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.0a)
+l8589955629: 591 l8589955628 l8589953355 # Supersedes (l8589955628, l8589953355)
+l8589955630: 348 310 275 l8589953354 312 l8589955628 311 # Ambiguous values (l8589953354, l8589955628) for overwritten node l8589952041
+l8589955631: 591 l8589955630 l8589953356 # Supersedes (l8589955630, l8589953356)
+l8589955632: 610 l8589953354 f112 # Run 1 branch-resolved candidate for l8589952042: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, ASCII Dc ID list; with headers))
+l8589955633: 591 l8589955632 l8589953358 # Supersedes (l8589955632, l8589953358)
+l8589955634: 348 310 275 l8589955632 312 l8589953359 311 # Ambiguous values (l8589955632, l8589953359) for overwritten node l8589952042
+l8589955635: 591 l8589955634 l8589953360 # Supersedes (l8589955634, l8589953360)
+l8589955636: 610 l8589953359 f98 # Run 2 branch-resolved candidate for l8589952043: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.0a (raw))
+l8589955637: 591 l8589955636 l8589953363 # Supersedes (l8589955636, l8589953363)
+l8589955638: 348 310 275 l8589953362 312 l8589955636 311 # Ambiguous values (l8589953362, l8589955636) for overwritten node l8589952043
+l8589955639: 591 l8589955638 l8589953364 # Supersedes (l8589955638, l8589953364)
+l8589955640: 610 l8589953362 f113 # Run 1 branch-resolved candidate for l8589952044: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding))
+l8589955641: 591 l8589955640 l8589953366 # Supersedes (l8589955640, l8589953366)
+l8589955642: 348 310 275 l8589955640 312 l8589953367 311 # Ambiguous values (l8589955640, l8589953367) for overwritten node l8589952044
+l8589955643: 591 l8589955642 l8589953368 # Supersedes (l8589955642, l8589953368)
+l8589955644: 610 l8589953367 f99 # Run 2 branch-resolved candidate for l8589952045: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.0a (hex-encoded))
+l8589955645: 591 l8589955644 l8589953371 # Supersedes (l8589955644, l8589953371)
+l8589955646: 348 310 275 l8589953370 312 l8589955644 311 # Ambiguous values (l8589953370, l8589955644) for overwritten node l8589952045
+l8589955647: 591 l8589955646 l8589953372 # Supersedes (l8589955646, l8589953372)
+l8589955648: 610 l8589953370 f114 # Run 1 branch-resolved candidate for l8589952046: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded))
+l8589955649: 591 l8589955648 l8589953374 # Supersedes (l8589955648, l8589953374)
+l8589955650: 348 310 275 l8589955648 312 l8589953375 311 # Ambiguous values (l8589955648, l8589953375) for overwritten node l8589952046
+l8589955651: 591 l8589955650 l8589953376 # Supersedes (l8589955650, l8589953376)
+l8589955652: 610 l8589953375 f100 # Run 2 branch-resolved candidate for l8589952047: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.0a (raw hex-encoded))
+l8589955653: 591 l8589955652 l8589953379 # Supersedes (l8589955652, l8589953379)
+l8589955654: 348 310 275 l8589953378 312 l8589955652 311 # Ambiguous values (l8589953378, l8589955652) for overwritten node l8589952047
+l8589955655: 591 l8589955654 l8589953380 # Supersedes (l8589955654, l8589953380)
+l8589955656: 610 l8589953378 f115 # Run 1 branch-resolved candidate for l8589952048: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers))
+l8589955657: 591 l8589955656 l8589953382 # Supersedes (l8589955656, l8589953382)
+l8589955658: 348 310 275 l8589955656 312 l8589953383 311 # Ambiguous values (l8589955656, l8589953383) for overwritten node l8589952048
+l8589955659: 591 l8589955658 l8589953384 # Supersedes (l8589955658, l8589953384)
+l8589955660: 610 l8589953383 f105 # Run 2 branch-resolved candidate for l8589952049: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.01a)
+l8589955661: 591 l8589955660 l8589953387 # Supersedes (l8589955660, l8589953387)
+l8589955662: 348 310 275 l8589953386 312 l8589955660 311 # Ambiguous values (l8589953386, l8589955660) for overwritten node l8589952049
+l8589955663: 591 l8589955662 l8589953388 # Supersedes (l8589955662, l8589953388)
+l8589955664: 610 l8589953386 f116 # Run 1 branch-resolved candidate for l8589952050: Has value (Has a (Collective Toolbox, Import support to Dc documents for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded))
+l8589955665: 591 l8589955664 l8589953390 # Supersedes (l8589955664, l8589953390)
+l8589955666: 348 310 275 l8589955664 312 l8589953391 311 # Ambiguous values (l8589955664, l8589953391) for overwritten node l8589952050
+l8589955667: 591 l8589955666 l8589953392 # Supersedes (l8589955666, l8589953392)
+l8589955668: 610 l8589953391 f106 # Run 2 branch-resolved candidate for l8589952051: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.01a (raw))
+l8589955669: 591 l8589955668 l8589953395 # Supersedes (l8589955668, l8589953395)
+l8589955670: 348 310 275 l8589953394 312 l8589955668 311 # Ambiguous values (l8589953394, l8589955668) for overwritten node l8589952051
+l8589955671: 591 l8589955670 l8589953396 # Supersedes (l8589955670, l8589953396)
+l8589955672: 610 l8589953394 f93 # Run 1 branch-resolved candidate for l8589952052: Has value (Has a (Collective Toolbox, General export support for a format), CDCE (legacy))
+l8589955673: 591 l8589955672 l8589953398 # Supersedes (l8589955672, l8589953398)
+l8589955674: 348 310 275 l8589955672 312 l8589953399 311 # Ambiguous values (l8589955672, l8589953399) for overwritten node l8589952052
+l8589955675: 591 l8589955674 l8589953400 # Supersedes (l8589955674, l8589953400)
+l8589955676: 610 l8589953399 f107 # Run 2 branch-resolved candidate for l8589952053: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.01a (hex-encoded))
+l8589955677: 591 l8589955676 l8589953403 # Supersedes (l8589955676, l8589953403)
+l8589955678: 348 310 275 l8589953402 312 l8589955676 311 # Ambiguous values (l8589953402, l8589955676) for overwritten node l8589952053
+l8589955679: 591 l8589955678 l8589953404 # Supersedes (l8589955678, l8589953404)
+l8589955680: 610 l8589953402 f95 # Run 1 branch-resolved candidate for l8589952054: Has value (Has a (Collective Toolbox, General export support for a format), DCE (automatic version selection))
+l8589955681: 591 l8589955680 l8589953406 # Supersedes (l8589955680, l8589953406)
+l8589955682: 348 310 275 l8589955680 312 l8589953407 311 # Ambiguous values (l8589955680, l8589953407) for overwritten node l8589952054
+l8589955683: 591 l8589955682 l8589953408 # Supersedes (l8589955682, l8589953408)
+l8589955684: 610 l8589953407 f108 # Run 2 branch-resolved candidate for l8589952055: Has value (Has a (Collective Toolbox, Export support from Dc documents for a format), DCE 3.01a (raw hex-encoded))
+l8589955685: 591 l8589955684 l8589953411 # Supersedes (l8589955684, l8589953411)
+l8589955686: 348 310 275 l8589953410 312 l8589955684 311 # Ambiguous values (l8589953410, l8589955684) for overwritten node l8589952055
+l8589955687: 591 l8589955686 l8589953412 # Supersedes (l8589955686, l8589953412)
+l8589955688: 610 l8589953410 f96 # Run 1 branch-resolved candidate for l8589952056: Has value (Has a (Collective Toolbox, General export support for a format), DCE (hex-encoded))
+l8589955689: 591 l8589955688 l8589953414 # Supersedes (l8589955688, l8589953414)
+l8589955690: 348 310 275 l8589955688 312 l8589953415 311 # Ambiguous values (l8589955688, l8589953415) for overwritten node l8589952056
+l8589955691: 591 l8589955690 l8589953416 # Supersedes (l8589955690, l8589953416)
