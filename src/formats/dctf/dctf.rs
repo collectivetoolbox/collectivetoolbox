@@ -19,12 +19,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! DcTF and legacy DcUtf / "UTF-8e-128" encoding and decoding (UTF-8 extended to 128-bit integers)
 
-#[expect(
+#[allow(
+    unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
-pub(crate) use ctb_utilities as utilities;
-pub(crate) use ctb_utilities::ipc_method;
+pub(crate) use ctb_utilities::*;
 
 mod codec;
 pub use codec::{
