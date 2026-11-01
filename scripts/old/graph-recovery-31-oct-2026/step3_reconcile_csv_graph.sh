@@ -18,7 +18,7 @@
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set -euo pipefail
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." || exit 1
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../.." || exit 1
 REPO_ROOT="$(pwd)"
 STEP3_MANIFEST="${REPO_ROOT}/src/formats/dcdata/data-src/recovery-audit/step3_manifest.json"
 
