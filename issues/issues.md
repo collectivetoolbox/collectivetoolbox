@@ -129,5 +129,5 @@ Caused by:
 
 # Installer:
 
-- Option to associated with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
+- Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
 - Option to install shell completion helpers
