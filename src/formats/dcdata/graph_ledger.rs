@@ -2153,6 +2153,7 @@ impl LedgerBuilder {
         } else {
             0
         };
+        // Reason for fallback: start_idx is either 0 or self.initial_node_count (which never exceeds self.nodes.len() because nodes are append-only).
         let untagged_csv_nodes: Vec<DcShorthand> = self
             .nodes
             .get(start_idx..)
