@@ -1,0 +1,100 @@
+l8589951792: 610 l8589951791 627 # Has value (Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level), Work-in-progress support)
+l8589951793: 584 l8589951515 625 # Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level)
+l8589951794: 610 l8589951793 627 # Has value (Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level), Work-in-progress support)
+l8589951795: 584 l8589951517 625 # Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level)
+l8589951796: 610 l8589951795 627 # Has value (Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level), Work-in-progress support)
+l8589951797: 584 l8589951519 625 # Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level)
+l8589951798: 610 l8589951797 627 # Has value (Has a (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), Implementation support level), Work-in-progress support)
+l8589951799: u50 u6c u61 u6e u6e u65 u64 u20 u67 u65 u6e u65 u72 u61 u6c u20 u43 u44 u43 u45 u20 u66 u6f u72 u6d u61 u74 u3b u20 u6e u6f u74 u20 u69 u6d u70 u6c u65 u6d u65 u6e u74 u65 u64 u20 u69 u6e u20 u64 u63 u65 u75 u74 u69 u6c u73 u2e # "Planned general CDCE format; not implemented in dceutils."
+l8589951800: u4c u65 u67 u61 u63 u79 u20 u43 u44 u43 u45 u20 u66 u6f u72 u6d u61 u74 u20 u66 u72 u6f u6d u20 u57 u65 u61 u76 u65 u2f u64 u63 u65 u75 u74 u69 u6c u73 u2e u20 u4f u6e u6c u79 u20 u65 u73 u63 u61 u70 u65 u73 u20 u73 u68 u6f u72 u74 u20 u44 u63 u73 u20 u31 u2e u2e u31 u32 u20 u61 u73 u20 u40 u31 u40 u2e u2e u40 u31 u32 u40 u20 u61 u6e u64 u20 u6d u61 u70 u73 u20 u39 u37 u20 u55 u6e u69 u63 u6f u64 u65 u20 u63 u6f u64 u65 u70 u6f u69 u6e u74 u73 u20 u76 u69 u61 u20 u44 u63 u4d u61 u70 u5f u55 u6e u69 u63 u6f u64 u65 u5f u4c u6f u73 u73 u79 u3b u20 u64 u6f u65 u73 u20 u6e u6f u74 u20 u73 u75 u70 u70 u6f u72 u74 u20 u44 u63 u20 u33 u30 u38 u20 u6f u72 u20 u67 u65 u6e u65 u72 u61 u6c u20 u44 u63 u73 u2e # "Legacy CDCE format from Weave/dceutils. Only escapes short Dcs 1..12 as @1@..@12@ and maps 97 Unicode codepoints via DcMap_Unicode_Lossy; does not support Dc 308 or general Dcs."
+l8589951801: u53 u74 u72 u69 u63 u74 u20 u70 u61 u72 u73 u65 u72 u20 u6d u6f u64 u65 u20 u66 u6f u72 u20 u43 u64 u63 u65 u4c u65 u67 u61 u63 u79 u20 u28 u66 u39 u33 u29 u20 u74 u68 u61 u74 u20 u68 u61 u6c u74 u73 u20 u6f u6e u20 u69 u6e u76 u61 u6c u69 u64 u20 u40 u2e u2e u2e u40 u20 u73 u65 u71 u75 u65 u6e u63 u65 u73 u20 u72 u61 u74 u68 u65 u72 u20 u74 u68 u61 u6e u20 u72 u65 u63 u6f u76 u65 u72 u69 u6e u67 u20 u61 u73 u20 u6c u69 u74 u65 u72 u61 u6c u20 u27 u40 u27 u2e # "Strict parser mode for CdceLegacy (f93) that halts on invalid @...@ sequences rather than recovering as literal '@'."
+l8589951802: u44 u43 u45 u20 u73 u74 u61 u74 u65 u66 u75 u6c u20 u62 u69 u6e u61 u72 u79 u20 u63 u68 u61 u72 u61 u63 u74 u65 u72 u20 u65 u6e u63 u6f u64 u69 u6e u67 u20 u28 u61 u75 u74 u6f u2d u64 u65 u74 u65 u63 u74 u73 u20 u44 u43 u45 u20 u33 u2e u30 u61 u20 u2f u20 u33 u2e u30 u31 u61 u20 u6f u6e u20 u69 u6d u70 u6f u72 u74 u3b u20 u65 u78 u70 u6f u72 u74 u73 u20 u44 u43 u45 u20 u33 u2e u30 u61 u20 u6f u72 u20 u33 u2e u30 u31 u61 u29 u2e u20 u44 u6f u65 u73 u20 u6e u6f u74 u20 u73 u75 u70 u70 u6f u72 u74 u20 u44 u63 u20 u33 u30 u38 u3b u20 u72 u65 u70 u65 u72 u74 u6f u69 u72 u65 u20 u69 u73 u20 u6c u69 u6d u69 u74 u65 u64 u20 u74 u6f u20 u6d u61 u70 u70 u65 u64 u20 u73 u68 u6f u72 u74 u20 u44 u63 u73 u2e # "DCE stateful binary character encoding (auto-detects DCE 3.0a / 3.01a on import; exports DCE 3.0a or 3.01a). Does not support Dc 308; repertoire is limited to mapped short Dcs."
+l8589951803: u44 u43 u45 u20 u33 u2e u30 u61 u20 u62 u69 u6e u61 u72 u79 u20 u66 u6f u72 u6d u61 u74 u20 u28 u6d u61 u67 u69 u63 u20 u44 u43 u45 u65 u5c u78 u30 u32 u5c u78 u30 u31 u5c u78 u30 u31 u5c u78 u46 u44 u20 u2e u2e u20 u5c u78 u46 u44 u5c u78 u30 u33 u29 u2e u20 u53 u75 u70 u70 u6f u72 u74 u73 u20 u6f u6e u6c u79 u20 u43 u6f u72 u65 u20 u73 u68 u65 u65 u74 u20 u73 u68 u6f u72 u74 u20 u44 u63 u73 u20 u28 u30 u2c u20 u31 u2c u20 u31 u33 u2e u2e u31 u31 u31 u2c u20 u31 u31 u33 u2e u2e u31 u31 u35 u29 u3b u20 u64 u6f u65 u73 u20 u6e u6f u74 u20 u73 u75 u70 u70 u6f u72 u74 u20 u73 u68 u6f u72 u74 u20 u44 u63 u73 u20 u32 u2e u2e u31 u32 u20 u6f u72 u20 u44 u63 u20 u33 u30 u38 u2e # "DCE 3.0a binary format (magic DCEe\\x02\\x01\\x01\\xFD .. \\xFD\\x03). Supports only Core sheet short Dcs (0, 1, 13..111, 113..115); does not support short Dcs 2..12 or Dc 308."
+l8589951804: u44 u43 u45 u20 u33 u2e u30 u31 u61 u20 u73 u74 u61 u74 u65 u66 u75 u6c u20 u62 u69 u6e u61 u72 u79 u20 u66 u6f u72 u6d u61 u74 u20 u28 u6d u61 u67 u69 u63 u20 u44 u43 u45 u65 u5c u78 u30 u32 u5c u78 u30 u31 u5c u78 u30 u32 u5c u78 u46 u44 u20 u2e u2e u20 u5c u78 u46 u44 u5c u78 u30 u33 u29 u2e u20 u53 u75 u70 u70 u6f u72 u74 u73 u20 u73 u68 u6f u72 u74 u20 u44 u63 u73 u20 u30 u2e u2e u31 u39 u39 u20 u61 u63 u72 u6f u73 u73 u20 u43 u6f u72 u65 u2c u20 u53 u65 u6d u61 u6e u74 u69 u63 u5f u52 u65 u63 u6f u72 u64 u73 u2c u20 u4d u61 u74 u68 u65 u6d u61 u74 u69 u63 u73 u2c u20 u50 u75 u6e u63 u74 u75 u61 u74 u69 u6f u6e u5f u61 u6e u64 u5f u57 u68 u69 u74 u65 u73 u70 u61 u63 u65 u2c u20 u56 u61 u72 u69 u61 u6e u74 u5f u53 u65 u6c u65 u63 u74 u6f u72 u73 u2c u20 u61 u6e u64 u20 u44 u43 u45 u5f u56 u65 u72 u73 u69 u6f u6e u5f u53 u65 u6c u65 u63 u74 u6f u72 u73 u20 u73 u68 u65 u65 u74 u73 u3b u20 u64 u6f u65 u73 u20 u6e u6f u74 u20 u73 u75 u70 u70 u6f u72 u74 u20 u44 u63 u20 u33 u30 u38 u2e # "DCE 3.01a stateful binary format (magic DCEe\\x02\\x01\\x02\\xFD .. \\xFD\\x03). Supports short Dcs 0..199 across Core, Semantic_Records, Mathematics, Punctuation_and_Whitespace, Variant_Selectors, and DCE_Version_Selectors sheets; does not support Dc 308."
+l8589951805: u43 u6f u6d u6d u61 u2d u73 u65 u70 u61 u72 u61 u74 u65 u64 u20 u41 u53 u43 u49 u49 u20 u6c u69 u73 u74 u20 u6f u66 u20 u73 u68 u6f u72 u74 u20 u44 u63 u20 u49 u44 u73 u20 u28 u62 u6f u75 u6e u64 u65 u64 u20 u62 u79 u20 u44 u63 u20 u31 u31 u34 u20 u61 u6e u64 u20 u44 u63 u20 u31 u31 u35 u20 u69 u6e u20 u64 u63 u65 u75 u74 u69 u6c u73 u3b u20 u64 u6f u65 u73 u20 u6e u6f u74 u20 u75 u73 u65 u20 u44 u63 u20 u33 u30 u38 u29 u2e # "Comma-separated ASCII list of short Dc IDs (bounded by Dc 114 and Dc 115 in dceutils; does not use Dc 308)."
+l8589951806: 584 f92 573 # Has a (CDCE, Description)
+l8589951807: 610 l8589951806 l8589951799 # Has value (Has a (CDCE, Description), "Planned general CDCE format; not implemented in dceutils.")
+l8589951808: 584 f93 573 # Has a (CDCE (legacy), Description)
+l8589951809: 610 l8589951808 l8589951800 # Has value (Has a (CDCE (legacy), Description), "Legacy CDCE format from Weave/dceutils. Only escapes short Dcs 1..12 as @1@..@12@ and maps 97 Unicode codepoints via DcMap_Unicode_Lossy; does not support Dc 308 or general Dcs.")
+l8589951810: 584 f94 573 # Has a (CDCE (legacy, strict), Description)
+l8589951811: 610 l8589951810 l8589951801 # Has value (Has a (CDCE (legacy, strict), Description), "Strict parser mode for CdceLegacy (f93) that halts on invalid @...@ sequences rather than recovering as literal '@'.")
+l8589951812: 584 f95 573 # Has a (DCE (automatic version selection), Description)
+l8589951813: 610 l8589951812 l8589951802 # Has value (Has a (DCE (automatic version selection), Description), "DCE stateful binary character encoding (auto-detects DCE 3.0a / 3.01a on import; exports DCE 3.0a or 3.01a). Does not support Dc 308; repertoire is limited to mapped short Dcs.")
+l8589951814: 584 f97 573 # Has a (DCE 3.0a, Description)
+l8589951815: 610 l8589951814 l8589951803 # Has value (Has a (DCE 3.0a, Description), "DCE 3.0a binary format (magic DCEe\\x02\\x01\\x01\\xFD .. \\xFD\\x03). Supports only Core sheet short Dcs (0, 1, 13..111, 113..115); does not support short Dcs 2..12 or Dc 308.")
+l8589951816: 584 f105 573 # Has a (DCE 3.01a, Description)
+l8589951817: 610 l8589951816 l8589951804 # Has value (Has a (DCE 3.01a, Description), "DCE 3.01a stateful binary format (magic DCEe\\x02\\x01\\x02\\xFD .. \\xFD\\x03). Supports short Dcs 0..199 across Core, Semantic_Records, Mathematics, Punctuation_and_Whitespace, Variant_Selectors, and DCE_Version_Selectors sheets; does not support Dc 308.")
+l8589951818: 610 l8589941911 l8589951805 # Has value (Has a (Dc ID list (ASCII), Description), "Comma-separated ASCII list of short Dc IDs (bounded by Dc 114 and Dc 115 in dceutils; does not use Dc 308).")
+l8589951819: 591 l8589951818 l8589941912 # Supersedes (Has value (Has a (Dc ID list (ASCII), Description), "Comma-separated ASCII list of short Dc IDs (bounded by Dc 114 and Dc 115 in dceutils; does not use Dc 308)."), Has value (Has a (Dc ID list (ASCII), Description), "Is this the same thing as dcil?"))
+l8589951820: u63 u64 u63 u65 # "cdce"
+l8589951821: u2e u63 u64 u63 u65 # ".cdce"
+l8589951822: u6c u65 u67 u61 u63 u79 u5f u63 u64 u63 u65 # "legacy_cdce"
+l8589951823: u2e u6c u65 u67 u61 u63 u79 u5f u63 u64 u63 u65 # ".legacy_cdce"
+l8589951824: u63 u64 u63 u65 u5f u6c u73 u74 u72 u69 u63 u74 # "cdce_lstrict"
+l8589951825: u64 u63 u65 # "dce"
+l8589951826: u2e u64 u63 u65 # ".dce"
+l8589951827: u68 u65 u78 u5f u64 u63 u65 # "hex_dce"
+l8589951828: u33 u5f u30 u61 # "3_0a"
+l8589951829: u44 u43 u45 u20 u33 u2e u30 u61 u20 u64 u6f u63 u75 u6d u65 u6e u74 # "DCE 3.0a document"
+l8589951830: u33 u5f u30 u61 u5f u72 u61 u77 # "3_0a_raw"
+l8589951831: u68 u65 u78 u5f u33 u5f u30 u61 # "hex_3_0a"
+l8589951832: u68 u65 u78 u5f u33 u5f u30 u61 u5f u72 u61 u77 # "hex_3_0a_raw"
+l8589951833: u33 u5f u30 u61 u5f u6f u6c u64 # "3_0a_old"
+l8589951834: u33 u5f u30 u31 u61 # "3_01a"
+l8589951835: u44 u43 u45 u20 u33 u2e u30 u31 u61 u20 u64 u6f u63 u75 u6d u65 u6e u74 # "DCE 3.01a document"
+l8589951836: u33 u5f u30 u31 u61 u5f u72 u61 u77 # "3_01a_raw"
+l8589951837: u68 u65 u78 u5f u33 u5f u30 u31 u61 # "hex_3_01a"
+l8589951838: u68 u65 u78 u5f u33 u5f u30 u31 u61 u5f u72 u61 u77 # "hex_3_01a_raw"
+l8589951839: u64 u63 u5f u69 u64 u5f u6c u69 u73 u74 # "dc_id_list"
+l8589951840: u75 u74 u66 u38 u5f u64 u63 u36 u34 # "utf8_dc64"
+l8589951841: u75 u74 u66 u38 u5f u64 u63 u36 u34 u5f u65 u6e u63 # "utf8_dc64_enc"
+l8589951842: u75 u74 u66 u38 u5f u64 u63 u36 u34 u5f u62 u69 u6e # "utf8_dc64_bin"
+l8589951843: u75 u74 u66 u38 u5f u64 u63 u36 u34 u5f u62 u69 u6e u5f u68 u65 u78 # "utf8_dc64_bin_hex"
+l8589951844: u75 u74 u66 u38 u5f u64 u63 u36 u34 u5f u62 u69 u6e u5f u65 u6e u63 # "utf8_dc64_bin_enc"
+l8589951845: u75 u74 u66 u38 u5f u64 u63 u36 u34 u5f u62 u69 u6e u5f u65 u6e u63 u5f u68 u65 u78 # "utf8_dc64_bin_enc_hex"
+l8589951846: u68 u74 u6d u6c u5f u6c # "html_l"
+l8589951847: u68 u74 u6d u6c u5f u73 u6e u69 u70 u70 u65 u74 u5f u6c # "html_snippet_l"
+l8589951848: 584 f92 575 # Has a (CDCE, Nickname)
+l8589951849: 610 l8589951848 l8589951820 # Has value (Has a (CDCE, Nickname), "cdce")
+l8589951850: 584 f92 f264 # Has a (CDCE, File extension)
+l8589951851: 610 l8589951850 l8589951821 # Has value (Has a (CDCE, File extension), ".cdce")
+l8589951852: 584 f93 575 # Has a (CDCE (legacy), Nickname)
+l8589951853: 610 l8589951852 l8589951822 # Has value (Has a (CDCE (legacy), Nickname), "legacy_cdce")
+l8589951854: 584 f93 f264 # Has a (CDCE (legacy), File extension)
+l8589951855: 610 l8589951854 l8589951823 # Has value (Has a (CDCE (legacy), File extension), ".legacy_cdce")
+l8589951856: 584 f94 575 # Has a (CDCE (legacy, strict), Nickname)
+l8589951857: 610 l8589951856 l8589951824 # Has value (Has a (CDCE (legacy, strict), Nickname), "cdce_lstrict")
+l8589951858: 584 f95 575 # Has a (DCE (automatic version selection), Nickname)
+l8589951859: 610 l8589951858 l8589951825 # Has value (Has a (DCE (automatic version selection), Nickname), "dce")
+l8589951860: 584 f95 f264 # Has a (DCE (automatic version selection), File extension)
+l8589951861: 610 l8589951860 l8589951826 # Has value (Has a (DCE (automatic version selection), File extension), ".dce")
+l8589951862: 584 f96 575 # Has a (DCE (hex-encoded), Nickname)
+l8589951863: 610 l8589951862 l8589951827 # Has value (Has a (DCE (hex-encoded), Nickname), "hex_dce")
+l8589951864: 584 f97 575 # Has a (DCE 3.0a, Nickname)
+l8589951865: 610 l8589951864 l8589951828 # Has value (Has a (DCE 3.0a, Nickname), "3_0a")
+l8589951866: 584 f97 579 # Has a (DCE 3.0a, Magic signature)
+l8589951867: 610 l8589951866 l8589951829 # Has value (Has a (DCE 3.0a, Magic signature), "DCE 3.0a document")
+l8589951868: 584 f98 575 # Has a (DCE 3.0a (raw), Nickname)
+l8589951869: 610 l8589951868 l8589951830 # Has value (Has a (DCE 3.0a (raw), Nickname), "3_0a_raw")
+l8589951870: 584 f99 575 # Has a (DCE 3.0a (hex-encoded), Nickname)
+l8589951871: 610 l8589951870 l8589951831 # Has value (Has a (DCE 3.0a (hex-encoded), Nickname), "hex_3_0a")
+l8589951872: 584 f100 575 # Has a (DCE 3.0a (raw hex-encoded), Nickname)
+l8589951873: 610 l8589951872 l8589951832 # Has value (Has a (DCE 3.0a (raw hex-encoded), Nickname), "hex_3_0a_raw")
+l8589951874: 584 f101 575 # Has a (DCE 3.0a (old translator), Nickname)
+l8589951875: 610 l8589951874 l8589951833 # Has value (Has a (DCE 3.0a (old translator), Nickname), "3_0a_old")
+l8589951876: 584 f102 575 # Has a (dce2txt, Nickname)
+l8589951877: 610 l8589951876 l8589936175 # Has value (Has a (dce2txt, Nickname), "dce2txt")
+l8589951878: 584 f103 575 # Has a (dce2hex, Nickname)
+l8589951879: 610 l8589951878 l8589936177 # Has value (Has a (dce2hex, Nickname), "dce2hex")
+l8589951880: 584 f104 575 # Has a (hex2dce, Nickname)
+l8589951881: 610 l8589951880 l8589936179 # Has value (Has a (hex2dce, Nickname), "hex2dce")
+l8589951882: 584 f105 575 # Has a (DCE 3.01a, Nickname)
+l8589951883: 610 l8589951882 l8589951834 # Has value (Has a (DCE 3.01a, Nickname), "3_01a")
+l8589951884: 584 f105 579 # Has a (DCE 3.01a, Magic signature)
+l8589951885: 610 l8589951884 l8589951835 # Has value (Has a (DCE 3.01a, Magic signature), "DCE 3.01a document")
+l8589951886: 584 f106 575 # Has a (DCE 3.01a (raw), Nickname)
+l8589951887: 610 l8589951886 l8589951836 # Has value (Has a (DCE 3.01a (raw), Nickname), "3_01a_raw")
+l8589951888: 584 f107 575 # Has a (DCE 3.01a (hex-encoded), Nickname)
+l8589951889: 610 l8589951888 l8589951837 # Has value (Has a (DCE 3.01a (hex-encoded), Nickname), "hex_3_01a")
+l8589951890: 584 f108 575 # Has a (DCE 3.01a (raw hex-encoded), Nickname)
+l8589951891: 610 l8589951890 l8589951838 # Has value (Has a (DCE 3.01a (raw hex-encoded), Nickname), "hex_3_01a_raw")

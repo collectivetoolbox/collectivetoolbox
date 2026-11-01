@@ -1,0 +1,100 @@
+l8589953792: 348 310 275 l8589953790 312 l8589953791 311 # Ambiguous values (l8589953790, l8589953791) for overwritten node l8589952150
+l8589953793: 591 l8589953792 l8589952150 # Supersedes (l8589953792, l8589952150)
+l8589953794: 584 f649 623 # Run 1 raw candidate for l8589952151: Has a (Collective Toolbox, General test coverage for a format)
+l8589953795: 610 l8589952150 f111 # Run 2 raw candidate for l8589952151: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, ASCII Dc ID list))
+l8589953796: 348 310 275 l8589953794 312 l8589953795 311 # Ambiguous values (l8589953794, l8589953795) for overwritten node l8589952151
+l8589953797: 591 l8589953796 l8589952151 # Supersedes (l8589953796, l8589952151)
+l8589953798: 610 l8589952151 f103 # Run 1 raw candidate for l8589952152: Has value (Has a (Collective Toolbox, General test coverage for a format), dce2hex)
+l8589953799: 584 f649 624 # Run 2 raw candidate for l8589952152: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953800: 348 310 275 l8589953798 312 l8589953799 311 # Ambiguous values (l8589953798, l8589953799) for overwritten node l8589952152
+l8589953801: 591 l8589953800 l8589952152 # Supersedes (l8589953800, l8589952152)
+l8589953802: 584 f649 623 # Run 1 raw candidate for l8589952153: Has a (Collective Toolbox, General test coverage for a format)
+l8589953803: 610 l8589952152 f112 # Run 2 raw candidate for l8589952153: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, ASCII Dc ID list; with headers))
+l8589953804: 348 310 275 l8589953802 312 l8589953803 311 # Ambiguous values (l8589953802, l8589953803) for overwritten node l8589952153
+l8589953805: 591 l8589953804 l8589952153 # Supersedes (l8589953804, l8589952153)
+l8589953806: 610 l8589952153 f104 # Run 1 raw candidate for l8589952154: Has value (Has a (Collective Toolbox, General test coverage for a format), hex2dce)
+l8589953807: 584 f649 624 # Run 2 raw candidate for l8589952154: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953808: 348 310 275 l8589953806 312 l8589953807 311 # Ambiguous values (l8589953806, l8589953807) for overwritten node l8589952154
+l8589953809: 591 l8589953808 l8589952154 # Supersedes (l8589953808, l8589952154)
+l8589953810: 584 f649 623 # Run 1 raw candidate for l8589952155: Has a (Collective Toolbox, General test coverage for a format)
+l8589953811: 610 l8589952154 f113 # Run 2 raw candidate for l8589952155: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding))
+l8589953812: 348 310 275 l8589953810 312 l8589953811 311 # Ambiguous values (l8589953810, l8589953811) for overwritten node l8589952155
+l8589953813: 591 l8589953812 l8589952155 # Supersedes (l8589953812, l8589952155)
+l8589953814: 610 l8589952155 f105 # Run 1 raw candidate for l8589952156: Has value (Has a (Collective Toolbox, General test coverage for a format), DCE 3.01a)
+l8589953815: 584 f649 624 # Run 2 raw candidate for l8589952156: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953816: 348 310 275 l8589953814 312 l8589953815 311 # Ambiguous values (l8589953814, l8589953815) for overwritten node l8589952156
+l8589953817: 591 l8589953816 l8589952156 # Supersedes (l8589953816, l8589952156)
+l8589953818: 584 f649 623 # Run 1 raw candidate for l8589952157: Has a (Collective Toolbox, General test coverage for a format)
+l8589953819: 610 l8589952156 f114 # Run 2 raw candidate for l8589952157: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded))
+l8589953820: 348 310 275 l8589953818 312 l8589953819 311 # Ambiguous values (l8589953818, l8589953819) for overwritten node l8589952157
+l8589953821: 591 l8589953820 l8589952157 # Supersedes (l8589953820, l8589952157)
+l8589953822: 610 l8589952157 f106 # Run 1 raw candidate for l8589952158: Has value (Has a (Collective Toolbox, General test coverage for a format), DCE 3.01a (raw))
+l8589953823: 584 f649 624 # Run 2 raw candidate for l8589952158: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953824: 348 310 275 l8589953822 312 l8589953823 311 # Ambiguous values (l8589953822, l8589953823) for overwritten node l8589952158
+l8589953825: 591 l8589953824 l8589952158 # Supersedes (l8589953824, l8589952158)
+l8589953826: 584 f649 623 # Run 1 raw candidate for l8589952159: Has a (Collective Toolbox, General test coverage for a format)
+l8589953827: 610 l8589952158 f115 # Run 2 raw candidate for l8589952159: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers))
+l8589953828: 348 310 275 l8589953826 312 l8589953827 311 # Ambiguous values (l8589953826, l8589953827) for overwritten node l8589952159
+l8589953829: 591 l8589953828 l8589952159 # Supersedes (l8589953828, l8589952159)
+l8589953830: 610 l8589952159 f107 # Run 1 raw candidate for l8589952160: Has value (Has a (Collective Toolbox, General test coverage for a format), DCE 3.01a (hex-encoded))
+l8589953831: 584 f649 624 # Run 2 raw candidate for l8589952160: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953832: 348 310 275 l8589953830 312 l8589953831 311 # Ambiguous values (l8589953830, l8589953831) for overwritten node l8589952160
+l8589953833: 591 l8589953832 l8589952160 # Supersedes (l8589953832, l8589952160)
+l8589953834: 584 f649 623 # Run 1 raw candidate for l8589952161: Has a (Collective Toolbox, General test coverage for a format)
+l8589953835: 610 l8589952160 f116 # Run 2 raw candidate for l8589952161: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded))
+l8589953836: 348 310 275 l8589953834 312 l8589953835 311 # Ambiguous values (l8589953834, l8589953835) for overwritten node l8589952161
+l8589953837: 591 l8589953836 l8589952161 # Supersedes (l8589953836, l8589952161)
+l8589953838: 610 l8589952161 f108 # Run 1 raw candidate for l8589952162: Has value (Has a (Collective Toolbox, General test coverage for a format), DCE 3.01a (raw hex-encoded))
+l8589953839: 584 f649 624 # Run 2 raw candidate for l8589952162: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953840: 348 310 275 l8589953838 312 l8589953839 311 # Ambiguous values (l8589953838, l8589953839) for overwritten node l8589952162
+l8589953841: 591 l8589953840 l8589952162 # Supersedes (l8589953840, l8589952162)
+l8589953842: 584 f649 623 # Run 1 raw candidate for l8589952163: Has a (Collective Toolbox, General test coverage for a format)
+l8589953843: 610 l8589952162 f117 # Run 2 raw candidate for l8589952163: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), HTML (legacy CDCE output))
+l8589953844: 348 310 275 l8589953842 312 l8589953843 311 # Ambiguous values (l8589953842, l8589953843) for overwritten node l8589952163
+l8589953845: 591 l8589953844 l8589952163 # Supersedes (l8589953844, l8589952163)
+l8589953846: 610 l8589952163 f109 # Run 1 raw candidate for l8589952164: Has value (Has a (Collective Toolbox, General test coverage for a format), Dc ID list (ASCII))
+l8589953847: 584 f649 624 # Run 2 raw candidate for l8589952164: Has a (Collective Toolbox, Test coverage of Dc document conversion for a format)
+l8589953848: 348 310 275 l8589953846 312 l8589953847 311 # Ambiguous values (l8589953846, l8589953847) for overwritten node l8589952164
+l8589953849: 591 l8589953848 l8589952164 # Supersedes (l8589953848, l8589952164)
+l8589953850: 584 f649 623 # Run 1 raw candidate for l8589952165: Has a (Collective Toolbox, General test coverage for a format)
+l8589953851: 610 l8589952164 f118 # Run 2 raw candidate for l8589952165: Has value (Has a (Collective Toolbox, Test coverage of Dc document conversion for a format), HTML (snippet) (legacy CDCE output))
+l8589953852: 348 310 275 l8589953850 312 l8589953851 311 # Ambiguous values (l8589953850, l8589953851) for overwritten node l8589952165
+l8589953853: 591 l8589953852 l8589952165 # Supersedes (l8589953852, l8589952165)
+l8589953854: 610 l8589952165 f111 # Run 1 raw candidate for l8589952166: Has value (Has a (Collective Toolbox, General test coverage for a format), UTF-8 (Base64-encoded, ASCII Dc ID list))
+l8589953855: 584 l8589951910 625 # Run 2 raw candidate for l8589952166: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589953856: 348 310 275 l8589953854 312 l8589953855 311 # Ambiguous values (l8589953854, l8589953855) for overwritten node l8589952166
+l8589953857: 591 l8589953856 l8589952166 # Supersedes (l8589953856, l8589952166)
+l8589953858: 584 f649 623 # Run 1 raw candidate for l8589952167: Has a (Collective Toolbox, General test coverage for a format)
+l8589953859: 610 l8589952166 628 # Run 2 raw candidate for l8589952167: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589953860: 348 310 275 l8589953858 312 l8589953859 311 # Ambiguous values (l8589953858, l8589953859) for overwritten node l8589952167
+l8589953861: 591 l8589953860 l8589952167 # Supersedes (l8589953860, l8589952167)
+l8589953862: 610 l8589952167 f112 # Run 1 raw candidate for l8589952168: Has value (Has a (Collective Toolbox, General test coverage for a format), UTF-8 (Base64-encoded, ASCII Dc ID list; with headers))
+l8589953863: 584 l8589951912 625 # Run 2 raw candidate for l8589952168: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589953864: 348 310 275 l8589953862 312 l8589953863 311 # Ambiguous values (l8589953862, l8589953863) for overwritten node l8589952168
+l8589953865: 591 l8589953864 l8589952168 # Supersedes (l8589953864, l8589952168)
+l8589953866: 584 f649 623 # Run 1 raw candidate for l8589952169: Has a (Collective Toolbox, General test coverage for a format)
+l8589953867: 610 l8589952168 628 # Run 2 raw candidate for l8589952169: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589953868: 348 310 275 l8589953866 312 l8589953867 311 # Ambiguous values (l8589953866, l8589953867) for overwritten node l8589952169
+l8589953869: 591 l8589953868 l8589952169 # Supersedes (l8589953868, l8589952169)
+l8589953870: 610 l8589952169 f113 # Run 1 raw candidate for l8589952170: Has value (Has a (Collective Toolbox, General test coverage for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding))
+l8589953871: 584 l8589951914 625 # Run 2 raw candidate for l8589952170: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589953872: 348 310 275 l8589953870 312 l8589953871 311 # Ambiguous values (l8589953870, l8589953871) for overwritten node l8589952170
+l8589953873: 591 l8589953872 l8589952170 # Supersedes (l8589953872, l8589952170)
+l8589953874: 584 f649 623 # Run 1 raw candidate for l8589952171: Has a (Collective Toolbox, General test coverage for a format)
+l8589953875: 610 l8589952170 628 # Run 2 raw candidate for l8589952171: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589953876: 348 310 275 l8589953874 312 l8589953875 311 # Ambiguous values (l8589953874, l8589953875) for overwritten node l8589952171
+l8589953877: 591 l8589953876 l8589952171 # Supersedes (l8589953876, l8589952171)
+l8589953878: 610 l8589952171 f114 # Run 1 raw candidate for l8589952172: Has value (Has a (Collective Toolbox, General test coverage for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded))
+l8589953879: 584 l8589951916 625 # Run 2 raw candidate for l8589952172: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589953880: 348 310 275 l8589953878 312 l8589953879 311 # Ambiguous values (l8589953878, l8589953879) for overwritten node l8589952172
+l8589953881: 591 l8589953880 l8589952172 # Supersedes (l8589953880, l8589952172)
+l8589953882: 584 f649 623 # Run 1 raw candidate for l8589952173: Has a (Collective Toolbox, General test coverage for a format)
+l8589953883: 610 l8589952172 628 # Run 2 raw candidate for l8589952173: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)
+l8589953884: 348 310 275 l8589953882 312 l8589953883 311 # Ambiguous values (l8589953882, l8589953883) for overwritten node l8589952173
+l8589953885: 591 l8589953884 l8589952173 # Supersedes (l8589953884, l8589952173)
+l8589953886: 610 l8589952173 f115 # Run 1 raw candidate for l8589952174: Has value (Has a (Collective Toolbox, General test coverage for a format), UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers))
+l8589953887: 584 l8589951918 625 # Run 2 raw candidate for l8589952174: Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level)
+l8589953888: 348 310 275 l8589953886 312 l8589953887 311 # Ambiguous values (l8589953886, l8589953887) for overwritten node l8589952174
+l8589953889: 591 l8589953888 l8589952174 # Supersedes (l8589953888, l8589952174)
+l8589953890: 584 f649 623 # Run 1 raw candidate for l8589952175: Has a (Collective Toolbox, General test coverage for a format)
+l8589953891: 610 l8589952174 628 # Run 2 raw candidate for l8589952175: Has value (Has a (Has a (Collective Toolbox, General import support for a format), Implementation support level), Partial or basic dialect support)

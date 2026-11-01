@@ -1,0 +1,74 @@
+Analyzed seed_graph.rs:L310-370
+Edited handoff-notes.md
+Ran check partition_active_and_inactive_nodes_with in Python
+Ran check unexpected inactive_stmts in Python
+Ran inspect non_stmt_in_ri_not_ra in Python
+Ran check which nodes reference l8589934943-l8589934945
+Ran inspect l8589938399 and l8589938400 in .ctbnodes
+Analyzed journal.rs:L490-515
+Edited handoff-notes.md
+Edited seed_graph.rs
+Ran run seed_graph, graph_ledger, and build_support tests · Exited with code 101
+
+Running `seed_graph`, `graph_ledger`, and `ctb-build-support` test suites (`task-1170`); waiting for completion.
+
+Analyzed journal.rs:L2370-2430
+Edited handoff-notes.md
+Edited journal.rs
+Ran run ctb-build-support unit tests · Exited with code 101
+Edited journal.rs
+Ran run ctb-build-support unit tests
+Ran run full ctb-formats-dcdata tests, graph-ledger lint, and canary test · Exited with code 1
+
+Running the full `ctb-formats-dcdata` test suite, `ctb-lint graph-ledger`, and `./scripts/lock-graph-append-only --test-canary` (`task-1185`); waiting for completion.
+
+Analyzed ctb_lint.rs:L60-140
+Ran run lock-graph-append-only --test-canary
+Edited handoff-notes.md
+Ran run ctb-lint all --quick · Exited with code 1
+Ran check git status before committing Step 3
+Ran commit Step 3 CSV graph reconciliation and recovery tests
+Edited handoff-notes.md
+Ran verify git commit history and clean working tree
+
+### 1. Failing / Skipped Tests or Lints
+
+- **`ctb-formats-dcdata` & `ctb-build-support` Test Suites**: **0 failing, 0 skipped** (`107 passed` in `cargo test -p ctb-formats-dcdata`; `61 passed` + `1 doctest` in `cargo test -p ctb-build-support`).
+- **Kernel Append-Only Canary Self-Test**: `./scripts/lock-graph-append-only --test-canary` passed (`237` sealed immutable `+i` `.ctbnodes` chunk files and `1` append-only `+a` active tail chunk file `85899_58292.ctbnodes`).
+- **Repository Linters (`ctb-lint`)**:
+  - `graph ledger append-only`, `headers`, `tempdir`, `workspace crates`, `test-boilerplate`, `patches`, and `deny-config` all pass (`23,752` nodes verified against `HEAD` and high-water shadow ledgers).
+  - Pre-existing unrelated lints in `HEAD` (outside `ctb-build-support` and `ctb-formats-dcdata` graph ledger files): 13 undocumented `unwrap_or` occurrences in `src/formats/dceutils/*`, `src/formats/dcstring/converters/dceutils.rs`, and `src/formats/dcdata/syntax/ast.rs:924`, plus 1 unconsumed `FormatLog` in `src/formats/dceutils/dce3_01a.rs:221`.
+
+### 2. Known Gaps & What's Left
+
+- **Wall-Clock File-Read Timing Within Run 1 (`task-680`)**: As documented in [transcript_window_audit.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/transcript_window_audit.json), the transcript records the outer invocation and output-collection window for `task-680` (`step_index == 679` at `19:27:09Z` through `step_index == 687` at `19:28:04Z`) and an edit to `src/formats/dcdata/fixtures/categories/dce.csv` at `step_index == 684` (`19:27:58.651Z`), without kernel-level `open()` timestamps for when the child binary read `dce.csv`. Both candidate states are preserved in the historical ledger under `Dc 348 "Ambiguous values"`.
+- **Single-Host `flock` Scope**: Reader/writer synchronization on `.git/ctb-append-only-canary` uses Linux `flock(2)` (`LOCK_EX` / `LOCK_SH`), which coordinates local processes and container mounts sharing the host inode, not distributed or networked filesystems.
+
+### 3. Deferred Items
+
+- None within the scope of the approved recovery plan.
+
+---
+
+### Completed Work Summary
+
+1. **Step 0 — Historical Evidence Extraction & Replay (`147ee712f`)**:
+   - Executed [step0_extract_transcript_data.py](file:///workspaces/ctoolbox/scripts/graph-recovery/step0_extract_transcript_data.py) and committed the 11 audit and manifest artifacts under `src/formats/dcdata/data-src/recovery-audit/`, including [step0_recovery_summary.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/step0_recovery_summary.json), [collision_manifest.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/collision_manifest.json), [step2a_manifest.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/step2a_manifest.json), and [step2b_manifest.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/step2b_manifest.json).
+
+2. **Steps 1a & 1b — Directory Rename & Node Inbox Layout (`a86c73497`)**:
+   - Renamed `src/formats/dcdata/fixtures/` to `src/formats/dcdata/data-src/` and created `src/formats/dcdata/data-src/nodes/inbox/` and `src/formats/dcdata/data-src/nodes/allocated/`.
+
+3. **Step 1c — Durable Journal, Single-Inode Locking, & Inbox Allocator (`bb7eacf68`)**:
+   - Implemented the unified two-phase journal ([journal.rs](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs)), single-inode `flock` guards ([`LedgerWriteGuard`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs#L253-L256) and [`LedgerReadGuard`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs#L260-L263)), bootstrap checkpointing ([`bootstrap_initial_ledger_journal`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs#L1185-L1190)), standalone crash recovery ([`recover_pending_ledger_journal`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs#L1399-L1405) exposed via `ctb-lint recover-ledger-journal`), and full `(node.id, &node.tokens)` `.ctbnbdl` bundle verification ([`verify_compiled_bundles_against_nodes`](file:///workspaces/ctoolbox/src/build_support/ctbnbdl/journal.rs#L748-L853)).
+   - Updated [lock-graph-append-only](file:///workspaces/ctoolbox/scripts/lock-graph-append-only) to acquire `LOCK_EX | LOCK_NB` on `/canary`, check for open `BATCH_PENDING` records, and require 100 complete `\n`-terminated lines before sealing a `.ctbnodes` chunk with `FS_IMMUTABLE_FL` (`+i`).
+   - Implemented `.dcsh` inbox prevalidation, provenance tracking, and allocation in [inbox.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger/inbox.rs), ambiguity helpers in [seed_graph.rs](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs), and manifest-enforced reconciliation in [graph_ledger.rs](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger.rs) and [validate_data_tables.rs](file:///workspaces/ctoolbox/src/formats/dcdata/bin/validate_data_tables.rs).
+
+4. **Step 2a — Restored Run 1 Tail & Ambiguity Quadruplets (`39439a127`)**:
+   - Executed [step2a_stage_ambiguous_nodes.py](file:///workspaces/ctoolbox/scripts/graph-recovery/step2a_stage_ambiguous_nodes.py) under `--require-manifest`, allocating `2,465` nodes (`l8589952425`..`l8589954889`, `20,298` total nodes): `57` restored Run 1 tail nodes (`l8589952425`..`l8589952481`) followed by `602` quadruplets (`l8589952482`..`l8589954889`) using `Dc 348 "Ambiguous values"` and `Dc 591 "Supersedes"`.
+
+5. **Step 2b — Dependency-Order Disambiguations (`58a8e7ce1`)**:
+   - Executed [step2b_stage_disambiguations.py](file:///workspaces/ctoolbox/scripts/graph-recovery/step2b_stage_disambiguations.py) under `--require-manifest`, allocating `2,838` nodes (`l8589954890`..`l8589957727`, `23,136` total nodes, `5,303` total allocated `.dcsh` files in `src/formats/dcdata/data-src/nodes/allocated/`).
+
+6. **Step 3 — Canonical CSV Graph Reconciliation & Invariant Verification (`7abf6f67c`)**:
+   - Executed [step3_reconcile_csv_graph.sh](file:///workspaces/ctoolbox/scripts/graph-recovery/step3_reconcile_csv_graph.sh) with [step3_manifest.json](file:///workspaces/ctoolbox/src/formats/dcdata/data-src/recovery-audit/step3_manifest.json), appending `616` `Dc 592 "Retracts"` (`592 615 l<id>` with `Dc 615 "Enclosing document"`) statements (`l8589957728`..`l8589958343`, `23,752` total nodes) to retract the non-canonical Run 1 statement branch and verifying idempotent convergence (`0` nodes appended on a second `--write` pass).
+   - Added [`test_ambiguity_recovery_and_live_vs_history_invariants`](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs#L2882-L2991) in [seed_graph.rs](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs) verifying the `17,147`-node active bundle (`assets/data/graph/85899_34592.ctbnbdl`), the `23,752`-node full historical index (`assets/data/graph/system/85899_34942.ctbnbdl`), [`SeedGraphIndex::get_ambiguous_candidates`](file:///workspaces/ctoolbox/src/formats/dcdata/seed_graph.rs#L789-L802) across all `602` dependency-ambiguous and `24` unambiguous IDs, and [`verify_repo_committed_node_provenance`](file:///workspaces/ctoolbox/src/formats/dcdata/graph_ledger/inbox.rs#L424-L434).
