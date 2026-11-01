@@ -46,25 +46,33 @@ use ctb_utilities::format_id::{
 };
 
 pub use crate::ctbnbdl::{
-    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DCMM_HEADER, LedgerNode,
+    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DCMM_HEADER, DurableTransactionOutcome,
+    FaultInjectionPoint, LEDGER_JOURNAL_REL_PATH, LedgerNode, LedgerReadGuard,
     MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK,
+    PlannedLedgerItem, TransactionManifest, chunk_filename_for_node_id,
     compile_ctbnodes_dir_to_ctbnbdl,
     compile_ctbnodes_dir_to_ctbnbdl_with_limits,
     compile_ctbnodes_file_to_ctbnbdl_bytes,
     compile_inactive_ctbnodes_dir_to_ctbnbdl,
-    compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits, consume_atom_dc_with,
+    compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits,
+    compute_nodes_slice_ledger_sha256, consume_atom_dc_with,
     decode_nodes_from_ctbnbdl_bytes_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
-    encode_nodes_to_ctbnbdl_bytes_with, format_chunk_bundle_filename,
-    format_chunk_filename, is_relationship_verb_with, list_chunk_files,
-    load_ledger_nodes_from_dir, load_ledger_nodes_from_file,
-    load_ledger_nodes_from_str, parse_chunk_bundle_filename_start_id,
-    parse_chunk_filename_start_id, parse_statement_tokens_with,
-    partition_active_and_inactive_nodes_with, push_atom_dc_with,
-    sanitize_comment, sync_highwater_shadow_ledgers,
-    verify_nodes_append_only_against_baseline, verify_repo_graph_append_only,
-    write_chunk_file_append_only, write_ledger_nodes_to_dir,
+    encode_nodes_to_ctbnbdl_bytes_with, ensure_ledger_journal_clean,
+    execute_durable_ledger_transaction_with_planner,
+    format_chunk_bundle_filename, format_chunk_filename, inspect_ledger_journal,
+    is_relationship_verb_with, list_chunk_files, load_ledger_nodes_from_dir,
+    load_ledger_nodes_from_file, load_ledger_nodes_from_str,
+    parse_chunk_bundle_filename_start_id, parse_chunk_filename_start_id,
+    parse_statement_tokens_with, partition_active_and_inactive_nodes_with,
+    push_atom_dc_with, sanitize_comment, sha256_bytes_hex,
+    sync_highwater_shadow_ledgers, verify_nodes_append_only_against_baseline,
+    verify_repo_graph_append_only, write_chunk_file_append_only,
+    write_ledger_nodes_to_dir,
 };
+
+pub mod inbox;
+pub use inbox::*;
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
@@ -591,6 +599,12 @@ struct LedgerBuilder {
     appended_count: usize,
     superseded_count: usize,
     retracted_count: usize,
+    /// Verified provenance ownership (`Csv` vs `Manual`) for existing nodes.
+    provenance_map: NodeProvenanceMap,
+    /// Maps a CSV node ID (`u128`) to an active `Manual` node ID (`u128`) that references it.
+    manual_referenced_ids: HashMap<u128, u128>,
+    /// Non-canonical ambiguity branch statement IDs (`Dc 348 "Ambiguous values"`) pending `Dc 592 "Retracts"`.
+    pending_ambiguity_branch_retractions: Vec<u128>,
     /// Canonical human-readable names for Dc, Format, and allocated Long node tokens.
     token_labels: HashMap<DcShorthand, String>,
     /// Decoded UTF-8 strings for string value nodes, keyed by `u128` node ID.
@@ -618,18 +632,57 @@ struct LedgerBuilder {
 }
 
 impl LedgerBuilder {
-    /// Initializes a `LedgerBuilder` from existing ledger nodes and indexes all active statements
-    /// via `SeedGraphIndex::from_nodes_with_single_props`.
+    /// Initializes a `LedgerBuilder` from existing ledger nodes with default (`Csv`) provenance.
+    #[cfg(test)]
     fn from_existing(
         existing: Vec<LedgerNode>,
         single_valued_props: &HashSet<DcShorthand>,
         initial_token_labels: HashMap<DcShorthand, String>,
     ) -> Self {
+        Self::from_existing_with_provenance(
+            existing,
+            single_valued_props,
+            initial_token_labels,
+            NodeProvenanceMap::default(),
+        )
+    }
+
+    /// Initializes a `LedgerBuilder` from existing ledger nodes and indexes all active statements
+    /// via `SeedGraphIndex::from_nodes_with_single_props`.
+    fn from_existing_with_provenance(
+        existing: Vec<LedgerNode>,
+        single_valued_props: &HashSet<DcShorthand>,
+        initial_token_labels: HashMap<DcShorthand, String>,
+        provenance_map: NodeProvenanceMap,
+    ) -> Self {
         let mut token_labels = initial_token_labels;
+        let (effective_inactive_ids, _, _) =
+            crate::seed_graph::compute_effective_inactive_ids(&existing);
+        let (_, pending_ambiguity_branch_retractions) =
+            crate::seed_graph::compute_non_canonical_ambiguity_branch_ids(
+                &existing,
+                &effective_inactive_ids,
+            );
         let index = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
             existing,
             single_valued_props,
         );
+
+        let mut manual_referenced_ids = HashMap::new();
+        for node in &index.nodes {
+            if !index.inactive_ids.contains(&node.id)
+                && provenance_map.owner(node.id) == NodeProvenance::Manual
+            {
+                for &tok in &node.tokens {
+                    if let DcShorthand::Long(ref_id) = tok
+                        && !index.inactive_ids.contains(&ref_id)
+                        && provenance_map.owner(ref_id) == NodeProvenance::Csv
+                    {
+                        manual_referenced_ids.entry(ref_id).or_insert(node.id);
+                    }
+                }
+            }
+        }
 
         for (&node_id, decoded) in &index.string_by_node_id {
             token_labels.insert(
@@ -672,6 +725,9 @@ impl LedgerBuilder {
             appended_count: 0,
             superseded_count: 0,
             retracted_count: 0,
+            provenance_map,
+            manual_referenced_ids,
+            pending_ambiguity_branch_retractions,
             token_labels,
             string_by_node_id: index.string_by_node_id,
             value_node_by_tokens: index.value_node_by_tokens,
@@ -683,6 +739,27 @@ impl LedgerBuilder {
             active_direct_stmts: index.active_direct_stmts,
             vary_as_to_format_variant,
         }
+    }
+
+    fn is_manual_node(&self, node_id: u128) -> bool {
+        self.provenance_map.owner(node_id) == NodeProvenance::Manual
+    }
+
+    fn ensure_can_modify_csv_node(
+        &self,
+        target_id: u128,
+        action: &str,
+    ) -> Result<()> {
+        ensure!(
+            !self.is_manual_node(target_id),
+            "Cross-ownership conflict: CSV reconciliation cannot {action} manual node l{target_id}"
+        );
+        if let Some(&manual_id) = self.manual_referenced_ids.get(&target_id) {
+            bail!(
+                "Cross-ownership conflict: CSV reconciliation cannot {action} CSV node l{target_id} because active manual node l{manual_id} references it"
+            );
+        }
+        Ok(())
     }
 
     fn describe_token(&self, tok: DcShorthand) -> String {
@@ -1144,6 +1221,15 @@ impl LedgerBuilder {
                 .insert(nick.clone(), *variant_sh);
         }
 
+        // 0. Retract any non-canonical ambiguity branch statements (`Dc 348 "Ambiguous values"`).
+        let pending_retractions =
+            std::mem::take(&mut self.pending_ambiguity_branch_retractions);
+        for stmt_id in pending_retractions {
+            if !self.is_manual_node(stmt_id) {
+                self.retract_node(stmt_id)?;
+            }
+        }
+
         // 1. Ensure all seed classification entities exist and add their label/syntax properties.
         for seed_key in &desired.seed_entities {
             let entity_id = self.ensure_seed_entity(seed_key)?;
@@ -1221,6 +1307,15 @@ impl LedgerBuilder {
                 continue;
             }
             if !resolved_single.contains_key(&key) {
+                if let Some(&(has_a_id, has_val_id, _)) =
+                    self.active_single_props.get(&key)
+                {
+                    if self.is_manual_node(has_a_id)
+                        || self.is_manual_node(has_val_id)
+                    {
+                        continue;
+                    }
+                }
                 if let Some((has_a_id, has_val_id, _)) =
                     self.active_single_props.remove(&key)
                 {
@@ -1236,18 +1331,17 @@ impl LedgerBuilder {
                 self.active_single_props.get(&(subj, prop))
             {
                 if old_val_tok != val_tok {
+                    ensure!(
+                        !self.is_manual_node(has_a_id)
+                            && !self.is_manual_node(old_has_val_id),
+                        "Cross-ownership conflict: CSV reconciliation for single-valued property ({subj}, {prop}) with value {val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
+                    );
                     let new_has_val_id = self.append_statement_node(
                         sh(DC_HAS_VALUE),
                         DcShorthand::Long(has_a_id),
                         val_tok,
                     )?;
-                    self.append_statement_node(
-                        sh(DC_SUPERSEDES),
-                        DcShorthand::Long(new_has_val_id),
-                        DcShorthand::Long(old_has_val_id),
-                    )?;
-                    self.superseded_count =
-                        self.superseded_count.saturating_add(1);
+                    self.supersede_node(new_has_val_id, old_has_val_id)?;
                     self.active_single_props.insert(
                         (subj, prop),
                         (has_a_id, new_has_val_id, val_tok),
@@ -1293,6 +1387,15 @@ impl LedgerBuilder {
             self.active_multi_props.keys().copied().collect();
         for key in existing_multi_keys {
             if !resolved_multi.contains_key(&key) {
+                if let Some(&(has_a_id, has_val_id)) =
+                    self.active_multi_props.get(&key)
+                {
+                    if self.is_manual_node(has_a_id)
+                        || self.is_manual_node(has_val_id)
+                    {
+                        continue;
+                    }
+                }
                 if let Some((has_a_id, has_val_id)) =
                     self.active_multi_props.remove(&key)
                 {
@@ -1392,13 +1495,7 @@ impl LedgerBuilder {
                     DcShorthand::Long(has_a_id),
                     new_val_tok,
                 )?;
-                self.append_statement_node(
-                    sh(DC_SUPERSEDES),
-                    DcShorthand::Long(new_has_val_id),
-                    DcShorthand::Long(old_has_val_id),
-                )?;
-                self.superseded_count =
-                    self.superseded_count.saturating_add(1);
+                self.supersede_node(new_has_val_id, old_has_val_id)?;
                 if let Some(pref_id) =
                     self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
                 {
@@ -1468,6 +1565,11 @@ impl LedgerBuilder {
         )> = self.active_multi_preferred.keys().copied().collect();
         for key in existing_multi_pref_keys {
             if !resolved_multi_pref.contains(&key) {
+                if let Some(&pref_id) = self.active_multi_preferred.get(&key) {
+                    if self.is_manual_node(pref_id) {
+                        continue;
+                    }
+                }
                 if let Some(pref_id) = self.active_multi_preferred.remove(&key)
                 {
                     self.retract_node(pref_id)?;
@@ -1524,6 +1626,15 @@ impl LedgerBuilder {
             .collect();
         for key in existing_qual_single_keys {
             if !resolved_qual_single.contains_key(&key) {
+                if let Some(&(has_a_id, has_val_id, _)) =
+                    self.active_single_props.get(&key)
+                {
+                    if self.is_manual_node(has_a_id)
+                        || self.is_manual_node(has_val_id)
+                    {
+                        continue;
+                    }
+                }
                 if let Some((has_a_id, has_val_id, _)) =
                     self.active_single_props.remove(&key)
                 {
@@ -1540,18 +1651,17 @@ impl LedgerBuilder {
                 self.active_single_props.get(&(qual_subj, qual_prop))
             {
                 if old_val_tok != qual_val_tok {
+                    ensure!(
+                        !self.is_manual_node(has_a_id)
+                            && !self.is_manual_node(old_has_val_id),
+                        "Cross-ownership conflict: CSV reconciliation for qualifier ({qual_subj}, {qual_prop}) with value {qual_val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
+                    );
                     let new_has_val_id = self.append_statement_node(
                         sh(DC_HAS_VALUE),
                         DcShorthand::Long(has_a_id),
                         qual_val_tok,
                     )?;
-                    self.append_statement_node(
-                        sh(DC_SUPERSEDES),
-                        DcShorthand::Long(new_has_val_id),
-                        DcShorthand::Long(old_has_val_id),
-                    )?;
-                    self.superseded_count =
-                        self.superseded_count.saturating_add(1);
+                    self.supersede_node(new_has_val_id, old_has_val_id)?;
                     self.active_single_props.insert(
                         (qual_subj, qual_prop),
                         (has_a_id, new_has_val_id, qual_val_tok),
@@ -1589,6 +1699,16 @@ impl LedgerBuilder {
             self.active_preferred.keys().copied().collect();
         for key in existing_pref_keys {
             if !resolved_preferred.contains_key(&key) {
+                if let Some(&(has_a_id, has_val_id, pref_id)) =
+                    self.active_preferred.get(&key)
+                {
+                    if self.is_manual_node(has_a_id)
+                        || self.is_manual_node(has_val_id)
+                        || self.is_manual_node(pref_id)
+                    {
+                        continue;
+                    }
+                }
                 if let Some((has_a_id, has_val_id, pref_id)) =
                     self.active_preferred.remove(&key)
                 {
@@ -1635,6 +1755,11 @@ impl LedgerBuilder {
             self.active_direct_stmts.keys().copied().collect();
         for key in existing_direct_keys {
             if !resolved_direct.contains_key(&key) {
+                if let Some(&stmt_id) = self.active_direct_stmts.get(&key) {
+                    if self.is_manual_node(stmt_id) {
+                        continue;
+                    }
+                }
                 if let Some(stmt_id) = self.active_direct_stmts.remove(&key) {
                     self.retract_node(stmt_id)?;
                 }
@@ -1656,7 +1781,19 @@ impl LedgerBuilder {
         Ok(())
     }
 
+    fn supersede_node(&mut self, new_id: u128, old_id: u128) -> Result<u128> {
+        self.ensure_can_modify_csv_node(old_id, "supersede")?;
+        let id = self.append_statement_node(
+            sh(DC_SUPERSEDES),
+            DcShorthand::Long(new_id),
+            DcShorthand::Long(old_id),
+        )?;
+        self.superseded_count = self.superseded_count.saturating_add(1);
+        Ok(id)
+    }
+
     fn retract_node(&mut self, target_id: u128) -> Result<u128> {
+        self.ensure_can_modify_csv_node(target_id, "retract")?;
         let id = self.append_statement_node(
             sh(DC_RETRACTS),
             sh(DC_ENCLOSING_DOCUMENT),
@@ -2517,12 +2654,33 @@ pub fn update_ledger_in_memory(
     known_scripts: &BTreeSet<String>,
     named_types_bytes: Option<&[u8]>,
 ) -> Result<(Vec<LedgerNode>, LedgerUpdateStats)> {
+    update_ledger_in_memory_with_provenance(
+        existing_nodes,
+        NodeProvenanceMap::default(),
+        dc_defns,
+        format_defns,
+        known_scripts,
+        named_types_bytes,
+    )
+}
+
+/// Updates an in-memory list of `LedgerNode`s against `dc_defns`, `format_defns`,
+/// `known_scripts`, and `named_types_bytes`, enforcing `provenance_map` cross-ownership rules.
+pub fn update_ledger_in_memory_with_provenance(
+    existing_nodes: Vec<LedgerNode>,
+    provenance_map: NodeProvenanceMap,
+    dc_defns: &[DcDefn],
+    format_defns: &[DcDefn],
+    known_scripts: &BTreeSet<String>,
+    named_types_bytes: Option<&[u8]>,
+) -> Result<(Vec<LedgerNode>, LedgerUpdateStats)> {
     let single_props = single_valued_property_set();
     let initial_labels = build_initial_token_labels(dc_defns, format_defns);
-    let mut builder = LedgerBuilder::from_existing(
+    let mut builder = LedgerBuilder::from_existing_with_provenance(
         existing_nodes,
         &single_props,
         initial_labels,
+        provenance_map,
     );
     let desired = compile_desired_dataset_state(
         dc_defns,
@@ -2541,20 +2699,40 @@ pub fn update_ledger_in_memory(
     Ok((builder.nodes, stats))
 }
 
-/// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/*.ctbnodes`
-/// using the append-only revision ledger algorithm.
-pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
+fn plan_csv_reconciliation_items_for_repo(
+    repo_root: &Path,
+    existing_nodes: &[LedgerNode],
+    committed_pairs: &[(
+        crate::ctbnbdl::JournalRecord,
+        crate::ctbnbdl::JournalRecord,
+    )],
+) -> Result<(
+    Vec<PlannedLedgerItem>,
+    BTreeMap<String, String>,
+    Vec<LedgerNode>,
+    LedgerUpdateStats,
+)> {
+    let prov_map = load_and_validate_node_provenance(
+        repo_root,
+        existing_nodes,
+        committed_pairs,
+    )?;
+
     let data_dir = repo_root.join("src/formats/dcdata/data-src");
     let categories_dir = data_dir.join("categories");
     let formats_dir = categories_dir.join("formats");
     let scripts_path = data_dir.join("README.scripts.csv");
     let named_types_path = data_dir.join("README-named-types.csv");
-    let graph_dir = repo_root.join("assets/data/graph");
 
+    let mut pinned_input_sha256s: BTreeMap<String, String> = BTreeMap::new();
     let mut report = ValidationReport::new();
     let scripts_bytes = std::fs::read(&scripts_path).with_context(|| {
         format!("Failed to read {}", scripts_path.display())
     })?;
+    pinned_input_sha256s.insert(
+        "src/formats/dcdata/data-src/README.scripts.csv".to_string(),
+        sha256_bytes_hex(&scripts_bytes),
+    );
     let known_scripts_set = crate::validation::validate_scripts_table(
         &scripts_bytes,
         "src/formats/dcdata/data-src/README.scripts.csv",
@@ -2567,6 +2745,10 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         std::fs::read(&named_types_path).with_context(|| {
             format!("Failed to read {}", named_types_path.display())
         })?;
+    pinned_input_sha256s.insert(
+        "src/formats/dcdata/data-src/README-named-types.csv".to_string(),
+        sha256_bytes_hex(&named_types_bytes),
+    );
     let known_named_types =
         crate::validation::extract_named_type_names(&named_types_bytes);
 
@@ -2574,6 +2756,12 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         crate::updater::load_format_category_csvs_with_assigned_ids(
             &formats_dir,
         )?;
+    for (name, bytes) in &format_files_data {
+        pinned_input_sha256s.insert(
+            format!("src/formats/dcdata/data-src/categories/formats/{name}"),
+            sha256_bytes_hex(bytes),
+        );
+    }
     let format_files_iter: Vec<(&str, &[u8])> = format_files_data
         .iter()
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
@@ -2598,6 +2786,12 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         crate::updater::load_dc_category_csvs_with_assigned_ids(
             &categories_dir,
         )?;
+    for (name, bytes) in &dc_files_data {
+        pinned_input_sha256s.insert(
+            format!("src/formats/dcdata/data-src/categories/{name}"),
+            sha256_bytes_hex(bytes),
+        );
+    }
     let dc_files_iter: Vec<(&str, &[u8])> = dc_files_data
         .iter()
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
@@ -2617,10 +2811,9 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
         format!("Invalid dataset under {}", data_dir.display())
     })?;
 
-    let existing_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
-    verify_repo_graph_append_only(repo_root, &existing_nodes)?;
-    let (updated_nodes, mut stats) = update_ledger_in_memory(
-        existing_nodes.clone(),
+    let (updated_nodes, stats) = update_ledger_in_memory_with_provenance(
+        existing_nodes.to_vec(),
+        prov_map,
         &dc_defns,
         &format_defns,
         &known_scripts,
@@ -2628,29 +2821,140 @@ pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats>
     )?;
     verify_nodes_append_only_against_baseline(
         "existing working-tree ledger",
-        &existing_nodes,
+        existing_nodes,
         &updated_nodes,
     )?;
-    stats.files_written = write_ledger_nodes_to_dir(&graph_dir, &updated_nodes)?;
-    sync_highwater_shadow_ledgers(repo_root, &updated_nodes)?;
-    let framing = default_ctbnbdl_framing_dcs();
-    compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &graph_dir, framing)
-        .context("Failed to compile assets/data/graph/*.ctbnodes into source .ctbnbdl bundles")?;
-    let runtime_graph_dir = repo_root.join("built/assets/data/graph");
-    if runtime_graph_dir.is_dir() {
-        compile_ctbnodes_dir_to_ctbnbdl(&graph_dir, &runtime_graph_dir, framing)
-            .context("Failed to compile assets/data/graph/*.ctbnodes into runtime .ctbnbdl bundles")?;
+
+    // Reason for fallback: verify_nodes_append_only_against_baseline guarantees updated_nodes.len() >= existing_nodes.len().
+    let new_slice = updated_nodes
+        .get(existing_nodes.len()..)
+        .unwrap_or_default();
+    let mut planned_items = Vec::with_capacity(new_slice.len());
+    for node in new_slice {
+        planned_items.push(PlannedLedgerItem {
+            node_id: node.id,
+            raw_line: node.format_line(),
+            target_chunk: chunk_filename_for_node_id(node.id),
+            tokens: Vec::new(),
+            comment: String::new(),
+            provenance: "csv".to_string(),
+            rationale: None,
+            allow_duplicate_of: Vec::new(),
+            inbox_name: None,
+            allocated_name: None,
+            inbox_sha256: None,
+            dcsh_content: None,
+        });
     }
-    let staged_history_dir =
-        repo_root.join("built/system_graph_history_assets/data/graph/system");
-    if staged_history_dir.is_dir() {
-        compile_inactive_ctbnodes_dir_to_ctbnbdl(
-            &graph_dir,
-            &staged_history_dir,
-            framing,
-        )
-        .context("Failed to compile inactive system graph history .ctbnbdl bundles")?;
+
+    Ok((planned_items, pinned_input_sha256s, updated_nodes, stats))
+}
+
+/// Plans a `csv_reconciliation` transaction manifest against `repo_root` under `LedgerReadGuard`
+/// and writes the resulting [`TransactionManifest`] JSON to `out_path`.
+pub fn plan_csv_reconciliation_manifest(
+    repo_root: &Path,
+    manifest_id: &str,
+    out_path: &Path,
+) -> Result<TransactionManifest> {
+    let read_guard = LedgerReadGuard::acquire(repo_root)?;
+    ensure_ledger_journal_clean(repo_root, &read_guard)?;
+    let graph_dir = repo_root.join("assets/data/graph");
+    let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
+    let existing_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+    let parsed_journal = inspect_ledger_journal(&journal_path)?;
+
+    let (planned_items, pinned_input_sha256s, updated_nodes, _stats) =
+        plan_csv_reconciliation_items_for_repo(
+            repo_root,
+            &existing_nodes,
+            &parsed_journal.committed_pairs,
+        )?;
+
+    // Reason for fallback: empty ledger before first node has baseline_last_id == 0.
+    let baseline_last_id = existing_nodes.last().map_or(0, |n| n.id);
+    let baseline_node_count = existing_nodes.len();
+    let baseline_ledger_sha256 =
+        compute_nodes_slice_ledger_sha256(&existing_nodes);
+    // Reason for fallback: empty ledger after reconciliation has final_last_id == baseline_last_id.
+    let final_last_id = updated_nodes.last().map_or(baseline_last_id, |n| n.id);
+    let final_node_count = updated_nodes.len();
+    let final_ledger_sha256 = compute_nodes_slice_ledger_sha256(&updated_nodes);
+
+    let manifest = TransactionManifest {
+        manifest_id: manifest_id.to_string(),
+        kind: "csv_reconciliation".to_string(),
+        baseline_last_id,
+        baseline_node_count,
+        baseline_ledger_sha256,
+        final_last_id,
+        final_node_count,
+        final_ledger_sha256,
+        pinned_input_sha256s,
+        planned_items,
+    };
+
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!("Failed to create directory {}", parent.display())
+        })?;
     }
+    let json = serde_json::to_string_pretty(&manifest)
+        .context("Failed to serialize reconciliation manifest JSON")?;
+    std::fs::write(out_path, format!("{json}\n")).with_context(|| {
+        format!("Failed to write manifest to {}", out_path.display())
+    })?;
+
+    Ok(manifest)
+}
+
+/// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/*.ctbnodes`
+/// using the append-only revision ledger algorithm inside a durable journaled transaction.
+pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
+    update_system_graph_ledger_with_options(repo_root, None, false, None)
+}
+
+/// Same as [`update_system_graph_ledger`], with optional `required_manifest_path`,
+/// `dry_run`, and [`FaultInjectionPoint`].
+pub fn update_system_graph_ledger_with_options(
+    repo_root: &Path,
+    required_manifest_path: Option<&Path>,
+    dry_run: bool,
+    fault: Option<FaultInjectionPoint>,
+) -> Result<LedgerUpdateStats> {
+    let outcome = execute_durable_ledger_transaction_with_planner(
+        repo_root,
+        "csv_reconciliation",
+        "csv-reconcile",
+        required_manifest_path,
+        dry_run,
+        fault,
+        |_write_guard, baseline_nodes, committed_pairs| {
+            let (planned_items, pinned_input_sha256s, _updated_nodes, stats) =
+                plan_csv_reconciliation_items_for_repo(
+                    repo_root,
+                    baseline_nodes,
+                    committed_pairs,
+                )?;
+            Ok((planned_items, pinned_input_sha256s, stats))
+        },
+    )?;
+
+    if !dry_run {
+        let _ = verify_repo_committed_node_provenance(repo_root)?;
+    }
+
+    // Reason for fallback: when resuming from a pre-existing BATCH_PENDING record, planner closure is skipped and stats are populated from outcome counts.
+    let mut stats = outcome.planner_payload.unwrap_or_else(|| LedgerUpdateStats {
+        total_nodes: outcome.total_nodes,
+        nodes_appended: outcome.appended_count,
+        nodes_superseded: 0,
+        nodes_retracted: 0,
+        files_written: outcome.files_written,
+    });
+    stats.total_nodes = outcome.total_nodes;
+    stats.nodes_appended = outcome.appended_count;
+    stats.files_written = outcome.files_written;
     Ok(stats)
 }
 

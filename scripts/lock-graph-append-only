@@ -74,21 +74,63 @@ def set_exact_lock_flags(path: str, want_immutable: bool, want_append: bool) -> 
     finally:
         os.close(fd)
 
-def lock_pass(graph_dir: str, canary_path: str) -> tuple[int, int]:
-    if os.path.isfile(canary_path):
+def is_journal_pending(journal_dir: str | None) -> bool:
+    if not journal_dir:
+        return False
+    journal_path = os.path.join(journal_dir, "ledger-journal.jsonl")
+    if not os.path.isfile(journal_path):
+        return False
+    try:
+        with open(journal_path, "rb") as jf:
+            raw = jf.read()
+        if not raw:
+            return False
+        if not raw.endswith(b"\n"):
+            return True
+        lines = [ln for ln in raw.splitlines() if ln.strip()]
+        if not lines:
+            return False
+        import json
+        last_rec = json.loads(lines[-1].decode("utf-8"))
+        return last_rec.get("status") == "BATCH_PENDING"
+    except Exception:
+        return True
+
+def is_complete_100_line_chunk(path: str) -> bool:
+    import re
+    line_re = re.compile(rb"^l[0-9]+:( .*)?\n$")
+    with open(path, "rb") as f:
+        raw = f.read()
+    if not raw.endswith(b"\n"):
+        return False
+    lines = raw.splitlines(keepends=True)
+    if len(lines) != 100:
+        return False
+    return all(line_re.match(ln) is not None for ln in lines)
+
+def lock_pass(graph_dir: str, canary_path: str, journal_dir: str | None = None) -> tuple[int, int]:
+    if not os.path.isfile(canary_path):
+        raise RuntimeError(f"Required lock inode does not exist: {canary_path}")
+    lock_fd = os.open(canary_path, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return (0, 0)
         set_exact_lock_flags(canary_path, want_immutable=False, want_append=True)
-    immutable_count = 0
-    append_count = 0
-    for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
-        with open(path, "rb") as f:
-            line_count = sum(1 for _ in f)
-        if line_count >= 100:
-            set_exact_lock_flags(path, want_immutable=True, want_append=False)
-            immutable_count += 1
-        else:
-            set_exact_lock_flags(path, want_immutable=False, want_append=True)
-            append_count += 1
-    return immutable_count, append_count
+        journal_pending = is_journal_pending(journal_dir)
+        immutable_count = 0
+        append_count = 0
+        for path in sorted(glob.glob(os.path.join(graph_dir, "*.ctbnodes"))):
+            if not journal_pending and is_complete_100_line_chunk(path):
+                set_exact_lock_flags(path, want_immutable=True, want_append=False)
+                immutable_count += 1
+            else:
+                set_exact_lock_flags(path, want_immutable=False, want_append=True)
+                append_count += 1
+        return immutable_count, append_count
+    finally:
+        os.close(lock_fd)
 
 def unlock_pass(graph_dir: str, canary_path: str) -> int:
     unlocked = 0
@@ -103,13 +145,14 @@ def unlock_pass(graph_dir: str, canary_path: str) -> int:
 mode = sys.argv[1]
 graph_dir = sys.argv[2]
 canary_path = sys.argv[3]
+journal_dir = sys.argv[4] if len(sys.argv) > 4 else None
 
 if mode == "lock-once":
-    imm, app = lock_pass(graph_dir, canary_path)
+    imm, app = lock_pass(graph_dir, canary_path, journal_dir)
     print(f"Locked graph ledger: {imm} full chunk(s) set FS_IMMUTABLE_FL (+i), {app} active tail chunk(s) + canary set FS_APPEND_FL (+a).")
 elif mode == "watch":
     while True:
-        lock_pass(graph_dir, canary_path)
+        lock_pass(graph_dir, canary_path, journal_dir)
         time.sleep(2.0)
 elif mode == "unlock":
     count = unlock_pass(graph_dir, canary_path)
@@ -120,6 +163,7 @@ PYEOF
 
 ensure_canary_file() {
     mkdir -p "${REPO_ROOT}/.git"
+    mkdir -p "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated"
     if [ ! -f "${CANARY_FILE}" ]; then
         printf "ctb-append-only-canary initialized\n" > "${CANARY_FILE}"
     fi
@@ -144,8 +188,9 @@ run_host_init() {
         --cap-add=LINUX_IMMUTABLE \
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
+        -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary
+        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary /journal-dir
 
     # 2. Ensure the detached watcher container is running so newly created .ctbnodes chunks are automatically locked.
     if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
@@ -160,8 +205,9 @@ run_host_init() {
         --cap-add=LINUX_IMMUTABLE \
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
+        -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" watch /graph /canary >/dev/null
+        python3 -c "${PYTHON_LOCK_SCRIPT}" watch /graph /canary /journal-dir >/dev/null
 
     echo "Started background Docker watcher '${WATCHER_CONTAINER_NAME}' for ${GRAPH_DIR}."
 }
@@ -184,8 +230,9 @@ run_unlock() {
         --cap-add=LINUX_IMMUTABLE \
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
+        -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary
+        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary /journal-dir
 }
 
 seed_highwater_from_head() {

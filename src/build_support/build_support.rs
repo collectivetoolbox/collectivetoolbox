@@ -23,6 +23,9 @@ pub(crate) mod utilities {
     pub use anyhow::{Context, Result, bail, ensure};
 }
 
+pub use fs2;
+pub use sha2;
+
 #[path = "../storage/minimal/global_graph_layout/regions.rs"]
 pub mod global_graph_layout;
 

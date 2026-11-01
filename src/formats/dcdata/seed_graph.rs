@@ -48,7 +48,7 @@ use ctb_utilities::format_id::{
 
 use crate::dc::{
     DC_ANNOTATION, DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP,
-    DC_BEGIN_PARAMETER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
+    DC_BEGIN_LIST, DC_BEGIN_PARAMETER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
     DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
     DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
@@ -56,7 +56,7 @@ use crate::dc::{
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_ENTITY_TYPE, DC_FORMAL_ALIAS,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_LIST, DC_ENTITY_TYPE, DC_FORMAL_ALIAS,
     DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
     DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
     DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
@@ -177,6 +177,197 @@ pub struct SeedGraphIndex {
     /// Active direct binary statement subjects grouped by `(verb, object)` in ascending `stmt_id` order.
     pub(crate) direct_subjects_by_verb_obj:
         HashMap<(DcShorthand, DcShorthand), Vec<DcShorthand>>,
+}
+
+/// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
+/// into its ordered candidate node IDs.
+#[must_use]
+pub fn parse_ambiguous_values_tokens(
+    tokens: &[DcShorthand],
+) -> Option<Vec<u128>> {
+    let sh_ambiguous = DcShorthand::Short(348);
+    let sh_begin_list = sh(DC_BEGIN_LIST);
+    let sh_end_list = sh(DC_END_LIST);
+    let sh_graph_node = DcShorthand::Short(275);
+    let sh_list_sep = DcShorthand::Short(312);
+    if tokens.len() < 4
+        || tokens.first() != Some(&sh_ambiguous)
+        || tokens.get(1) != Some(&sh_begin_list)
+        || tokens.last() != Some(&sh_end_list)
+    {
+        return None;
+    }
+    let middle = tokens.get(2..tokens.len().saturating_sub(1))?;
+    let mut candidates = Vec::new();
+    for &tok in middle {
+        match tok {
+            DcShorthand::Long(id) => candidates.push(id),
+            t if t == sh_graph_node || t == sh_list_sep => {}
+            _ => return None,
+        }
+    }
+    if candidates.len() >= 2 {
+        Some(candidates)
+    } else {
+        None
+    }
+}
+
+/// Computes the set of effectively inactive node IDs, along with `superseded_by` (`old_id -> new_id`)
+/// and `retracted_by` (`old_id -> retract_stmt_id`), across `nodes` in reverse chronological order.
+#[must_use]
+pub fn compute_effective_inactive_ids(
+    nodes: &[LedgerNode],
+) -> (HashSet<u128>, HashMap<u128, u128>, HashMap<u128, u128>) {
+    let sh_supersedes = sh(DC_SUPERSEDES);
+    let sh_retracts = sh(DC_RETRACTS);
+
+    let mut inactive_ids = HashSet::new();
+    let mut superseded_by = HashMap::new();
+    let mut retracted_by = HashMap::new();
+
+    for node in nodes.iter().rev() {
+        if inactive_ids.contains(&node.id) {
+            continue;
+        }
+        if let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens) {
+            if verb == sh_supersedes {
+                if let DcShorthand::Long(old_id) = obj {
+                    let new_id = match subj {
+                        DcShorthand::Long(n_id) => n_id,
+                        _ => node.id,
+                    };
+                    inactive_ids.insert(old_id);
+                    superseded_by.insert(old_id, new_id);
+                }
+            } else if verb == sh_retracts {
+                if let DcShorthand::Long(old_id) = obj {
+                    inactive_ids.insert(old_id);
+                    retracted_by.insert(old_id, node.id);
+                }
+            }
+        }
+    }
+
+    (inactive_ids, superseded_by, retracted_by)
+}
+
+/// Identifies any active nodes belonging to non-canonical (earlier-branch) candidates of
+/// terminal `Dc 348 "Ambiguous values"` records (`348 310 275 l<cand_0> 312 l<cand_1> ... 311`),
+/// including statements transitively referencing those candidates and duplicate tail statements
+/// whose token bodies are already provided by the canonical candidate branch.
+///
+/// Returns `(non_canonical_all_ids, non_canonical_stmt_ids_sorted)`.
+#[must_use]
+pub fn compute_non_canonical_ambiguity_branch_ids(
+    nodes: &[LedgerNode],
+    inactive_ids: &HashSet<u128>,
+) -> (HashSet<u128>, Vec<u128>) {
+    let sh_supersedes = sh(DC_SUPERSEDES);
+    let sh_retracts = sh(DC_RETRACTS);
+
+    let mut canonical_cand_ids: HashSet<u128> = HashSet::new();
+    let mut non_canonical_branch_ids: HashSet<u128> = HashSet::new();
+    let mut min_ambig_candidate_id: Option<u128> = None;
+
+    for node in nodes {
+        if inactive_ids.contains(&node.id) {
+            continue;
+        }
+        let Some(cands) = parse_ambiguous_values_tokens(&node.tokens) else {
+            continue;
+        };
+        let Some(&last_cand) = cands.last() else {
+            continue;
+        };
+        canonical_cand_ids.insert(last_cand);
+        // Reason for fallback: parse_ambiguous_values_tokens guarantees cands.len() >= 2.
+        for &cand in cands.get(..cands.len().saturating_sub(1)).unwrap_or_default() {
+            if !inactive_ids.contains(&cand) {
+                non_canonical_branch_ids.insert(cand);
+            }
+            // Reason for fallback: first candidate initializes min_ambig_candidate_id.
+            min_ambig_candidate_id =
+                Some(min_ambig_candidate_id.map_or(cand, |m| m.min(cand)));
+        }
+    }
+
+    if non_canonical_branch_ids.is_empty() {
+        return (HashSet::new(), Vec::new());
+    }
+
+    // Forward reference closure of active non-348, non-revision statements referencing non_canonical_branch_ids.
+    loop {
+        let mut added = false;
+        for node in nodes {
+            if inactive_ids.contains(&node.id)
+                || non_canonical_branch_ids.contains(&node.id)
+                || canonical_cand_ids.contains(&node.id)
+                || parse_ambiguous_values_tokens(&node.tokens).is_some()
+            {
+                continue;
+            }
+            if let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
+                && (verb == sh_supersedes || verb == sh_retracts)
+            {
+                continue;
+            }
+            let refs_non_canon = node.tokens.iter().any(|tok| {
+                matches!(tok, DcShorthand::Long(id) if non_canonical_branch_ids.contains(id))
+            });
+            if refs_non_canon {
+                non_canonical_branch_ids.insert(node.id);
+                added = true;
+            }
+        }
+        if !added {
+            break;
+        }
+    }
+
+    // Also include active non-revision statements in the ambiguity allocation region whose token
+    // bodies are exact duplicates of active canonical-branch statements (e.g. un-superseded tail statements).
+    let mut canonical_stmt_bodies: HashSet<&[DcShorthand]> = HashSet::new();
+    for node in nodes {
+        if canonical_cand_ids.contains(&node.id)
+            && !inactive_ids.contains(&node.id)
+            && parse_statement_tokens(&node.tokens).is_some()
+        {
+            canonical_stmt_bodies.insert(node.tokens.as_slice());
+        }
+    }
+    // Reason for fallback: non_canonical_branch_ids is non-empty above, so min_ambig_candidate_id is always Some.
+    let min_region_id = min_ambig_candidate_id.unwrap_or(u128::MAX).saturating_sub(100);
+    for node in nodes {
+        if node.id < min_region_id
+            || inactive_ids.contains(&node.id)
+            || non_canonical_branch_ids.contains(&node.id)
+            || canonical_cand_ids.contains(&node.id)
+        {
+            continue;
+        }
+        if let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
+            && verb != sh_supersedes
+            && verb != sh_retracts
+            && canonical_stmt_bodies.contains(node.tokens.as_slice())
+        {
+            non_canonical_branch_ids.insert(node.id);
+        }
+    }
+
+    let mut non_canonical_stmt_ids = Vec::new();
+    for node in nodes {
+        if non_canonical_branch_ids.contains(&node.id)
+            && !inactive_ids.contains(&node.id)
+            && let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
+            && verb != sh_supersedes
+            && verb != sh_retracts
+        {
+            non_canonical_stmt_ids.push(node.id);
+        }
+    }
+
+    (non_canonical_branch_ids, non_canonical_stmt_ids)
 }
 
 impl SeedGraphIndex {
@@ -399,39 +590,12 @@ impl SeedGraphIndex {
             node_index_by_id.insert(node.id, idx);
         }
 
-        // Resolve supersessions (`591 <new_node> l<old_node>`) and retractions (`592 615 l<old_node>`).
-        // Process in reverse chronological order (highest node ID to lowest) so that if a
-        // retraction or supersession statement was itself retracted later, it does not take effect.
-        let mut inactive_ids = HashSet::new();
-        let mut superseded_by = HashMap::new();
-        let mut retracted_by = HashMap::new();
+        let (mut inactive_ids, superseded_by, retracted_by) =
+            compute_effective_inactive_ids(&nodes);
+        let (non_canonical_branch_ids, _) =
+            compute_non_canonical_ambiguity_branch_ids(&nodes, &inactive_ids);
 
-        for node in nodes.iter().rev() {
-            if inactive_ids.contains(&node.id) {
-                continue;
-            }
-            if let Some((verb, subj, obj)) =
-                parse_statement_tokens(&node.tokens)
-            {
-                if verb == sh_supersedes {
-                    if let DcShorthand::Long(old_id) = obj {
-                        let new_id = match subj {
-                            DcShorthand::Long(n_id) => n_id,
-                            _ => node.id,
-                        };
-                        inactive_ids.insert(old_id);
-                        superseded_by.insert(old_id, new_id);
-                    }
-                } else if verb == sh_retracts {
-                    if let DcShorthand::Long(old_id) = obj {
-                        inactive_ids.insert(old_id);
-                        retracted_by.insert(old_id, node.id);
-                    }
-                }
-            }
-        }
-
-        // First pass: index value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
+        // First pass: index active value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
         let mut value_node_by_tokens = HashMap::new();
         let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
         let mut integer_by_node_id: HashMap<u128, u128> = HashMap::new();
@@ -448,19 +612,25 @@ impl SeedGraphIndex {
             {
                 integer_by_node_id.insert(node.id, decoded_int);
             }
+            if inactive_ids.contains(&node.id)
+                || non_canonical_branch_ids.contains(&node.id)
+            {
+                continue;
+            }
             let stmt_opt = parse_statement_tokens(&node.tokens);
-            if stmt_opt.is_none() {
+            if stmt_opt.is_none()
+                && parse_ambiguous_values_tokens(&node.tokens).is_none()
+            {
                 value_node_by_tokens
                     .entry(node.tokens.clone())
                     .or_insert(node.id);
             }
-            if inactive_ids.contains(&node.id) {
-                continue;
-            }
             if let Some((verb, subj, obj)) = stmt_opt {
                 if verb == sh_has_value {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
+                        if !inactive_ids.contains(&has_a_id)
+                            && !non_canonical_branch_ids.contains(&has_a_id)
+                        {
                             active_has_val_by_stmt
                                 .insert(has_a_id, (node.id, obj));
                         } else {
@@ -469,7 +639,9 @@ impl SeedGraphIndex {
                     }
                 } else if verb == sh_has_a && obj == sh_preferred {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
+                        if !inactive_ids.contains(&has_a_id)
+                            && !non_canonical_branch_ids.contains(&has_a_id)
+                        {
                             active_pref_qual_by_stmt.insert(has_a_id, node.id);
                         } else {
                             inactive_ids.insert(node.id);
@@ -505,7 +677,9 @@ impl SeedGraphIndex {
         > = HashMap::new();
 
         for node in &nodes {
-            if inactive_ids.contains(&node.id) {
+            if inactive_ids.contains(&node.id)
+                || non_canonical_branch_ids.contains(&node.id)
+            {
                 continue;
             }
             let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
@@ -717,6 +891,23 @@ impl SeedGraphIndex {
     #[must_use]
     pub fn retracted_count(&self) -> usize {
         self.retracted_by.len()
+    }
+
+    /// Follows any `Dc 591 "Supersedes"` chain from `id` to its terminal replacement node,
+    /// and if that node (or `id` itself) is a `Dc 348 "Ambiguous values"` list (`348 310 ... 311`),
+    /// returns the ordered candidate node IDs.
+    #[must_use]
+    pub fn get_ambiguous_candidates(&self, id: u128) -> Option<Vec<u128>> {
+        let mut cur = id;
+        let mut visited = HashSet::new();
+        while let Some(&next) = self.superseded_by.get(&cur) {
+            if !visited.insert(cur) {
+                break;
+            }
+            cur = next;
+        }
+        let target_node = self.get_node(cur)?;
+        parse_ambiguous_values_tokens(&target_node.tokens)
     }
 
     /// Returns the node ID that directly superseded `id` via `Dc 591` (`Supersedes`), if any.

@@ -23,6 +23,9 @@ use std::env;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
+use ctb_build_support::ctbnbdl::{
+    bootstrap_initial_ledger_journal, recover_pending_ledger_journal,
+};
 use ctb_build_support::find_repository_root;
 use ctb_build_support::lint::{
     deny_config, format_log, headers, helper, patches, runner, test_boilerplate,
@@ -43,18 +46,25 @@ Subcommands:
   test-boilerplate  Check standard repository test boilerplate
   unwrap-or         Check unwrap_or domain fallback comments
   vendor-versions   Check for newer versions of vendored crates
+  bootstrap-ledger-journal
+                    Validate existing graph ledger & bundles against Step 0 evidence and initialize ledger-journal.jsonl
+  recover-ledger-journal
+                    Recover an interrupted BATCH_PENDING or torn journal line in ledger-journal.jsonl
 
 Options:
   --offline         Disable network checks (for all and vendor-versions)
   --quick           Skip slow/network checks (for all)
   --add-headers     Automatically insert missing headers (for headers)
   --fix             Automatically fix test boilerplate (for test-boilerplate)
+  --require-manifest <PATH>
+                    Require exact manifest agreement during recover-ledger-journal
+  --dry-run         Simulate journal recovery without mutating files
 "#
     );
 }
 
 fn main() -> Result<()> {
-    let mut args: Vec<String> = env::args().skip(1).collect();
+    let args: Vec<String> = env::args().skip(1).collect();
 
     let first_arg = args.first().map(String::as_str);
 
@@ -68,6 +78,14 @@ fn main() -> Result<()> {
         Some("test-boilerplate") => ("test-boilerplate", args.get(1..).unwrap_or(&[])),
         Some("unwrap-or") => ("unwrap-or", args.get(1..).unwrap_or(&[])),
         Some("vendor-versions") => ("vendor-versions", args.get(1..).unwrap_or(&[])),
+        Some("bootstrap-ledger-journal") => (
+            "bootstrap-ledger-journal",
+            args.get(1..).unwrap_or(&[]),
+        ),
+        Some("recover-ledger-journal") => (
+            "recover-ledger-journal",
+            args.get(1..).unwrap_or(&[]),
+        ),
         Some("--help") | Some("-h") => {
             print_usage();
             return Ok(());
@@ -79,14 +97,28 @@ fn main() -> Result<()> {
     let mut quick = false;
     let mut add_headers = false;
     let mut fix = false;
+    let mut dry_run = false;
+    let mut require_manifest: Option<PathBuf> = None;
     let mut workspace_root: Option<PathBuf> = None;
 
-    for arg in rest_args {
+    let mut idx = 0usize;
+    while idx < rest_args.len() {
+        let Some(arg) = rest_args.get(idx) else {
+            break;
+        };
         match arg.as_str() {
             "--offline" => offline = true,
             "--quick" => quick = true,
             "--add-headers" => add_headers = true,
             "--fix" => fix = true,
+            "--dry-run" => dry_run = true,
+            "--require-manifest" => {
+                idx = idx.saturating_add(1);
+                let Some(val) = rest_args.get(idx) else {
+                    bail!("--require-manifest requires a file path argument");
+                };
+                require_manifest = Some(PathBuf::from(val));
+            }
             "--help" | "-h" => {
                 print_usage();
                 return Ok(());
@@ -102,6 +134,7 @@ fn main() -> Result<()> {
                 }
             }
         }
+        idx = idx.saturating_add(1);
     }
 
     let default_root = find_repository_root().unwrap_or_else(|_| PathBuf::from("."));
@@ -117,6 +150,25 @@ fn main() -> Result<()> {
         "test-boilerplate" => test_boilerplate::run(&root, fix),
         "unwrap-or" => unwrap_or::run(&root),
         "vendor-versions" => vendor_versions::run(&root, offline),
+        "bootstrap-ledger-journal" => {
+            bootstrap_initial_ledger_journal(&root)?;
+            println!(
+                "Bootstrapped initial ledger journal at {}/src/formats/dcdata/data-src/nodes/allocated/ledger-journal.jsonl",
+                root.display()
+            );
+            Ok(())
+        }
+        "recover-ledger-journal" => {
+            let recovered = recover_pending_ledger_journal(
+                &root,
+                require_manifest.as_deref(),
+                dry_run,
+            )?;
+            println!(
+                "Ledger journal recovery completed (recovered_pending_or_torn={recovered}, dry_run={dry_run})"
+            );
+            Ok(())
+        }
         _ => bail!("unknown subcommand: {subcmd}"),
     }
 }

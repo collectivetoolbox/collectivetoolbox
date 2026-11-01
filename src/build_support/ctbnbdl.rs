@@ -20,6 +20,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! `.ctbnodes` (`CtbNodes`, `f639`) and `.ctbnbdl` (`CtbNodeBundle`, `f640`)
 //! node ledger parsing and binary compilation.
 
+#[path = "ctbnbdl/journal.rs"]
+pub mod journal;
+pub use journal::*;
+
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
@@ -417,8 +421,14 @@ fn highwater_shadow_dirs(repo_root: &Path) -> Vec<(String, PathBuf)> {
             git_dir.join("ctb-graph-ledger-highwater"),
         ));
     }
+    let is_main_workspace = repo_root == Path::new("/workspaces/ctoolbox")
+        || repo_root
+            .canonicalize()
+            .ok()
+            .as_deref()
+            == Some(Path::new("/workspaces/ctoolbox"));
     let gemini_dir = Path::new("/root/.gemini");
-    if gemini_dir.is_dir() {
+    if is_main_workspace && gemini_dir.is_dir() {
         dirs.push((
             "high-water ledger (/root/.gemini/ctb-graph-ledger-highwater)"
                 .to_string(),
@@ -648,8 +658,16 @@ pub fn sync_highwater_shadow_ledgers(
 /// that the loaded nodes have not been rolled back or mutated relative to the high-water
 /// shadow ledgers.
 pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
+    let repo_root_opt = find_repo_root_for_main_graph_dir(graph_dir);
+    let _read_guard = if let Some(ref repo_root) = repo_root_opt {
+        let guard = LedgerReadGuard::acquire(repo_root)?;
+        ensure_ledger_journal_clean(repo_root, &guard)?;
+        Some(guard)
+    } else {
+        None
+    };
     let nodes = load_ledger_nodes_from_dir_raw(graph_dir)?;
-    if let Some(repo_root) = find_repo_root_for_main_graph_dir(graph_dir) {
+    if let Some(repo_root) = repo_root_opt {
         for (label, shadow_dir) in highwater_shadow_dirs(&repo_root) {
             if shadow_dir.is_dir() {
                 let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)

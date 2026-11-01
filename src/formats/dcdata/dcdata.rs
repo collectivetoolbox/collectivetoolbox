@@ -26,6 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
+pub(crate) use ctb_build_support::{
+    dc_codegen, find_repository_root_from, fs2, sha2,
+};
 
 pub use crate as ctb_formats_dc_data;
 
@@ -151,9 +154,9 @@ pub use syntax::{
 };
 pub use updater::{
     MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,
-    assign_and_update_format_categories, find_repository_root,
-    generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
-    write_csv_file,
+    assign_and_update_format_categories, check_category_csvs_need_no_id_updates,
+    find_repository_root, generate_merged_csvs, is_empty_row, is_unassigned_id,
+    read_csv_file, write_csv_file,
 };
 pub use seed_graph::{
     ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, SEED_GRAPH_ASSET_GLOB,

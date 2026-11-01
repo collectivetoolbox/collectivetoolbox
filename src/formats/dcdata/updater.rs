@@ -609,6 +609,29 @@ pub fn assign_and_update_format_categories(
     Ok(stats)
 }
 
+/// Verifies in memory (without modifying files on disk) that all Document Character
+/// and Format category CSV files already have assigned and consistent IDs.
+pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
+    let categories_dir =
+        repo_root.join("src/formats/dcdata/data-src/categories");
+    let (_, dc_stats) = process_dc_category_files(&categories_dir)?;
+    ensure!(
+        dc_stats.files_modified == 0,
+        "Dc category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
+        dc_stats.new_ids_assigned.saturating_add(dc_stats.dc_ids_recalculated),
+        dc_stats.files_modified
+    );
+    let formats_dir = categories_dir.join("formats");
+    let (_, fmt_stats) = process_format_category_files(&formats_dir)?;
+    ensure!(
+        fmt_stats.files_modified == 0,
+        "Format category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
+        fmt_stats.new_ids_assigned.saturating_add(fmt_stats.dc_ids_recalculated),
+        fmt_stats.files_modified
+    );
+    Ok(())
+}
+
 /// Generates merged `DcList.generated.csv`, `formats.generated.csv`,
 /// `unicode.generated.csv`, and `all.generated.csv` files sharing a common schema,
 /// sorted strictly ascending by Dc ID.
