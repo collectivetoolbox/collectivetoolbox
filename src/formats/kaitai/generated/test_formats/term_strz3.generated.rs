@@ -102,7 +102,11 @@ impl KStruct for TermStrz3 {
     type Root = TermStrz3;
     type Parent = TermStrz3;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,18 +118,26 @@ impl KStruct for TermStrz3 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, false, true)?, "UTF-8")?;
+        *self_rc.s1.borrow_mut() = bytes_to_str(
+            &_io.read_bytes_term(124, false, false, true)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, false, false, true)?, "UTF-8")?;
+        *self_rc.s2.borrow_mut() = bytes_to_str(
+            &_io.read_bytes_term(64, false, false, true)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s3.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, false, true, true)?, "UTF-8")?;
+        *self_rc.s3.borrow_mut() = bytes_to_str(
+            &_io.read_bytes_term(64, false, true, true)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStrz3 {
-}
+impl TermStrz3 {}
 impl TermStrz3 {
     pub fn s1(&self) -> Ref<'_, String> {
         self.s1.borrow()

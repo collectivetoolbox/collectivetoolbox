@@ -67,7 +67,11 @@ impl KStruct for Zisofs {
     type Root = Zisofs;
     type Parent = Zisofs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -82,11 +86,18 @@ impl KStruct for Zisofs {
         let _raw_header = _io.read_bytes(16_usize)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, Zisofs_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, Zisofs_Header>(
+            &_io_header,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_pointers.borrow_mut() = Vec::new();
-        let l_block_pointers = usize::try_from((*self_rc.header().num_blocks()?).saturating_add(1_i32))?;
+        let l_block_pointers = usize::try_from(
+            (*self_rc.header().num_blocks()?).saturating_add(1_i32),
+        )?;
         for _i in 0_usize..l_block_pointers {
             self_rc.block_pointers.borrow_mut().push(_io.read_u4le()?);
         }
@@ -96,10 +107,12 @@ impl KStruct for Zisofs {
     }
 }
 impl Zisofs {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn blocks(
-        &self
-    ) -> KResult<Ref<'_, Vec<OptRc<Zisofs_Block>>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn blocks(&self) -> KResult<Ref<'_, Vec<OptRc<Zisofs_Block>>>> {
         let _io = self._io.borrow();
         if self.f_blocks.get() {
             return Ok(self.blocks.borrow());
@@ -108,8 +121,29 @@ impl Zisofs {
         *self.blocks.borrow_mut() = Vec::new();
         let l_blocks = usize::try_from(*self.header().num_blocks()?)?;
         for _i in 0_usize..l_blocks {
-            let f = |t : &mut Zisofs_Block| Ok(t.set_params((*(self.block_pointers().get(_i).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?, (*(self.block_pointers().get((_i).saturating_add(1_usize)).ok_or(KError::CastError)?)).try_into().map_err(|_| KError::CastError)?));
-            let t = Self::read_into_with_init::<_, Zisofs_Block>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
+            let f = |t: &mut Zisofs_Block| {
+                Ok(t.set_params(
+                    (*(self
+                        .block_pointers()
+                        .get(_i)
+                        .ok_or(KError::CastError)?))
+                    .try_into()
+                    .map_err(|_| KError::CastError)?,
+                    (*(self
+                        .block_pointers()
+                        .get((_i).saturating_add(1_usize))
+                        .ok_or(KError::CastError)?))
+                    .try_into()
+                    .map_err(|_| KError::CastError)?,
+                ))
+            };
+            let t = Self::read_into_with_init::<_, Zisofs_Block>(
+                &*_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self.blocks.borrow_mut().push(t);
         }
         Ok(self.blocks.borrow())
@@ -196,7 +230,11 @@ impl KStruct for Zisofs_Block {
     type Root = Zisofs;
     type Parent = Zisofs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -229,32 +267,47 @@ impl Zisofs_Block {
     }
 }
 impl Zisofs_Block {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn data(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn data(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
         }
         self.f_data.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_start())?)?;
-        *self.data.borrow_mut() = io.read_bytes(usize::try_from(*self.len_data()?)?)?;
+        *self.data.borrow_mut() =
+            io.read_bytes(usize::try_from(*self.len_data()?)?)?;
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_data(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_data(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_len_data.get() {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = ((*self.ofs_end()).saturating_sub(*self.ofs_start())).try_into()?;
+        *self.len_data.borrow_mut() =
+            ((*self.ofs_end()).saturating_sub(*self.ofs_start())).try_into()?;
         Ok(self.len_data.borrow())
     }
 }
@@ -322,7 +375,11 @@ impl KStruct for Zisofs_Header {
     type Root = Zisofs;
     type Parent = Zisofs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -335,8 +392,15 @@ impl KStruct for Zisofs_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.magic() == vec![0x37u8, 0xe4u8, 0x53u8, 0x96u8, 0xc9u8, 0xdbu8, 0xd6u8, 0x7u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![
+                0x37u8, 0xe4u8, 0x53u8, 0x96u8, 0xc9u8, 0xdbu8, 0xd6u8, 0x7u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uncompressed_size.borrow_mut() = _io.read_u4le()?;
@@ -344,7 +408,10 @@ impl KStruct for Zisofs_Header {
         *self_rc.len_header.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (4).try_into()?;
         if !(*self_rc.len_header() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_size_log2.borrow_mut() = _io.read_u1()?;
@@ -352,13 +419,20 @@ impl KStruct for Zisofs_Header {
         let expected_1: u8 = (16).try_into()?;
         let expected_2: u8 = (17).try_into()?;
         let _item: u8 = (*self_rc.block_size_log2()).try_into()?;
-        if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header/seq/3".to_string() }));
+        if !(_item == expected_0 || _item == expected_1 || _item == expected_2)
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotAnyOf,
+                src_path: "/types/header/seq/3".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/4".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -366,32 +440,53 @@ impl KStruct for Zisofs_Header {
     }
 }
 impl Zisofs_Header {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn block_size(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn block_size(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_block_size.get() {
             return Ok(self.block_size.borrow());
         }
         self.f_block_size.set(true);
-        *self.block_size.borrow_mut() = ((1_i32).wrapping_shl(to_shift_amt(*self.block_size_log2()))).try_into()?;
+        *self.block_size.borrow_mut() = ((1_i32)
+            .wrapping_shl(to_shift_amt(*self.block_size_log2())))
+        .try_into()?;
         Ok(self.block_size.borrow())
     }
 
     /**
      * ceil(uncompressed_size / block_size)
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn num_blocks(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn num_blocks(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_blocks.get() {
             return Ok(self.num_blocks.borrow());
         }
         self.f_num_blocks.set(true);
-        *self.num_blocks.borrow_mut() = (((*self.uncompressed_size()).checked_div(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?).saturating_add(u32::try_from(if ((to_i128((*self.uncompressed_size()).checked_rem(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?)) != (to_i128(0))) { 1_i32 } else { 0_i32 })?)).try_into()?;
+        *self.num_blocks.borrow_mut() = (((*self.uncompressed_size())
+            .checked_div(u32::try_from(*self.block_size()?)?)
+            .ok_or(KError::CastError)?)
+        .saturating_add(u32::try_from(
+            if ((to_i128(
+                (*self.uncompressed_size())
+                    .checked_rem(u32::try_from(*self.block_size()?)?)
+                    .ok_or(KError::CastError)?,
+            )) != (to_i128(0)))
+            {
+                1_i32
+            } else {
+                0_i32
+            },
+        )?))
+        .try_into()?;
         Ok(self.num_blocks.borrow())
     }
 }

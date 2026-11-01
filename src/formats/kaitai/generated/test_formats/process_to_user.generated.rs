@@ -101,7 +101,11 @@ impl KStruct for ProcessToUser {
     type Root = ProcessToUser;
     type Parent = ProcessToUser;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,17 +119,22 @@ impl KStruct for ProcessToUser {
         let _io = io;
         let _raw_buf1 = _io.read_bytes(5_usize)?;
         *self_rc.buf1_raw.borrow_mut() = _raw_buf1.clone();
-        let _processed_buf1 = process_rotate_left(&_raw_buf1, i64::try_from(3)?);
+        let _processed_buf1 =
+            process_rotate_left(&_raw_buf1, i64::try_from(3)?);
         let _io_buf1 = BytesReader::from(_processed_buf1);
-        let t = Self::read_into::<BytesReader, ProcessToUser_JustStr>(&_io_buf1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, ProcessToUser_JustStr>(
+            &_io_buf1,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.buf1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessToUser {
-}
+impl ProcessToUser {}
 impl ProcessToUser {
     pub fn buf1(&self) -> Ref<'_, OptRc<ProcessToUser_JustStr>> {
         self.buf1.borrow()
@@ -192,7 +201,11 @@ impl KStruct for ProcessToUser_JustStr {
     type Root = ProcessToUser;
     type Parent = ProcessToUser;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -204,14 +217,14 @@ impl KStruct for ProcessToUser_JustStr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.str.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessToUser_JustStr {
-}
+impl ProcessToUser_JustStr {}
 impl ProcessToUser_JustStr {
     pub fn str(&self) -> Ref<'_, String> {
         self.str.borrow()

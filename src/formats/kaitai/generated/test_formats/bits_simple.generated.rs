@@ -114,7 +114,11 @@ impl KStruct for BitsSimple {
     type Root = BitsSimple;
     type Parent = BitsSimple;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -158,10 +162,12 @@ impl KStruct for BitsSimple {
     }
 }
 impl BitsSimple {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn test_if_b1(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn test_if_b1(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_test_if_b1.get() {
             return Ok(self.test_if_b1.borrow());

@@ -912,12 +912,8 @@ fn emit_read_array_element(
                 w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow())); f(&mut *t.get_mut()) }})();"));
             }
             w.puts(&format!("let (root_in, parent_in) = ({target_args});"));
-            w.puts(
-                "let root = Self::downcast(root_in, t.clone(), true);",
-            );
-            w.puts(
-                "let parent = Self::downcast(parent_in, t.clone(), false);",
-            );
+            w.puts("let root = Self::downcast(root_in, t.clone(), true);");
+            w.puts("let parent = Self::downcast(parent_in, t.clone(), false);");
             w.puts(&format!(
                 "let res = {type_name}::read(&t, {io_expr}, root, parent);"
             ));

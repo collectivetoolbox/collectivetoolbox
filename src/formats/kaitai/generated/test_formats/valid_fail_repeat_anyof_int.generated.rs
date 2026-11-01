@@ -91,7 +91,9 @@ impl DowncastOptRc<ValidFailRepeatAnyofInt> for OptRc<ValidFailRepeatAnyofInt> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ValidFailRepeatAnyofInt> for &OptRc<ValidFailRepeatAnyofInt> {
+impl DowncastOptRc<ValidFailRepeatAnyofInt>
+    for &OptRc<ValidFailRepeatAnyofInt>
+{
     fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatAnyofInt>, KError> {
         Ok((*self).clone())
     }
@@ -100,7 +102,11 @@ impl KStruct for ValidFailRepeatAnyofInt {
     type Root = ValidFailRepeatAnyofInt;
     type Parent = ValidFailRepeatAnyofInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,8 +131,14 @@ impl KStruct for ValidFailRepeatAnyofInt {
         let expected_2: u8 = (65).try_into()?;
         for _elem in self_rc.foo().iter() {
             let _item: u8 = (*_elem).try_into()?;
-            if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
-                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+            if !(_item == expected_0
+                || _item == expected_1
+                || _item == expected_2)
+            {
+                return Err(KError::ValidationFailed(ValidationFailedError {
+                    kind: ValidationKind::NotAnyOf,
+                    src_path: "/seq/0".to_string(),
+                }));
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -134,8 +146,7 @@ impl KStruct for ValidFailRepeatAnyofInt {
         Ok(())
     }
 }
-impl ValidFailRepeatAnyofInt {
-}
+impl ValidFailRepeatAnyofInt {}
 impl ValidFailRepeatAnyofInt {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

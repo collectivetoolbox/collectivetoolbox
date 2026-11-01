@@ -75,7 +75,11 @@ impl KStruct for VmwareVmdk {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,12 +93,20 @@ impl KStruct for VmwareVmdk {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4bu8, 0x44u8, 0x4du8, 0x56u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, VmwareVmdk_HeaderFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, VmwareVmdk_HeaderFlags>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_max.borrow_mut() = _io.read_s8le()?;
@@ -117,62 +129,138 @@ impl KStruct for VmwareVmdk {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.stuff.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.compression_method.borrow_mut() =
+            i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl VmwareVmdk {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn descriptor(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn descriptor(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_descriptor.get() {
             return Ok(self.descriptor.borrow());
         }
         self.f_descriptor.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.start_descriptor()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
-        *self.descriptor.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_descriptor()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        _io.seek(usize::try_from(
+            (*self.start_descriptor()).saturating_mul(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .len_sector()?,
+            )),
+        )?)?;
+        *self.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(
+            (*self.size_descriptor()).saturating_mul(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .len_sector()?,
+            )),
+        )?)?;
         _io.seek(_pos)?;
         Ok(self.descriptor.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn grain_primary(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn grain_primary(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_grain_primary.get() {
             return Ok(self.grain_primary.borrow());
         }
         self.f_grain_primary.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.start_primary_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
-        *self.grain_primary.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        _io.seek(usize::try_from(
+            (*self.start_primary_grain()).saturating_mul(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .len_sector()?,
+            )),
+        )?)?;
+        *self.grain_primary.borrow_mut() = _io.read_bytes(usize::try_from(
+            (*self.size_grain()).saturating_mul(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .len_sector()?,
+            )),
+        )?)?;
         _io.seek(_pos)?;
         Ok(self.grain_primary.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn grain_secondary(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn grain_secondary(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_grain_secondary.get() {
             return Ok(self.grain_secondary.borrow());
         }
         self.f_grain_secondary.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.start_secondary_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
-        *self.grain_secondary.borrow_mut() = _io.read_bytes(usize::try_from((*self.size_grain()).saturating_mul(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.len_sector()?)))?)?;
+        _io.seek(usize::try_from(
+            (*self.start_secondary_grain()).saturating_mul(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .len_sector()?,
+            )),
+        )?)?;
+        *self.grain_secondary.borrow_mut() =
+            _io.read_bytes(usize::try_from(
+                (*self.size_grain()).saturating_mul(i64::from(
+                    *self
+                        ._root
+                        .get_value()
+                        .borrow()
+                        .upgrade()
+                        .as_ref()
+                        .ok_or(KError::MissingRoot)?
+                        .len_sector()?,
+                )),
+            )?)?;
         _io.seek(_pos)?;
         Ok(self.grain_secondary.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_sector(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_sector(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_sector.get() {
             return Ok(self.len_sector.borrow());
@@ -315,15 +403,16 @@ impl From<&VmwareVmdk_CompressionMethods> for i64 {
         match *v {
             VmwareVmdk_CompressionMethods::None => 0,
             VmwareVmdk_CompressionMethods::Deflate => 1,
-            VmwareVmdk_CompressionMethods::Unknown(v) => v
+            VmwareVmdk_CompressionMethods::Unknown(v) => v,
         }
     }
 }
 
 impl Default for VmwareVmdk_CompressionMethods {
-    fn default() -> Self { VmwareVmdk_CompressionMethods::Unknown(0) }
+    fn default() -> Self {
+        VmwareVmdk_CompressionMethods::Unknown(0)
+    }
 }
-
 
 /**
  * \sa <https://github.com/libyal/libvmdk/blob/main/documentation/VMWare%20Virtual%20Disk%20Format%20(VMDK).asciidoc#411-flags> Source
@@ -381,7 +470,11 @@ impl KStruct for VmwareVmdk_HeaderFlags {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -395,11 +488,14 @@ impl KStruct for VmwareVmdk_HeaderFlags {
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(5)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.zeroed_grain_table_entry.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.zeroed_grain_table_entry.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.use_secondary_grain_dir.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.use_secondary_grain_dir.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.valid_new_line_detection_test.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.valid_new_line_detection_test.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
@@ -408,7 +504,8 @@ impl KStruct for VmwareVmdk_HeaderFlags {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_metadata.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_compressed_grain.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.has_compressed_grain.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved4.borrow_mut() = _io.read_u1()?;
@@ -417,8 +514,7 @@ impl KStruct for VmwareVmdk_HeaderFlags {
         Ok(())
     }
 }
-impl VmwareVmdk_HeaderFlags {
-}
+impl VmwareVmdk_HeaderFlags {}
 impl VmwareVmdk_HeaderFlags {
     pub fn reserved1(&self) -> Ref<'_, u64> {
         self.reserved1.borrow()

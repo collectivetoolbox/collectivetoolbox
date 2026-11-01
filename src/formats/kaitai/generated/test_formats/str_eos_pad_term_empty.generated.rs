@@ -107,7 +107,11 @@ impl KStruct for StrEosPadTermEmpty {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,33 +126,60 @@ impl KStruct for StrEosPadTermEmpty {
         let _raw_str_pad = _io.read_bytes(20_usize)?;
         *self_rc.str_pad_raw.borrow_mut() = _raw_str_pad.clone();
         let _io_str_pad = BytesReader::from(_raw_str_pad);
-        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrPadType>(&_io_str_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrPadType>(
+            &_io_str_pad,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str_pad.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_str_term = _io.read_bytes(20_usize)?;
         *self_rc.str_term_raw.borrow_mut() = _raw_str_term.clone();
         let _io_str_term = BytesReader::from(_raw_str_term);
-        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrTermType>(&_io_str_term, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrTermType>(
+            &_io_str_term,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str_term.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_str_term_and_pad = _io.read_bytes(20_usize)?;
-        *self_rc.str_term_and_pad_raw.borrow_mut() = _raw_str_term_and_pad.clone();
+        *self_rc.str_term_and_pad_raw.borrow_mut() =
+            _raw_str_term_and_pad.clone();
         let _io_str_term_and_pad = BytesReader::from(_raw_str_term_and_pad);
-        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrTermAndPadType>(&_io_str_term_and_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEosPadTermEmpty_StrTermAndPadType,
+        >(
+            &_io_str_term_and_pad,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str_term_and_pad.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_str_term_include = _io.read_bytes(20_usize)?;
-        *self_rc.str_term_include_raw.borrow_mut() = _raw_str_term_include.clone();
+        *self_rc.str_term_include_raw.borrow_mut() =
+            _raw_str_term_include.clone();
         let _io_str_term_include = BytesReader::from(_raw_str_term_include);
-        let t = Self::read_into::<BytesReader, StrEosPadTermEmpty_StrTermIncludeType>(&_io_str_term_include, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEosPadTermEmpty_StrTermIncludeType,
+        >(
+            &_io_str_term_include,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str_term_include.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEosPadTermEmpty {
-}
+impl StrEosPadTermEmpty {}
 impl StrEosPadTermEmpty {
     pub fn str_pad(&self) -> Ref<'_, OptRc<StrEosPadTermEmpty_StrPadType>> {
         self.str_pad.borrow()
@@ -160,12 +191,16 @@ impl StrEosPadTermEmpty {
     }
 }
 impl StrEosPadTermEmpty {
-    pub fn str_term_and_pad(&self) -> Ref<'_, OptRc<StrEosPadTermEmpty_StrTermAndPadType>> {
+    pub fn str_term_and_pad(
+        &self,
+    ) -> Ref<'_, OptRc<StrEosPadTermEmpty_StrTermAndPadType>> {
         self.str_term_and_pad.borrow()
     }
 }
 impl StrEosPadTermEmpty {
-    pub fn str_term_include(&self) -> Ref<'_, OptRc<StrEosPadTermEmpty_StrTermIncludeType>> {
+    pub fn str_term_include(
+        &self,
+    ) -> Ref<'_, OptRc<StrEosPadTermEmpty_StrTermIncludeType>> {
         self.str_term_include.borrow()
     }
 }
@@ -209,35 +244,59 @@ pub struct StrEosPadTermEmpty_StrPadType {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
+impl TryFrom<&StrEosPadTermEmpty_StrPadType>
+    for OptRc<StrEosPadTermEmpty_StrPadType>
+{
     type Error = KError;
-    fn try_from(v: &StrEosPadTermEmpty_StrPadType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEosPadTermEmpty_StrPadType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
+impl TryFrom<&&StrEosPadTermEmpty_StrPadType>
+    for OptRc<StrEosPadTermEmpty_StrPadType>
+{
     type Error = KError;
-    fn try_from(v: &&StrEosPadTermEmpty_StrPadType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEosPadTermEmpty_StrPadType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for StrEosPadTermEmpty_StrPadType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType>
+    for StrEosPadTermEmpty_StrPadType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for &StrEosPadTermEmpty_StrPadType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType>
+    for &StrEosPadTermEmpty_StrPadType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType>
+    for OptRc<StrEosPadTermEmpty_StrPadType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for &OptRc<StrEosPadTermEmpty_StrPadType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType>
+    for &OptRc<StrEosPadTermEmpty_StrPadType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -245,7 +304,11 @@ impl KStruct for StrEosPadTermEmpty_StrPadType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -257,14 +320,21 @@ impl KStruct for StrEosPadTermEmpty_StrPadType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, None, false, Some(64)), "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes_full()?,
+                None,
+                false,
+                Some(64),
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEosPadTermEmpty_StrPadType {
-}
+impl StrEosPadTermEmpty_StrPadType {}
 impl StrEosPadTermEmpty_StrPadType {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()
@@ -290,35 +360,59 @@ pub struct StrEosPadTermEmpty_StrTermAndPadType {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+impl TryFrom<&StrEosPadTermEmpty_StrTermAndPadType>
+    for OptRc<StrEosPadTermEmpty_StrTermAndPadType>
+{
     type Error = KError;
-    fn try_from(v: &StrEosPadTermEmpty_StrTermAndPadType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEosPadTermEmpty_StrTermAndPadType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+impl TryFrom<&&StrEosPadTermEmpty_StrTermAndPadType>
+    for OptRc<StrEosPadTermEmpty_StrTermAndPadType>
+{
     type Error = KError;
-    fn try_from(v: &&StrEosPadTermEmpty_StrTermAndPadType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEosPadTermEmpty_StrTermAndPadType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for StrEosPadTermEmpty_StrTermAndPadType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType>
+    for StrEosPadTermEmpty_StrTermAndPadType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for &StrEosPadTermEmpty_StrTermAndPadType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType>
+    for &StrEosPadTermEmpty_StrTermAndPadType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType>
+    for OptRc<StrEosPadTermEmpty_StrTermAndPadType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for &OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType>
+    for &OptRc<StrEosPadTermEmpty_StrTermAndPadType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -326,7 +420,11 @@ impl KStruct for StrEosPadTermEmpty_StrTermAndPadType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -338,14 +436,21 @@ impl KStruct for StrEosPadTermEmpty_StrTermAndPadType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), false, Some(43)), "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes_full()?,
+                Some(64),
+                false,
+                Some(43),
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEosPadTermEmpty_StrTermAndPadType {
-}
+impl StrEosPadTermEmpty_StrTermAndPadType {}
 impl StrEosPadTermEmpty_StrTermAndPadType {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()
@@ -371,35 +476,59 @@ pub struct StrEosPadTermEmpty_StrTermIncludeType {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+impl TryFrom<&StrEosPadTermEmpty_StrTermIncludeType>
+    for OptRc<StrEosPadTermEmpty_StrTermIncludeType>
+{
     type Error = KError;
-    fn try_from(v: &StrEosPadTermEmpty_StrTermIncludeType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEosPadTermEmpty_StrTermIncludeType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+impl TryFrom<&&StrEosPadTermEmpty_StrTermIncludeType>
+    for OptRc<StrEosPadTermEmpty_StrTermIncludeType>
+{
     type Error = KError;
-    fn try_from(v: &&StrEosPadTermEmpty_StrTermIncludeType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEosPadTermEmpty_StrTermIncludeType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for StrEosPadTermEmpty_StrTermIncludeType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType>
+    for StrEosPadTermEmpty_StrTermIncludeType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for &StrEosPadTermEmpty_StrTermIncludeType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType>
+    for &StrEosPadTermEmpty_StrTermIncludeType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType>
+    for OptRc<StrEosPadTermEmpty_StrTermIncludeType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for &OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType>
+    for &OptRc<StrEosPadTermEmpty_StrTermIncludeType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -407,7 +536,11 @@ impl KStruct for StrEosPadTermEmpty_StrTermIncludeType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -419,14 +552,16 @@ impl KStruct for StrEosPadTermEmpty_StrTermIncludeType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), true, None), "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), true, None),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEosPadTermEmpty_StrTermIncludeType {
-}
+impl StrEosPadTermEmpty_StrTermIncludeType {}
 impl StrEosPadTermEmpty_StrTermIncludeType {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()
@@ -452,35 +587,59 @@ pub struct StrEosPadTermEmpty_StrTermType {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
+impl TryFrom<&StrEosPadTermEmpty_StrTermType>
+    for OptRc<StrEosPadTermEmpty_StrTermType>
+{
     type Error = KError;
-    fn try_from(v: &StrEosPadTermEmpty_StrTermType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEosPadTermEmpty_StrTermType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
+impl TryFrom<&&StrEosPadTermEmpty_StrTermType>
+    for OptRc<StrEosPadTermEmpty_StrTermType>
+{
     type Error = KError;
-    fn try_from(v: &&StrEosPadTermEmpty_StrTermType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEosPadTermEmpty_StrTermType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for StrEosPadTermEmpty_StrTermType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType>
+    for StrEosPadTermEmpty_StrTermType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for &StrEosPadTermEmpty_StrTermType {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType>
+    for &StrEosPadTermEmpty_StrTermType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType>
+    for OptRc<StrEosPadTermEmpty_StrTermType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for &OptRc<StrEosPadTermEmpty_StrTermType> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType>
+    for &OptRc<StrEosPadTermEmpty_StrTermType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -488,7 +647,11 @@ impl KStruct for StrEosPadTermEmpty_StrTermType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -500,14 +663,21 @@ impl KStruct for StrEosPadTermEmpty_StrTermType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), false, None), "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes_full()?,
+                Some(64),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEosPadTermEmpty_StrTermType {
-}
+impl StrEosPadTermEmpty_StrTermType {}
 impl StrEosPadTermEmpty_StrTermType {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

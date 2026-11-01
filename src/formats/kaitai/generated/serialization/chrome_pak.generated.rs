@@ -66,7 +66,11 @@ impl KStruct for ChromePak {
     type Root = ChromePak;
     type Parent = ChromePak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,7 +87,10 @@ impl KStruct for ChromePak {
         let expected_1: u32 = (5).try_into()?;
         let _item: u32 = (*self_rc.version()).try_into()?;
         if !(_item == expected_0 || _item == expected_1) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotAnyOf,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
@@ -91,26 +98,49 @@ impl KStruct for ChromePak {
             *self_rc.num_resources_v4.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.encoding.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.version())) == (to_i128(5))) {
-            let t = Self::read_into::<_, ChromePak_HeaderV5Part>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, ChromePak_HeaderV5Part>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.v5_part.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.resources.borrow_mut() = Vec::new();
-        let l_resources = usize::try_from((*self_rc.num_resources()?).saturating_add(1_u32))?;
+        let l_resources =
+            usize::try_from((*self_rc.num_resources()?).saturating_add(1_u32))?;
         for _i in 0_usize..l_resources {
-            let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, ((to_i128(_i)) < (to_i128(*self_rc.num_resources()?)))));
-            let t = Self::read_into_with_init::<_, ChromePak_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut ChromePak_Resource| {
+                Ok(t.set_params(
+                    (_i).try_into().map_err(|_| KError::CastError)?,
+                    ((to_i128(_i)) < (to_i128(*self_rc.num_resources()?))),
+                ))
+            };
+            let t = Self::read_into_with_init::<_, ChromePak_Resource>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.resources.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.aliases.borrow_mut() = Vec::new();
         let l_aliases = usize::try_from(*self_rc.num_aliases()?)?;
         for _i in 0_usize..l_aliases {
-            let t = Self::read_into::<_, ChromePak_Alias>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, ChromePak_Alias>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.aliases.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -119,28 +149,44 @@ impl KStruct for ChromePak {
     }
 }
 impl ChromePak {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn num_aliases(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn num_aliases(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_aliases.get() {
             return Ok(self.num_aliases.borrow());
         }
         self.f_num_aliases.set(true);
-        *self.num_aliases.borrow_mut() = (if ((to_i128(*self.version())) == (to_i128(5))) { i32::from(*self.v5_part().num_aliases()) } else { 0_i32 }).try_into()?;
+        *self.num_aliases.borrow_mut() =
+            (if ((to_i128(*self.version())) == (to_i128(5))) {
+                i32::from(*self.v5_part().num_aliases())
+            } else {
+                0_i32
+            })
+            .try_into()?;
         Ok(self.num_aliases.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn num_resources(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn num_resources(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_num_resources.get() {
             return Ok(self.num_resources.borrow());
         }
         self.f_num_resources.set(true);
-        *self.num_resources.borrow_mut() = (if ((to_i128(*self.version())) == (to_i128(5))) { u32::from(*self.v5_part().num_resources()) } else { *self.num_resources_v4() }).try_into()?;
+        *self.num_resources.borrow_mut() =
+            (if ((to_i128(*self.version())) == (to_i128(5))) {
+                u32::from(*self.v5_part().num_resources())
+            } else {
+                *self.num_resources_v4()
+            })
+            .try_into()?;
         Ok(self.num_resources.borrow())
     }
 }
@@ -209,7 +255,6 @@ impl ChromePak {
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ChromePak_Encodings {
-
     /**
      * file is not expected to contain any text resources
      */
@@ -245,15 +290,16 @@ impl From<&ChromePak_Encodings> for i64 {
             ChromePak_Encodings::Binary => 0,
             ChromePak_Encodings::Utf8 => 1,
             ChromePak_Encodings::Utf16 => 2,
-            ChromePak_Encodings::Unknown(v) => v
+            ChromePak_Encodings::Unknown(v) => v,
         }
     }
 }
 
 impl Default for ChromePak_Encodings {
-    fn default() -> Self { ChromePak_Encodings::Unknown(0) }
+    fn default() -> Self {
+        ChromePak_Encodings::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct ChromePak_Alias {
@@ -302,7 +348,11 @@ impl KStruct for ChromePak_Alias {
     type Root = ChromePak;
     type Parent = ChromePak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -317,9 +367,21 @@ impl KStruct for ChromePak_Alias {
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.resource_idx.borrow_mut() = _io.read_u2le()?;
-        let max_val: u16 = ((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_resources()?).saturating_sub(1_u32)).try_into()?;
+        let max_val: u16 = ((*self_rc
+            ._parent
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingParent)?
+            .num_resources()?)
+        .saturating_sub(1_u32))
+        .try_into()?;
         if !(*self_rc.resource_idx() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/alias/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/types/alias/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -327,15 +389,27 @@ impl KStruct for ChromePak_Alias {
     }
 }
 impl ChromePak_Alias {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn resource(
-        &self
-    ) -> KResult<Ref<'_, OptRc<ChromePak_Resource>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn resource(&self) -> KResult<Ref<'_, OptRc<ChromePak_Resource>>> {
         let _io = self._io.borrow();
         if self.f_resource.get() {
             return Ok(self.resource.borrow());
         }
-        *self.resource.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::from(*self.resource_idx())).ok_or(KError::CastError)?.clone();
+        *self.resource.borrow_mut() = self
+            ._parent
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingParent)?
+            .resources()
+            .get(usize::from(*self.resource_idx()))
+            .ok_or(KError::CastError)?
+            .clone();
         Ok(self.resource.borrow())
     }
 }
@@ -408,7 +482,11 @@ impl KStruct for ChromePak_HeaderV5Part {
     type Root = ChromePak;
     type Parent = ChromePak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -430,8 +508,7 @@ impl KStruct for ChromePak_HeaderV5Part {
         Ok(())
     }
 }
-impl ChromePak_HeaderV5Part {
-}
+impl ChromePak_HeaderV5Part {}
 impl ChromePak_HeaderV5Part {
     pub fn encoding_padding(&self) -> Ref<'_, Vec<u8>> {
         self.encoding_padding.borrow()
@@ -515,7 +592,11 @@ impl KStruct for ChromePak_Resource {
     type Root = ChromePak;
     type Parent = ChromePak;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -552,14 +633,15 @@ impl ChromePak_Resource {
     }
 }
 impl ChromePak_Resource {
-
     /**
      * MUST NOT be accessed until the next `resource` is parsed
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
@@ -568,7 +650,8 @@ impl ChromePak_Resource {
         if *self.has_body() {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_body())?)?;
-            *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_body()?)?)?;
+            *self.body.borrow_mut() =
+                _io.read_bytes(usize::try_from(*self.len_body()?)?)?;
             _io.seek(_pos)?;
         }
         Ok(self.body.borrow())
@@ -577,17 +660,31 @@ impl ChromePak_Resource {
     /**
      * MUST NOT be accessed until the next `resource` is parsed
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn len_body(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn len_body(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_len_body.get() {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
         if *self.has_body() {
-            *self.len_body.borrow_mut() = ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.resources().get(usize::try_from((*self.idx()).saturating_add(1_i32))?).ok_or(KError::CastError)?.ofs_body()).saturating_sub(*self.ofs_body())).try_into()?;
+            *self.len_body.borrow_mut() = ((*self
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .resources()
+                .get(usize::try_from((*self.idx()).saturating_add(1_i32))?)
+                .ok_or(KError::CastError)?
+                .ofs_body())
+            .saturating_sub(*self.ofs_body()))
+            .try_into()?;
         }
         Ok(self.len_body.borrow())
     }

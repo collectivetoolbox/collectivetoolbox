@@ -101,7 +101,11 @@ impl KStruct for RepeatUntilSized {
     type Root = RepeatUntilSized;
     type Parent = RepeatUntilSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,12 +123,22 @@ impl KStruct for RepeatUntilSized {
             loop {
                 let _raw_records = _io.read_bytes(5_usize)?;
                 let _io_records = BytesReader::from(_raw_records);
-                let t = Self::read_into::<BytesReader, RepeatUntilSized_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, RepeatUntilSized_Record>(
+                        &_io_records,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                 self_rc.records.borrow_mut().push(t);
                 let _t_records = self_rc.records.borrow();
-                let Some(_tmpa) = _t_records.last() else { break; };
+                let Some(_tmpa) = _t_records.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.marker())) == (to_i128(170))) { break; }
+                if ((to_i128(*_tmpa.marker())) == (to_i128(170))) {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -132,8 +146,7 @@ impl KStruct for RepeatUntilSized {
         Ok(())
     }
 }
-impl RepeatUntilSized {
-}
+impl RepeatUntilSized {}
 impl RepeatUntilSized {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<RepeatUntilSized_Record>>> {
         self.records.borrow()
@@ -192,7 +205,9 @@ impl DowncastOptRc<RepeatUntilSized_Record> for OptRc<RepeatUntilSized_Record> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilSized_Record> for &OptRc<RepeatUntilSized_Record> {
+impl DowncastOptRc<RepeatUntilSized_Record>
+    for &OptRc<RepeatUntilSized_Record>
+{
     fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized_Record>, KError> {
         Ok((*self).clone())
     }
@@ -201,7 +216,11 @@ impl KStruct for RepeatUntilSized_Record {
     type Root = RepeatUntilSized;
     type Parent = RepeatUntilSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -221,8 +240,7 @@ impl KStruct for RepeatUntilSized_Record {
         Ok(())
     }
 }
-impl RepeatUntilSized_Record {
-}
+impl RepeatUntilSized_Record {}
 impl RepeatUntilSized_Record {
     pub fn marker(&self) -> Ref<'_, u8> {
         self.marker.borrow()

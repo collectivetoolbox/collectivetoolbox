@@ -101,7 +101,11 @@ impl KStruct for EnumFancy {
     type Root = EnumFancy;
     type Parent = EnumFancy;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,8 +125,7 @@ impl KStruct for EnumFancy {
         Ok(())
     }
 }
-impl EnumFancy {
-}
+impl EnumFancy {}
 impl EnumFancy {
     pub fn pet_1(&self) -> Ref<'_, EnumFancy_Animal> {
         self.pet_1.borrow()
@@ -146,7 +149,6 @@ impl EnumFancy {
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EnumFancy_Animal {
-
     /**
      * A member of genus Canis.
      */
@@ -178,12 +180,13 @@ impl From<&EnumFancy_Animal> for i64 {
             EnumFancy_Animal::Dog => 4,
             EnumFancy_Animal::Cat => 7,
             EnumFancy_Animal::Chicken => 12,
-            EnumFancy_Animal::Unknown(v) => v
+            EnumFancy_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for EnumFancy_Animal {
-    fn default() -> Self { EnumFancy_Animal::Unknown(0) }
+    fn default() -> Self {
+        EnumFancy_Animal::Unknown(0)
+    }
 }
-

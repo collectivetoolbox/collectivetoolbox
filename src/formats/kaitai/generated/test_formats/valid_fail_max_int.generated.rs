@@ -100,7 +100,11 @@ impl KStruct for ValidFailMaxInt {
     type Root = ValidFailMaxInt;
     type Parent = ValidFailMaxInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,15 +119,17 @@ impl KStruct for ValidFailMaxInt {
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
         let max_val: u8 = (12).try_into()?;
         if !(*self_rc.foo() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailMaxInt {
-}
+impl ValidFailMaxInt {}
 impl ValidFailMaxInt {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

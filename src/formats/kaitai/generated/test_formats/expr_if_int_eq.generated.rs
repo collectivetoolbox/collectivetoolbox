@@ -127,7 +127,11 @@ impl KStruct for ExprIfIntEq {
     type Root = ExprIfIntEq;
     type Parent = ExprIfIntEq;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -153,10 +157,12 @@ impl KStruct for ExprIfIntEq {
     }
 }
 impl ExprIfIntEq {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_calc.get() {
             return Ok(self.calc.borrow());
@@ -165,22 +171,27 @@ impl ExprIfIntEq {
         *self.calc.borrow_mut() = (16705).try_into()?;
         Ok(self.calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_eq_calc_if(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_eq_calc_if(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_calc_eq_calc_if.get() {
             return Ok(self.calc_eq_calc_if.borrow());
         }
         self.f_calc_eq_calc_if.set(true);
-        *self.calc_eq_calc_if.borrow_mut() = (*self.calc()? == *self.calc_if()?).try_into()?;
+        *self.calc_eq_calc_if.borrow_mut() =
+            (*self.calc()? == *self.calc_if()?).try_into()?;
         Ok(self.calc_eq_calc_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_eq_lit(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_eq_lit(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_calc_eq_lit.get() {
             return Ok(self.calc_eq_lit.borrow());
@@ -189,22 +200,28 @@ impl ExprIfIntEq {
         *self.calc_eq_lit.borrow_mut() = (*self.calc()? == 16705).try_into()?;
         Ok(self.calc_eq_lit.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_eq_seq_if(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_eq_seq_if(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_calc_eq_seq_if.get() {
             return Ok(self.calc_eq_seq_if.borrow());
         }
         self.f_calc_eq_seq_if.set(true);
-        *self.calc_eq_seq_if.borrow_mut() = (((to_i128(*self.calc()?)) == (to_i128(*self.seq_if())))).try_into()?;
+        *self.calc_eq_seq_if.borrow_mut() = ((to_i128(*self.calc()?))
+            == (to_i128(*self.seq_if())))
+        .try_into()?;
         Ok(self.calc_eq_seq_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_if(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_if(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_calc_if.get() {
             return Ok(self.calc_if.borrow());
@@ -215,88 +232,111 @@ impl ExprIfIntEq {
         }
         Ok(self.calc_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_if_eq_lit(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_if_eq_lit(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_calc_if_eq_lit.get() {
             return Ok(self.calc_if_eq_lit.borrow());
         }
         self.f_calc_if_eq_lit.set(true);
-        *self.calc_if_eq_lit.borrow_mut() = (*self.calc_if()? == 16705).try_into()?;
+        *self.calc_if_eq_lit.borrow_mut() =
+            (*self.calc_if()? == 16705).try_into()?;
         Ok(self.calc_if_eq_lit.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn calc_if_eq_seq_if(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn calc_if_eq_seq_if(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_calc_if_eq_seq_if.get() {
             return Ok(self.calc_if_eq_seq_if.borrow());
         }
         self.f_calc_if_eq_seq_if.set(true);
-        *self.calc_if_eq_seq_if.borrow_mut() = (((to_i128(*self.calc_if()?)) == (to_i128(*self.seq_if())))).try_into()?;
+        *self.calc_if_eq_seq_if.borrow_mut() = ((to_i128(*self.calc_if()?))
+            == (to_i128(*self.seq_if())))
+        .try_into()?;
         Ok(self.calc_if_eq_seq_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn seq_eq_calc(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn seq_eq_calc(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_seq_eq_calc.get() {
             return Ok(self.seq_eq_calc.borrow());
         }
         self.f_seq_eq_calc.set(true);
-        *self.seq_eq_calc.borrow_mut() = (((to_i128(*self.seq())) == (to_i128(*self.calc()?)))).try_into()?;
+        *self.seq_eq_calc.borrow_mut() =
+            ((to_i128(*self.seq())) == (to_i128(*self.calc()?))).try_into()?;
         Ok(self.seq_eq_calc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn seq_eq_calc_if(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn seq_eq_calc_if(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_seq_eq_calc_if.get() {
             return Ok(self.seq_eq_calc_if.borrow());
         }
         self.f_seq_eq_calc_if.set(true);
-        *self.seq_eq_calc_if.borrow_mut() = (((to_i128(*self.seq())) == (to_i128(*self.calc_if()?)))).try_into()?;
+        *self.seq_eq_calc_if.borrow_mut() = ((to_i128(*self.seq()))
+            == (to_i128(*self.calc_if()?)))
+        .try_into()?;
         Ok(self.seq_eq_calc_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn seq_eq_lit(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn seq_eq_lit(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_seq_eq_lit.get() {
             return Ok(self.seq_eq_lit.borrow());
         }
         self.f_seq_eq_lit.set(true);
-        *self.seq_eq_lit.borrow_mut() = (((to_i128(*self.seq())) == (to_i128(16705)))).try_into()?;
+        *self.seq_eq_lit.borrow_mut() =
+            ((to_i128(*self.seq())) == (to_i128(16705))).try_into()?;
         Ok(self.seq_eq_lit.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn seq_eq_seq_if(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn seq_eq_seq_if(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_seq_eq_seq_if.get() {
             return Ok(self.seq_eq_seq_if.borrow());
         }
         self.f_seq_eq_seq_if.set(true);
-        *self.seq_eq_seq_if.borrow_mut() = (*self.seq() == *self.seq_if()).try_into()?;
+        *self.seq_eq_seq_if.borrow_mut() =
+            (*self.seq() == *self.seq_if()).try_into()?;
         Ok(self.seq_eq_seq_if.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn seq_if_eq_lit(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn seq_if_eq_lit(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_seq_if_eq_lit.get() {
             return Ok(self.seq_if_eq_lit.borrow());
         }
         self.f_seq_if_eq_lit.set(true);
-        *self.seq_if_eq_lit.borrow_mut() = (((to_i128(*self.seq_if())) == (to_i128(16705)))).try_into()?;
+        *self.seq_if_eq_lit.borrow_mut() =
+            ((to_i128(*self.seq_if())) == (to_i128(16705))).try_into()?;
         Ok(self.seq_if_eq_lit.borrow())
     }
 }

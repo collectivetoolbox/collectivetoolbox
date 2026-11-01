@@ -101,7 +101,11 @@ impl KStruct for MultipleUse {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,18 +117,27 @@ impl KStruct for MultipleUse {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, MultipleUse_Type1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, MultipleUse_Type1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.t1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, MultipleUse_Type2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, MultipleUse_Type2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.t2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MultipleUse {
-}
+impl MultipleUse {}
 impl MultipleUse {
     pub fn t1(&self) -> Ref<'_, OptRc<MultipleUse_Type1>> {
         self.t1.borrow()
@@ -191,7 +204,11 @@ impl KStruct for MultipleUse_Multi {
     type Root = MultipleUse;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -209,8 +226,7 @@ impl KStruct for MultipleUse_Multi {
         Ok(())
     }
 }
-impl MultipleUse_Multi {
-}
+impl MultipleUse_Multi {}
 impl MultipleUse_Multi {
     pub fn value(&self) -> Ref<'_, i32> {
         self.value.borrow()
@@ -272,7 +288,11 @@ impl KStruct for MultipleUse_Type1 {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -284,15 +304,19 @@ impl KStruct for MultipleUse_Type1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, MultipleUse_Multi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, MultipleUse_Multi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.first_use.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MultipleUse_Type1 {
-}
+impl MultipleUse_Type1 {}
 impl MultipleUse_Type1 {
     pub fn first_use(&self) -> Ref<'_, OptRc<MultipleUse_Multi>> {
         self.first_use.borrow()
@@ -355,7 +379,11 @@ impl KStruct for MultipleUse_Type2 {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -372,17 +400,24 @@ impl KStruct for MultipleUse_Type2 {
     }
 }
 impl MultipleUse_Type2 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn second_use(
-        &self
-    ) -> KResult<Ref<'_, OptRc<MultipleUse_Multi>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn second_use(&self) -> KResult<Ref<'_, OptRc<MultipleUse_Multi>>> {
         let _io = self._io.borrow();
         if self.f_second_use.get() {
             return Ok(self.second_use.borrow());
         }
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        let t = Self::read_into::<_, MultipleUse_Multi>(&*_io, Some(self._root.clone()), None)?.into();
+        let t = Self::read_into::<_, MultipleUse_Multi>(
+            &*_io,
+            Some(self._root.clone()),
+            None,
+        )?
+        .into();
         *self.second_use.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.second_use.borrow())

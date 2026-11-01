@@ -104,7 +104,11 @@ impl KStruct for Expr0 {
     type Root = Expr0;
     type Parent = Expr0;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,28 +127,34 @@ impl KStruct for Expr0 {
     }
 }
 impl Expr0 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn must_be_abc123(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn must_be_abc123(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_must_be_abc123.get() {
             return Ok(self.must_be_abc123.borrow());
         }
         self.f_must_be_abc123.set(true);
-        *self.must_be_abc123.borrow_mut() = format!("{}{}", "abc", "123").to_string();
+        *self.must_be_abc123.borrow_mut() =
+            format!("{}{}", "abc", "123").to_string();
         Ok(self.must_be_abc123.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn must_be_f7(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn must_be_f7(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_must_be_f7.get() {
             return Ok(self.must_be_f7.borrow());
         }
         self.f_must_be_f7.set(true);
-        *self.must_be_f7.borrow_mut() = ((7_i32).saturating_add(240_i32)).try_into()?;
+        *self.must_be_f7.borrow_mut() =
+            ((7_i32).saturating_add(240_i32)).try_into()?;
         Ok(self.must_be_f7.borrow())
     }
 }

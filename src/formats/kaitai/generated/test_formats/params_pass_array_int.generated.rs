@@ -104,7 +104,11 @@ impl KStruct for ParamsPassArrayInt {
     type Root = ParamsPassArrayInt;
     type Parent = ParamsPassArrayInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,12 +126,28 @@ impl KStruct for ParamsPassArrayInt {
             self_rc.ints.borrow_mut().push(_io.read_u2le()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((self_rc.ints()).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassArrayInt_WantsInts| {
+            Ok(t.set_params((self_rc.ints()).clone()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.pass_ints.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((*self_rc.ints_calc()?).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassArrayInt_WantsInts| {
+            Ok(t.set_params((*self_rc.ints_calc()?).clone()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.pass_ints_calc.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -135,10 +155,12 @@ impl KStruct for ParamsPassArrayInt {
     }
 }
 impl ParamsPassArrayInt {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ints_calc(
-        &self
-    ) -> KResult<Ref<'_, Vec<u16>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ints_calc(&self) -> KResult<Ref<'_, Vec<u16>>> {
         let _io = self._io.borrow();
         if self.f_ints_calc.get() {
             return Ok(self.ints_calc.borrow());
@@ -159,7 +181,9 @@ impl ParamsPassArrayInt {
     }
 }
 impl ParamsPassArrayInt {
-    pub fn pass_ints_calc(&self) -> Ref<'_, OptRc<ParamsPassArrayInt_WantsInts>> {
+    pub fn pass_ints_calc(
+        &self,
+    ) -> Ref<'_, OptRc<ParamsPassArrayInt_WantsInts>> {
         self.pass_ints_calc.borrow()
     }
 }
@@ -183,35 +207,57 @@ pub struct ParamsPassArrayInt_WantsInts {
     nums: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
+impl TryFrom<&ParamsPassArrayInt_WantsInts>
+    for OptRc<ParamsPassArrayInt_WantsInts>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassArrayInt_WantsInts) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
+impl TryFrom<&&ParamsPassArrayInt_WantsInts>
+    for OptRc<ParamsPassArrayInt_WantsInts>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsPassArrayInt_WantsInts) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsPassArrayInt_WantsInts,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for ParamsPassArrayInt_WantsInts {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts>
+    for ParamsPassArrayInt_WantsInts
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for &ParamsPassArrayInt_WantsInts {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts>
+    for &ParamsPassArrayInt_WantsInts
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts>
+    for OptRc<ParamsPassArrayInt_WantsInts>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for &OptRc<ParamsPassArrayInt_WantsInts> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts>
+    for &OptRc<ParamsPassArrayInt_WantsInts>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
         Ok((*self).clone())
     }
 }
@@ -219,7 +265,11 @@ impl KStruct for ParamsPassArrayInt_WantsInts {
     type Root = ParamsPassArrayInt;
     type Parent = ParamsPassArrayInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -245,8 +295,7 @@ impl ParamsPassArrayInt_WantsInts {
         *self.nums.borrow_mut() = nums;
     }
 }
-impl ParamsPassArrayInt_WantsInts {
-}
+impl ParamsPassArrayInt_WantsInts {}
 impl ParamsPassArrayInt_WantsInts {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

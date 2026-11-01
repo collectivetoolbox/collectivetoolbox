@@ -69,7 +69,11 @@ impl KStruct for AmlogicEmmcPartitions {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,19 +87,36 @@ impl KStruct for AmlogicEmmcPartitions {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x50u8, 0x54u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(12_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.version.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(12_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_partitions.borrow_mut() = _io.read_s4le()?;
         let min_val: i32 = (1).try_into()?;
         let max_val: i32 = (32).try_into()?;
         if !(*self_rc.num_partitions() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::LessThan,
+                src_path: "/seq/2".to_string(),
+            }));
         }
         if !(*self_rc.num_partitions() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
@@ -103,7 +124,12 @@ impl KStruct for AmlogicEmmcPartitions {
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = usize::try_from(*self_rc.num_partitions())?;
         for _i in 0_usize..l_partitions {
-            let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.partitions.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -111,8 +137,7 @@ impl KStruct for AmlogicEmmcPartitions {
         Ok(())
     }
 }
-impl AmlogicEmmcPartitions {
-}
+impl AmlogicEmmcPartitions {}
 impl AmlogicEmmcPartitions {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -144,7 +169,9 @@ impl AmlogicEmmcPartitions {
     }
 }
 impl AmlogicEmmcPartitions {
-    pub fn partitions(&self) -> Ref<'_, Vec<OptRc<AmlogicEmmcPartitions_Partition>>> {
+    pub fn partitions(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<AmlogicEmmcPartitions_Partition>>> {
         self.partitions.borrow()
     }
 }
@@ -180,35 +207,59 @@ pub struct AmlogicEmmcPartitions_Partition {
     flags_raw: RefCell<Vec<u8>>,
     padding_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
+impl TryFrom<&AmlogicEmmcPartitions_Partition>
+    for OptRc<AmlogicEmmcPartitions_Partition>
+{
     type Error = KError;
-    fn try_from(v: &AmlogicEmmcPartitions_Partition) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &AmlogicEmmcPartitions_Partition,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
+impl TryFrom<&&AmlogicEmmcPartitions_Partition>
+    for OptRc<AmlogicEmmcPartitions_Partition>
+{
     type Error = KError;
-    fn try_from(v: &&AmlogicEmmcPartitions_Partition) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AmlogicEmmcPartitions_Partition,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for AmlogicEmmcPartitions_Partition {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition>
+    for AmlogicEmmcPartitions_Partition
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for &AmlogicEmmcPartitions_Partition {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition>
+    for &AmlogicEmmcPartitions_Partition
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition>
+    for OptRc<AmlogicEmmcPartitions_Partition>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for &OptRc<AmlogicEmmcPartitions_Partition> {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition>
+    for &OptRc<AmlogicEmmcPartitions_Partition>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
         Ok((*self).clone())
     }
 }
@@ -216,7 +267,11 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -228,7 +283,15 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(16_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -237,7 +300,15 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         let _raw_flags = _io.read_bytes(4_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
-        let t = Self::read_into::<BytesReader, AmlogicEmmcPartitions_Partition_PartFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            AmlogicEmmcPartitions_Partition_PartFlags,
+        >(
+            &_io_flags,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
@@ -246,8 +317,7 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         Ok(())
     }
 }
-impl AmlogicEmmcPartitions_Partition {
-}
+impl AmlogicEmmcPartitions_Partition {}
 impl AmlogicEmmcPartitions_Partition {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()
@@ -268,7 +338,9 @@ impl AmlogicEmmcPartitions_Partition {
     }
 }
 impl AmlogicEmmcPartitions_Partition {
-    pub fn flags(&self) -> Ref<'_, OptRc<AmlogicEmmcPartitions_Partition_PartFlags>> {
+    pub fn flags(
+        &self,
+    ) -> Ref<'_, OptRc<AmlogicEmmcPartitions_Partition_PartFlags>> {
         self.flags.borrow()
     }
 }
@@ -314,35 +386,59 @@ pub struct AmlogicEmmcPartitions_Partition_PartFlags {
     is_data: RefCell<bool>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+impl TryFrom<&AmlogicEmmcPartitions_Partition_PartFlags>
+    for OptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+{
     type Error = KError;
-    fn try_from(v: &AmlogicEmmcPartitions_Partition_PartFlags) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &AmlogicEmmcPartitions_Partition_PartFlags,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+impl TryFrom<&&AmlogicEmmcPartitions_Partition_PartFlags>
+    for OptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+{
     type Error = KError;
-    fn try_from(v: &&AmlogicEmmcPartitions_Partition_PartFlags) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AmlogicEmmcPartitions_Partition_PartFlags,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for AmlogicEmmcPartitions_Partition_PartFlags {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+    for AmlogicEmmcPartitions_Partition_PartFlags
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for &AmlogicEmmcPartitions_Partition_PartFlags {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+    for &AmlogicEmmcPartitions_Partition_PartFlags
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+    for OptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for &OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
-    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+    for &OptRc<AmlogicEmmcPartitions_Partition_PartFlags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -350,7 +446,11 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions_Partition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -372,8 +472,7 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
         Ok(())
     }
 }
-impl AmlogicEmmcPartitions_Partition_PartFlags {
-}
+impl AmlogicEmmcPartitions_Partition_PartFlags {}
 impl AmlogicEmmcPartitions_Partition_PartFlags {
     pub fn is_code(&self) -> Ref<'_, bool> {
         self.is_code.borrow()

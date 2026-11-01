@@ -101,7 +101,11 @@ impl KStruct for RepeatEosBytesPad {
     type Root = RepeatEosBytesPad;
     type Parent = RepeatEosBytesPad;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,7 +121,12 @@ impl KStruct for RepeatEosBytesPad {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, None, false, Some(170)));
+                self_rc.records.borrow_mut().push(bytes_terminate_pad(
+                    &_io.read_bytes(5_usize)?,
+                    None,
+                    false,
+                    Some(170),
+                ));
                 _i = _i.saturating_add(1);
             }
         }
@@ -126,8 +135,7 @@ impl KStruct for RepeatEosBytesPad {
         Ok(())
     }
 }
-impl RepeatEosBytesPad {
-}
+impl RepeatEosBytesPad {}
 impl RepeatEosBytesPad {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

@@ -63,7 +63,11 @@ impl KStruct for MonomakhSaprChg {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -75,13 +79,19 @@ impl KStruct for MonomakhSaprChg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "ascii")?;
+        *self_rc.title.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(10_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ent.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, MonomakhSaprChg_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, MonomakhSaprChg_Block>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.ent.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -91,8 +101,7 @@ impl KStruct for MonomakhSaprChg {
         Ok(())
     }
 }
-impl MonomakhSaprChg {
-}
+impl MonomakhSaprChg {}
 impl MonomakhSaprChg {
     pub fn title(&self) -> Ref<'_, String> {
         self.title.borrow()
@@ -168,7 +177,11 @@ impl KStruct for MonomakhSaprChg_Block {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -180,18 +193,19 @@ impl KStruct for MonomakhSaprChg_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.header.borrow_mut() = bytes_to_str(&_io.read_bytes(13_usize)?, "ascii")?;
+        *self_rc.header.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(13_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.file_size())?)?;
+        *self_rc.file.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.file_size())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MonomakhSaprChg_Block {
-}
+impl MonomakhSaprChg_Block {}
 impl MonomakhSaprChg_Block {
     pub fn header(&self) -> Ref<'_, String> {
         self.header.borrow()

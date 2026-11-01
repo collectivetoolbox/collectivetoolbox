@@ -188,7 +188,11 @@ impl KStruct for SwitchRepeatExpr {
     type Root = SwitchRepeatExpr;
     type Parent = SwitchRepeatExpr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -213,19 +217,40 @@ impl KStruct for SwitchRepeatExpr {
             let _io_body = BytesReader::from(_raw_body);
             match *(self_rc.codes().get(_i).ok_or(KError::CastError)?) {
                 1 => {
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, SwitchRepeatExpr_One>(
+                            &_io_body,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 2 => {
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, SwitchRepeatExpr_One>(
+                            &_io_body,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 7 => {
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_Two>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, SwitchRepeatExpr_Two>(
+                            &_io_body,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 _ => {
-                    self_rc.body.borrow_mut().push(_io_body.read_bytes(4_usize)?.into());
+                    self_rc
+                        .body
+                        .borrow_mut()
+                        .push(_io_body.read_bytes(4_usize)?.into());
                 }
             }
         }
@@ -234,8 +259,7 @@ impl KStruct for SwitchRepeatExpr {
         Ok(())
     }
 }
-impl SwitchRepeatExpr {
-}
+impl SwitchRepeatExpr {}
 impl SwitchRepeatExpr {
     pub fn codes(&self) -> Ref<'_, Vec<u8>> {
         self.codes.borrow()
@@ -307,7 +331,11 @@ impl KStruct for SwitchRepeatExpr_One {
     type Root = SwitchRepeatExpr;
     type Parent = SwitchRepeatExpr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -325,8 +353,7 @@ impl KStruct for SwitchRepeatExpr_One {
         Ok(())
     }
 }
-impl SwitchRepeatExpr_One {
-}
+impl SwitchRepeatExpr_One {}
 impl SwitchRepeatExpr_One {
     pub fn first(&self) -> Ref<'_, Vec<u8>> {
         self.first.borrow()
@@ -388,7 +415,11 @@ impl KStruct for SwitchRepeatExpr_Two {
     type Root = SwitchRepeatExpr;
     type Parent = SwitchRepeatExpr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -406,8 +437,7 @@ impl KStruct for SwitchRepeatExpr_Two {
         Ok(())
     }
 }
-impl SwitchRepeatExpr_Two {
-}
+impl SwitchRepeatExpr_Two {}
 impl SwitchRepeatExpr_Two {
     pub fn second(&self) -> Ref<'_, Vec<u8>> {
         self.second.borrow()

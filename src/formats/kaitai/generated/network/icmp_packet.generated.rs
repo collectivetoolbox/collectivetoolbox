@@ -11,7 +11,8 @@ pub struct IcmpPacket {
     pub(crate) _parent: SharedType<IcmpPacket>,
     pub(crate) _self_shared: SharedType<Self>,
     icmp_type: RefCell<IcmpPacket_IcmpTypeEnum>,
-    destination_unreachable: RefCell<OptRc<IcmpPacket_DestinationUnreachableMsg>>,
+    destination_unreachable:
+        RefCell<OptRc<IcmpPacket_DestinationUnreachableMsg>>,
     time_exceeded: RefCell<OptRc<IcmpPacket_TimeExceededMsg>>,
     echo: RefCell<OptRc<IcmpPacket_EchoMsg>>,
     _io: RefCell<BytesReader>,
@@ -52,7 +53,11 @@ impl KStruct for IcmpPacket {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -64,23 +69,43 @@ impl KStruct for IcmpPacket {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.icmp_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.icmp_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::DestinationUnreachable {
-            let t = Self::read_into::<_, IcmpPacket_DestinationUnreachableMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        if *self_rc.icmp_type()
+            == IcmpPacket_IcmpTypeEnum::DestinationUnreachable
+        {
+            let t = Self::read_into::<_, IcmpPacket_DestinationUnreachableMsg>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.destination_unreachable.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::TimeExceeded {
-            let t = Self::read_into::<_, IcmpPacket_TimeExceededMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, IcmpPacket_TimeExceededMsg>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.time_exceeded.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if  ((*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::Echo) || (*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::EchoReply))  {
-            let t = Self::read_into::<_, IcmpPacket_EchoMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        if ((*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::Echo)
+            || (*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::EchoReply))
+        {
+            let t = Self::read_into::<_, IcmpPacket_EchoMsg>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.echo.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -88,15 +113,16 @@ impl KStruct for IcmpPacket {
         Ok(())
     }
 }
-impl IcmpPacket {
-}
+impl IcmpPacket {}
 impl IcmpPacket {
     pub fn icmp_type(&self) -> Ref<'_, IcmpPacket_IcmpTypeEnum> {
         self.icmp_type.borrow()
     }
 }
 impl IcmpPacket {
-    pub fn destination_unreachable(&self) -> Ref<'_, OptRc<IcmpPacket_DestinationUnreachableMsg>> {
+    pub fn destination_unreachable(
+        &self,
+    ) -> Ref<'_, OptRc<IcmpPacket_DestinationUnreachableMsg>> {
         self.destination_unreachable.borrow()
     }
 }
@@ -156,54 +182,81 @@ impl From<&IcmpPacket_IcmpTypeEnum> for i64 {
             IcmpPacket_IcmpTypeEnum::Redirect => 5,
             IcmpPacket_IcmpTypeEnum::Echo => 8,
             IcmpPacket_IcmpTypeEnum::TimeExceeded => 11,
-            IcmpPacket_IcmpTypeEnum::Unknown(v) => v
+            IcmpPacket_IcmpTypeEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for IcmpPacket_IcmpTypeEnum {
-    fn default() -> Self { IcmpPacket_IcmpTypeEnum::Unknown(0) }
+    fn default() -> Self {
+        IcmpPacket_IcmpTypeEnum::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct IcmpPacket_DestinationUnreachableMsg {
     pub(crate) _root: SharedType<IcmpPacket>,
     pub(crate) _parent: SharedType<IcmpPacket>,
     pub(crate) _self_shared: SharedType<Self>,
-    code: RefCell<IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode>,
+    code: RefCell<
+        IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode,
+    >,
     checksum: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
+impl TryFrom<&IcmpPacket_DestinationUnreachableMsg>
+    for OptRc<IcmpPacket_DestinationUnreachableMsg>
+{
     type Error = KError;
-    fn try_from(v: &IcmpPacket_DestinationUnreachableMsg) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &IcmpPacket_DestinationUnreachableMsg,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
+impl TryFrom<&&IcmpPacket_DestinationUnreachableMsg>
+    for OptRc<IcmpPacket_DestinationUnreachableMsg>
+{
     type Error = KError;
-    fn try_from(v: &&IcmpPacket_DestinationUnreachableMsg) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&IcmpPacket_DestinationUnreachableMsg,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for IcmpPacket_DestinationUnreachableMsg {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg>
+    for IcmpPacket_DestinationUnreachableMsg
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for &IcmpPacket_DestinationUnreachableMsg {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg>
+    for &IcmpPacket_DestinationUnreachableMsg
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg>
+    for OptRc<IcmpPacket_DestinationUnreachableMsg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for &OptRc<IcmpPacket_DestinationUnreachableMsg> {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg>
+    for &OptRc<IcmpPacket_DestinationUnreachableMsg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
         Ok((*self).clone())
     }
 }
@@ -211,7 +264,11 @@ impl KStruct for IcmpPacket_DestinationUnreachableMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -231,10 +288,12 @@ impl KStruct for IcmpPacket_DestinationUnreachableMsg {
         Ok(())
     }
 }
+impl IcmpPacket_DestinationUnreachableMsg {}
 impl IcmpPacket_DestinationUnreachableMsg {
-}
-impl IcmpPacket_DestinationUnreachableMsg {
-    pub fn code(&self) -> Ref<'_, IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode> {
+    pub fn code(
+        &self,
+    ) -> Ref<'_, IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode>
+    {
         self.code.borrow()
     }
 }
@@ -275,9 +334,14 @@ pub enum IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode {
     Unknown(i64),
 }
 
-impl TryFrom<i64> for IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode {
+impl TryFrom<i64>
+    for IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode
+{
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode>
+    {
         match flag {
             0 => Ok(IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::NetUnreachable),
             1 => Ok(IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::HostUnreachable),
@@ -300,8 +364,12 @@ impl TryFrom<i64> for IcmpPacket_DestinationUnreachableMsg_DestinationUnreachabl
     }
 }
 
-impl From<&IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode> for i64 {
-    fn from(v: &IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode) -> Self {
+impl From<&IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode>
+    for i64
+{
+    fn from(
+        v: &IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode,
+    ) -> Self {
         match *v {
             IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::NetUnreachable => 0,
             IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::HostUnreachable => 1,
@@ -324,10 +392,15 @@ impl From<&IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode> for 
     }
 }
 
-impl Default for IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode {
-    fn default() -> Self { IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::Unknown(0) }
+impl Default
+    for IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode
+{
+    fn default() -> Self {
+        IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode::Unknown(
+            0,
+        )
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct IcmpPacket_EchoMsg {
@@ -377,7 +450,11 @@ impl KStruct for IcmpPacket_EchoMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -391,7 +468,10 @@ impl KStruct for IcmpPacket_EchoMsg {
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.code() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/echo_msg/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/echo_msg/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
@@ -406,8 +486,7 @@ impl KStruct for IcmpPacket_EchoMsg {
         Ok(())
     }
 }
-impl IcmpPacket_EchoMsg {
-}
+impl IcmpPacket_EchoMsg {}
 impl IcmpPacket_EchoMsg {
     pub fn code(&self) -> Ref<'_, Vec<u8>> {
         self.code.borrow()
@@ -454,35 +533,51 @@ pub struct IcmpPacket_TimeExceededMsg {
     checksum: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
+impl TryFrom<&IcmpPacket_TimeExceededMsg>
+    for OptRc<IcmpPacket_TimeExceededMsg>
+{
     type Error = KError;
     fn try_from(v: &IcmpPacket_TimeExceededMsg) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
+impl TryFrom<&&IcmpPacket_TimeExceededMsg>
+    for OptRc<IcmpPacket_TimeExceededMsg>
+{
     type Error = KError;
     fn try_from(v: &&IcmpPacket_TimeExceededMsg) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for IcmpPacket_TimeExceededMsg {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for &IcmpPacket_TimeExceededMsg {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg>
+    for OptRc<IcmpPacket_TimeExceededMsg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for &OptRc<IcmpPacket_TimeExceededMsg> {
-    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg>
+    for &OptRc<IcmpPacket_TimeExceededMsg>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
         Ok((*self).clone())
     }
 }
@@ -490,7 +585,11 @@ impl KStruct for IcmpPacket_TimeExceededMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -510,8 +609,7 @@ impl KStruct for IcmpPacket_TimeExceededMsg {
         Ok(())
     }
 }
-impl IcmpPacket_TimeExceededMsg {
-}
+impl IcmpPacket_TimeExceededMsg {}
 impl IcmpPacket_TimeExceededMsg {
     pub fn code(&self) -> Ref<'_, IcmpPacket_TimeExceededMsg_TimeExceededCode> {
         self.code.borrow()
@@ -542,7 +640,9 @@ pub enum IcmpPacket_TimeExceededMsg_TimeExceededCode {
 
 impl TryFrom<i64> for IcmpPacket_TimeExceededMsg_TimeExceededCode {
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<IcmpPacket_TimeExceededMsg_TimeExceededCode> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<IcmpPacket_TimeExceededMsg_TimeExceededCode> {
         match flag {
             0 => Ok(IcmpPacket_TimeExceededMsg_TimeExceededCode::TimeToLiveExceededInTransit),
             1 => Ok(IcmpPacket_TimeExceededMsg_TimeExceededCode::FragmentReassemblyTimeExceeded),
@@ -562,6 +662,7 @@ impl From<&IcmpPacket_TimeExceededMsg_TimeExceededCode> for i64 {
 }
 
 impl Default for IcmpPacket_TimeExceededMsg_TimeExceededCode {
-    fn default() -> Self { IcmpPacket_TimeExceededMsg_TimeExceededCode::Unknown(0) }
+    fn default() -> Self {
+        IcmpPacket_TimeExceededMsg_TimeExceededCode::Unknown(0)
+    }
 }
-

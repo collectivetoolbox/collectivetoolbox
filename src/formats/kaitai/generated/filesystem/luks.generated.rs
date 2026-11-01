@@ -57,7 +57,11 @@ impl KStruct for Luks {
     type Root = Luks;
     type Parent = Luks;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -69,7 +73,12 @@ impl KStruct for Luks {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Luks_PartitionHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Luks_PartitionHeader>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.partition_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -77,17 +86,21 @@ impl KStruct for Luks {
     }
 }
 impl Luks {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn payload(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn payload(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_payload.get() {
             return Ok(self.payload.borrow());
         }
         self.f_payload.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.partition_header().payload_offset()).saturating_mul(512_u32))?)?;
+        _io.seek(usize::try_from(
+            (*self.partition_header().payload_offset()).saturating_mul(512_u32),
+        )?)?;
         *self.payload.borrow_mut() = _io.read_bytes_full()?;
         _io.seek(_pos)?;
         Ok(self.payload.borrow())
@@ -171,7 +184,11 @@ impl KStruct for Luks_PartitionHeader {
     type Root = Luks;
     type Parent = Luks;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -184,20 +201,31 @@ impl KStruct for Luks_PartitionHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(6_usize)?;
-        if !(*self_rc.magic() == vec![0x4cu8, 0x55u8, 0x4bu8, 0x53u8, 0xbau8, 0xbeu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![0x4cu8, 0x55u8, 0x4bu8, 0x53u8, 0xbau8, 0xbeu8])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/partition_header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.version() == vec![0x0u8, 0x1u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/partition_header/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.cipher_name_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc.cipher_name_specification.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.cipher_mode_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc.cipher_mode_specification.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.hash_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc.hash_specification.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.payload_offset.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -205,16 +233,24 @@ impl KStruct for Luks_PartitionHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.master_key_checksum.borrow_mut() = _io.read_bytes(20_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.master_key_salt_parameter.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc.master_key_salt_parameter.borrow_mut() =
+            _io.read_bytes(32_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.master_key_iterations_parameter.borrow_mut() = _io.read_u4be()?;
+        *self_rc.master_key_iterations_parameter.borrow_mut() =
+            _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.uuid.borrow_mut() = bytes_to_str(&_io.read_bytes(40_usize)?, "ASCII")?;
+        *self_rc.uuid.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(40_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key_slots.borrow_mut() = Vec::new();
         let l_key_slots = 8_usize;
         for _i in 0_usize..l_key_slots {
-            let t = Self::read_into::<_, Luks_PartitionHeader_KeySlot>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Luks_PartitionHeader_KeySlot>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.key_slots.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -222,8 +258,7 @@ impl KStruct for Luks_PartitionHeader {
         Ok(())
     }
 }
-impl Luks_PartitionHeader {
-}
+impl Luks_PartitionHeader {}
 impl Luks_PartitionHeader {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -280,7 +315,9 @@ impl Luks_PartitionHeader {
     }
 }
 impl Luks_PartitionHeader {
-    pub fn key_slots(&self) -> Ref<'_, Vec<OptRc<Luks_PartitionHeader_KeySlot>>> {
+    pub fn key_slots(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<Luks_PartitionHeader_KeySlot>>> {
         self.key_slots.borrow()
     }
 }
@@ -341,35 +378,57 @@ pub struct Luks_PartitionHeader_KeySlot {
     f_key_material: Cell<bool>,
     key_material: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
+impl TryFrom<&Luks_PartitionHeader_KeySlot>
+    for OptRc<Luks_PartitionHeader_KeySlot>
+{
     type Error = KError;
     fn try_from(v: &Luks_PartitionHeader_KeySlot) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
+impl TryFrom<&&Luks_PartitionHeader_KeySlot>
+    for OptRc<Luks_PartitionHeader_KeySlot>
+{
     type Error = KError;
-    fn try_from(v: &&Luks_PartitionHeader_KeySlot) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&Luks_PartitionHeader_KeySlot,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for Luks_PartitionHeader_KeySlot {
-    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot>
+    for Luks_PartitionHeader_KeySlot
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for &Luks_PartitionHeader_KeySlot {
-    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot>
+    for &Luks_PartitionHeader_KeySlot
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
-    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot>
+    for OptRc<Luks_PartitionHeader_KeySlot>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for &OptRc<Luks_PartitionHeader_KeySlot> {
-    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot>
+    for &OptRc<Luks_PartitionHeader_KeySlot>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
         Ok((*self).clone())
     }
 }
@@ -377,7 +436,11 @@ impl KStruct for Luks_PartitionHeader_KeySlot {
     type Root = Luks;
     type Parent = Luks_PartitionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -389,7 +452,8 @@ impl KStruct for Luks_PartitionHeader_KeySlot {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.state_of_key_slot.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.state_of_key_slot.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.iteration_parameter.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -397,31 +461,48 @@ impl KStruct for Luks_PartitionHeader_KeySlot {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_sector_of_key_material.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_anti_forensic_stripes.borrow_mut() = _io.read_u4be()?;
+        *self_rc.number_of_anti_forensic_stripes.borrow_mut() =
+            _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Luks_PartitionHeader_KeySlot {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn key_material(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn key_material(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_key_material.get() {
             return Ok(self.key_material.borrow());
         }
         self.f_key_material.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.start_sector_of_key_material()).saturating_mul(512_u32))?)?;
-        *self.key_material.borrow_mut() = _io.read_bytes(usize::try_from((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_key_bytes()).saturating_mul(*self.number_of_anti_forensic_stripes()))?)?;
+        _io.seek(usize::try_from(
+            (*self.start_sector_of_key_material()).saturating_mul(512_u32),
+        )?)?;
+        *self.key_material.borrow_mut() = _io.read_bytes(usize::try_from(
+            (*self
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .number_of_key_bytes())
+            .saturating_mul(*self.number_of_anti_forensic_stripes()),
+        )?)?;
         _io.seek(_pos)?;
         Ok(self.key_material.borrow())
     }
 }
 impl Luks_PartitionHeader_KeySlot {
-    pub fn state_of_key_slot(&self) -> Ref<'_, Luks_PartitionHeader_KeySlot_KeySlotStates> {
+    pub fn state_of_key_slot(
+        &self,
+    ) -> Ref<'_, Luks_PartitionHeader_KeySlot_KeySlotStates> {
         self.state_of_key_slot.borrow()
     }
 }
@@ -470,10 +551,16 @@ pub enum Luks_PartitionHeader_KeySlot_KeySlotStates {
 
 impl TryFrom<i64> for Luks_PartitionHeader_KeySlot_KeySlotStates {
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<Luks_PartitionHeader_KeySlot_KeySlotStates> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<Luks_PartitionHeader_KeySlot_KeySlotStates> {
         match flag {
-            57005 => Ok(Luks_PartitionHeader_KeySlot_KeySlotStates::DisabledKeySlot),
-            11301363 => Ok(Luks_PartitionHeader_KeySlot_KeySlotStates::EnabledKeySlot),
+            57005 => {
+                Ok(Luks_PartitionHeader_KeySlot_KeySlotStates::DisabledKeySlot)
+            }
+            11301363 => {
+                Ok(Luks_PartitionHeader_KeySlot_KeySlotStates::EnabledKeySlot)
+            }
             _ => Ok(Luks_PartitionHeader_KeySlot_KeySlotStates::Unknown(flag)),
         }
     }
@@ -482,14 +569,19 @@ impl TryFrom<i64> for Luks_PartitionHeader_KeySlot_KeySlotStates {
 impl From<&Luks_PartitionHeader_KeySlot_KeySlotStates> for i64 {
     fn from(v: &Luks_PartitionHeader_KeySlot_KeySlotStates) -> Self {
         match *v {
-            Luks_PartitionHeader_KeySlot_KeySlotStates::DisabledKeySlot => 57005,
-            Luks_PartitionHeader_KeySlot_KeySlotStates::EnabledKeySlot => 11301363,
-            Luks_PartitionHeader_KeySlot_KeySlotStates::Unknown(v) => v
+            Luks_PartitionHeader_KeySlot_KeySlotStates::DisabledKeySlot => {
+                57005
+            }
+            Luks_PartitionHeader_KeySlot_KeySlotStates::EnabledKeySlot => {
+                11301363
+            }
+            Luks_PartitionHeader_KeySlot_KeySlotStates::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Luks_PartitionHeader_KeySlot_KeySlotStates {
-    fn default() -> Self { Luks_PartitionHeader_KeySlot_KeySlotStates::Unknown(0) }
+    fn default() -> Self {
+        Luks_PartitionHeader_KeySlot_KeySlotStates::Unknown(0)
+    }
 }
-

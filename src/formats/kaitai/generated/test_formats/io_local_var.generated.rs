@@ -161,7 +161,11 @@ impl KStruct for IoLocalVar {
     type Root = IoLocalVar;
     type Parent = IoLocalVar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -176,7 +180,13 @@ impl KStruct for IoLocalVar {
         *self_rc.skip.borrow_mut() = _io.read_bytes(20_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if OptRc::<IoLocalVar_Dummy>::try_from(&*((self_rc.mess_up()?).as_ref().ok_or(KError::CastError)?))?._io().pos() < 0 {
+        if OptRc::<IoLocalVar_Dummy>::try_from(
+            &*((self_rc.mess_up()?).as_ref().ok_or(KError::CastError)?),
+        )?
+        ._io()
+        .pos()
+            < 0
+        {
             *self_rc.always_null.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -187,16 +197,27 @@ impl KStruct for IoLocalVar {
     }
 }
 impl IoLocalVar {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn mess_up(
-        &self
-    ) -> KResult<Ref<'_, Option<IoLocalVar_MessUp>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn mess_up(&self) -> KResult<Ref<'_, Option<IoLocalVar_MessUp>>> {
         let _io = self._io.borrow();
         if self.f_mess_up.get() {
             return Ok(self.mess_up.borrow());
         }
         self.f_mess_up.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(8_usize)?;
         match 2 {
@@ -204,18 +225,29 @@ impl IoLocalVar {
                 *self.mess_up_raw.borrow_mut() = io.read_bytes(2_usize)?.into();
                 let mess_up_raw = self.mess_up_raw.borrow();
                 let _t_mess_up_raw_io = BytesReader::from(mess_up_raw.clone());
-                let t = Self::read_into::<BytesReader, IoLocalVar_Dummy>(&_t_mess_up_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<BytesReader, IoLocalVar_Dummy>(
+                    &_t_mess_up_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.mess_up.borrow_mut() = Some(t);
             }
             2 => {
                 *self.mess_up_raw.borrow_mut() = io.read_bytes(2_usize)?.into();
                 let mess_up_raw = self.mess_up_raw.borrow();
                 let _t_mess_up_raw_io = BytesReader::from(mess_up_raw.clone());
-                let t = Self::read_into::<BytesReader, IoLocalVar_Dummy>(&_t_mess_up_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<BytesReader, IoLocalVar_Dummy>(
+                    &_t_mess_up_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.mess_up.borrow_mut() = Some(t);
             }
             _ => {
-                *self.mess_up.borrow_mut() = Some(io.read_bytes(2_usize)?.into());
+                *self.mess_up.borrow_mut() =
+                    Some(io.read_bytes(2_usize)?.into());
             }
         }
         io.seek(_pos)?;
@@ -302,7 +334,11 @@ impl KStruct for IoLocalVar_Dummy {
     type Root = IoLocalVar;
     type Parent = IoLocalVar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -318,8 +354,7 @@ impl KStruct for IoLocalVar_Dummy {
         Ok(())
     }
 }
-impl IoLocalVar_Dummy {
-}
+impl IoLocalVar_Dummy {}
 impl IoLocalVar_Dummy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

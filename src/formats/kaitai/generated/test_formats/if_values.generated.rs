@@ -100,7 +100,11 @@ impl KStruct for IfValues {
     type Root = IfValues;
     type Parent = IfValues;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,7 +119,12 @@ impl KStruct for IfValues {
         *self_rc.codes.borrow_mut() = Vec::new();
         let l_codes = 3_usize;
         for _i in 0_usize..l_codes {
-            let t = Self::read_into::<_, IfValues_Code>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, IfValues_Code>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.codes.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -123,8 +132,7 @@ impl KStruct for IfValues {
         Ok(())
     }
 }
-impl IfValues {
-}
+impl IfValues {}
 impl IfValues {
     pub fn codes(&self) -> Ref<'_, Vec<OptRc<IfValues_Code>>> {
         self.codes.borrow()
@@ -188,7 +196,11 @@ impl KStruct for IfValues_Code {
     type Root = IfValues;
     type Parent = IfValues;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,17 +219,26 @@ impl KStruct for IfValues_Code {
     }
 }
 impl IfValues_Code {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn half_opcode(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn half_opcode(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_half_opcode.get() {
             return Ok(self.half_opcode.borrow());
         }
         self.f_half_opcode.set(true);
-        if (i32::from(*self.opcode())).checked_rem(2_i32).ok_or(KError::CastError)? == 0 {
-            *self.half_opcode.borrow_mut() = ((i32::from(*self.opcode())).checked_div(2_i32).ok_or(KError::CastError)?).try_into()?;
+        if (i32::from(*self.opcode()))
+            .checked_rem(2_i32)
+            .ok_or(KError::CastError)?
+            == 0
+        {
+            *self.half_opcode.borrow_mut() = ((i32::from(*self.opcode()))
+                .checked_div(2_i32)
+                .ok_or(KError::CastError)?)
+            .try_into()?;
         }
         Ok(self.half_opcode.borrow())
     }

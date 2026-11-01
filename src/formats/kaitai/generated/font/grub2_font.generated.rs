@@ -56,7 +56,11 @@ impl KStruct for Grub2Font {
     type Root = Grub2Font;
     type Parent = Grub2Font;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -69,20 +73,37 @@ impl KStruct for Grub2Font {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(12_usize)?;
-        if !(*self_rc.magic() == vec![0x46u8, 0x49u8, 0x4cu8, 0x45u8, 0x0u8, 0x0u8, 0x0u8, 0x4u8, 0x50u8, 0x46u8, 0x46u8, 0x32u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![
+                0x46u8, 0x49u8, 0x4cu8, 0x45u8, 0x0u8, 0x0u8, 0x0u8, 0x4u8,
+                0x50u8, 0x46u8, 0x46u8, 0x32u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sections.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Grub2Font_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Grub2Font_Section>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.sections.borrow_mut().push(t);
                 let _t_sections = self_rc.sections.borrow();
-                let Some(_tmpa) = _t_sections.last() else { break; };
+                let Some(_tmpa) = _t_sections.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if (_tmpa.section_type().as_str() == "DATA") { break; }
+                if (_tmpa.section_type().as_str() == "DATA") {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -90,8 +111,7 @@ impl KStruct for Grub2Font {
         Ok(())
     }
 }
-impl Grub2Font {
-}
+impl Grub2Font {}
 impl Grub2Font {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -170,7 +190,11 @@ impl KStruct for Grub2Font_AsceSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -188,8 +212,7 @@ impl KStruct for Grub2Font_AsceSection {
         Ok(())
     }
 }
-impl Grub2Font_AsceSection {
-}
+impl Grub2Font_AsceSection {}
 impl Grub2Font_AsceSection {
     pub fn ascent_in_pixels(&self) -> Ref<'_, u16> {
         self.ascent_in_pixels.borrow()
@@ -251,7 +274,11 @@ impl KStruct for Grub2Font_ChixSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -267,7 +294,12 @@ impl KStruct for Grub2Font_ChixSection {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Grub2Font_ChixSection_Character>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Grub2Font_ChixSection_Character>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.characters.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -277,10 +309,11 @@ impl KStruct for Grub2Font_ChixSection {
         Ok(())
     }
 }
+impl Grub2Font_ChixSection {}
 impl Grub2Font_ChixSection {
-}
-impl Grub2Font_ChixSection {
-    pub fn characters(&self) -> Ref<'_, Vec<OptRc<Grub2Font_ChixSection_Character>>> {
+    pub fn characters(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<Grub2Font_ChixSection_Character>>> {
         self.characters.borrow()
     }
 }
@@ -308,35 +341,59 @@ pub struct Grub2Font_ChixSection_Character {
     f_definition: Cell<bool>,
     definition: RefCell<OptRc<Grub2Font_ChixSection_CharacterDefinition>>,
 }
-impl TryFrom<&Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
+impl TryFrom<&Grub2Font_ChixSection_Character>
+    for OptRc<Grub2Font_ChixSection_Character>
+{
     type Error = KError;
-    fn try_from(v: &Grub2Font_ChixSection_Character) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &Grub2Font_ChixSection_Character,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
+impl TryFrom<&&Grub2Font_ChixSection_Character>
+    for OptRc<Grub2Font_ChixSection_Character>
+{
     type Error = KError;
-    fn try_from(v: &&Grub2Font_ChixSection_Character) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&Grub2Font_ChixSection_Character,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_Character> for Grub2Font_ChixSection_Character {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_Character>
+    for Grub2Font_ChixSection_Character
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_Character> for &Grub2Font_ChixSection_Character {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_Character>
+    for &Grub2Font_ChixSection_Character
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_Character>
+    for OptRc<Grub2Font_ChixSection_Character>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_Character> for &OptRc<Grub2Font_ChixSection_Character> {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_Character>
+    for &OptRc<Grub2Font_ChixSection_Character>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
         Ok((*self).clone())
     }
 }
@@ -344,7 +401,11 @@ impl KStruct for Grub2Font_ChixSection_Character {
     type Root = Grub2Font;
     type Parent = Grub2Font_ChixSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -367,18 +428,38 @@ impl KStruct for Grub2Font_ChixSection_Character {
     }
 }
 impl Grub2Font_ChixSection_Character {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn definition(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Grub2Font_ChixSection_CharacterDefinition>>> {
+        &self,
+    ) -> KResult<Ref<'_, OptRc<Grub2Font_ChixSection_CharacterDefinition>>>
+    {
         let _io = self._io.borrow();
         if self.f_definition.get() {
             return Ok(self.definition.borrow());
         }
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_definition())?)?;
-        let t = Self::read_into::<_, Grub2Font_ChixSection_CharacterDefinition>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<_, Grub2Font_ChixSection_CharacterDefinition>(
+                &io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
         *self.definition.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.definition.borrow())
@@ -429,35 +510,59 @@ pub struct Grub2Font_ChixSection_CharacterDefinition {
     _io: RefCell<BytesReader>,
     bitmap_data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+impl TryFrom<&Grub2Font_ChixSection_CharacterDefinition>
+    for OptRc<Grub2Font_ChixSection_CharacterDefinition>
+{
     type Error = KError;
-    fn try_from(v: &Grub2Font_ChixSection_CharacterDefinition) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &Grub2Font_ChixSection_CharacterDefinition,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+impl TryFrom<&&Grub2Font_ChixSection_CharacterDefinition>
+    for OptRc<Grub2Font_ChixSection_CharacterDefinition>
+{
     type Error = KError;
-    fn try_from(v: &&Grub2Font_ChixSection_CharacterDefinition) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&Grub2Font_ChixSection_CharacterDefinition,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for Grub2Font_ChixSection_CharacterDefinition {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition>
+    for Grub2Font_ChixSection_CharacterDefinition
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for &Grub2Font_ChixSection_CharacterDefinition {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition>
+    for &Grub2Font_ChixSection_CharacterDefinition
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition>
+    for OptRc<Grub2Font_ChixSection_CharacterDefinition>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for &OptRc<Grub2Font_ChixSection_CharacterDefinition> {
-    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition>
+    for &OptRc<Grub2Font_ChixSection_CharacterDefinition>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
         Ok((*self).clone())
     }
 }
@@ -465,7 +570,11 @@ impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
     type Root = Grub2Font;
     type Parent = Grub2Font_ChixSection_Character;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -487,14 +596,22 @@ impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_width.borrow_mut() = _io.read_s2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.bitmap_data.borrow_mut() = _io.read_bytes(usize::try_from(div_floor(i64::from((i32::from((*self_rc.width()).saturating_mul(*self_rc.height()))).saturating_add(7_i32)), 8_i64)?)?)?;
+        *self_rc.bitmap_data.borrow_mut() =
+            _io.read_bytes(usize::try_from(div_floor(
+                i64::from(
+                    (i32::from(
+                        (*self_rc.width()).saturating_mul(*self_rc.height()),
+                    ))
+                    .saturating_add(7_i32),
+                ),
+                8_i64,
+            )?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Grub2Font_ChixSection_CharacterDefinition {
-}
+impl Grub2Font_ChixSection_CharacterDefinition {}
 impl Grub2Font_ChixSection_CharacterDefinition {
     pub fn width(&self) -> Ref<'_, u16> {
         self.width.borrow()
@@ -601,7 +718,11 @@ impl KStruct for Grub2Font_DescSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -619,8 +740,7 @@ impl KStruct for Grub2Font_DescSection {
         Ok(())
     }
 }
-impl Grub2Font_DescSection {
-}
+impl Grub2Font_DescSection {}
 impl Grub2Font_DescSection {
     pub fn descent_in_pixels(&self) -> Ref<'_, u16> {
         self.descent_in_pixels.borrow()
@@ -682,7 +802,11 @@ impl KStruct for Grub2Font_FamiSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -694,14 +818,14 @@ impl KStruct for Grub2Font_FamiSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.font_family_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.font_family_name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Grub2Font_FamiSection {
-}
+impl Grub2Font_FamiSection {}
 impl Grub2Font_FamiSection {
     pub fn font_family_name(&self) -> Ref<'_, String> {
         self.font_family_name.borrow()
@@ -763,7 +887,11 @@ impl KStruct for Grub2Font_MaxhSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -781,8 +909,7 @@ impl KStruct for Grub2Font_MaxhSection {
         Ok(())
     }
 }
-impl Grub2Font_MaxhSection {
-}
+impl Grub2Font_MaxhSection {}
 impl Grub2Font_MaxhSection {
     pub fn maximum_character_height(&self) -> Ref<'_, u16> {
         self.maximum_character_height.borrow()
@@ -844,7 +971,11 @@ impl KStruct for Grub2Font_MaxwSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -862,8 +993,7 @@ impl KStruct for Grub2Font_MaxwSection {
         Ok(())
     }
 }
-impl Grub2Font_MaxwSection {
-}
+impl Grub2Font_MaxwSection {}
 impl Grub2Font_MaxwSection {
     pub fn maximum_character_width(&self) -> Ref<'_, u16> {
         self.maximum_character_width.borrow()
@@ -925,7 +1055,11 @@ impl KStruct for Grub2Font_NameSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -937,14 +1071,14 @@ impl KStruct for Grub2Font_NameSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.font_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.font_name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Grub2Font_NameSection {
-}
+impl Grub2Font_NameSection {}
 impl Grub2Font_NameSection {
     pub fn font_name(&self) -> Ref<'_, String> {
         self.font_name.borrow()
@@ -1006,7 +1140,11 @@ impl KStruct for Grub2Font_PtszSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1024,8 +1162,7 @@ impl KStruct for Grub2Font_PtszSection {
         Ok(())
     }
 }
-impl Grub2Font_PtszSection {
-}
+impl Grub2Font_PtszSection {}
 impl Grub2Font_PtszSection {
     pub fn font_point_size(&self) -> Ref<'_, u16> {
         self.font_point_size.borrow()
@@ -1425,7 +1562,11 @@ impl KStruct for Grub2Font_Section {
     type Root = Grub2Font;
     type Parent = Grub2Font;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1437,7 +1578,8 @@ impl KStruct for Grub2Font_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.section_type.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.section_type.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1445,77 +1587,160 @@ impl KStruct for Grub2Font_Section {
         if (self_rc.section_type().as_str() != "DATA") {
             match self_rc.section_type().as_str() {
                 "ASCE" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_AsceSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_AsceSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "CHIX" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_ChixSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_ChixSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "DESC" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_DescSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_DescSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "FAMI" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_FamiSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_FamiSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "MAXH" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_MaxhSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_MaxhSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "MAXW" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_MaxwSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_MaxwSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "NAME" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_NameSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_NameSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "PTSZ" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_PtszSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_PtszSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "SLAN" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_SlanSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_SlanSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 "WEIG" => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
+                    *self_rc.body_raw.borrow_mut() = _io
+                        .read_bytes(usize::try_from(*self_rc.len_body())?)?
+                        .into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let t = Self::read_into::<BytesReader, Grub2Font_WeigSection>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t =
+                        Self::read_into::<BytesReader, Grub2Font_WeigSection>(
+                            &_t_body_raw_io,
+                            Some(self_rc._root.clone()),
+                            Some(self_rc._self_shared.clone()),
+                        )?
+                        .into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into());
+                    *self_rc.body.borrow_mut() = Some(
+                        _io.read_bytes(usize::try_from(*self_rc.len_body())?)?
+                            .into(),
+                    );
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -1524,8 +1749,7 @@ impl KStruct for Grub2Font_Section {
         Ok(())
     }
 }
-impl Grub2Font_Section {
-}
+impl Grub2Font_Section {}
 impl Grub2Font_Section {
     pub fn section_type(&self) -> Ref<'_, String> {
         self.section_type.borrow()
@@ -1611,7 +1835,11 @@ impl KStruct for Grub2Font_SlanSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1623,14 +1851,14 @@ impl KStruct for Grub2Font_SlanSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.font_slant.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.font_slant.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Grub2Font_SlanSection {
-}
+impl Grub2Font_SlanSection {}
 impl Grub2Font_SlanSection {
     pub fn font_slant(&self) -> Ref<'_, String> {
         self.font_slant.borrow()
@@ -1692,7 +1920,11 @@ impl KStruct for Grub2Font_WeigSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1704,14 +1936,14 @@ impl KStruct for Grub2Font_WeigSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.font_weight.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.font_weight.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Grub2Font_WeigSection {
-}
+impl Grub2Font_WeigSection {}
 impl Grub2Font_WeigSection {
     pub fn font_weight(&self) -> Ref<'_, String> {
         self.font_weight.borrow()

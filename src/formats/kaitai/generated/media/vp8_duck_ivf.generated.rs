@@ -68,7 +68,11 @@ impl KStruct for Vp8DuckIvf {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -82,7 +86,10 @@ impl KStruct for Vp8DuckIvf {
         let _io = io;
         *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x44u8, 0x4bu8, 0x49u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
@@ -91,7 +98,10 @@ impl KStruct for Vp8DuckIvf {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.codec.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.codec() == vec![0x56u8, 0x50u8, 0x38u8, 0x30u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/3".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
@@ -109,7 +119,12 @@ impl KStruct for Vp8DuckIvf {
         *self_rc.image_data.borrow_mut() = Vec::new();
         let l_image_data = usize::try_from(*self_rc.num_frames())?;
         for _i in 0_usize..l_image_data {
-            let t = Self::read_into::<_, Vp8DuckIvf_Blocks>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Vp8DuckIvf_Blocks>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.image_data.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -117,8 +132,7 @@ impl KStruct for Vp8DuckIvf {
         Ok(())
     }
 }
-impl Vp8DuckIvf {
-}
+impl Vp8DuckIvf {}
 
 /**
  * Magic Number of IVF Files
@@ -269,7 +283,11 @@ impl KStruct for Vp8DuckIvf_Block {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf_Blocks;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -285,14 +303,14 @@ impl KStruct for Vp8DuckIvf_Block {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.framedata.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_frame())?)?;
+        *self_rc.framedata.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_frame())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Vp8DuckIvf_Block {
-}
+impl Vp8DuckIvf_Block {}
 
 /**
  * size of the frame data
@@ -373,7 +391,11 @@ impl KStruct for Vp8DuckIvf_Blocks {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -385,15 +407,19 @@ impl KStruct for Vp8DuckIvf_Blocks {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Vp8DuckIvf_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Vp8DuckIvf_Block>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.entries.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Vp8DuckIvf_Blocks {
-}
+impl Vp8DuckIvf_Blocks {}
 impl Vp8DuckIvf_Blocks {
     pub fn entries(&self) -> Ref<'_, OptRc<Vp8DuckIvf_Block>> {
         self.entries.borrow()

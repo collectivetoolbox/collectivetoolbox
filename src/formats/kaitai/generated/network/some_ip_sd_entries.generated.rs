@@ -56,7 +56,11 @@ impl KStruct for SomeIpSdEntries {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -72,7 +76,12 @@ impl KStruct for SomeIpSdEntries {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -82,8 +91,7 @@ impl KStruct for SomeIpSdEntries {
         Ok(())
     }
 }
-impl SomeIpSdEntries {
-}
+impl SomeIpSdEntries {}
 impl SomeIpSdEntries {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<SomeIpSdEntries_SdEntry>>> {
         self.entries.borrow()
@@ -112,65 +120,105 @@ pub struct SomeIpSdEntries_SdEntry {
 }
 #[derive(Debug, Clone)]
 pub enum SomeIpSdEntries_SdEntry_Content {
-    SomeIpSdEntries_SdEntry_SdServiceEntry(OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>),
-    SomeIpSdEntries_SdEntry_SdEventgroupEntry(OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>),
+    SomeIpSdEntries_SdEntry_SdServiceEntry(
+        OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>,
+    ),
+    SomeIpSdEntries_SdEntry_SdEventgroupEntry(
+        OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>,
+    ),
 }
-impl TryFrom<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
+impl TryFrom<&SomeIpSdEntries_SdEntry_Content>
+    for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
     type Error = KError;
-    fn try_from(v: &SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SomeIpSdEntries_SdEntry_Content,
+    ) -> Result<Self, Self::Error> {
         if let SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdServiceEntry(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
+impl TryFrom<&&SomeIpSdEntries_SdEntry_Content>
+    for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
     type Error = KError;
-    fn try_from(v: &&SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SomeIpSdEntries_SdEntry_Content,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for SomeIpSdEntries_SdEntry_Content {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for SomeIpSdEntries_SdEntry_Content
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         OptRc::<SomeIpSdEntries_SdEntry_SdServiceEntry>::try_from(self)
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for &SomeIpSdEntries_SdEntry_Content {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for &SomeIpSdEntries_SdEntry_Content
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>> for SomeIpSdEntries_SdEntry_Content {
+impl From<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>>
+    for SomeIpSdEntries_SdEntry_Content
+{
     fn from(v: OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>) -> Self {
         Self::SomeIpSdEntries_SdEntry_SdServiceEntry(v)
     }
 }
-impl TryFrom<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
+impl TryFrom<&SomeIpSdEntries_SdEntry_Content>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
     type Error = KError;
-    fn try_from(v: &SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SomeIpSdEntries_SdEntry_Content,
+    ) -> Result<Self, Self::Error> {
         if let SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdEventgroupEntry(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
+impl TryFrom<&&SomeIpSdEntries_SdEntry_Content>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
     type Error = KError;
-    fn try_from(v: &&SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SomeIpSdEntries_SdEntry_Content,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for SomeIpSdEntries_SdEntry_Content {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for SomeIpSdEntries_SdEntry_Content
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         OptRc::<SomeIpSdEntries_SdEntry_SdEventgroupEntry>::try_from(self)
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for &SomeIpSdEntries_SdEntry_Content {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for &SomeIpSdEntries_SdEntry_Content
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>> for SomeIpSdEntries_SdEntry_Content {
+impl From<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>>
+    for SomeIpSdEntries_SdEntry_Content
+{
     fn from(v: OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>) -> Self {
         Self::SomeIpSdEntries_SdEntry_SdEventgroupEntry(v)
     }
@@ -202,7 +250,9 @@ impl DowncastOptRc<SomeIpSdEntries_SdEntry> for OptRc<SomeIpSdEntries_SdEntry> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry> for &OptRc<SomeIpSdEntries_SdEntry> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry>
+    for &OptRc<SomeIpSdEntries_SdEntry>
+{
     fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry>, KError> {
         Ok((*self).clone())
     }
@@ -211,7 +261,11 @@ impl KStruct for SomeIpSdEntries_SdEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -223,24 +277,61 @@ impl KStruct for SomeIpSdEntries_SdEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEntryHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEntryHeader>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header().r#type() {
             SomeIpSdEntries_SdEntry_EntryTypes::Find => {
-                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdServiceEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    _,
+                    SomeIpSdEntries_SdEntry_SdServiceEntry,
+                >(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::Offer => {
-                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdServiceEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    _,
+                    SomeIpSdEntries_SdEntry_SdServiceEntry,
+                >(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::Subscribe => {
-                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    _,
+                    SomeIpSdEntries_SdEntry_SdEventgroupEntry,
+                >(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::SubscribeAck => {
-                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    _,
+                    SomeIpSdEntries_SdEntry_SdEventgroupEntry,
+                >(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {}
@@ -250,10 +341,11 @@ impl KStruct for SomeIpSdEntries_SdEntry {
         Ok(())
     }
 }
+impl SomeIpSdEntries_SdEntry {}
 impl SomeIpSdEntries_SdEntry {
-}
-impl SomeIpSdEntries_SdEntry {
-    pub fn header(&self) -> Ref<'_, OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>> {
+    pub fn header(
+        &self,
+    ) -> Ref<'_, OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>> {
         self.header.borrow()
     }
 }
@@ -302,15 +394,16 @@ impl From<&SomeIpSdEntries_SdEntry_EntryTypes> for i64 {
             SomeIpSdEntries_SdEntry_EntryTypes::Offer => 1,
             SomeIpSdEntries_SdEntry_EntryTypes::Subscribe => 6,
             SomeIpSdEntries_SdEntry_EntryTypes::SubscribeAck => 7,
-            SomeIpSdEntries_SdEntry_EntryTypes::Unknown(v) => v
+            SomeIpSdEntries_SdEntry_EntryTypes::Unknown(v) => v,
         }
     }
 }
 
 impl Default for SomeIpSdEntries_SdEntry_EntryTypes {
-    fn default() -> Self { SomeIpSdEntries_SdEntry_EntryTypes::Unknown(0) }
+    fn default() -> Self {
+        SomeIpSdEntries_SdEntry_EntryTypes::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct SomeIpSdEntries_SdEntry_SdEntryHeader {
@@ -328,35 +421,59 @@ pub struct SomeIpSdEntries_SdEntry_SdEntryHeader {
     ttl: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SomeIpSdEntries_SdEntry_SdEntryHeader> for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> {
+impl TryFrom<&SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+{
     type Error = KError;
-    fn try_from(v: &SomeIpSdEntries_SdEntry_SdEntryHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SomeIpSdEntries_SdEntry_SdEntryHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SomeIpSdEntries_SdEntry_SdEntryHeader> for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> {
+impl TryFrom<&&SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+{
     type Error = KError;
-    fn try_from(v: &&SomeIpSdEntries_SdEntry_SdEntryHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SomeIpSdEntries_SdEntry_SdEntryHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> for SomeIpSdEntries_SdEntry_SdEntryHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for SomeIpSdEntries_SdEntry_SdEntryHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> for &SomeIpSdEntries_SdEntry_SdEntryHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for &SomeIpSdEntries_SdEntry_SdEntryHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> for &OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+    for &OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -364,7 +481,11 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEntryHeader {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -384,7 +505,8 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEntryHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_first_options.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_second_options.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc.number_second_options.borrow_mut() =
+            _io.read_bits_int_be(4)?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.service_id.borrow_mut() = _io.read_u2be()?;
@@ -399,8 +521,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEntryHeader {
         Ok(())
     }
 }
-impl SomeIpSdEntries_SdEntry_SdEntryHeader {
-}
+impl SomeIpSdEntries_SdEntry_SdEntryHeader {}
 impl SomeIpSdEntries_SdEntry_SdEntryHeader {
     pub fn r#type(&self) -> Ref<'_, SomeIpSdEntries_SdEntry_EntryTypes> {
         self.r#type.borrow()
@@ -470,35 +591,59 @@ pub struct SomeIpSdEntries_SdEntry_SdEventgroupEntry {
     event_group_id: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SomeIpSdEntries_SdEntry_SdEventgroupEntry> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
+impl TryFrom<&SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
     type Error = KError;
-    fn try_from(v: &SomeIpSdEntries_SdEntry_SdEventgroupEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SomeIpSdEntries_SdEntry_SdEventgroupEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SomeIpSdEntries_SdEntry_SdEventgroupEntry> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
+impl TryFrom<&&SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
     type Error = KError;
-    fn try_from(v: &&SomeIpSdEntries_SdEntry_SdEventgroupEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SomeIpSdEntries_SdEntry_SdEventgroupEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for SomeIpSdEntries_SdEntry_SdEventgroupEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for &SomeIpSdEntries_SdEntry_SdEventgroupEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for &SomeIpSdEntries_SdEntry_SdEventgroupEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> for &OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+    for &OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -506,7 +651,11 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -520,7 +669,8 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.initial_data_requested.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.initial_data_requested.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -533,8 +683,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
         Ok(())
     }
 }
-impl SomeIpSdEntries_SdEntry_SdEventgroupEntry {
-}
+impl SomeIpSdEntries_SdEntry_SdEventgroupEntry {}
 impl SomeIpSdEntries_SdEntry_SdEventgroupEntry {
     pub fn reserved(&self) -> Ref<'_, u8> {
         self.reserved.borrow()
@@ -580,35 +729,59 @@ pub struct SomeIpSdEntries_SdEntry_SdServiceEntry {
     minor_version: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SomeIpSdEntries_SdEntry_SdServiceEntry> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
+impl TryFrom<&SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
     type Error = KError;
-    fn try_from(v: &SomeIpSdEntries_SdEntry_SdServiceEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SomeIpSdEntries_SdEntry_SdServiceEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SomeIpSdEntries_SdEntry_SdServiceEntry> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
+impl TryFrom<&&SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
     type Error = KError;
-    fn try_from(v: &&SomeIpSdEntries_SdEntry_SdServiceEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SomeIpSdEntries_SdEntry_SdServiceEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for SomeIpSdEntries_SdEntry_SdServiceEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for SomeIpSdEntries_SdEntry_SdServiceEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for &SomeIpSdEntries_SdEntry_SdServiceEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for &SomeIpSdEntries_SdEntry_SdServiceEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> for &OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
+impl DowncastOptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+    for &OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -616,7 +789,11 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdServiceEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -634,8 +811,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdServiceEntry {
         Ok(())
     }
 }
-impl SomeIpSdEntries_SdEntry_SdServiceEntry {
-}
+impl SomeIpSdEntries_SdEntry_SdServiceEntry {}
 impl SomeIpSdEntries_SdEntry_SdServiceEntry {
     pub fn minor_version(&self) -> Ref<'_, u32> {
         self.minor_version.borrow()

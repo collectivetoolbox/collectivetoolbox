@@ -107,7 +107,11 @@ impl KStruct for BitsSeqEndianCombo {
     type Root = BitsSeqEndianCombo;
     type Parent = BitsSeqEndianCombo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -139,8 +143,7 @@ impl KStruct for BitsSeqEndianCombo {
         Ok(())
     }
 }
-impl BitsSeqEndianCombo {
-}
+impl BitsSeqEndianCombo {}
 impl BitsSeqEndianCombo {
     pub fn be1(&self) -> Ref<'_, u64> {
         self.be1.borrow()

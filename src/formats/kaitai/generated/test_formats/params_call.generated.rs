@@ -101,7 +101,11 @@ impl KStruct for ParamsCall {
     type Root = ParamsCall;
     type Parent = ParamsCall;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,20 +117,40 @@ impl KStruct for ParamsCall {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t : &mut ParamsCall_MyStr1| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ParamsCall_MyStr1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsCall_MyStr1| {
+            Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?))
+        };
+        let t = Self::read_into_with_init::<_, ParamsCall_MyStr1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.buf1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsCall_MyStr2| Ok(t.set_params(((2_i32).saturating_add(3_i32)).try_into().map_err(|_| KError::CastError)?, true));
-        let t = Self::read_into_with_init::<_, ParamsCall_MyStr2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsCall_MyStr2| {
+            Ok(t.set_params(
+                ((2_i32).saturating_add(3_i32))
+                    .try_into()
+                    .map_err(|_| KError::CastError)?,
+                true,
+            ))
+        };
+        let t = Self::read_into_with_init::<_, ParamsCall_MyStr2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.buf2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsCall {
-}
+impl ParamsCall {}
 impl ParamsCall {
     pub fn buf1(&self) -> Ref<'_, OptRc<ParamsCall_MyStr1>> {
         self.buf1.borrow()
@@ -195,7 +219,11 @@ impl KStruct for ParamsCall_MyStr1 {
     type Root = ParamsCall;
     type Parent = ParamsCall;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,7 +235,10 @@ impl KStruct for ParamsCall_MyStr1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
+        *self_rc.body.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(*self_rc.len())?)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -223,8 +254,7 @@ impl ParamsCall_MyStr1 {
         *self.len.borrow_mut() = len;
     }
 }
-impl ParamsCall_MyStr1 {
-}
+impl ParamsCall_MyStr1 {}
 impl ParamsCall_MyStr1 {
     pub fn body(&self) -> Ref<'_, String> {
         self.body.borrow()
@@ -295,7 +325,11 @@ impl KStruct for ParamsCall_MyStr2 {
     type Root = ParamsCall;
     type Parent = ParamsCall;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -307,7 +341,10 @@ impl KStruct for ParamsCall_MyStr2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
+        *self_rc.body.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(*self_rc.len())?)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_trailer() {
@@ -334,8 +371,7 @@ impl ParamsCall_MyStr2 {
         *self.has_trailer.borrow_mut() = has_trailer;
     }
 }
-impl ParamsCall_MyStr2 {
-}
+impl ParamsCall_MyStr2 {}
 impl ParamsCall_MyStr2 {
     pub fn body(&self) -> Ref<'_, String> {
         self.body.borrow()

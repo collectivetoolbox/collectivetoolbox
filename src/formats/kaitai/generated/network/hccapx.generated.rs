@@ -54,7 +54,11 @@ impl KStruct for Hccapx {
     type Root = Hccapx;
     type Parent = Hccapx;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -70,7 +74,12 @@ impl KStruct for Hccapx {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Hccapx_HccapxRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Hccapx_HccapxRecord>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -80,8 +89,7 @@ impl KStruct for Hccapx {
         Ok(())
     }
 }
-impl Hccapx {
-}
+impl Hccapx {}
 impl Hccapx {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<Hccapx_HccapxRecord>>> {
         self.records.borrow()
@@ -167,7 +175,11 @@ impl KStruct for Hccapx_HccapxRecord {
     type Root = Hccapx;
     type Parent = Hccapx;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -181,21 +193,28 @@ impl KStruct for Hccapx_HccapxRecord {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x48u8, 0x43u8, 0x50u8, 0x58u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/hccapx_record/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/hccapx_record/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ignore_replay_counter.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.ignore_replay_counter.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.message_pair.borrow_mut() = _io.read_bits_int_be(7)?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.len_essid.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.essid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_essid()))?;
+        *self_rc.essid.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.len_essid()))?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from((32_i32).saturating_sub(i32::from(*self_rc.len_essid())))?)?;
+        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(
+            (32_i32).saturating_sub(i32::from(*self_rc.len_essid())),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keyver.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -211,16 +230,18 @@ impl KStruct for Hccapx_HccapxRecord {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_eapol.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.eapol.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_eapol()))?;
+        *self_rc.eapol.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.len_eapol()))?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_sub(i32::from(*self_rc.len_eapol())))?)?;
+        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(
+            (256_i32).saturating_sub(i32::from(*self_rc.len_eapol())),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Hccapx_HccapxRecord {
-}
+impl Hccapx_HccapxRecord {}
 impl Hccapx_HccapxRecord {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

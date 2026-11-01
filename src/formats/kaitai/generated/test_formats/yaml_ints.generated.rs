@@ -107,7 +107,11 @@ impl KStruct for YamlInts {
     type Root = YamlInts;
     type Parent = YamlInts;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,10 +128,12 @@ impl KStruct for YamlInts {
     }
 }
 impl YamlInts {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn test_u4_dec(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn test_u4_dec(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_test_u4_dec.get() {
             return Ok(self.test_u4_dec.borrow());
@@ -136,10 +142,12 @@ impl YamlInts {
         *self.test_u4_dec.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_dec.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn test_u4_hex(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn test_u4_hex(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_test_u4_hex.get() {
             return Ok(self.test_u4_hex.borrow());
@@ -148,28 +156,34 @@ impl YamlInts {
         *self.test_u4_hex.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_hex.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn test_u8_dec(
-        &self
-    ) -> KResult<Ref<'_, u64>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn test_u8_dec(&self) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_test_u8_dec.get() {
             return Ok(self.test_u8_dec.borrow());
         }
         self.f_test_u8_dec.set(true);
-        *self.test_u8_dec.borrow_mut() = (18446744073709551615_i128).try_into()?;
+        *self.test_u8_dec.borrow_mut() =
+            (18446744073709551615_i128).try_into()?;
         Ok(self.test_u8_dec.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn test_u8_hex(
-        &self
-    ) -> KResult<Ref<'_, u64>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn test_u8_hex(&self) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_test_u8_hex.get() {
             return Ok(self.test_u8_hex.borrow());
         }
         self.f_test_u8_hex.set(true);
-        *self.test_u8_hex.borrow_mut() = (18446744073709551615_i128).try_into()?;
+        *self.test_u8_hex.borrow_mut() =
+            (18446744073709551615_i128).try_into()?;
         Ok(self.test_u8_hex.borrow())
     }
 }

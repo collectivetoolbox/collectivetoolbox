@@ -101,7 +101,11 @@ impl KStruct for ProcessRepeatUsertype {
     type Root = ProcessRepeatUsertype;
     type Parent = ProcessRepeatUsertype;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,7 +123,13 @@ impl KStruct for ProcessRepeatUsertype {
             let _raw_blocks = _io.read_bytes(5_usize)?;
             let _processed_blocks = process_xor_one(&_raw_blocks, 158_u8);
             let _io_blocks = BytesReader::from(_processed_blocks);
-            let t = Self::read_into::<BytesReader, ProcessRepeatUsertype_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t =
+                Self::read_into::<BytesReader, ProcessRepeatUsertype_Block>(
+                    &_io_blocks,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
             self_rc.blocks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -127,8 +137,7 @@ impl KStruct for ProcessRepeatUsertype {
         Ok(())
     }
 }
-impl ProcessRepeatUsertype {
-}
+impl ProcessRepeatUsertype {}
 impl ProcessRepeatUsertype {
     pub fn blocks(&self) -> Ref<'_, Vec<OptRc<ProcessRepeatUsertype_Block>>> {
         self.blocks.borrow()
@@ -160,35 +169,55 @@ pub struct ProcessRepeatUsertype_Block {
     b: RefCell<i8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
+impl TryFrom<&ProcessRepeatUsertype_Block>
+    for OptRc<ProcessRepeatUsertype_Block>
+{
     type Error = KError;
     fn try_from(v: &ProcessRepeatUsertype_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
+impl TryFrom<&&ProcessRepeatUsertype_Block>
+    for OptRc<ProcessRepeatUsertype_Block>
+{
     type Error = KError;
     fn try_from(v: &&ProcessRepeatUsertype_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertype_Block> for ProcessRepeatUsertype_Block {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertype_Block>
+    for ProcessRepeatUsertype_Block
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertype_Block> for &ProcessRepeatUsertype_Block {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertype_Block>
+    for &ProcessRepeatUsertype_Block
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertype_Block>
+    for OptRc<ProcessRepeatUsertype_Block>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertype_Block> for &OptRc<ProcessRepeatUsertype_Block> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertype_Block>
+    for &OptRc<ProcessRepeatUsertype_Block>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
         Ok((*self).clone())
     }
 }
@@ -196,7 +225,11 @@ impl KStruct for ProcessRepeatUsertype_Block {
     type Root = ProcessRepeatUsertype;
     type Parent = ProcessRepeatUsertype;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -216,8 +249,7 @@ impl KStruct for ProcessRepeatUsertype_Block {
         Ok(())
     }
 }
-impl ProcessRepeatUsertype_Block {
-}
+impl ProcessRepeatUsertype_Block {}
 impl ProcessRepeatUsertype_Block {
     pub fn a(&self) -> Ref<'_, i32> {
         self.a.borrow()

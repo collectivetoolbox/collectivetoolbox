@@ -190,7 +190,11 @@ impl KStruct for SshPublicKey {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -202,24 +206,49 @@ impl KStruct for SshPublicKey {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SshPublicKey_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Cstring>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.key_name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.key_name().value().as_str() {
             "ecdsa-sha2-nistp256" => {
-                let t = Self::read_into::<_, SshPublicKey_KeyEcdsa>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SshPublicKey_KeyEcdsa>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "ssh-dss" => {
-                let t = Self::read_into::<_, SshPublicKey_KeyDsa>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SshPublicKey_KeyDsa>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "ssh-ed25519" => {
-                let t = Self::read_into::<_, SshPublicKey_KeyEd25519>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SshPublicKey_KeyEd25519>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "ssh-rsa" => {
-                let t = Self::read_into::<_, SshPublicKey_KeyRsa>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SshPublicKey_KeyRsa>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -229,8 +258,7 @@ impl KStruct for SshPublicKey {
         Ok(())
     }
 }
-impl SshPublicKey {
-}
+impl SshPublicKey {}
 impl SshPublicKey {
     pub fn key_name(&self) -> Ref<'_, OptRc<SshPublicKey_Cstring>> {
         self.key_name.borrow()
@@ -313,7 +341,11 @@ impl KStruct for SshPublicKey_Bignum2 {
     type Root = SshPublicKey;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -327,28 +359,32 @@ impl KStruct for SshPublicKey_Bignum2 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.body.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl SshPublicKey_Bignum2 {
-
     /**
      * Length of big integer in bits. In OpenSSH sources, this corresponds to
      * `BN_num_bits` function.
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn length_in_bits(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn length_in_bits(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_length_in_bits.get() {
             return Ok(self.length_in_bits.borrow());
         }
         self.f_length_in_bits.set(true);
-        *self.length_in_bits.borrow_mut() = (((*self.len()).saturating_sub(1_u32)).saturating_mul(8_u32)).try_into()?;
+        *self.length_in_bits.borrow_mut() =
+            (((*self.len()).saturating_sub(1_u32)).saturating_mul(8_u32))
+                .try_into()?;
         Ok(self.length_in_bits.borrow())
     }
 }
@@ -432,7 +468,11 @@ impl KStruct for SshPublicKey_Cstring {
     type Root = SshPublicKey;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -446,14 +486,16 @@ impl KStruct for SshPublicKey_Cstring {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "ASCII")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(*self_rc.len())?)?,
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SshPublicKey_Cstring {
-}
+impl SshPublicKey_Cstring {}
 impl SshPublicKey_Cstring {
     pub fn len(&self) -> Ref<'_, u32> {
         self.len.borrow()
@@ -501,35 +543,51 @@ pub struct SshPublicKey_EllipticCurve {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
+impl TryFrom<&SshPublicKey_EllipticCurve>
+    for OptRc<SshPublicKey_EllipticCurve>
+{
     type Error = KError;
     fn try_from(v: &SshPublicKey_EllipticCurve) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
+impl TryFrom<&&SshPublicKey_EllipticCurve>
+    for OptRc<SshPublicKey_EllipticCurve>
+{
     type Error = KError;
     fn try_from(v: &&SshPublicKey_EllipticCurve) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<SshPublicKey_EllipticCurve> for SshPublicKey_EllipticCurve {
-    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<SshPublicKey_EllipticCurve> for &SshPublicKey_EllipticCurve {
-    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
-    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+impl DowncastOptRc<SshPublicKey_EllipticCurve>
+    for OptRc<SshPublicKey_EllipticCurve>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SshPublicKey_EllipticCurve> for &OptRc<SshPublicKey_EllipticCurve> {
-    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+impl DowncastOptRc<SshPublicKey_EllipticCurve>
+    for &OptRc<SshPublicKey_EllipticCurve>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
         Ok((*self).clone())
     }
 }
@@ -537,7 +595,11 @@ impl KStruct for SshPublicKey_EllipticCurve {
     type Root = SshPublicKey;
     type Parent = SshPublicKey_KeyEcdsa;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -551,14 +613,14 @@ impl KStruct for SshPublicKey_EllipticCurve {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.body.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SshPublicKey_EllipticCurve {
-}
+impl SshPublicKey_EllipticCurve {}
 impl SshPublicKey_EllipticCurve {
     pub fn len(&self) -> Ref<'_, u32> {
         self.len.borrow()
@@ -637,7 +699,11 @@ impl KStruct for SshPublicKey_KeyDsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -649,24 +715,43 @@ impl KStruct for SshPublicKey_KeyDsa {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.dsa_p.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.dsa_q.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.dsa_g.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.dsa_pub_key.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SshPublicKey_KeyDsa {
-}
+impl SshPublicKey_KeyDsa {}
 impl SshPublicKey_KeyDsa {
     pub fn dsa_p(&self) -> Ref<'_, OptRc<SshPublicKey_Bignum2>> {
         self.dsa_p.borrow()
@@ -748,7 +833,11 @@ impl KStruct for SshPublicKey_KeyEcdsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -760,18 +849,27 @@ impl KStruct for SshPublicKey_KeyEcdsa {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SshPublicKey_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Cstring>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.curve_name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, SshPublicKey_EllipticCurve>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, SshPublicKey_EllipticCurve>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.ec.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SshPublicKey_KeyEcdsa {
-}
+impl SshPublicKey_KeyEcdsa {}
 impl SshPublicKey_KeyEcdsa {
     pub fn curve_name(&self) -> Ref<'_, OptRc<SshPublicKey_Cstring>> {
         self.curve_name.borrow()
@@ -835,7 +933,9 @@ impl DowncastOptRc<SshPublicKey_KeyEd25519> for OptRc<SshPublicKey_KeyEd25519> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SshPublicKey_KeyEd25519> for &OptRc<SshPublicKey_KeyEd25519> {
+impl DowncastOptRc<SshPublicKey_KeyEd25519>
+    for &OptRc<SshPublicKey_KeyEd25519>
+{
     fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
         Ok((*self).clone())
     }
@@ -844,7 +944,11 @@ impl KStruct for SshPublicKey_KeyEd25519 {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -858,14 +962,14 @@ impl KStruct for SshPublicKey_KeyEd25519 {
         let _io = io;
         *self_rc.len_pk.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.pk.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_pk())?)?;
+        *self_rc.pk.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_pk())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SshPublicKey_KeyEd25519 {
-}
+impl SshPublicKey_KeyEd25519 {}
 impl SshPublicKey_KeyEd25519 {
     pub fn len_pk(&self) -> Ref<'_, u32> {
         self.len_pk.borrow()
@@ -944,7 +1048,11 @@ impl KStruct for SshPublicKey_KeyRsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -956,10 +1064,20 @@ impl KStruct for SshPublicKey_KeyRsa {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.rsa_e.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, SshPublicKey_Bignum2>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.rsa_n.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -967,20 +1085,22 @@ impl KStruct for SshPublicKey_KeyRsa {
     }
 }
 impl SshPublicKey_KeyRsa {
-
     /**
      * Key length in bits
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn key_length(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn key_length(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_key_length.get() {
             return Ok(self.key_length.borrow());
         }
         self.f_key_length.set(true);
-        *self.key_length.borrow_mut() = (*self.rsa_n().length_in_bits()?).try_into()?;
+        *self.key_length.borrow_mut() =
+            (*self.rsa_n().length_in_bits()?).try_into()?;
         Ok(self.key_length.borrow())
     }
 }

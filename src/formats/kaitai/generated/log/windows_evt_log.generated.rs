@@ -75,7 +75,11 @@ impl KStruct for WindowsEvtLog {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,14 +91,24 @@ impl KStruct for WindowsEvtLog {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, WindowsEvtLog_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, WindowsEvtLog_Header>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, WindowsEvtLog_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, WindowsEvtLog_Record>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -104,8 +118,7 @@ impl KStruct for WindowsEvtLog {
         Ok(())
     }
 }
-impl WindowsEvtLog {
-}
+impl WindowsEvtLog {}
 impl WindowsEvtLog {
     pub fn header(&self) -> Ref<'_, OptRc<WindowsEvtLog_Header>> {
         self.header.borrow()
@@ -144,35 +157,59 @@ pub struct WindowsEvtLog_CursorRecordBody {
     idx_first_record: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
+impl TryFrom<&WindowsEvtLog_CursorRecordBody>
+    for OptRc<WindowsEvtLog_CursorRecordBody>
+{
     type Error = KError;
-    fn try_from(v: &WindowsEvtLog_CursorRecordBody) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &WindowsEvtLog_CursorRecordBody,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
+impl TryFrom<&&WindowsEvtLog_CursorRecordBody>
+    for OptRc<WindowsEvtLog_CursorRecordBody>
+{
     type Error = KError;
-    fn try_from(v: &&WindowsEvtLog_CursorRecordBody) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&WindowsEvtLog_CursorRecordBody,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for WindowsEvtLog_CursorRecordBody {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for WindowsEvtLog_CursorRecordBody
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &WindowsEvtLog_CursorRecordBody {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for &WindowsEvtLog_CursorRecordBody
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for OptRc<WindowsEvtLog_CursorRecordBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &OptRc<WindowsEvtLog_CursorRecordBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for &OptRc<WindowsEvtLog_CursorRecordBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -180,7 +217,11 @@ impl KStruct for WindowsEvtLog_CursorRecordBody {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -193,8 +234,16 @@ impl KStruct for WindowsEvtLog_CursorRecordBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(12_usize)?;
-        if !(*self_rc.magic() == vec![0x22u8, 0x22u8, 0x22u8, 0x22u8, 0x33u8, 0x33u8, 0x33u8, 0x33u8, 0x44u8, 0x44u8, 0x44u8, 0x44u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cursor_record_body/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![
+                0x22u8, 0x22u8, 0x22u8, 0x22u8, 0x33u8, 0x33u8, 0x33u8, 0x33u8,
+                0x44u8, 0x44u8, 0x44u8, 0x44u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/cursor_record_body/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_first_record.borrow_mut() = _io.read_u4le()?;
@@ -209,8 +258,7 @@ impl KStruct for WindowsEvtLog_CursorRecordBody {
         Ok(())
     }
 }
-impl WindowsEvtLog_CursorRecordBody {
-}
+impl WindowsEvtLog_CursorRecordBody {}
 impl WindowsEvtLog_CursorRecordBody {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -307,7 +355,11 @@ impl KStruct for WindowsEvtLog_Header {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -323,7 +375,10 @@ impl KStruct for WindowsEvtLog_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4cu8, 0x66u8, 0x4cu8, 0x65u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u4le()?;
@@ -340,7 +395,12 @@ impl KStruct for WindowsEvtLog_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file_max.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsEvtLog_Header_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, WindowsEvtLog_Header_Flags>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.retention.borrow_mut() = _io.read_u4le()?;
@@ -351,8 +411,7 @@ impl KStruct for WindowsEvtLog_Header {
         Ok(())
     }
 }
-impl WindowsEvtLog_Header {
-}
+impl WindowsEvtLog_Header {}
 
 /**
  * Size of the header structure, must be 0x30.
@@ -466,35 +525,51 @@ pub struct WindowsEvtLog_Header_Flags {
     dirty: RefCell<bool>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
+impl TryFrom<&WindowsEvtLog_Header_Flags>
+    for OptRc<WindowsEvtLog_Header_Flags>
+{
     type Error = KError;
     fn try_from(v: &WindowsEvtLog_Header_Flags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
+impl TryFrom<&&WindowsEvtLog_Header_Flags>
+    for OptRc<WindowsEvtLog_Header_Flags>
+{
     type Error = KError;
     fn try_from(v: &&WindowsEvtLog_Header_Flags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<WindowsEvtLog_Header_Flags> for WindowsEvtLog_Header_Flags {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsEvtLog_Header_Flags> for &WindowsEvtLog_Header_Flags {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+impl DowncastOptRc<WindowsEvtLog_Header_Flags>
+    for OptRc<WindowsEvtLog_Header_Flags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsEvtLog_Header_Flags> for &OptRc<WindowsEvtLog_Header_Flags> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+impl DowncastOptRc<WindowsEvtLog_Header_Flags>
+    for &OptRc<WindowsEvtLog_Header_Flags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -502,7 +577,11 @@ impl KStruct for WindowsEvtLog_Header_Flags {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -528,8 +607,7 @@ impl KStruct for WindowsEvtLog_Header_Flags {
         Ok(())
     }
 }
-impl WindowsEvtLog_Header_Flags {
-}
+impl WindowsEvtLog_Header_Flags {}
 impl WindowsEvtLog_Header_Flags {
     pub fn reserved(&self) -> Ref<'_, u64> {
         self.reserved.borrow()
@@ -622,12 +700,16 @@ impl TryFrom<&&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_RecordBody> {
     }
 }
 impl DowncastOptRc<WindowsEvtLog_RecordBody> for WindowsEvtLog_Record_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         OptRc::<WindowsEvtLog_RecordBody>::try_from(self)
     }
 }
 impl DowncastOptRc<WindowsEvtLog_RecordBody> for &WindowsEvtLog_Record_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -636,28 +718,41 @@ impl From<OptRc<WindowsEvtLog_RecordBody>> for WindowsEvtLog_Record_Body {
         Self::WindowsEvtLog_RecordBody(v)
     }
 }
-impl TryFrom<&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_CursorRecordBody> {
+impl TryFrom<&WindowsEvtLog_Record_Body>
+    for OptRc<WindowsEvtLog_CursorRecordBody>
+{
     type Error = KError;
     fn try_from(v: &WindowsEvtLog_Record_Body) -> Result<Self, Self::Error> {
-        if let WindowsEvtLog_Record_Body::WindowsEvtLog_CursorRecordBody(x) = v {
+        if let WindowsEvtLog_Record_Body::WindowsEvtLog_CursorRecordBody(x) = v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_CursorRecordBody> {
+impl TryFrom<&&WindowsEvtLog_Record_Body>
+    for OptRc<WindowsEvtLog_CursorRecordBody>
+{
     type Error = KError;
     fn try_from(v: &&WindowsEvtLog_Record_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for WindowsEvtLog_Record_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for WindowsEvtLog_Record_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         OptRc::<WindowsEvtLog_CursorRecordBody>::try_from(self)
     }
 }
-impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &WindowsEvtLog_Record_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody>
+    for &WindowsEvtLog_Record_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -722,7 +817,11 @@ impl KStruct for WindowsEvtLog_Record {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -740,21 +839,48 @@ impl KStruct for WindowsEvtLog_Record {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             1699505740 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_record()).saturating_sub(12_u32))?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        (*self_rc.len_record()).saturating_sub(12_u32),
+                    )?)?
+                    .into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsEvtLog_RecordBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t =
+                    Self::read_into::<BytesReader, WindowsEvtLog_RecordBody>(
+                        &_t_body_raw_io,
+                        Some(self_rc._root.clone()),
+                        Some(self_rc._self_shared.clone()),
+                    )?
+                    .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             286331153 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_record()).saturating_sub(12_u32))?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        (*self_rc.len_record()).saturating_sub(12_u32),
+                    )?)?
+                    .into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsEvtLog_CursorRecordBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    WindowsEvtLog_CursorRecordBody,
+                >(
+                    &_t_body_raw_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from((*self_rc.len_record()).saturating_sub(12_u32))?)?.into());
+                *self_rc.body.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(
+                        (*self_rc.len_record()).saturating_sub(12_u32),
+                    )?)?
+                    .into(),
+                );
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -764,8 +890,7 @@ impl KStruct for WindowsEvtLog_Record {
         Ok(())
     }
 }
-impl WindowsEvtLog_Record {
-}
+impl WindowsEvtLog_Record {}
 
 /**
  * Size of whole record, including all headers, footers and data
@@ -865,22 +990,34 @@ impl TryFrom<&&WindowsEvtLog_RecordBody> for OptRc<WindowsEvtLog_RecordBody> {
     }
 }
 impl DowncastOptRc<WindowsEvtLog_RecordBody> for WindowsEvtLog_RecordBody {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsEvtLog_RecordBody> for &WindowsEvtLog_RecordBody {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsEvtLog_RecordBody> for OptRc<WindowsEvtLog_RecordBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_RecordBody>
+    for OptRc<WindowsEvtLog_RecordBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsEvtLog_RecordBody> for &OptRc<WindowsEvtLog_RecordBody> {
-    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+impl DowncastOptRc<WindowsEvtLog_RecordBody>
+    for &OptRc<WindowsEvtLog_RecordBody>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -888,7 +1025,11 @@ impl KStruct for WindowsEvtLog_RecordBody {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -908,7 +1049,8 @@ impl KStruct for WindowsEvtLog_RecordBody {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.event_id.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.event_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.event_type.borrow_mut() =
+            i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_strings.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -931,10 +1073,12 @@ impl KStruct for WindowsEvtLog_RecordBody {
     }
 }
 impl WindowsEvtLog_RecordBody {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn data(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn data(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
@@ -942,22 +1086,28 @@ impl WindowsEvtLog_RecordBody {
         self.f_data.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from((*self.ofs_data()).saturating_sub(8_u32))?)?;
-        *self.data.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_data())?)?;
+        *self.data.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self.len_data())?)?;
         _io.seek(_pos)?;
         Ok(self.data.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn user_sid(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn user_sid(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_user_sid.get() {
             return Ok(self.user_sid.borrow());
         }
         self.f_user_sid.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.ofs_user_sid()).saturating_sub(8_u32))?)?;
-        *self.user_sid.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_user_sid())?)?;
+        _io.seek(usize::try_from(
+            (*self.ofs_user_sid()).saturating_sub(8_u32),
+        )?)?;
+        *self.user_sid.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self.len_user_sid())?)?;
         _io.seek(_pos)?;
         Ok(self.user_sid.borrow())
     }
@@ -1109,12 +1259,13 @@ impl From<&WindowsEvtLog_RecordBody_EventTypes> for i64 {
             WindowsEvtLog_RecordBody_EventTypes::AuditSuccess => 3,
             WindowsEvtLog_RecordBody_EventTypes::Info => 4,
             WindowsEvtLog_RecordBody_EventTypes::Warning => 5,
-            WindowsEvtLog_RecordBody_EventTypes::Unknown(v) => v
+            WindowsEvtLog_RecordBody_EventTypes::Unknown(v) => v,
         }
     }
 }
 
 impl Default for WindowsEvtLog_RecordBody_EventTypes {
-    fn default() -> Self { WindowsEvtLog_RecordBody_EventTypes::Unknown(0) }
+    fn default() -> Self {
+        WindowsEvtLog_RecordBody_EventTypes::Unknown(0)
+    }
 }
-

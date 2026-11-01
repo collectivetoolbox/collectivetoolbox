@@ -64,7 +64,11 @@ impl KStruct for Iso9660 {
     type Root = Iso9660;
     type Parent = Iso9660;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,25 +85,36 @@ impl KStruct for Iso9660 {
     }
 }
 impl Iso9660 {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn primary_vol_desc(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Iso9660_VolDesc>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn primary_vol_desc(&self) -> KResult<Ref<'_, OptRc<Iso9660_VolDesc>>> {
         let _io = self._io.borrow();
         if self.f_primary_vol_desc.get() {
             return Ok(self.primary_vol_desc.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((16_i32).saturating_mul(*self.sector_size()?))?)?;
-        let t = Self::read_into::<_, Iso9660_VolDesc>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        _io.seek(usize::try_from(
+            (16_i32).saturating_mul(*self.sector_size()?),
+        )?)?;
+        let t = Self::read_into::<_, Iso9660_VolDesc>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.primary_vol_desc.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.primary_vol_desc.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sector_size(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sector_size(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sector_size.get() {
             return Ok(self.sector_size.borrow());
@@ -171,7 +186,11 @@ impl KStruct for Iso9660_Datetime {
     type Root = Iso9660;
     type Parent = Iso9660_DirEntryBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -201,8 +220,7 @@ impl KStruct for Iso9660_Datetime {
         Ok(())
     }
 }
-impl Iso9660_Datetime {
-}
+impl Iso9660_Datetime {}
 impl Iso9660_Datetime {
     pub fn year(&self) -> Ref<'_, u8> {
         self.year.borrow()
@@ -312,7 +330,11 @@ impl KStruct for Iso9660_DecDatetime {
     type Root = Iso9660;
     type Parent = Iso9660_VolDescPrimary;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -324,19 +346,26 @@ impl KStruct for Iso9660_DecDatetime {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.year.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.month.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.month.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.day.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.day.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.hour.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.hour.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.minute.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.minute.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.sec.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.sec.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.sec_hundreds.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc.sec_hundreds.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timezone.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -344,8 +373,7 @@ impl KStruct for Iso9660_DecDatetime {
         Ok(())
     }
 }
-impl Iso9660_DecDatetime {
-}
+impl Iso9660_DecDatetime {}
 impl Iso9660_DecDatetime {
     pub fn year(&self) -> Ref<'_, String> {
         self.year.borrow()
@@ -477,7 +505,11 @@ impl KStruct for Iso9660_DirEntries {
     type Root = Iso9660;
     type Parent = Iso9660_DirEntryBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -493,12 +525,21 @@ impl KStruct for Iso9660_DirEntries {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Iso9660_DirEntry>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Iso9660_DirEntry>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else { break; };
+                let Some(_tmpa) = _t_entries.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len())) == (to_i128(0))) { break; }
+                if ((to_i128(*_tmpa.len())) == (to_i128(0))) {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -506,8 +547,7 @@ impl KStruct for Iso9660_DirEntries {
         Ok(())
     }
 }
-impl Iso9660_DirEntries {
-}
+impl Iso9660_DirEntries {}
 impl Iso9660_DirEntries {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Iso9660_DirEntry>>> {
         self.entries.borrow()
@@ -571,7 +611,11 @@ impl KStruct for Iso9660_DirEntry {
     type Root = Iso9660;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -587,10 +631,17 @@ impl KStruct for Iso9660_DirEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len())) > (to_i128(0))) {
-            let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.len())).saturating_sub(1_i32))?)?;
+            let _raw_body = _io.read_bytes(usize::try_from(
+                (i32::from(*self_rc.len())).saturating_sub(1_i32),
+            )?)?;
             *self_rc.body_raw.borrow_mut() = _raw_body.clone();
             let _io_body = BytesReader::from(_raw_body);
-            let t = Self::read_into::<BytesReader, Iso9660_DirEntryBody>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<BytesReader, Iso9660_DirEntryBody>(
+                &_io_body,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.body.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -598,8 +649,7 @@ impl KStruct for Iso9660_DirEntry {
         Ok(())
     }
 }
-impl Iso9660_DirEntry {
-}
+impl Iso9660_DirEntry {}
 impl Iso9660_DirEntry {
     pub fn len(&self) -> Ref<'_, u8> {
         self.len.borrow()
@@ -688,7 +738,11 @@ impl KStruct for Iso9660_DirEntryBody {
     type Root = Iso9660;
     type Parent = Iso9660_DirEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -702,13 +756,28 @@ impl KStruct for Iso9660_DirEntryBody {
         let _io = io;
         *self_rc.len_ext_attr_rec.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U4bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.lba_extent.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U4bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.size_extent.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_Datetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Iso9660_Datetime>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.datetime.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_flags.borrow_mut() = _io.read_u1()?;
@@ -717,15 +786,27 @@ impl KStruct for Iso9660_DirEntryBody {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interleave_gap_size.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U2bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.vol_seq_num.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file_name.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
+        *self_rc.file_name.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_file_name()))?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (i32::from(*self_rc.len_file_name())).checked_rem(2_i32).ok_or(KError::CastError)? == 0 {
+        if (i32::from(*self_rc.len_file_name()))
+            .checked_rem(2_i32)
+            .ok_or(KError::CastError)?
+            == 0
+        {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -736,41 +817,94 @@ impl KStruct for Iso9660_DirEntryBody {
     }
 }
 impl Iso9660_DirEntryBody {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn extent_as_dir(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Iso9660_DirEntries>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn extent_as_dir(&self) -> KResult<Ref<'_, OptRc<Iso9660_DirEntries>>> {
         let _io = self._io.borrow();
         if self.f_extent_as_dir.get() {
             return Ok(self.extent_as_dir.borrow());
         }
         if ((i32::from(*self.file_flags())) & (2_i32)) != 0 {
-            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+            let io = KStream::clone(
+                &*self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io(),
+            );
             let _pos = io.pos();
-            io.seek(usize::try_from((*self.lba_extent().le()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
-            *self.extent_as_dir_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size_extent().le())?)?.into();
+            io.seek(usize::try_from(
+                (*self.lba_extent().le()).saturating_mul(u32::try_from(
+                    *self
+                        ._root
+                        .get_value()
+                        .borrow()
+                        .upgrade()
+                        .as_ref()
+                        .ok_or(KError::MissingRoot)?
+                        .sector_size()?,
+                )?),
+            )?)?;
+            *self.extent_as_dir_raw.borrow_mut() = io
+                .read_bytes(usize::try_from(*self.size_extent().le())?)?
+                .into();
             let extent_as_dir_raw = self.extent_as_dir_raw.borrow();
-            let _t_extent_as_dir_raw_io = BytesReader::from(extent_as_dir_raw.clone());
-            let t = Self::read_into::<BytesReader, Iso9660_DirEntries>(&_t_extent_as_dir_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _t_extent_as_dir_raw_io =
+                BytesReader::from(extent_as_dir_raw.clone());
+            let t = Self::read_into::<BytesReader, Iso9660_DirEntries>(
+                &_t_extent_as_dir_raw_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             *self.extent_as_dir.borrow_mut() = t;
             io.seek(_pos)?;
         }
         Ok(self.extent_as_dir.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn extent_as_file(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn extent_as_file(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_extent_as_file.get() {
             return Ok(self.extent_as_file.borrow());
         }
         self.f_extent_as_file.set(true);
         if ((i32::from(*self.file_flags())) & (2_i32)) == 0 {
-            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+            let io = KStream::clone(
+                &*self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    ._io(),
+            );
             let _pos = io.pos();
-            io.seek(usize::try_from((*self.lba_extent().le()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
-            *self.extent_as_file.borrow_mut() = io.read_bytes(usize::try_from(*self.size_extent().le())?)?;
+            io.seek(usize::try_from(
+                (*self.lba_extent().le()).saturating_mul(u32::try_from(
+                    *self
+                        ._root
+                        .get_value()
+                        .borrow()
+                        .upgrade()
+                        .as_ref()
+                        .ok_or(KError::MissingRoot)?
+                        .sector_size()?,
+                )?),
+            )?)?;
+            *self.extent_as_file.borrow_mut() =
+                io.read_bytes(usize::try_from(*self.size_extent().le())?)?;
             io.seek(_pos)?;
         }
         Ok(self.extent_as_file.borrow())
@@ -885,22 +1019,34 @@ impl TryFrom<&&Iso9660_PathTableEntryLe> for OptRc<Iso9660_PathTableEntryLe> {
     }
 }
 impl DowncastOptRc<Iso9660_PathTableEntryLe> for Iso9660_PathTableEntryLe {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Iso9660_PathTableEntryLe> for &Iso9660_PathTableEntryLe {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Iso9660_PathTableEntryLe> for OptRc<Iso9660_PathTableEntryLe> {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+impl DowncastOptRc<Iso9660_PathTableEntryLe>
+    for OptRc<Iso9660_PathTableEntryLe>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Iso9660_PathTableEntryLe> for &OptRc<Iso9660_PathTableEntryLe> {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+impl DowncastOptRc<Iso9660_PathTableEntryLe>
+    for &OptRc<Iso9660_PathTableEntryLe>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
         Ok((*self).clone())
     }
 }
@@ -908,7 +1054,11 @@ impl KStruct for Iso9660_PathTableEntryLe {
     type Root = Iso9660;
     type Parent = Iso9660_PathTableLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -928,10 +1078,17 @@ impl KStruct for Iso9660_PathTableEntryLe {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parent_dir_idx.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.dir_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_dir_name()))?, "UTF-8")?;
+        *self_rc.dir_name.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_dir_name()))?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (i32::from(*self_rc.len_dir_name())).checked_rem(2_i32).ok_or(KError::CastError)? == 1 {
+        if (i32::from(*self_rc.len_dir_name()))
+            .checked_rem(2_i32)
+            .ok_or(KError::CastError)?
+            == 1
+        {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -939,8 +1096,7 @@ impl KStruct for Iso9660_PathTableEntryLe {
         Ok(())
     }
 }
-impl Iso9660_PathTableEntryLe {
-}
+impl Iso9660_PathTableEntryLe {}
 impl Iso9660_PathTableEntryLe {
     pub fn len_dir_name(&self) -> Ref<'_, u8> {
         self.len_dir_name.borrow()
@@ -1036,7 +1192,11 @@ impl KStruct for Iso9660_PathTableLe {
     type Root = Iso9660;
     type Parent = Iso9660_VolDescPrimary;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1052,7 +1212,12 @@ impl KStruct for Iso9660_PathTableLe {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Iso9660_PathTableEntryLe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Iso9660_PathTableEntryLe>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1062,8 +1227,7 @@ impl KStruct for Iso9660_PathTableLe {
         Ok(())
     }
 }
-impl Iso9660_PathTableLe {
-}
+impl Iso9660_PathTableLe {}
 impl Iso9660_PathTableLe {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Iso9660_PathTableEntryLe>>> {
         self.entries.borrow()
@@ -1126,7 +1290,11 @@ impl KStruct for Iso9660_U2bi {
     type Root = Iso9660;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1146,8 +1314,7 @@ impl KStruct for Iso9660_U2bi {
         Ok(())
     }
 }
-impl Iso9660_U2bi {
-}
+impl Iso9660_U2bi {}
 impl Iso9660_U2bi {
     pub fn le(&self) -> Ref<'_, u16> {
         self.le.borrow()
@@ -1215,7 +1382,11 @@ impl KStruct for Iso9660_U4bi {
     type Root = Iso9660;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1235,8 +1406,7 @@ impl KStruct for Iso9660_U4bi {
         Ok(())
     }
 }
-impl Iso9660_U4bi {
-}
+impl Iso9660_U4bi {}
 impl Iso9660_U4bi {
     pub fn le(&self) -> Ref<'_, u32> {
         self.le.borrow()
@@ -1307,7 +1477,11 @@ impl KStruct for Iso9660_VolDesc {
     type Root = Iso9660;
     type Parent = Iso9660;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1323,20 +1497,33 @@ impl KStruct for Iso9660_VolDesc {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(5_usize)?;
         if !(*self_rc.magic() == vec![0x43u8, 0x44u8, 0x30u8, 0x30u8, 0x31u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/vol_desc/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.r#type())) == (to_i128(0))) {
-            let t = Self::read_into::<_, Iso9660_VolDescBootRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Iso9660_VolDescBootRecord>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.vol_desc_boot_record.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.r#type())) == (to_i128(1))) {
-            let t = Self::read_into::<_, Iso9660_VolDescPrimary>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, Iso9660_VolDescPrimary>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.vol_desc_primary.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1344,8 +1531,7 @@ impl KStruct for Iso9660_VolDesc {
         Ok(())
     }
 }
-impl Iso9660_VolDesc {
-}
+impl Iso9660_VolDesc {}
 impl Iso9660_VolDesc {
     pub fn r#type(&self) -> Ref<'_, u8> {
         self.r#type.borrow()
@@ -1362,7 +1548,9 @@ impl Iso9660_VolDesc {
     }
 }
 impl Iso9660_VolDesc {
-    pub fn vol_desc_boot_record(&self) -> Ref<'_, OptRc<Iso9660_VolDescBootRecord>> {
+    pub fn vol_desc_boot_record(
+        &self,
+    ) -> Ref<'_, OptRc<Iso9660_VolDescBootRecord>> {
         self.vol_desc_boot_record.borrow()
     }
 }
@@ -1407,22 +1595,34 @@ impl TryFrom<&&Iso9660_VolDescBootRecord> for OptRc<Iso9660_VolDescBootRecord> {
     }
 }
 impl DowncastOptRc<Iso9660_VolDescBootRecord> for Iso9660_VolDescBootRecord {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Iso9660_VolDescBootRecord> for &Iso9660_VolDescBootRecord {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Iso9660_VolDescBootRecord> for OptRc<Iso9660_VolDescBootRecord> {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+impl DowncastOptRc<Iso9660_VolDescBootRecord>
+    for OptRc<Iso9660_VolDescBootRecord>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Iso9660_VolDescBootRecord> for &OptRc<Iso9660_VolDescBootRecord> {
-    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+impl DowncastOptRc<Iso9660_VolDescBootRecord>
+    for &OptRc<Iso9660_VolDescBootRecord>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1430,7 +1630,11 @@ impl KStruct for Iso9660_VolDescBootRecord {
     type Root = Iso9660;
     type Parent = Iso9660_VolDesc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1442,16 +1646,17 @@ impl KStruct for Iso9660_VolDescBootRecord {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.boot_system_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.boot_system_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.boot_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.boot_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Iso9660_VolDescBootRecord {
-}
+impl Iso9660_VolDescBootRecord {}
 impl Iso9660_VolDescBootRecord {
     pub fn boot_system_id(&self) -> Ref<'_, String> {
         self.boot_system_id.borrow()
@@ -1574,7 +1779,11 @@ impl KStruct for Iso9660_VolDescPrimary {
     type Root = Iso9660;
     type Parent = Iso9660_VolDesc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1588,36 +1797,81 @@ impl KStruct for Iso9660_VolDescPrimary {
         let _io = io;
         *self_rc.unused1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.unused1() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/vol_desc_primary/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.system_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.system_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.volume_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.volume_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused2.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.unused2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/3".to_string() }));
+        if !(*self_rc.unused2()
+            == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/vol_desc_primary/seq/3".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U4bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.vol_space_size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused3.borrow_mut() = _io.read_bytes(32_usize)?;
-        if !(*self_rc.unused3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/5".to_string() }));
+        if !(*self_rc.unused3()
+            == vec![
+                0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
+                0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
+                0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
+                0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/vol_desc_primary/seq/5".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U2bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.vol_set_size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U2bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.vol_seq_num.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U2bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.logical_block_size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Iso9660_U4bi>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.path_table_size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_path_table_le.borrow_mut() = _io.read_u4le()?;
@@ -1631,33 +1885,65 @@ impl KStruct for Iso9660_VolDescPrimary {
         let _raw_root_dir = _io.read_bytes(34_usize)?;
         *self_rc.root_dir_raw.borrow_mut() = _raw_root_dir.clone();
         let _io_root_dir = BytesReader::from(_raw_root_dir);
-        let t = Self::read_into::<BytesReader, Iso9660_DirEntry>(&_io_root_dir, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<BytesReader, Iso9660_DirEntry>(
+            &_io_root_dir,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.root_dir.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.vol_set_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc.vol_set_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.publisher_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc.publisher_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data_preparer_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc.data_preparer_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.application_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc.application_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.copyright_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(38_usize)?, "UTF-8")?;
+        *self_rc.copyright_file_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(38_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.abstract_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(36_usize)?, "UTF-8")?;
+        *self_rc.abstract_file_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(36_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.bibliographic_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(37_usize)?, "UTF-8")?;
+        *self_rc.bibliographic_file_id.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(37_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Iso9660_DecDatetime>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.vol_create_datetime.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Iso9660_DecDatetime>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.vol_mod_datetime.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Iso9660_DecDatetime>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.vol_expire_datetime.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Iso9660_DecDatetime>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.vol_effective_datetime.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_structure_version.borrow_mut() = _io.read_u1()?;
@@ -1671,20 +1957,40 @@ impl KStruct for Iso9660_VolDescPrimary {
     }
 }
 impl Iso9660_VolDescPrimary {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn path_table(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Iso9660_PathTableLe>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn path_table(&self) -> KResult<Ref<'_, OptRc<Iso9660_PathTableLe>>> {
         let _io = self._io.borrow();
         if self.f_path_table.get() {
             return Ok(self.path_table.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.lba_path_table_le()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
-        *self.path_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.path_table_size().le())?)?.into();
+        _io.seek(usize::try_from(
+            (*self.lba_path_table_le()).saturating_mul(u32::try_from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .sector_size()?,
+            )?),
+        )?)?;
+        *self.path_table_raw.borrow_mut() = _io
+            .read_bytes(usize::try_from(*self.path_table_size().le())?)?
+            .into();
         let path_table_raw = self.path_table_raw.borrow();
         let _t_path_table_raw_io = BytesReader::from(path_table_raw.clone());
-        let t = Self::read_into::<BytesReader, Iso9660_PathTableLe>(&_t_path_table_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, Iso9660_PathTableLe>(
+            &_t_path_table_raw_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.path_table.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.path_table.borrow())
@@ -1816,7 +2122,9 @@ impl Iso9660_VolDescPrimary {
     }
 }
 impl Iso9660_VolDescPrimary {
-    pub fn vol_effective_datetime(&self) -> Ref<'_, OptRc<Iso9660_DecDatetime>> {
+    pub fn vol_effective_datetime(
+        &self,
+    ) -> Ref<'_, OptRc<Iso9660_DecDatetime>> {
         self.vol_effective_datetime.borrow()
     }
 }

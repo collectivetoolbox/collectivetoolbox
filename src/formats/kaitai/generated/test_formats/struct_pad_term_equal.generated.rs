@@ -107,7 +107,11 @@ impl KStruct for StructPadTermEqual {
     type Root = StructPadTermEqual;
     type Parent = StructPadTermEqual;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,36 +123,79 @@ impl KStruct for StructPadTermEqual {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let _raw_s1 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(64));
+        let _raw_s1 = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(64),
+            false,
+            Some(64),
+        );
         *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
         let _io_s1 = BytesReader::from(_raw_s1);
-        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(
+                &_io_s1,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.s1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_s2 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(43));
+        let _raw_s2 = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(64),
+            true,
+            Some(43),
+        );
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _io_s2 = BytesReader::from(_raw_s2);
-        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(
+                &_io_s2,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.s2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_s3 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(43), false, Some(43));
+        let _raw_s3 = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(43),
+            false,
+            Some(43),
+        );
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _io_s3 = BytesReader::from(_raw_s3);
-        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(
+                &_io_s3,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.s3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_s4 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(46), true, Some(46));
+        let _raw_s4 = bytes_terminate_pad(
+            &_io.read_bytes(20_usize)?,
+            Some(46),
+            true,
+            Some(46),
+        );
         *self_rc.s4_raw.borrow_mut() = _raw_s4.clone();
         let _io_s4 = BytesReader::from(_raw_s4);
-        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(
+                &_io_s4,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.s4.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StructPadTermEqual {
-}
+impl StructPadTermEqual {}
 impl StructPadTermEqual {
     pub fn s1(&self) -> Ref<'_, OptRc<StructPadTermEqual_BytesWrapper>> {
         self.s1.borrow()
@@ -209,35 +256,59 @@ pub struct StructPadTermEqual_BytesWrapper {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
+impl TryFrom<&StructPadTermEqual_BytesWrapper>
+    for OptRc<StructPadTermEqual_BytesWrapper>
+{
     type Error = KError;
-    fn try_from(v: &StructPadTermEqual_BytesWrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StructPadTermEqual_BytesWrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
+impl TryFrom<&&StructPadTermEqual_BytesWrapper>
+    for OptRc<StructPadTermEqual_BytesWrapper>
+{
     type Error = KError;
-    fn try_from(v: &&StructPadTermEqual_BytesWrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StructPadTermEqual_BytesWrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for StructPadTermEqual_BytesWrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper>
+    for StructPadTermEqual_BytesWrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for &StructPadTermEqual_BytesWrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper>
+    for &StructPadTermEqual_BytesWrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper>
+    for OptRc<StructPadTermEqual_BytesWrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for &OptRc<StructPadTermEqual_BytesWrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper>
+    for &OptRc<StructPadTermEqual_BytesWrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -245,7 +316,11 @@ impl KStruct for StructPadTermEqual_BytesWrapper {
     type Root = StructPadTermEqual;
     type Parent = StructPadTermEqual;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -263,8 +338,7 @@ impl KStruct for StructPadTermEqual_BytesWrapper {
         Ok(())
     }
 }
-impl StructPadTermEqual_BytesWrapper {
-}
+impl StructPadTermEqual_BytesWrapper {}
 impl StructPadTermEqual_BytesWrapper {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()

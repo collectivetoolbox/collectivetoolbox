@@ -71,7 +71,11 @@ impl KStruct for Utf16WithBom {
     type Root = Utf16WithBom;
     type Parent = Utf16WithBom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -86,17 +90,22 @@ impl KStruct for Utf16WithBom {
         *self_rc.bom.borrow_mut() = _io.read_bytes(2_usize)?;
         let _item = &*self_rc.bom();
         if !(*_item == vec![0xfeu8, 0xffu8] || *_item == vec![0xffu8, 0xfeu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotAnyOf,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_be()? {
-            *self_rc.str_be.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
+            *self_rc.str_be.borrow_mut() =
+                bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_le()? {
-            *self_rc.str_le.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
+            *self_rc.str_le.borrow_mut() =
+                bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -104,52 +113,64 @@ impl KStruct for Utf16WithBom {
     }
 }
 impl Utf16WithBom {
-
     /**
      * True if the byte order mark indicates big-endian UTF-16 encoding.
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_be(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_be(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_be.get() {
             return Ok(self.is_be.borrow());
         }
         self.f_is_be.set(true);
-        *self.is_be.borrow_mut() = (*self.bom() == vec![0xfeu8, 0xffu8]).try_into()?;
+        *self.is_be.borrow_mut() =
+            (*self.bom() == vec![0xfeu8, 0xffu8]).try_into()?;
         Ok(self.is_be.borrow())
     }
 
     /**
      * True if the byte order mark indicates little-endian UTF-16 encoding.
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_le(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_le(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_le.get() {
             return Ok(self.is_le.borrow());
         }
         self.f_is_le.set(true);
-        *self.is_le.borrow_mut() = (*self.bom() == vec![0xffu8, 0xfeu8]).try_into()?;
+        *self.is_le.borrow_mut() =
+            (*self.bom() == vec![0xffu8, 0xfeu8]).try_into()?;
         Ok(self.is_le.borrow())
     }
 
     /**
      * The string value with BOM stripped, regardless of endianness.
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = if *self.is_be()? { self.str_be().to_string() } else { self.str_le().to_string() }.to_string();
+        *self.value.borrow_mut() = if *self.is_be()? {
+            self.str_be().to_string()
+        } else {
+            self.str_le().to_string()
+        }
+        .to_string();
         Ok(self.value.borrow())
     }
 }

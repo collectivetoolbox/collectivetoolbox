@@ -102,7 +102,11 @@ impl KStruct for ProcessXorValue {
     type Root = ProcessXorValue;
     type Parent = ProcessXorValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,14 +120,16 @@ impl KStruct for ProcessXorValue {
         let _io = io;
         *self_rc.key.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.buf.borrow_mut() = process_xor_one(&_io.read_bytes_full()?, u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?);
+        *self_rc.buf.borrow_mut() = process_xor_one(
+            &_io.read_bytes_full()?,
+            u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?,
+        );
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessXorValue {
-}
+impl ProcessXorValue {}
 impl ProcessXorValue {
     pub fn key(&self) -> Ref<'_, u8> {
         self.key.borrow()

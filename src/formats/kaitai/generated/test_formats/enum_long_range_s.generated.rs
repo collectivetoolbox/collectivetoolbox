@@ -106,7 +106,11 @@ impl KStruct for EnumLongRangeS {
     type Root = EnumLongRangeS;
     type Parent = EnumLongRangeS;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -136,8 +140,7 @@ impl KStruct for EnumLongRangeS {
         Ok(())
     }
 }
-impl EnumLongRangeS {
-}
+impl EnumLongRangeS {}
 impl EnumLongRangeS {
     pub fn f1(&self) -> Ref<'_, EnumLongRangeS_Constants> {
         self.f1.borrow()
@@ -222,12 +225,13 @@ impl From<&EnumLongRangeS_Constants> for i64 {
             EnumLongRangeS_Constants::IntMax => 2147483647,
             EnumLongRangeS_Constants::IntOverMax => 2147483648,
             EnumLongRangeS_Constants::LongMax => 9223372036854775807,
-            EnumLongRangeS_Constants::Unknown(v) => v
+            EnumLongRangeS_Constants::Unknown(v) => v,
         }
     }
 }
 
 impl Default for EnumLongRangeS_Constants {
-    fn default() -> Self { EnumLongRangeS_Constants::Unknown(0) }
+    fn default() -> Self {
+        EnumLongRangeS_Constants::Unknown(0)
+    }
 }
-

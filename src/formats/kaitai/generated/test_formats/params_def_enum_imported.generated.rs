@@ -53,12 +53,12 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
-use super::enum_deep::EnumDeep;
-use super::enum_deep::*;
 use super::enum_0::Enum0;
 use super::enum_0::*;
+use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsDefEnumImported {
@@ -105,7 +105,11 @@ impl KStruct for ParamsDefEnumImported {
     type Root = ParamsDefEnumImported;
     type Parent = ParamsDefEnumImported;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,18 +131,23 @@ impl ParamsDefEnumImported {
     }
 }
 impl ParamsDefEnumImported {
-    pub fn pet_2_param(&self) -> Ref<'_, EnumDeep_Container1_Container2_Animal> {
+    pub fn pet_2_param(
+        &self,
+    ) -> Ref<'_, EnumDeep_Container1_Container2_Animal> {
         self.pet_2_param.borrow()
     }
 }
 impl ParamsDefEnumImported {
-    pub fn set_params(&mut self, pet_1_param: Enum0_Animal, pet_2_param: EnumDeep_Container1_Container2_Animal) {
+    pub fn set_params(
+        &mut self,
+        pet_1_param: Enum0_Animal,
+        pet_2_param: EnumDeep_Container1_Container2_Animal,
+    ) {
         *self.pet_1_param.borrow_mut() = pet_1_param;
         *self.pet_2_param.borrow_mut() = pet_2_param;
     }
 }
-impl ParamsDefEnumImported {
-}
+impl ParamsDefEnumImported {}
 impl ParamsDefEnumImported {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

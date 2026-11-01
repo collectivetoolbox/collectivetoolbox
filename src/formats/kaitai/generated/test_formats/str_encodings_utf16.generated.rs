@@ -105,7 +105,11 @@ impl KStruct for StrEncodingsUtf16 {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,33 +123,48 @@ impl KStruct for StrEncodingsUtf16 {
         let _io = io;
         *self_rc.len_be.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_be_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_be())?)?;
+        let _raw_be_bom_removed =
+            _io.read_bytes(usize::try_from(*self_rc.len_be())?)?;
         *self_rc.be_bom_removed_raw.borrow_mut() = _raw_be_bom_removed.clone();
         let _io_be_bom_removed = BytesReader::from(_raw_be_bom_removed);
-        let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrBeBomRemoved>(&_io_be_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StrEncodingsUtf16_StrBeBomRemoved>(
+                &_io_be_bom_removed,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.be_bom_removed.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_le.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_le_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_le())?)?;
+        let _raw_le_bom_removed =
+            _io.read_bytes(usize::try_from(*self_rc.len_le())?)?;
         *self_rc.le_bom_removed_raw.borrow_mut() = _raw_le_bom_removed.clone();
         let _io_le_bom_removed = BytesReader::from(_raw_le_bom_removed);
-        let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrLeBomRemoved>(&_io_le_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t =
+            Self::read_into::<BytesReader, StrEncodingsUtf16_StrLeBomRemoved>(
+                &_io_le_bom_removed,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
         *self_rc.le_bom_removed.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsUtf16 {
-}
+impl StrEncodingsUtf16 {}
 impl StrEncodingsUtf16 {
     pub fn len_be(&self) -> Ref<'_, u32> {
         self.len_be.borrow()
     }
 }
 impl StrEncodingsUtf16 {
-    pub fn be_bom_removed(&self) -> Ref<'_, OptRc<StrEncodingsUtf16_StrBeBomRemoved>> {
+    pub fn be_bom_removed(
+        &self,
+    ) -> Ref<'_, OptRc<StrEncodingsUtf16_StrBeBomRemoved>> {
         self.be_bom_removed.borrow()
     }
 }
@@ -155,7 +174,9 @@ impl StrEncodingsUtf16 {
     }
 }
 impl StrEncodingsUtf16 {
-    pub fn le_bom_removed(&self) -> Ref<'_, OptRc<StrEncodingsUtf16_StrLeBomRemoved>> {
+    pub fn le_bom_removed(
+        &self,
+    ) -> Ref<'_, OptRc<StrEncodingsUtf16_StrLeBomRemoved>> {
         self.le_bom_removed.borrow()
     }
 }
@@ -190,35 +211,59 @@ pub struct StrEncodingsUtf16_StrBeBomRemoved {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+impl TryFrom<&StrEncodingsUtf16_StrBeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrBeBomRemoved>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsUtf16_StrBeBomRemoved) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsUtf16_StrBeBomRemoved,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+impl TryFrom<&&StrEncodingsUtf16_StrBeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrBeBomRemoved>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsUtf16_StrBeBomRemoved) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsUtf16_StrBeBomRemoved,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for StrEncodingsUtf16_StrBeBomRemoved {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved>
+    for StrEncodingsUtf16_StrBeBomRemoved
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for &StrEncodingsUtf16_StrBeBomRemoved {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved>
+    for &StrEncodingsUtf16_StrBeBomRemoved
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrBeBomRemoved>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for &OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved>
+    for &OptRc<StrEncodingsUtf16_StrBeBomRemoved>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
         Ok((*self).clone())
     }
 }
@@ -226,7 +271,11 @@ impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -240,14 +289,14 @@ impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
+        *self_rc.str.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsUtf16_StrBeBomRemoved {
-}
+impl StrEncodingsUtf16_StrBeBomRemoved {}
 impl StrEncodingsUtf16_StrBeBomRemoved {
     pub fn bom(&self) -> Ref<'_, u16> {
         self.bom.borrow()
@@ -279,35 +328,59 @@ pub struct StrEncodingsUtf16_StrLeBomRemoved {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+impl TryFrom<&StrEncodingsUtf16_StrLeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrLeBomRemoved>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsUtf16_StrLeBomRemoved) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsUtf16_StrLeBomRemoved,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+impl TryFrom<&&StrEncodingsUtf16_StrLeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrLeBomRemoved>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsUtf16_StrLeBomRemoved) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsUtf16_StrLeBomRemoved,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for StrEncodingsUtf16_StrLeBomRemoved {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved>
+    for StrEncodingsUtf16_StrLeBomRemoved
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for &StrEncodingsUtf16_StrLeBomRemoved {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved>
+    for &StrEncodingsUtf16_StrLeBomRemoved
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved>
+    for OptRc<StrEncodingsUtf16_StrLeBomRemoved>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for &OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved>
+    for &OptRc<StrEncodingsUtf16_StrLeBomRemoved>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
         Ok((*self).clone())
     }
 }
@@ -315,7 +388,11 @@ impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -329,14 +406,14 @@ impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
+        *self_rc.str.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsUtf16_StrLeBomRemoved {
-}
+impl StrEncodingsUtf16_StrLeBomRemoved {}
 impl StrEncodingsUtf16_StrLeBomRemoved {
     pub fn bom(&self) -> Ref<'_, u16> {
         self.bom.borrow()

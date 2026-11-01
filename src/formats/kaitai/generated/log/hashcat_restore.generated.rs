@@ -64,7 +64,11 @@ impl KStruct for HashcatRestore {
     type Root = HashcatRestore;
     type Parent = HashcatRestore;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,7 +82,15 @@ impl KStruct for HashcatRestore {
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(256_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.cwd.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(256_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dicts_pos.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -95,15 +107,17 @@ impl KStruct for HashcatRestore {
         *self_rc.argv.borrow_mut() = Vec::new();
         let l_argv = usize::try_from(*self_rc.argc())?;
         for _i in 0_usize..l_argv {
-            self_rc.argv.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "UTF-8")?);
+            self_rc.argv.borrow_mut().push(bytes_to_str(
+                &_io.read_bytes_term(10, false, true, true)?,
+                "UTF-8",
+            )?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl HashcatRestore {
-}
+impl HashcatRestore {}
 impl HashcatRestore {
     pub fn version(&self) -> Ref<'_, u32> {
         self.version.borrow()

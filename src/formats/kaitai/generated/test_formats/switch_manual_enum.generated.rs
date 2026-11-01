@@ -100,7 +100,11 @@ impl KStruct for SwitchManualEnum {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,7 +120,12 @@ impl KStruct for SwitchManualEnum {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, SwitchManualEnum_Opcode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchManualEnum_Opcode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.opcodes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -126,8 +135,7 @@ impl KStruct for SwitchManualEnum {
         Ok(())
     }
 }
-impl SwitchManualEnum {
-}
+impl SwitchManualEnum {}
 impl SwitchManualEnum {
     pub fn opcodes(&self) -> Ref<'_, Vec<OptRc<SwitchManualEnum_Opcode>>> {
         self.opcodes.borrow()
@@ -159,62 +167,98 @@ pub enum SwitchManualEnum_Opcode_Body {
     SwitchManualEnum_Opcode_Intval(OptRc<SwitchManualEnum_Opcode_Intval>),
     SwitchManualEnum_Opcode_Strval(OptRc<SwitchManualEnum_Opcode_Strval>),
 }
-impl TryFrom<&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Intval> {
+impl TryFrom<&SwitchManualEnum_Opcode_Body>
+    for OptRc<SwitchManualEnum_Opcode_Intval>
+{
     type Error = KError;
     fn try_from(v: &SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchManualEnum_Opcode_Body::SwitchManualEnum_Opcode_Intval(x) = v {
+        if let SwitchManualEnum_Opcode_Body::SwitchManualEnum_Opcode_Intval(x) =
+            v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Intval> {
+impl TryFrom<&&SwitchManualEnum_Opcode_Body>
+    for OptRc<SwitchManualEnum_Opcode_Intval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchManualEnum_Opcode_Body,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for SwitchManualEnum_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for SwitchManualEnum_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         OptRc::<SwitchManualEnum_Opcode_Intval>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &SwitchManualEnum_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for &SwitchManualEnum_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SwitchManualEnum_Opcode_Intval>> for SwitchManualEnum_Opcode_Body {
+impl From<OptRc<SwitchManualEnum_Opcode_Intval>>
+    for SwitchManualEnum_Opcode_Body
+{
     fn from(v: OptRc<SwitchManualEnum_Opcode_Intval>) -> Self {
         Self::SwitchManualEnum_Opcode_Intval(v)
     }
 }
-impl TryFrom<&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Strval> {
+impl TryFrom<&SwitchManualEnum_Opcode_Body>
+    for OptRc<SwitchManualEnum_Opcode_Strval>
+{
     type Error = KError;
     fn try_from(v: &SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchManualEnum_Opcode_Body::SwitchManualEnum_Opcode_Strval(x) = v {
+        if let SwitchManualEnum_Opcode_Body::SwitchManualEnum_Opcode_Strval(x) =
+            v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Strval> {
+impl TryFrom<&&SwitchManualEnum_Opcode_Body>
+    for OptRc<SwitchManualEnum_Opcode_Strval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchManualEnum_Opcode_Body,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for SwitchManualEnum_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for SwitchManualEnum_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         OptRc::<SwitchManualEnum_Opcode_Strval>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &SwitchManualEnum_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for &SwitchManualEnum_Opcode_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<SwitchManualEnum_Opcode_Strval>> for SwitchManualEnum_Opcode_Body {
+impl From<OptRc<SwitchManualEnum_Opcode_Strval>>
+    for SwitchManualEnum_Opcode_Body
+{
     fn from(v: OptRc<SwitchManualEnum_Opcode_Strval>) -> Self {
         Self::SwitchManualEnum_Opcode_Strval(v)
     }
@@ -246,7 +290,9 @@ impl DowncastOptRc<SwitchManualEnum_Opcode> for OptRc<SwitchManualEnum_Opcode> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode> for &OptRc<SwitchManualEnum_Opcode> {
+impl DowncastOptRc<SwitchManualEnum_Opcode>
+    for &OptRc<SwitchManualEnum_Opcode>
+{
     fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode>, KError> {
         Ok((*self).clone())
     }
@@ -255,7 +301,11 @@ impl KStruct for SwitchManualEnum_Opcode {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -271,11 +321,21 @@ impl KStruct for SwitchManualEnum_Opcode {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             SwitchManualEnum_Opcode_CodeEnum::Intval => {
-                let t = Self::read_into::<_, SwitchManualEnum_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchManualEnum_Opcode_Intval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             SwitchManualEnum_Opcode_CodeEnum::Strval => {
-                let t = Self::read_into::<_, SwitchManualEnum_Opcode_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchManualEnum_Opcode_Strval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -285,8 +345,7 @@ impl KStruct for SwitchManualEnum_Opcode {
         Ok(())
     }
 }
-impl SwitchManualEnum_Opcode {
-}
+impl SwitchManualEnum_Opcode {}
 impl SwitchManualEnum_Opcode {
     pub fn code(&self) -> Ref<'_, SwitchManualEnum_Opcode_CodeEnum> {
         self.code.borrow()
@@ -331,15 +390,16 @@ impl From<&SwitchManualEnum_Opcode_CodeEnum> for i64 {
         match *v {
             SwitchManualEnum_Opcode_CodeEnum::Intval => 73,
             SwitchManualEnum_Opcode_CodeEnum::Strval => 83,
-            SwitchManualEnum_Opcode_CodeEnum::Unknown(v) => v
+            SwitchManualEnum_Opcode_CodeEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for SwitchManualEnum_Opcode_CodeEnum {
-    fn default() -> Self { SwitchManualEnum_Opcode_CodeEnum::Unknown(0) }
+    fn default() -> Self {
+        SwitchManualEnum_Opcode_CodeEnum::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct SwitchManualEnum_Opcode_Intval {
@@ -349,35 +409,59 @@ pub struct SwitchManualEnum_Opcode_Intval {
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
+impl TryFrom<&SwitchManualEnum_Opcode_Intval>
+    for OptRc<SwitchManualEnum_Opcode_Intval>
+{
     type Error = KError;
-    fn try_from(v: &SwitchManualEnum_Opcode_Intval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SwitchManualEnum_Opcode_Intval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
+impl TryFrom<&&SwitchManualEnum_Opcode_Intval>
+    for OptRc<SwitchManualEnum_Opcode_Intval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchManualEnum_Opcode_Intval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchManualEnum_Opcode_Intval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for SwitchManualEnum_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for SwitchManualEnum_Opcode_Intval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &SwitchManualEnum_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for &SwitchManualEnum_Opcode_Intval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for OptRc<SwitchManualEnum_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &OptRc<SwitchManualEnum_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval>
+    for &OptRc<SwitchManualEnum_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -385,7 +469,11 @@ impl KStruct for SwitchManualEnum_Opcode_Intval {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -403,8 +491,7 @@ impl KStruct for SwitchManualEnum_Opcode_Intval {
         Ok(())
     }
 }
-impl SwitchManualEnum_Opcode_Intval {
-}
+impl SwitchManualEnum_Opcode_Intval {}
 impl SwitchManualEnum_Opcode_Intval {
     pub fn value(&self) -> Ref<'_, u8> {
         self.value.borrow()
@@ -430,35 +517,59 @@ pub struct SwitchManualEnum_Opcode_Strval {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
+impl TryFrom<&SwitchManualEnum_Opcode_Strval>
+    for OptRc<SwitchManualEnum_Opcode_Strval>
+{
     type Error = KError;
-    fn try_from(v: &SwitchManualEnum_Opcode_Strval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &SwitchManualEnum_Opcode_Strval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
+impl TryFrom<&&SwitchManualEnum_Opcode_Strval>
+    for OptRc<SwitchManualEnum_Opcode_Strval>
+{
     type Error = KError;
-    fn try_from(v: &&SwitchManualEnum_Opcode_Strval) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&SwitchManualEnum_Opcode_Strval,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for SwitchManualEnum_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for SwitchManualEnum_Opcode_Strval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &SwitchManualEnum_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for &SwitchManualEnum_Opcode_Strval
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for OptRc<SwitchManualEnum_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &OptRc<SwitchManualEnum_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval>
+    for &OptRc<SwitchManualEnum_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -466,7 +577,11 @@ impl KStruct for SwitchManualEnum_Opcode_Strval {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -478,14 +593,14 @@ impl KStruct for SwitchManualEnum_Opcode_Strval {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.value.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SwitchManualEnum_Opcode_Strval {
-}
+impl SwitchManualEnum_Opcode_Strval {}
 impl SwitchManualEnum_Opcode_Strval {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

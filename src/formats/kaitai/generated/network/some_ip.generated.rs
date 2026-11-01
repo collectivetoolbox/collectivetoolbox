@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::some_ip_sd::SomeIpSd;
 use super::some_ip_sd::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * SOME/IP (Scalable service-Oriented MiddlewarE over IP) is an automotive/embedded
@@ -115,7 +115,11 @@ impl KStruct for SomeIp {
     type Root = SomeIp;
     type Parent = SomeIp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,19 +131,38 @@ impl KStruct for SomeIp {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SomeIp_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, SomeIp_Header>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header().message_id().value()? {
             4294934784 => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().length()).saturating_sub(8_u32))?)?.into();
+                *self_rc.payload_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        (*self_rc.header().length()).saturating_sub(8_u32),
+                    )?)?
+                    .into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, SomeIpSd>(&_t_payload_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, SomeIpSd>(
+                    &_t_payload_raw_io,
+                    None,
+                    None,
+                )?
+                .into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::try_from((*self_rc.header().length()).saturating_sub(8_u32))?)?.into());
+                *self_rc.payload.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(
+                        (*self_rc.header().length()).saturating_sub(8_u32),
+                    )?)?
+                    .into(),
+                );
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -147,8 +170,7 @@ impl KStruct for SomeIp {
         Ok(())
     }
 }
-impl SomeIp {
-}
+impl SomeIp {}
 impl SomeIp {
     pub fn header(&self) -> Ref<'_, OptRc<SomeIp_Header>> {
         self.header.borrow()
@@ -230,7 +252,11 @@ impl KStruct for SomeIp_Header {
     type Root = SomeIp;
     type Parent = SomeIp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -245,7 +271,12 @@ impl KStruct for SomeIp_Header {
         let _raw_message_id = _io.read_bytes(4_usize)?;
         *self_rc.message_id_raw.borrow_mut() = _raw_message_id.clone();
         let _io_message_id = BytesReader::from(_raw_message_id);
-        let t = Self::read_into::<BytesReader, SomeIp_Header_MessageId>(&_io_message_id, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, SomeIp_Header_MessageId>(
+            &_io_message_id,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.message_id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u4be()?;
@@ -253,37 +284,53 @@ impl KStruct for SomeIp_Header {
         let _raw_request_id = _io.read_bytes(4_usize)?;
         *self_rc.request_id_raw.borrow_mut() = _raw_request_id.clone();
         let _io_request_id = BytesReader::from(_raw_request_id);
-        let t = Self::read_into::<BytesReader, SomeIp_Header_RequestId>(&_io_request_id, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, SomeIp_Header_RequestId>(
+            &_io_request_id,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.request_id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.protocol_version.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interface_version.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.message_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.message_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.return_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.return_code.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl SomeIp_Header {
-
     /**
      * auxiliary value
      * \sa AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf - section 4.1.2.1 General Requirements
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_valid_service_discovery(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_valid_service_discovery(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_valid_service_discovery.get() {
             return Ok(self.is_valid_service_discovery.borrow());
         }
         self.f_is_valid_service_discovery.set(true);
-        *self.is_valid_service_discovery.borrow_mut() = ( ((((to_i128(*self.message_id().value()?)) == (to_i128(4294934784_i64)))) && (((to_i128(*self.protocol_version())) == (to_i128(1)))) && (((to_i128(*self.interface_version())) == (to_i128(1)))) && (*self.message_type() == SomeIp_Header_MessageTypeEnum::Notification) && (*self.return_code() == SomeIp_Header_ReturnCodeEnum::Ok)) ).try_into()?;
+        *self.is_valid_service_discovery.borrow_mut() =
+            (((to_i128(*self.message_id().value()?))
+                == (to_i128(4294934784_i64)))
+                && ((to_i128(*self.protocol_version())) == (to_i128(1)))
+                && ((to_i128(*self.interface_version())) == (to_i128(1)))
+                && (*self.message_type()
+                    == SomeIp_Header_MessageTypeEnum::Notification)
+                && (*self.return_code() == SomeIp_Header_ReturnCodeEnum::Ok))
+                .try_into()?;
         Ok(self.is_valid_service_discovery.borrow())
     }
 }
@@ -427,13 +474,15 @@ impl From<&SomeIp_Header_MessageTypeEnum> for i64 {
             SomeIp_Header_MessageTypeEnum::Error => 129,
             SomeIp_Header_MessageTypeEnum::ResponseAck => 192,
             SomeIp_Header_MessageTypeEnum::ErrorAck => 193,
-            SomeIp_Header_MessageTypeEnum::Unknown(v) => v
+            SomeIp_Header_MessageTypeEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for SomeIp_Header_MessageTypeEnum {
-    fn default() -> Self { SomeIp_Header_MessageTypeEnum::Unknown(0) }
+    fn default() -> Self {
+        SomeIp_Header_MessageTypeEnum::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -486,15 +535,16 @@ impl From<&SomeIp_Header_ReturnCodeEnum> for i64 {
             SomeIp_Header_ReturnCodeEnum::WrongInterfaceVersion => 8,
             SomeIp_Header_ReturnCodeEnum::MalformedMessage => 9,
             SomeIp_Header_ReturnCodeEnum::WrongMessageType => 10,
-            SomeIp_Header_ReturnCodeEnum::Unknown(v) => v
+            SomeIp_Header_ReturnCodeEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for SomeIp_Header_ReturnCodeEnum {
-    fn default() -> Self { SomeIp_Header_ReturnCodeEnum::Unknown(0) }
+    fn default() -> Self {
+        SomeIp_Header_ReturnCodeEnum::Unknown(0)
+    }
 }
-
 
 /**
  * [PRS_SOMEIP_00035] The assignment of the Message ID shall be up to
@@ -546,7 +596,9 @@ impl DowncastOptRc<SomeIp_Header_MessageId> for OptRc<SomeIp_Header_MessageId> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIp_Header_MessageId> for &OptRc<SomeIp_Header_MessageId> {
+impl DowncastOptRc<SomeIp_Header_MessageId>
+    for &OptRc<SomeIp_Header_MessageId>
+{
     fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_MessageId>, KError> {
         Ok((*self).clone())
     }
@@ -555,7 +607,11 @@ impl KStruct for SomeIp_Header_MessageId {
     type Root = SomeIp;
     type Parent = SomeIp_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -586,14 +642,15 @@ impl KStruct for SomeIp_Header_MessageId {
     }
 }
 impl SomeIp_Header_MessageId {
-
     /**
      * The value provides the undissected Message ID
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
@@ -700,7 +757,9 @@ impl DowncastOptRc<SomeIp_Header_RequestId> for OptRc<SomeIp_Header_RequestId> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SomeIp_Header_RequestId> for &OptRc<SomeIp_Header_RequestId> {
+impl DowncastOptRc<SomeIp_Header_RequestId>
+    for &OptRc<SomeIp_Header_RequestId>
+{
     fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_RequestId>, KError> {
         Ok((*self).clone())
     }
@@ -709,7 +768,11 @@ impl KStruct for SomeIp_Header_RequestId {
     type Root = SomeIp;
     type Parent = SomeIp_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -730,14 +793,15 @@ impl KStruct for SomeIp_Header_RequestId {
     }
 }
 impl SomeIp_Header_RequestId {
-
     /**
      * The value provides the undissected Request ID
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
