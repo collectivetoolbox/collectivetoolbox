@@ -125,3 +125,9 @@ Caused by:
 - Supported formats are missing a bunch of formats, including some that should be easy to support like .ctbnodes (which should parse into its respective Dc statements, essentially the same as loading the .ctbnodes file's slice of the corresponding .ctbnbdl), csc archives, and .ctbnbdl.
 - Autodetection instructions give wrong instructions of what format names are accepted (it could accept either the nickname or the Rust name probably).
 - Lists of possible values are not sorted. They should probably be sorted and categorized in a nice list with the description from the format database beside them.
+
+
+# Installer:
+
+- Option to associated with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
+- Option to install shell completion helpers
