@@ -10,9 +10,9 @@
 - An edit-by-edit history cannot be recovered from phase commits. The available
   records establish allocation contents and phase boundaries, not every transient
   source edit or filesystem operation.
-- The hidden-operational-state finding remains open. Candidate-order inference,
-  asymmetric inbox ownership checks, live recovery-count assertions, and UTF-8
-  interrupted-write recovery were corrected during the follow-ups below.
+- Physical legacy-state cleanup remains partial: the container cannot clear the
+  old lock's append-only flag to move it. Production state now uses ordinary
+  repository files and a reconstructible cache; the old paths are no longer used.
 
 ## Verdict
 
@@ -129,18 +129,43 @@ This is a warning about hypothetical reuse, not a request to rerun recovery.
 Deleting the completed workflow's working files after the independent audits is
 compatible with retaining its historical versions in Git.
 
-### Medium: Operational State Remains Hidden
+### In Progress: Operational State Is Repository-Local
 
-[ctbnbdl.rs](../../src/build_support/ctbnbdl.rs#L415) maintains redundant hidden
-high-water ledgers. [journal.rs](../../src/build_support/ctbnbdl/journal.rs#L1971)
-also writes an initialization marker from its reader gate and discards marker
-write failures.
+Production readers, writers, and recovery use these files independently of the
+completed reviewer scripts. Their ongoing paths have now been relocated:
 
-These files are not the only allocation record: the complete journal and sources
-are tracked, and all available shadows agree. Keep the journal authoritative;
-remove or explicitly classify redundant shadows as non-authoritative caches.
-Keep the lock inode stable while processes are running. Moving a canary can
-separate new readers/writers from locks still held on the old inode.
+- The initialization marker was moved unchanged to
+  [journal-initialized](../../src/formats/dcdata/data-src/nodes/allocated/journal-initialized),
+  beside the authoritative journal. Readers no longer write this marker or
+  discard marker-write errors; initialization and recovery writers retain their
+  fallible marker handling.
+- The permanent [ledger.lock](../../src/formats/dcdata/data-src/nodes/ledger.lock)
+  is an ordinary repository file, not a generated or build-cache artifact.
+  Do not replace or delete it while graph tools are running, including when
+  changing Git revisions. Stop old graph-tool binaries before using the relocated
+  lock, since they still target the old pathname.
+- High-water ledgers are a single reconstructible cache under
+  `built/graph-ledger/highwater`. No production path reads or writes the old
+  `.git` or machine-specific Gemini cache directories. The tracked journal
+  remains authoritative when this cache is absent.
+
+The original lock has Linux append-only protection. Renaming it and temporarily
+clearing that protection were both refused by the container, including outside
+the sandbox. It remains unused at its old location; a new repository lock was
+created while no graph tools were running. Existing legacy cache copies were
+also left untouched as historical evidence, rather than moved or deleted.
+
+The general inbox regression proves that deleting the cache does not prevent
+validated reads or subsequent writes, that writers reconstruct it, that readers
+do not recreate a missing initialization marker, that lock contents stay stable,
+and that no hidden operational files are created under `.git`.
+
+#### Pending Work
+
+Physical removal of the unused append-only legacy lock requires permissions
+unavailable in this container. Legacy cache copies may be archived or removed
+after their evidence is no longer wanted; neither they nor the old lock are
+dependencies of the relocated production tooling.
 
 ### Resolved: Recovery Counts Are Pinned To The Historical Prefix
 
@@ -161,8 +186,8 @@ the identities of historical nodes.
 Do not revert the Rust recovery commit wholesale: current readers require the
 journal, and the code supplies the mechanism for safely appending future changes.
 The one-off candidate-selection assumptions and UTF-8 interrupted-write defect
-have been corrected. Address the remaining hidden operational state without
-changing already-assigned IDs.
+have been corrected. Operational state is repository-local; legacy filesystem
+cleanup remains partial. No already-assigned IDs were changed.
 
 Blanket retraction would also cancel recovery revision statements, potentially
 reactivating the incident's ambiguous definitions. It would not recreate missing
@@ -170,13 +195,15 @@ Git edit history. No ledger correction is indicated by this audit.
 
 ## Validation And Changes
 
-- Follow-up musl graph/seed/inbox tests: 28 passed, zero failed or ignored.
+- Follow-up musl graph/seed/inbox tests: 29 passed, zero failed or ignored.
   These include live Dc/format CSV readback parity, syntax parity, symmetric
   ownership, ordering-independent ambiguity, and historical-prefix invariants.
 - Existing CSV edit tests additionally verify the resulting active property and
   relationship state, and zero-change second passes after those edits.
 - Multibyte interrupted-write tests verify byte-safe journal and chunk recovery,
   strict complete-line corruption rejection, prefix preservation, and idempotency.
+- The repository-state regression verifies cache reconstruction, read-only marker
+  behavior, stable lock contents, and absence of hidden Git operational files.
 - Standalone musl journal/bundle tests: 5 passed, zero failed or ignored.
 - Live filesystem CSV dry-run: 23,752 nodes, zero appends, zero supersessions,
   zero retractions, zero chunk writes, and no validation diagnostics.
@@ -189,7 +216,8 @@ Git edit history. No ledger correction is indicated by this audit.
   parser; they do not retroactively change the recovery artifacts or require
   rerunning allocation.
 - The independent audit command and this report were added. Graph data was not
-  changed. The hidden-state finding remains an unimplemented recommendation.
+  changed. Production operational state was relocated; physical cleanup of the
+  protected legacy lock remains blocked by container permissions.
 - Follow-up production Clippy completed successfully with existing warnings.
 
 The Step 3 reconciliation was already committed in `7abf6f67c`, and its script

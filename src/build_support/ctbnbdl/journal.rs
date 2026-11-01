@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Unified durable append-only journal (`ledger-journal.jsonl`), single-inode reader/writer
-//! `flock` guards on `.git/ctb-append-only-canary`, initial journal checkpoint bootstrap,
+//! `flock` guards on the repository's permanent ledger lock, initial journal checkpoint bootstrap,
 //! standalone pending-transaction recovery, and full `.ctbnbdl` bundle `(id, tokens)` verification.
 
 #[allow(
@@ -243,19 +243,20 @@ pub const LEDGER_JOURNAL_REL_PATH: &str =
 
 /// Relative path from the repository root to the local post-initialization marker.
 pub const JOURNAL_INITIALIZED_REL_PATH: &str =
-    ".git/ctb-graph-baseline/journal-initialized";
+    "src/formats/dcdata/data-src/nodes/allocated/journal-initialized";
 
 /// Relative path from the repository root to the shared permanent lock canary file.
-pub const LOCK_CANARY_REL_PATH: &str = ".git/ctb-append-only-canary";
+pub const LOCK_CANARY_REL_PATH: &str =
+    "src/formats/dcdata/data-src/nodes/ledger.lock";
 
-/// Exclusive writer lock guard (`flock(LOCK_EX)`) on `.git/ctb-append-only-canary`.
+/// Exclusive writer lock guard (`flock(LOCK_EX)`) on the permanent ledger lock.
 #[derive(Debug)]
 pub struct LedgerWriteGuard {
     repo_root: PathBuf,
     file: File,
 }
 
-/// Shared reader lock guard (`flock(LOCK_SH)`) on `.git/ctb-append-only-canary`.
+/// Shared reader lock guard (`flock(LOCK_SH)`) on the permanent ledger lock.
 #[derive(Debug)]
 pub struct LedgerReadGuard {
     repo_root: PathBuf,
@@ -270,16 +271,14 @@ fn open_or_create_lock_canary(repo_root: &Path) -> Result<File> {
                 format!("Failed to create {}", parent.display())
             })?;
         }
-        let mut created = OpenOptions::new()
-            .create(true)
+        OpenOptions::new()
             .write(true)
+            .create(true)
             .truncate(false)
             .open(&canary_path)
             .with_context(|| {
                 format!("Failed to create lock canary {}", canary_path.display())
             })?;
-        let _ = created.write_all(b"ctb-append-only-canary\n");
-        let _ = created.sync_all();
     }
     OpenOptions::new()
         .read(true)
@@ -293,7 +292,7 @@ fn open_or_create_lock_canary(repo_root: &Path) -> Result<File> {
 }
 
 impl LedgerWriteGuard {
-    /// Acquires an exclusive `flock(LOCK_EX)` lock on `<repo_root>/.git/ctb-append-only-canary`.
+    /// Acquires an exclusive lock on the repository's permanent ledger lock.
     pub fn acquire(repo_root: &Path) -> Result<Self> {
         let file = open_or_create_lock_canary(repo_root)?;
         file.lock_exclusive().with_context(|| {
@@ -322,7 +321,7 @@ impl Drop for LedgerWriteGuard {
 }
 
 impl LedgerReadGuard {
-    /// Acquires a shared `flock(LOCK_SH)` lock on `<repo_root>/.git/ctb-append-only-canary`.
+    /// Acquires a shared lock on the repository's permanent ledger lock.
     pub fn acquire(repo_root: &Path) -> Result<Self> {
         let file = open_or_create_lock_canary(repo_root)?;
         file.lock_shared().with_context(|| {
@@ -1976,7 +1975,6 @@ pub fn ensure_ledger_journal_clean(
         Some(&last_committed.history_bundles_sha256),
     )?;
 
-    let _ = stamp_journal_initialized_marker(repo_root);
     Ok(())
 }
 
@@ -2346,8 +2344,8 @@ mod tests {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let shadow_dir =
-                    self.0.join(".git/ctb-graph-ledger-highwater");
+                let shadow_dir = highwater_shadow_dirs(&self.0)
+                    .into_iter().next().unwrap().1;
                 if shadow_dir.is_dir() {
                     if let Ok(entries) = fs::read_dir(&shadow_dir) {
                         for entry in entries.flatten() {

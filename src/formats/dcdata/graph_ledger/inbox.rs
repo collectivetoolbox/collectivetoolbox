@@ -914,7 +914,7 @@ mod tests {
             root.join("src/formats/dcdata/data-src/nodes/allocated"),
         )?;
         fs::create_dir_all(root.join("assets/data/graph/system"))?;
-        fs::create_dir_all(root.join(".git/ctb-graph-baseline"))?;
+        fs::create_dir_all(root.join(".git"))?;
 
         // Build a minimal self-bootstrapping framing graph
         let framing = default_ctbnbdl_framing_dcs();
@@ -1225,6 +1225,40 @@ mod tests {
             prevalidate_and_plan_inbox_items(&baseline_nodes, &prov_map, &batch)?;
         assert_eq!(ok_planned.len(), 4);
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_repository_state_and_reconstructible_highwater_cache() -> Result<()> {
+        let (temp_dir, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;
+        let root = temp_dir.path();
+        let graph_dir = root.join("assets/data/graph");
+        let marker_path = root.join(JOURNAL_INITIALIZED_REL_PATH);
+        let lock_path = root.join(crate::ctbnbdl::LOCK_CANARY_REL_PATH);
+        let cache_path = root.join(crate::ctbnbdl::HIGHWATER_LEDGER_REL_PATH);
+        let marker_bytes = fs::read(&marker_path)?;
+        let lock_bytes = fs::read(&lock_path)?;
+        assert_eq!(fs::read_dir(root.join(".git"))?.count(), 0);
+        assert!(cache_path.is_dir());
+
+        fs::remove_dir_all(&cache_path)?;
+        fs::remove_file(&marker_path)?;
+        assert_eq!(load_ledger_nodes_from_dir(&graph_dir)?, baseline_nodes);
+        assert!(!marker_path.exists());
+        assert!(!cache_path.exists());
+        fs::write(&marker_path, &marker_bytes)?;
+
+        fs::write(
+            root.join("src/formats/dcdata/data-src/nodes/inbox/cache.dcsh"),
+            "# @provenance: csv\nu61 u62\n",
+        )?;
+        assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 1);
+        let nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+        assert_eq!(&nodes[..baseline_nodes.len()], baseline_nodes.as_slice());
+        assert_eq!(load_ledger_nodes_from_dir(&cache_path)?, nodes);
+        assert_eq!(fs::read(&marker_path)?, marker_bytes);
+        assert_eq!(fs::read(&lock_path)?, lock_bytes);
+        assert_eq!(fs::read_dir(root.join(".git"))?.count(), 0);
         Ok(())
     }
 

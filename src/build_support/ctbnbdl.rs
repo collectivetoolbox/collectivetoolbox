@@ -412,30 +412,14 @@ fn find_repo_root_for_main_graph_dir(graph_dir: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Relative repository path to the reconstructible high-water ledger cache.
+pub const HIGHWATER_LEDGER_REL_PATH: &str = "built/graph-ledger/highwater";
+
 fn highwater_shadow_dirs(repo_root: &Path) -> Vec<(String, PathBuf)> {
-    let mut dirs = Vec::new();
-    let git_dir = repo_root.join(".git");
-    if git_dir.is_dir() {
-        dirs.push((
-            "high-water ledger (.git/ctb-graph-ledger-highwater)".to_string(),
-            git_dir.join("ctb-graph-ledger-highwater"),
-        ));
-    }
-    let is_main_workspace = repo_root == Path::new("/workspaces/ctoolbox")
-        || repo_root
-            .canonicalize()
-            .ok()
-            .as_deref()
-            == Some(Path::new("/workspaces/ctoolbox"));
-    let gemini_dir = Path::new("/root/.gemini");
-    if is_main_workspace && gemini_dir.is_dir() {
-        dirs.push((
-            "high-water ledger (/root/.gemini/ctb-graph-ledger-highwater)"
-                .to_string(),
-            gemini_dir.join("ctb-graph-ledger-highwater"),
-        ));
-    }
-    dirs
+    vec![(
+        format!("reconstructible high-water ledger cache ({HIGHWATER_LEDGER_REL_PATH})"),
+        repo_root.join(HIGHWATER_LEDGER_REL_PATH),
+    )]
 }
 
 /// Verifies `current_nodes` against both high-water shadow ledgers and `git HEAD`
