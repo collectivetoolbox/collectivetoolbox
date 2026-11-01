@@ -454,7 +454,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - ZIP container signature inspector (DOCX, XLSX, PPTX, EPUB, APK, JAR, HWPX)
 //! - Transparent payload decompression probe (`compress.c`)
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -866,7 +866,7 @@ fn json_parse_value(
 }
 
 /// Evaluates buffer with JSON state machine scanner.
-/// Returns 1 for single JSON document, 2 for NDJSON / JSONLines, 0 for not JSON.
+/// Returns 1 for single JSON document, 2 for NDJSON / `JSONLines`, 0 for not JSON.
 pub fn scan_json(bytes: &[u8]) -> u8 {
     let mut pos = 0;
     let mut stats = JsonParseStats::default();
@@ -1179,7 +1179,7 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
 
 const OLE2_MAGIC: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 
-/// Inspects source for OLE2 CDF containers (Word, Excel, PowerPoint, MSI, HWP).
+/// Inspects source for OLE2 CDF containers (Word, Excel, `PowerPoint`, MSI, HWP).
 pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
     source: &mut S,
 ) -> Result<Option<DetectionCandidate>> {

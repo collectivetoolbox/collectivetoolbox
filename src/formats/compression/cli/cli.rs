@@ -213,26 +213,23 @@ where
 
     let data = read_data(resolved_input_path.as_path())?;
 
-    let compression_format = match explicit_format {
-        Some(fmt) => fmt,
-        None => {
-            let detected_id = crate::detect_path(&resolved_input_path)
-                .ok()
-                .flatten()
-                .or_else(|| {
-                    crate::detect(
-                        Some(&data),
-                        resolved_input_path.to_str(),
-                    )
-                })
-                .ok_or_else(|| {
-                    anyhow!(
-                        "Could not determine compression format for '{}'",
-                        resolved_input_path.display()
-                    )
-                })?;
-            detected_id.to_supported_decompression_format()?
-        }
+    let compression_format = if let Some(fmt) = explicit_format { fmt } else {
+        let detected_id = crate::detect_path(&resolved_input_path)
+            .ok()
+            .flatten()
+            .or_else(|| {
+                crate::detect(
+                    Some(&data),
+                    resolved_input_path.to_str(),
+                )
+            })
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not determine compression format for '{}'",
+                    resolved_input_path.display()
+                )
+            })?;
+        detected_id.to_supported_decompression_format()?
     };
 
     let decompressed = crate::decompress(&data, compression_format)?;

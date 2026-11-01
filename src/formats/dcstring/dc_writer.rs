@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Direct fallible writer and binary source traits for Document Character
 //! (`Dc`) streams and files.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -51,7 +51,7 @@ pub fn create_interpreter() -> Interpreter {
         .build()
 }
 
-/// Helper to convert a Python exception into an anyhow::Error.
+/// Helper to convert a Python exception into an `anyhow::Error`.
 fn py_err_to_anyhow(vm: &VirtualMachine, exc: PyBaseExceptionRef) -> anyhow::Error {
     let mut buf = String::new();
     let _ = vm.write_exception(&mut buf, &exc);

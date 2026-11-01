@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Pure `UTF-8e-128` buffer and slice encoding/decoding routines.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

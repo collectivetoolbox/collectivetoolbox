@@ -217,7 +217,7 @@ impl NavParentVsValueInst_ChildObj {
             return Ok(self.do_something.borrow());
         }
         self.f_do_something.set(true);
-        *self.do_something.borrow_mut() = (if self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.s1().as_str() == "foo" { true } else { false }).try_into()?;
+        *self.do_something.borrow_mut() = (if (self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.s1().as_str() == "foo") { true } else { false }).try_into()?;
         Ok(self.do_something.borrow())
     }
 }

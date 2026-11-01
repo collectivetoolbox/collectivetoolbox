@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Code formatting and output buffer for generated Rust source.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

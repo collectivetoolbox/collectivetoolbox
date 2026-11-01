@@ -1200,7 +1200,7 @@ impl KStruct for Uf2_BlockData {
                     let _t_extension_tags = self_rc.extension_tags.borrow();
                     let Some(_tmpa) = _t_extension_tags.last() else { break; };
                     _i = _i.saturating_add(1);
-                    if (to_i128(*_tmpa.len_tag())) == (to_i128(0)) { break; }
+                    if ((to_i128(*_tmpa.len_tag())) == (to_i128(0))) { break; }
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -1361,7 +1361,7 @@ impl KStruct for Uf2_ExtensionTag {
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len_tag())) != (to_i128(0)) {
+        if ((to_i128(*self_rc.len_tag())) != (to_i128(0))) {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1381,7 +1381,7 @@ impl Uf2_ExtensionTag {
             return Ok(self.len_value.borrow());
         }
         self.f_len_value.set(true);
-        *self.len_value.borrow_mut() = (if (to_i128(*self.len_tag())) >= (to_i128(*self.min_len_tag()?)) { (i32::from(*self.len_tag())).saturating_sub(*self.min_len_tag()?) } else { 0_i32 }).try_into()?;
+        *self.len_value.borrow_mut() = (if ((to_i128(*self.len_tag())) >= (to_i128(*self.min_len_tag()?))) { (i32::from(*self.len_tag())).saturating_sub(*self.min_len_tag()?) } else { 0_i32 }).try_into()?;
         Ok(self.len_value.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1546,7 +1546,7 @@ impl Uf2_Flags {
             return Ok(self.has_extension_tags.borrow());
         }
         self.f_has_extension_tags.set(true);
-        *self.has_extension_tags.borrow_mut() = (((to_i128((*self.value()) & (32768_u32))) != (to_i128(0)))).try_into()?;
+        *self.has_extension_tags.borrow_mut() = (((to_i128(((*self.value()) & (32768_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_extension_tags.borrow())
     }
 
@@ -1563,7 +1563,7 @@ impl Uf2_Flags {
             return Ok(self.has_family_id.borrow());
         }
         self.f_has_family_id.set(true);
-        *self.has_family_id.borrow_mut() = (((to_i128((*self.value()) & (8192_u32))) != (to_i128(0)))).try_into()?;
+        *self.has_family_id.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_family_id.borrow())
     }
 
@@ -1579,7 +1579,7 @@ impl Uf2_Flags {
             return Ok(self.has_md5_checksum.borrow());
         }
         self.f_has_md5_checksum.set(true);
-        *self.has_md5_checksum.borrow_mut() = (((to_i128((*self.value()) & (16384_u32))) != (to_i128(0)))).try_into()?;
+        *self.has_md5_checksum.borrow_mut() = (((to_i128(((*self.value()) & (16384_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_md5_checksum.borrow())
     }
 
@@ -1600,7 +1600,7 @@ impl Uf2_Flags {
             return Ok(self.is_file_container.borrow());
         }
         self.f_is_file_container.set(true);
-        *self.is_file_container.borrow_mut() = (((to_i128((*self.value()) & (4096_u32))) != (to_i128(0)))).try_into()?;
+        *self.is_file_container.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.is_file_container.borrow())
     }
 
@@ -1618,7 +1618,7 @@ impl Uf2_Flags {
             return Ok(self.not_main_flash.borrow());
         }
         self.f_not_main_flash.set(true);
-        *self.not_main_flash.borrow_mut() = (((to_i128((*self.value()) & (1_u32))) != (to_i128(0)))).try_into()?;
+        *self.not_main_flash.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.not_main_flash.borrow())
     }
 }

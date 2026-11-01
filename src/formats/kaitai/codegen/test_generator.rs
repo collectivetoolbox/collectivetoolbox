@@ -77,7 +77,7 @@ SOFTWARE.
 
 */
 "#;
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -585,7 +585,7 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 let sum: i64 = trimmed
                     .split('+')
                     .filter_map(|part| part.trim().parse::<i64>().ok())
-                    .fold(0i64, |acc, x| acc.saturating_add(x));
+                    .fold(0i64, i64::saturating_add);
                 format!("{sum}")
             } else if s.contains("::") {
                 let parts: Vec<&str> = s.split("::").collect();
@@ -602,7 +602,7 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                         .join("_");
                     format!("{type_name}::{variant}")
                 } else {
-                    s.to_string()
+                    s.clone()
                 }
             } else if let Some(unquoted) = trimmed
                 .strip_prefix('"')
@@ -1169,9 +1169,7 @@ pub fn regenerate_tests_from_kst(
     // Reason for fallback: when running outside cargo workspace hierarchy, fallback to compile-time manifest dir
     let manifest_dir = kst_dir
         .ancestors()
-        .find(|p| p.join("Cargo.toml").is_file() && p.ends_with("kaitai"))
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        .find(|p| p.join("Cargo.toml").is_file() && p.ends_with("kaitai")).map_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")), Path::to_path_buf);
     let source_hash = compute_source_hash(&manifest_dir)?;
     let header_prefix = format!("# source_hash\t{source_hash}");
 

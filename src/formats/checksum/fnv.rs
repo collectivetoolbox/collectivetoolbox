@@ -19,8 +19,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Fowler-Noll-Vo (FNV-0, FNV-1, FNV-1a) hash functions computed from scratch.
 //!
-//! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
-//! there's no FormatId or parameterized format variant for that.
+//! FIXME: They can be folded to arbitrary bit lengths (`fnv_xor_fold`) but
+//! there's no `FormatId` or parameterized format variant for that.
 //!
 //! Provides an independent implementation of 32, 64, 128, 256, 512, and
 //! 1024-bit FNV hashes derived from the mathematical specifications of
@@ -1015,7 +1015,7 @@ pub fn fnv1a_range_u32(max: u32, data: &[u8]) -> u32 {
     reason = "Unbounded big-integer Natural addition cannot overflow"
 )]
 pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
-    if s < 5 || s > 10 {
+    if !(5..=10).contains(&s) {
         bail!("s must be in range 5..=10, got {s}");
     }
     let k = (5_usize.saturating_add(1_usize << s)) / 12_usize;

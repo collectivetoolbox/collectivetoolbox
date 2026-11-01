@@ -187,7 +187,7 @@ impl KStruct for CpioOldLe_File {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.path_name() == vec![0x54u8, 0x52u8, 0x41u8, 0x49u8, 0x4cu8, 0x45u8, 0x52u8, 0x21u8, 0x21u8, 0x21u8]) && (*self_rc.header().file_size().value()? == 0)  {
+        if  ((*self_rc.path_name() == vec![0x54u8, 0x52u8, 0x41u8, 0x49u8, 0x4cu8, 0x45u8, 0x52u8, 0x21u8, 0x21u8, 0x21u8]) && (*self_rc.header().file_size().value()? == 0))  {
             *self_rc.end_of_file_padding.borrow_mut() = _io.read_bytes_full()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }

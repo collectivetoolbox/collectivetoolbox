@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Parser for Kaitai Struct expressions.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -96,8 +96,7 @@ pub fn parse_type_ref(src: &str) -> Result<TypeWithArguments> {
     }
     ensure!(
         parser.peek_kind() == &TokenKind::Eof,
-        "Unexpected trailing tokens in type reference '{}'",
-        src
+        "Unexpected trailing tokens in type reference '{src}'"
     );
     Ok(TypeWithArguments {
         type_name,
@@ -656,7 +655,7 @@ impl Parser {
                     Ok(Expr::Name(first))
                 }
             }
-            other => bail!("Unexpected token in expression: {:?}", other),
+            other => bail!("Unexpected token in expression: {other:?}"),
         }
     }
 

@@ -444,7 +444,7 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                     candidate_algorithms: candidates,
                     is_manifest: true,
                     digest_len: dlen,
-                    description: format!("{} checksum manifest", name),
+                    description: format!("{name} checksum manifest"),
                 });
             }
         }
@@ -472,7 +472,7 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                     candidate_algorithms: vec![fmt],
                     is_manifest: true,
                     digest_len: digest.len(),
-                    description: format!("BSD {} checksum file", algo),
+                    description: format!("BSD {algo} checksum file"),
                 });
             }
         }

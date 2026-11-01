@@ -230,7 +230,7 @@ pub(crate) fn run_archive_with_stdout(
                     format!("Archive capture {}: {error_count} errors; {warning_count} warnings.\n",
                         if completed { "finished with diagnostics" } else { "stopped incomplete" }).into_bytes()
                 },
-                exit_code: if clean { 0 } else { 1 },
+                exit_code: i32::from(!clean),
             })
         }
         ArchiveCommand::List { archive } => {
@@ -264,7 +264,7 @@ pub(crate) fn run_archive_with_stdout(
             Ok(ToolResult::Immediate {
                 stdout: output.into_bytes(),
                 stderr: diagnostics.into_bytes(),
-                exit_code: if reader.is_completed() && !reader.has_diagnostics() { 0 } else { 1 },
+                exit_code: i32::from(!(reader.is_completed() && !reader.has_diagnostics())),
             })
         }
         ArchiveCommand::Verify { archive, recover } => {
@@ -437,7 +437,7 @@ fn plan_sources_with_options(
             let traversal_options = TraversalOptions::new()
                 .error_policy(ctb_io::file::OnTraversalError::Capture)
                 .one_file_system(options.one_file_system)
-                .apple_read_options(apple_read_options.clone());
+                .apple_read_options(apple_read_options);
             let mut directories = ctb_io::file::traverse_dir(&absolute, traversal_options)?.directories()?;
             while let Some(directory) = directories.next() {
                 let directory = directory?;
@@ -1217,9 +1217,8 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                     warn_fmt!("{msg}");
                     losses.push(msg);
                     continue;
-                } else {
-                    return Err(error);
                 }
+                return Err(error);
             }
             let mut expected = member.entity.clone();
             match ctb_io::file::materialize_directory_streams_and_companions(

@@ -30,7 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! (`use=`), unescapes string capabilities, and provides capability queries
 //! matching standard terminfo conventions without requiring the `tic` compiler.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -511,7 +511,7 @@ fn unescape_terminfo_string(raw: &str) -> Vec<u8> {
                         if let Some(ctrl) = b.checked_sub(b'@') {
                             out.push(ctrl);
                         }
-                    } else if (b'a'..=b'z').contains(&b) {
+                    } else if b.is_ascii_lowercase() {
                         if let Some(ctrl) =
                             b.checked_sub(b'a').and_then(|v| v.checked_add(1))
                         {

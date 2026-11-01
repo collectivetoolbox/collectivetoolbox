@@ -273,7 +273,7 @@ pub fn load_manifest_fixture(manifest_dir: &str, relative_path: &str) -> Option<
     std::fs::read(path).ok()
 }
 
-/// Resolves the filesystem PathBuf of a test fixture in a given manifest directory.
+/// Resolves the filesystem `PathBuf` of a test fixture in a given manifest directory.
 pub fn manifest_fixture_path(manifest_dir: &str, relative_path: &str) -> PathBuf {
     assert!(
         is_in_test(),

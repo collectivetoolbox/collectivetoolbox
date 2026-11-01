@@ -141,10 +141,10 @@ pub fn dceutils_to_dcmstring_with_options(
                 !permissive,
                 &mut raw_log,
             )?;
-            if !raw_log.has_errors() {
-                parse_comma_short_dcs(&dc_csv, &mut raw_log)?
-            } else {
+            if raw_log.has_errors() {
                 Vec::new()
+            } else {
+                parse_comma_short_dcs(&dc_csv, &mut raw_log)?
             }
         }
         "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"

@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! embedded binary payloads with direct (non-base64) storage and
 //! optional SHA-256 integrity verification.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -548,7 +548,7 @@ impl DcMstr {
     /// Returns an error if any character or payload cannot be converted.
     pub fn to_dc_tokens(&self) -> Result<Vec<u128>> {
         let dc_str = self.to_dc_string()?;
-        Ok(dc_str.chars().map(|c| c.to_u128()).collect())
+        Ok(dc_str.chars().map(ctb_utilities::DcChar::to_u128).collect())
     }
 }
 
@@ -846,7 +846,7 @@ impl DcMstring {
 
     /// Appends a type-2 binary payload with an empty metadata block.
     pub fn push_binary(&mut self, data: &[u8]) {
-        #[allow(
+        #[expect(
             clippy::expect_used,
             reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
         )]
@@ -1720,18 +1720,18 @@ fn decode_dcmm_slice_best_effort(
                     let payload_end = sha_end.saturating_add(actual_size);
                     if let Some(payload) = bytes.get(sha_end..payload_end) {
                         let actual = Sha256::digest(payload);
-                        if actual.as_slice() != expected_sha.as_slice() {
+                        if actual.as_slice() == expected_sha.as_slice() {
+                            let _ = mst.push_chunk(&DcMixed::Binary {
+                                data: payload,
+                                sha256: Some(expected_sha),
+                            });
+                        } else {
                             log.warn(&format!(
                                 "SHA-256 checksum mismatch at offset {offset}; preserving payload"
                             ));
                             let _ = mst.push_chunk(&DcMixed::Binary {
                                 data: payload,
                                 sha256: None,
-                            });
-                        } else {
-                            let _ = mst.push_chunk(&DcMixed::Binary {
-                                data: payload,
-                                sha256: Some(expected_sha),
                             });
                         }
                     }
@@ -2737,7 +2737,7 @@ fn refill_stream_buffer<R: std::io::Read>(
 
 /// Streams an encapsulation payload in chunks with bounded memory, updating an
 /// optional hasher and verifying complete length.
-#[allow(
+#[expect(
     clippy::too_many_arguments,
     reason = "Streaming encapsulation helper requires stream offsets and diagnostic log"
 )]
@@ -3068,20 +3068,17 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                 size_buf.copy_from_slice(s);
             }
             let size_u128 = u128::from_be_bytes(size_buf);
-            let payload_size = match usize::try_from(size_u128) {
-                Ok(s) => s,
-                Err(_) => {
-                    if !options.best_effort {
-                        return Err(DcMixedError::SizeOverflow {
-                            offset: enc_start,
-                            size: size_u128,
-                        }.into());
-                    }
-                    log.warn(&format!(
-                        "Encapsulation size {size_u128} overflows addressable memory at offset {enc_start}"
-                    ));
-                    usize::MAX
+            let payload_size = if let Ok(s) = usize::try_from(size_u128) { s } else {
+                if !options.best_effort {
+                    return Err(DcMixedError::SizeOverflow {
+                        offset: enc_start,
+                        size: size_u128,
+                    }.into());
                 }
+                log.warn(&format!(
+                    "Encapsulation size {size_u128} overflows addressable memory at offset {enc_start}"
+                ));
+                usize::MAX
             };
 
             match effective_type {
@@ -3333,18 +3330,15 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                         meta_len_buf.copy_from_slice(s);
                     }
                     let meta_len_u128 = u128::from_be_bytes(meta_len_buf);
-                    let meta_len = match usize::try_from(meta_len_u128) {
-                        Ok(l) => l,
-                        Err(_) => {
-                            if !options.best_effort {
-                                return Err(DcMixedError::InvalidMetadata {
-                                    offset: enc_start.saturating_add(encap_size_end),
-                                    message: "Metadata exceeds addressable memory".to_owned(),
-                                }.into());
-                            }
-                            log.warn(&format!("Metadata exceeds addressable memory at offset {enc_start}"));
-                            0
+                    let meta_len = if let Ok(l) = usize::try_from(meta_len_u128) { l } else {
+                        if !options.best_effort {
+                            return Err(DcMixedError::InvalidMetadata {
+                                offset: enc_start.saturating_add(encap_size_end),
+                                message: "Metadata exceeds addressable memory".to_owned(),
+                            }.into());
                         }
+                        log.warn(&format!("Metadata exceeds addressable memory at offset {enc_start}"));
+                        0
                     };
 
                     let total_hdr_len = encap_meta_len_end.saturating_add(meta_len);

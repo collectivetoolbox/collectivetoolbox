@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Internal semantic type system for Kaitai Struct.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

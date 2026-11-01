@@ -1321,7 +1321,7 @@ impl KStruct for Id3v24_Tag {
                 let _t_frames = self_rc.frames.borrow();
                 let Some(_tmpa) = _t_frames.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  (((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size().value()?)?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?)  { break; }
+                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size().value()?)?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();

@@ -489,7 +489,7 @@ impl KStruct for PharWithoutStub_FileEntry {
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len_metadata())) != (to_i128(0)) {
+        if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
             let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
             *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
             let _io_metadata = BytesReader::from(_raw_metadata);
@@ -696,7 +696,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.bzip2_compressed.borrow());
         }
         self.f_bzip2_compressed.set(true);
-        *self.bzip2_compressed.borrow_mut() = (((to_i128((*self.value()) & (8192_u32))) != (to_i128(0)))).try_into()?;
+        *self.bzip2_compressed.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.bzip2_compressed.borrow())
     }
 
@@ -728,7 +728,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.zlib_compressed.borrow());
         }
         self.f_zlib_compressed.set(true);
-        *self.zlib_compressed.borrow_mut() = (((to_i128((*self.value()) & (4096_u32))) != (to_i128(0)))).try_into()?;
+        *self.zlib_compressed.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.zlib_compressed.borrow())
     }
 }
@@ -836,7 +836,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_bzip2_compressed.borrow());
         }
         self.f_any_bzip2_compressed.set(true);
-        *self.any_bzip2_compressed.borrow_mut() = (((to_i128((*self.value()) & (8192_u32))) != (to_i128(0)))).try_into()?;
+        *self.any_bzip2_compressed.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.any_bzip2_compressed.borrow())
     }
 
@@ -853,7 +853,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_zlib_compressed.borrow());
         }
         self.f_any_zlib_compressed.set(true);
-        *self.any_zlib_compressed.borrow_mut() = (((to_i128((*self.value()) & (4096_u32))) != (to_i128(0)))).try_into()?;
+        *self.any_zlib_compressed.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.any_zlib_compressed.borrow())
     }
 
@@ -869,7 +869,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.has_signature.borrow());
         }
         self.f_has_signature.set(true);
-        *self.has_signature.borrow_mut() = (((to_i128((*self.value()) & (65536_u32))) != (to_i128(0)))).try_into()?;
+        *self.has_signature.borrow_mut() = (((to_i128(((*self.value()) & (65536_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_signature.borrow())
     }
 }
@@ -977,7 +977,7 @@ impl KStruct for PharWithoutStub_Manifest {
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len_metadata())) != (to_i128(0)) {
+        if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
             let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
             *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
             let _io_metadata = BytesReader::from(_raw_metadata);
@@ -1272,7 +1272,7 @@ impl KStruct for PharWithoutStub_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from(i64::try_from(_io.size())?)?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();

@@ -40,7 +40,7 @@ See full license information at the end of this file.
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace binary prelude"

@@ -677,7 +677,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigString {
         *self_rc.length.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.length())) != (to_i128(0)) {
+        if ((to_i128(*self_rc.length())) != (to_i128(0))) {
             let _raw_config = _io.read_bytes(usize::from(*self_rc.length()))?;
             *self_rc.config_raw.borrow_mut() = _raw_config.clone();
             let _io_config = BytesReader::from(_raw_config);

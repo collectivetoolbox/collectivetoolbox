@@ -32,7 +32,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Filename sanitization, character replacement, and length limiting utilities.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -41,7 +41,7 @@ use crate::utilities::*;
 
 use std::path::{Path, PathBuf};
 
-/// Maximum filename byte length allowed by standard filesystems (NAME_MAX).
+/// Maximum filename byte length allowed by standard filesystems (`NAME_MAX`).
 pub const MAX_FILENAME_BYTES: usize = 255;
 
 /// Safe path length limit to prevent issues with path length restrictions.
@@ -259,26 +259,23 @@ fn truncate_filename(s: &str, max_len: usize) -> String {
 /// Calculates the maximum allowed filename length in bytes based on the
 /// enclosing directory path budget.
 fn calculate_max_len(enclosing_dir: Option<&Path>) -> usize {
-    let max_len = match enclosing_dir {
-        Some(dir) => {
-            let dir_len = dir.as_os_str().len();
-            let total_dir_overhead = dir_len.saturating_add(1);
-            if SAFE_PATH_MAX > total_dir_overhead {
-                let available =
-                    SAFE_PATH_MAX.saturating_sub(total_dir_overhead);
-                available.min(MAX_FILENAME_BYTES)
-            } else {
-                let available =
-                    POSIX_PATH_MAX.saturating_sub(total_dir_overhead);
-                available.min(MAX_FILENAME_BYTES)
-            }
-        }
-        None => {
-            let total_overhead =
-                TYPICAL_ENCLOSING_DIR_LEN.saturating_add(1);
-            let available = SAFE_PATH_MAX.saturating_sub(total_overhead);
+    let max_len = if let Some(dir) = enclosing_dir {
+        let dir_len = dir.as_os_str().len();
+        let total_dir_overhead = dir_len.saturating_add(1);
+        if SAFE_PATH_MAX > total_dir_overhead {
+            let available =
+                SAFE_PATH_MAX.saturating_sub(total_dir_overhead);
+            available.min(MAX_FILENAME_BYTES)
+        } else {
+            let available =
+                POSIX_PATH_MAX.saturating_sub(total_dir_overhead);
             available.min(MAX_FILENAME_BYTES)
         }
+    } else {
+        let total_overhead =
+            TYPICAL_ENCLOSING_DIR_LEN.saturating_add(1);
+        let available = SAFE_PATH_MAX.saturating_sub(total_overhead);
+        available.min(MAX_FILENAME_BYTES)
     };
     max_len.max(1)
 }

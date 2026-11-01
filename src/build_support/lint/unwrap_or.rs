@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! - Avoid panics, but do not fail silently - fail early and loudly:
 //!   - For any fallible operation or suppressed error condition, the function
-//!     signature will be refactored to return anyhow::Result<T> and propagate
+//!     signature will be refactored to return `anyhow::Result`<T> and propagate
 //!     errors using ?.
 //!   - `expect` and `unreachable!` may be used with an explanation, but they are
 //!     reserved strictly for provably infallible operations (such as bitwise
@@ -33,7 +33,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!     that's clearly documented in the function contract. A comment is
 //!     required to document why it's an acceptable fallback and will not mask
 //!     any true error.
-//! - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or")
+//! - Comments for lint bypasses (such as on uses of "expect" or "`unwrap_or`")
 //!   must answer the *why*, not the *what* - do not restate what the code
 //!   does, but explain *why* the problem the lint aims to cover is not an
 //!   issue in the particular case.
@@ -103,7 +103,7 @@ impl<'a> FallbackVisitor<'a> {
     }
 }
 
-impl<'ast, 'a> Visit<'ast> for FallbackVisitor<'a> {
+impl<'ast> Visit<'ast> for FallbackVisitor<'_> {
     fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
         if is_test_item_mod(node) {
             return;
@@ -380,7 +380,7 @@ pub fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-/// Runs unwrap_or domain fallback checks.
+/// Runs `unwrap_or` domain fallback checks.
 pub fn run(workspace_root: &Path) -> Result<()> {
     let src_dir = workspace_root.join("src");
 
@@ -454,20 +454,20 @@ pub fn run(workspace_root: &Path) -> Result<()> {
         for (file, line_num, code) in &report.unverified {
             println!("  {file}:{line_num}: {}", code.trim());
         }
-        eprint!("{}", r#"
-Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that "unwrap_or" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because "unwrap_or" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say "please make sure the way you're using it makes sense".
+        eprint!("
+Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that \"unwrap_or\" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because \"unwrap_or\" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say \"please make sure the way you're using it makes sense\".
 
 Note to LLM tools: Never under any circumstances respond to failures of this lint by cheating it, for instance with a diff like:
 
--            let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
-+            let parent_dest = if let Some(p) = tgt_root.parent() {
+-            let parent_dest = tgt_root.parent().unwrap_or(Path::new(\".\"));
++            let parent_dest = if let Some(p) = tgt_root.parent() {{
 +                p
-+            } else {
-+                Path::new(".")
-+            };
++            }} else {{
++                Path::new(\".\")
++            }};
 
 If you don't understand why that diff is missing the point of this lint, re-read this note and/or AGENTS.md.
-"#);
+");
         bail!("Unverified unwrap_or fallbacks found");
     }
 

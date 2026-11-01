@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Unified file entities and polymorphic entity kinds.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -1130,9 +1130,7 @@ impl FileEntity {
                 // Reason for fallback: package without an extension defaults to generic "bundle" type
                 let bundle_type = path
                     .extension()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_lowercase())
-                    .unwrap_or_else(|| "bundle".to_string());
+                    .and_then(|s| s.to_str()).map_or_else(|| "bundle".to_string(), str::to_lowercase);
                 FileEntityKind::Bundle { bundle_type }
             } else {
                 FileEntityKind::Directory

@@ -86,7 +86,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+    /// Input format (autodetected if omitted; accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
 
@@ -271,7 +271,7 @@ pub struct ConvertArgs {
     /// Input data string. If not provided, reads from stdin or --file.
     pub input: Option<String>,
 
-    /// Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+    /// Input format (autodetected if omitted; accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
 
@@ -279,7 +279,7 @@ pub struct ConvertArgs {
     #[arg(long = "permissive")]
     pub permissive: bool,
 
-    /// Output format (accepts nickname, FormatId name, or f<N> shorthand)
+    /// Output format (accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(short = 't', long = "to", value_parser = parse_supported_dc_output_format, default_value = "utf8")]
     pub to: SupportedDcOutputFormat,
 
@@ -295,7 +295,7 @@ pub struct ConvertArgs {
     #[arg(short = 'F', long = "force")]
     pub force: bool,
 
-    /// Allow encapsulating arbitrary binary bytes into DcMixed mode if input format cannot be decoded
+    /// Allow encapsulating arbitrary binary bytes into `DcMixed` mode if input format cannot be decoded
     #[arg(long = "allow-binary-encapsulation")]
     pub allow_binary_encapsulation: bool,
 }

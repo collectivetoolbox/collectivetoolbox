@@ -177,7 +177,7 @@ impl CommittedHardlinks {
             if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
                 self.entries.insert(key.clone(), CommittedHardlink {
                     relative: relative.to_path_buf(), kind: entity.kind.clone(),
-                    timestamps: entity.metadata.timestamps.clone(), snapshot: snapshot.cloned(),
+                    timestamps: entity.metadata.timestamps, snapshot: snapshot.cloned(),
                 });
             }
         }

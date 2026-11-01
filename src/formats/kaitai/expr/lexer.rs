@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Lexical analyzer / tokenizer for Kaitai Struct expression language.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -686,7 +686,7 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                     } else if p == b'o' || p == b'O' {
                         idx = idx.saturating_add(2);
                         let num_start = idx;
-                        while bytes.get(idx).is_some_and(|&c| (c >= b'0' && c <= b'7') || c == b'_') {
+                        while bytes.get(idx).is_some_and(|&c| (b'0'..=b'7').contains(&c) || c == b'_') {
                             idx = idx.saturating_add(1);
                         }
                         ensure!(idx > num_start, "Empty octal literal");

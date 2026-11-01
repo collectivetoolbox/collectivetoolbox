@@ -404,34 +404,32 @@ pub async fn open_index_database(
                 .build()
                 .await?)
         }
-    } else {
-        if encrypt_if_new {
-            let password = acquire_password(
-                password_file,
-                password_stdin,
-                true,
-                db_name,
-            )?;
-            let (meta, dek) = create_encrypted_index_meta(&password)?;
-            let meta_path = resolve_meta_path(db_path);
-            save_index_meta(&meta_path, &meta)?;
+    } else if encrypt_if_new {
+        let password = acquire_password(
+            password_file,
+            password_stdin,
+            true,
+            db_name,
+        )?;
+        let (meta, dek) = create_encrypted_index_meta(&password)?;
+        let meta_path = resolve_meta_path(db_path);
+        save_index_meta(&meta_path, &meta)?;
 
-            let builder = turso::Builder::new_local(&db_path_str)
-                .experimental_encryption(true)
-                .with_encryption(turso::EncryptionOpts {
-                    cipher: meta.cipher,
-                    hexkey: bin2hex(dek.as_slice()),
-                })
-                .experimental_index_method(true);
-            drop(dek);
-            drop(password);
-            Ok(builder.build().await?)
-        } else {
-            Ok(turso::Builder::new_local(&db_path_str)
-                .experimental_index_method(true)
-                .build()
-                .await?)
-        }
+        let builder = turso::Builder::new_local(&db_path_str)
+            .experimental_encryption(true)
+            .with_encryption(turso::EncryptionOpts {
+                cipher: meta.cipher,
+                hexkey: bin2hex(dek.as_slice()),
+            })
+            .experimental_index_method(true);
+        drop(dek);
+        drop(password);
+        Ok(builder.build().await?)
+    } else {
+        Ok(turso::Builder::new_local(&db_path_str)
+            .experimental_index_method(true)
+            .build()
+            .await?)
     }
 }
 #[cfg(test)]

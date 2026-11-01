@@ -248,7 +248,7 @@ impl AndroidBootldrAsus_Image {
             return Ok(self.file_name.borrow());
         }
         self.f_file_name.set(true);
-        *self.file_name.borrow_mut() = if self.chunk_id().as_str() == "IFWI!!!!" { "ifwi.bin".to_string() } else { if self.chunk_id().as_str() == "DROIDBT!" { "droidboot.img".to_string() } else { if self.chunk_id().as_str() == "SPLASHS!" { "splashscreen.img".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string();
+        *self.file_name.borrow_mut() = if (self.chunk_id().as_str() == "IFWI!!!!") { "ifwi.bin".to_string() } else { if (self.chunk_id().as_str() == "DROIDBT!") { "droidboot.img".to_string() } else { if (self.chunk_id().as_str() == "SPLASHS!") { "splashscreen.img".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string();
         Ok(self.file_name.borrow())
     }
 }

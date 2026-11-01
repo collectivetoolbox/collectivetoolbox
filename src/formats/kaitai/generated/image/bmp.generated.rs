@@ -858,7 +858,7 @@ impl KStruct for Bmp_BitmapHeader {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_color_mask_here()? {
-            let f = |t : &mut Bmp_ColorMask| Ok(t.set_params((to_i128(*self_rc.len_header())) != (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader)))));
+            let f = |t : &mut Bmp_ColorMask| Ok(t.set_params(((to_i128(*self_rc.len_header())) != (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader))))));
             let t = Self::read_into_with_init::<_, Bmp_ColorMask>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
             *self_rc.color_mask.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
@@ -965,7 +965,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = (if (to_i128(self.image_height_raw())) < (to_i128(0)) { (0_i32).saturating_sub(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
+        *self.image_height.borrow_mut() = (if ((to_i128(self.image_height_raw())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
         Ok(self.image_height.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1205,7 +1205,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_alpha.borrow());
         }
         self.f_color_mask_alpha.set(true);
-        *self.color_mask_alpha.borrow_mut() = (if  (*self.is_color_mask_given()?) && (*self.color_mask_given()?.has_alpha_mask())  { *self.color_mask_given()?.alpha_mask() } else { 0_u32 }).try_into()?;
+        *self.color_mask_alpha.borrow_mut() = (if  ((*self.is_color_mask_given()?) && (*self.color_mask_given()?.has_alpha_mask()))  { *self.color_mask_given()?.alpha_mask() } else { 0_u32 }).try_into()?;
         Ok(self.color_mask_alpha.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1217,7 +1217,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_blue.borrow());
         }
         self.f_color_mask_blue.set(true);
-        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.blue_mask() } else { u32::try_from(if (to_i128(*self.header().bits_per_pixel())) == (to_i128(16)) { 31_i32 } else { if  (((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32))))  { 255_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.blue_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 31_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 255_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_blue.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1242,7 +1242,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_green.borrow());
         }
         self.f_color_mask_green.set(true);
-        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.green_mask() } else { u32::try_from(if (to_i128(*self.header().bits_per_pixel())) == (to_i128(16)) { 992_i32 } else { if  (((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32))))  { 65280_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.green_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 992_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 65280_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_green.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1254,7 +1254,7 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_red.borrow());
         }
         self.f_color_mask_red.set(true);
-        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.red_mask() } else { u32::try_from(if (to_i128(*self.header().bits_per_pixel())) == (to_i128(16)) { 31744_i32 } else { if  (((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32))))  { 16711680_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.red_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 31744_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 16711680_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_red.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -2106,7 +2106,7 @@ impl KStruct for Bmp_ColorTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = usize::try_from(if  (((to_i128(*self_rc.num_colors())) > (to_i128(0)))) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? })?;
+        let l_colors = usize::try_from(if  ((((to_i128(*self_rc.num_colors())) > (to_i128(0)))) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? })?;
         for _i in 0_usize..l_colors {
             let f = |t : &mut Bmp_RgbRecord| Ok(t.set_params(*self_rc.has_reserved_field()));
             let t = Self::read_into_with_init::<_, Bmp_RgbRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
@@ -2143,7 +2143,7 @@ impl Bmp_ColorTable {
             return Ok(self.num_colors_present.borrow());
         }
         self.f_num_colors_present.set(true);
-        *self.num_colors_present.borrow_mut() = (div_floor(i64::try_from(_io.size())?, i64::from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }))?).try_into()?;
+        *self.num_colors_present.borrow_mut() = (div_floor((i64::try_from(_io.size())?), i64::from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }))?).try_into()?;
         Ok(self.num_colors_present.borrow())
     }
 }

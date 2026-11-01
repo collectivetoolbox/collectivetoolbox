@@ -226,7 +226,7 @@ impl KStruct for ExprIoPos_AllPlusNumber {
         let _io = io;
         *self_rc.my_str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from(i64::try_from(_io.size())?)?).saturating_sub(_io.pos())).saturating_sub(2_usize))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(2_usize))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();

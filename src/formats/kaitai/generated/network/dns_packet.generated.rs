@@ -1159,7 +1159,7 @@ impl KStruct for DnsPacket_DomainName {
                 let _t_name = self_rc.name.borrow();
                 let Some(_tmpa) = _t_name.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  (((to_i128(*_tmpa.length())) == (to_i128(0)))) || (((to_i128(*_tmpa.length())) >= (to_i128(192))))  { break; }
+                if  ((((to_i128(*_tmpa.length())) == (to_i128(0)))) || (((to_i128(*_tmpa.length())) >= (to_i128(192)))))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();

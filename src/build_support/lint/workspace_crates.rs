@@ -175,9 +175,7 @@ pub fn scan_src_crates(
             }
 
             let rel_path = path
-                .strip_prefix(workspace_root)
-                .map(normalize_rel_path)
-                .unwrap_or_else(|_| normalize_rel_path(&path));
+                .strip_prefix(workspace_root).map_or_else(|_| normalize_rel_path(&path), normalize_rel_path);
 
             // Skip paths matching workspace.exclude
             if excluded_paths.contains(&rel_path) {

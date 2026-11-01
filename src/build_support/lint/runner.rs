@@ -25,7 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Verifies workspace crate declarations in `Cargo.toml`.
 //! - Evaluates file headers and docblocks across all supported file types.
 //! - Parses Rust ASTs once per file in parallel via Rayon and runs tempdir,
-//!   test boilerplate, and unwrap_or checks concurrently on the single AST.
+//!   test boilerplate, and `unwrap_or` checks concurrently on the single AST.
 //! - Joins cargo metadata and checks vendor patch utilization.
 //! - Optionally inspects vendored crate versions.
 
@@ -315,20 +315,20 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
         for (file, line_num, code) in &ast_results.unwrap_or_unverified {
             println!("  {file}:{line_num}: {}", code.trim());
         }
-        eprint!("{}", r#"
-Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that "unwrap_or" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because "unwrap_or" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say "please make sure the way you're using it makes sense".
+        eprint!("
+Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that \"unwrap_or\" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because \"unwrap_or\" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say \"please make sure the way you're using it makes sense\".
 
 Note to LLM tools: Never under any circumstances respond to failures of this lint by cheating it, for instance with a diff like:
 
--            let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
-+            let parent_dest = if let Some(p) = tgt_root.parent() {
+-            let parent_dest = tgt_root.parent().unwrap_or(Path::new(\".\"));
++            let parent_dest = if let Some(p) = tgt_root.parent() {{
 +                p
-+            } else {
-+                Path::new(".")
-+            };
++            }} else {{
++                Path::new(\".\")
++            }};
 
 If you don't understand why that diff is missing the point of this lint, re-read this note and/or AGENTS.md.
-"#);
+");
     }
 
     // --- Section 2: Patches ---
@@ -425,15 +425,14 @@ If you don't understand why that diff is missing the point of this lint, re-read
         .iter()
         .filter(|p| {
             p.strip_prefix(workspace_root)
-                .map_or(false, |r| r.starts_with("src"))
+                .is_ok_and(|r| r.starts_with("src"))
         })
         .count();
 
     println!("\n=== Checking test module boilerplate ===");
     if ast_results.boilerplate_violations.is_empty() {
         println!(
-            "Test boilerplate lint passed (checked {} Rust files in src/).",
-            src_rs_count
+            "Test boilerplate lint passed (checked {src_rs_count} Rust files in src/)."
         );
     } else {
         any_failure = true;

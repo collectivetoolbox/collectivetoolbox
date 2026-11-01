@@ -249,10 +249,10 @@ fn format_dc_code_from_records(records: &[DcConstRecord]) -> String {
 
     for rec in records {
         let const_name = to_screaming_snake_case(&rec.ident);
-        let doc = if !rec.description.is_empty() {
-            &rec.description
-        } else {
+        let doc = if rec.description.is_empty() {
             &rec.name
+        } else {
+            &rec.description
         };
         let doc_clean = doc.replace('\n', " ").replace('\r', "");
         out.push_str(&format!(
@@ -593,10 +593,10 @@ pub fn generate_role_code_from_index(
     out.push_str("pub enum DcRole {\n");
 
     for rec in &records {
-        let doc = if !rec.description.is_empty() {
-            &rec.description
-        } else {
+        let doc = if rec.description.is_empty() {
             &rec.name
+        } else {
+            &rec.description
         };
         let doc_clean = doc.replace('\n', " ").replace('\r', "");
         out.push_str(&format!(

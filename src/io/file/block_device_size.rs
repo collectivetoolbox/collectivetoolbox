@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Querying block device capacities across platforms.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -56,7 +56,7 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
     let fd = file.as_raw_fd();
 
     // SAFETY: blkgetsize64 writes a single u64 into a valid stack-allocated location.
-    let res = unsafe { blkgetsize64(fd, &mut bytes) }
+    let res = unsafe { blkgetsize64(fd, &raw mut bytes) }
         .context("BLKGETSIZE64 ioctl failed")?;
 
     let _ = res; // generated wrapper returns success value we don't need

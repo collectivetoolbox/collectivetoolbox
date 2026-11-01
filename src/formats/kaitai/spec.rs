@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Data structures representing the Kaitai Struct (`.ksy`) schema.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

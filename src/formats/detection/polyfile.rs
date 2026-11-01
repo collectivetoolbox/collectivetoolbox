@@ -443,7 +443,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! PolyFile attribution, polyglot container detection, and nested format
+//! `PolyFile` attribution, polyglot container detection, and nested format
 //! parsing subsystem.
 //!
 //! Implements:
@@ -453,7 +453,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Byte-range attribution mapping parsed format structures to `[start, end)` spans.
 //! - Bounded nested archive member inspection for container files.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -511,7 +511,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                 } else {
                     "GIF image"
                 };
-                let desc = format!("Polyglot container: {} and ZIP archive", img_name);
+                let desc = format!("Polyglot container: {img_name} and ZIP archive");
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -532,7 +532,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                         DetectionEvidence::ByteRange {
                             start: 0,
                             end: if is_png { 8 } else if is_jpeg { 3 } else { 6 },
-                            label: format!("{} Header", img_name),
+                            label: format!("{img_name} Header"),
                             score: 95,
                         },
                     ],
@@ -576,7 +576,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
         if let Ok(Some(entries)) = parse_zip_central_directory(source) {
             if !entries.is_empty() {
                 let exec_name = if is_pe { "Windows PE executable" } else { "ELF executable" };
-                let desc = format!("Self-extracting archive (SFX polyglot: {} + ZIP)", exec_name);
+                let desc = format!("Self-extracting archive (SFX polyglot: {exec_name} + ZIP)");
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,

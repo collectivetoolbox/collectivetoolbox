@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! and native timestamp resolution) to avoid repeated syscalls during
 //! recursive traversal.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

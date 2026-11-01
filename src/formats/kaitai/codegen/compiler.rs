@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Rust code compiler generating Rust structs, traits, and parsers from `ClassSpec`.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -110,7 +110,7 @@ fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
             }
             let first_escaped = escape_rust_keyword(first);
             let is_common = root_spec.meta_imports.iter().any(|imp| {
-                imp.starts_with("/common/") && imp.trim_start_matches('/').split('/').last() == Some(first)
+                imp.starts_with("/common/") && imp.trim_start_matches('/').split('/').next_back() == Some(first)
             });
             if is_common {
                 w.puts(&format!("use crate::generated::common::{first_escaped}::{class_name};"));
@@ -800,8 +800,8 @@ fn emit_read_array_element(
                 w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow())); f(&mut *t.get_mut()) }})();"));
             }
             w.puts(&format!("let (root_in, parent_in) = ({target_args});"));
-            w.puts(&format!("let root = Self::downcast(root_in, t.clone(), true);"));
-            w.puts(&format!("let parent = Self::downcast(parent_in, t.clone(), false);"));
+            w.puts(&"let root = Self::downcast(root_in, t.clone(), true);".to_string());
+            w.puts(&"let parent = Self::downcast(parent_in, t.clone(), false);".to_string());
             w.puts(&format!("let res = {type_name}::read(&t, {io_expr}, root, parent);"));
             w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
             w.puts("res?;");
@@ -918,12 +918,8 @@ pub(crate) fn expr_to_usize(expr: &Expr, ctx: &TranslationContext<'_>) -> String
     }
     let s = translate_expr(expr, ctx);
     match super::translator::detect_type_approx(expr, ctx) {
-        Some(DataType::Int1 { signed: false })
-        | Some(DataType::IntMulti {
-            signed: false,
-            width: 1 | 2,
-            ..
-        }) => format!("usize::from({s})"),
+        Some(DataType::Int1 { signed: false } | DataType::IntMulti {
+signed: false, width: 1 | 2, .. }) => format!("usize::from({s})"),
         _ => format!("usize::try_from({s})?"),
     }
 }
@@ -1197,7 +1193,7 @@ fn emit_validation_check(
                         | DataType::Bits1 { .. }
                         | DataType::CalcBoolType
                 ) {
-                    let expected_str = translate_expr(&expected_expr, ctx);
+                    let expected_str = translate_expr(expected_expr, ctx);
                     w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x == {expected_str}) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
@@ -1205,7 +1201,7 @@ fn emit_validation_check(
                     w.puts("}");
                 } else {
                     let ty_cast = validation_primitive_type(elem_dt);
-                    let expected_str = translate_expr(&expected_expr, ctx);
+                    let expected_str = translate_expr(expected_expr, ctx);
                     w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
                     w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x == expected) {{"));
                     w.inc();
@@ -1224,7 +1220,7 @@ fn emit_validation_check(
                     | DataType::Bits1 { .. }
                     | DataType::CalcBoolType
             ) {
-                let expected_str = translate_expr(&expected_expr, ctx);
+                let expected_str = translate_expr(expected_expr, ctx);
                 w.puts(&format!("if !(*{access_expr} == {expected_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
@@ -1239,7 +1235,7 @@ fn emit_validation_check(
                     false
                 };
                 let deref = if is_numeric_switch { "" } else { "*" };
-                let expected_str = translate_expr(&expected_expr, ctx);
+                let expected_str = translate_expr(expected_expr, ctx);
                 w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
                 w.puts(&format!("if !({deref}{access_expr} == expected) {{"));
                 w.inc();
@@ -1256,7 +1252,7 @@ fn emit_validation_check(
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
-                translate_expr(&min_expr, ctx)
+                translate_expr(min_expr, ctx)
             };
             if matches!(
                 resolved_target_dt,
@@ -1333,7 +1329,7 @@ fn emit_validation_check(
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
-                translate_expr(&max_expr, ctx)
+                translate_expr(max_expr, ctx)
             };
             if matches!(
                 resolved_target_dt,
@@ -1409,7 +1405,7 @@ fn emit_validation_check(
                 w.inc();
                 w.puts(&format!("let _tmpa = {deref}_item;"));
                 let val_ctx = ctx.with_element_type(Some(elem_dt));
-                let cond_str = super::translator::translate_validation_custom_expr(&expr, elem_dt, current, &val_ctx);
+                let cond_str = super::translator::translate_validation_custom_expr(expr, elem_dt, current, &val_ctx);
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -1422,7 +1418,7 @@ fn emit_validation_check(
                 w.puts(&format!("let _borrowed = {access_expr};"));
                 w.puts(&format!("let _tmpa = {deref}_borrowed;"));
                 let val_ctx = ctx.with_element_type(Some(data_type));
-                let cond_str = super::translator::translate_validation_custom_expr(&expr, data_type, current, &val_ctx);
+                let cond_str = super::translator::translate_validation_custom_expr(expr, data_type, current, &val_ctx);
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -1522,12 +1518,12 @@ fn emit_validation_check(
                     w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if !(*_x >= min_val) {{"));
+                    w.puts(&"if !(*_x >= min_val) {".to_string());
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
-                    w.puts(&format!("if !(*_x <= max_val) {{"));
+                    w.puts(&"if !(*_x <= max_val) {".to_string());
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -2084,7 +2080,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                 }
                 Expr::Name(name) => {
                     let cls = to_upper_camel_case(name);
-                    let mod_name = name.to_string();
+                    let mod_name = name.clone();
                     let arg_strs: Vec<String> = args
                         .iter()
                         .enumerate()

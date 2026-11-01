@@ -17,9 +17,9 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Linux filesystem metadata capture and querying (FS_IOC_GETFLAGS, etc.).
+//! Linux filesystem metadata capture and querying (`FS_IOC_GETFLAGS`, etc.).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

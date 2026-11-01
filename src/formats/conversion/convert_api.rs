@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Document conversion in Collective Toolbox is organized around [`DcMstring`] as the
 //! universal internal representation. Conversions are bidirectional:
 //! - **Import**: Converts external document formats (e.g. UTF-8, DcText, Dcts, Dcal,
-//!   DcIntegerList, DcMixed, DcUtf, SEMS, Ascii, CscJournal) into [`DcMstring`].
+//!   `DcIntegerList`, `DcMixed`, DcUtf, SEMS, Ascii, `CscJournal`) into [`DcMstring`].
 //! - **Export**: Serializes a [`DcMstring`] into any supported output format
 //!   ([`SupportedDcOutputFormat`]).
 //!

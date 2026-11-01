@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Extension rule definitions and matching utilities.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Extents, sparse hole discovery, and payload sources.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -308,7 +308,7 @@ pub trait PayloadSource: Read + Seek + Send {
     }
 
     /// Whether this payload source was opened without modifying access time
-    /// (e.g. via O_NOATIME on Linux or in-memory cursor).
+    /// (e.g. via `O_NOATIME` on Linux or in-memory cursor).
     fn opened_with_noatime(&self) -> bool {
         false
     }
@@ -541,14 +541,11 @@ impl DiskPayloadSource {
             let mut opts = File::options();
             opts.read(true);
             opts.custom_flags(nix::libc::O_NOATIME | nix::libc::O_NOFOLLOW);
-            match opts.open(path) {
-                Ok(f) => (f, true),
-                Err(_) => {
-                    opts.custom_flags(nix::libc::O_NOFOLLOW);
-                    let f = opts.open(path)
-                        .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
-                    (f, false)
-                }
+            if let Ok(f) = opts.open(path) { (f, true) } else {
+                opts.custom_flags(nix::libc::O_NOFOLLOW);
+                let f = opts.open(path)
+                    .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
+                (f, false)
             }
         };
         #[cfg(all(unix, not(target_os = "linux")))]
@@ -606,10 +603,10 @@ impl DiskPayloadSource {
         file.seek(SeekFrom::Start(0))?;
 
         #[cfg(target_os = "linux")]
-        let orig_times = if !opened_with_noatime {
-            Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)))
-        } else {
+        let orig_times = if opened_with_noatime {
             None
+        } else {
+            Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)))
         };
         #[cfg(all(unix, not(target_os = "linux")))]
         let orig_times = Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)));
@@ -876,7 +873,7 @@ impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
                     Ok(offset)
                 } else {
                     self.ensure_buffered(usize_offset)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                        .map_err(std::io::Error::other)?;
                     if usize_offset <= self.buffer.len() {
                         self.read_pos = usize_offset;
                         Ok(offset)

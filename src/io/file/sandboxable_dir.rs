@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! descriptor-relative containment via POSIX `*at` calls and Linux `openat2`, or permit
 //! high-fidelity verbatim reproduction (for `csc` and trusted archives).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -358,7 +358,7 @@ impl SandboxableDir {
             }
             let actual = fstat(&current)?;
             anyhow::ensure!(
-                actual.st_dev == expected_identity.device_id && malachite::Natural::from(actual.st_ino) == expected_identity.inode,
+                actual.st_dev == expected_identity.device_id && actual.st_ino == expected_identity.inode,
                 "Directory identity mismatch for {}: expected dev={}, ino={}, got dev={}, ino={}",
                 relative.display(),
                 expected_identity.device_id,
@@ -1270,7 +1270,8 @@ fn renameat_noreplace_fallback(
         Err(rustix::io::Errno::EXIST) => {
             Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST))
         }
-        Err(rustix::io::Errno::PERM) | Err(rustix::io::Errno::XDEV) | Err(rustix::io::Errno::NOTSUP) => {
+        Err(rustix::io::Errno::PERM | rustix::io::Errno::XDEV |
+rustix::io::Errno::NOTSUP) => {
             match statat(destination_parent, final_name, AtFlags::SYMLINK_NOFOLLOW) {
                 Ok(_) => Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST)),
                 Err(rustix::io::Errno::NOENT) => {

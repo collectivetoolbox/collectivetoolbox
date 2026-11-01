@@ -56,7 +56,7 @@ and Mark Adler for the decompression code. */
 //! Specification reference: `data/docs/compress-ncompress.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
 use std::collections::HashMap;
 use std::io::{Read, Write};

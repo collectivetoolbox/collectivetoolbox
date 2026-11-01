@@ -51,7 +51,7 @@ impl MyCustomFx {
 impl CustomDecoder for MyCustomFx {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, String> {
         let mut res = bytes.to_vec();
-        for i in res.iter_mut() {
+        for i in &mut res {
             let val = i32::from(*i).saturating_add(self.key);
             *i = u8::try_from(val & 0xff).map_err(|e| e.to_string())?;
         }

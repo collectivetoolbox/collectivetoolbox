@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Build-time and runtime derivation of MIME type and extension mappings to
 //! authoritative Document Characters (Dcs) and Format IDs.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -481,7 +481,7 @@ pub struct FormatMapping {
     pub os_associations: Vec<FormatId>,
     /// Associated Apple Uniform Type Identifiers (UTIs) from column 8.
     pub apple_utis: Vec<String>,
-    /// Associated 4-character Apple Type / OSType codes from column 9.
+    /// Associated 4-character Apple Type / `OSType` codes from column 9.
     pub apple_type_codes: Vec<[u8; 4]>,
     /// Parent formats inherited from `@based_on(...)` or `@implies(...)`.
     pub parent_formats: Vec<FormatId>,
@@ -1015,7 +1015,7 @@ impl FormatCatalog {
         catalog
     }
 
-    /// Looks up a format mapping by 4-byte Apple Type / OSType code.
+    /// Looks up a format mapping by 4-byte Apple Type / `OSType` code.
     #[must_use]
     pub fn lookup_apple_type_code(&self, code: &[u8; 4]) -> Option<&FormatMapping> {
         self.by_apple_type.get(code)

@@ -889,7 +889,7 @@ pub struct MathDetection {
 }
 
 /// Detects whether `s` represents a numeric or base numeral format (Integer,
-/// Float, HexadecimalNumeral, BinaryNumeral, or OctalNumeral).
+/// Float, `HexadecimalNumeral`, `BinaryNumeral`, or `OctalNumeral`).
 #[must_use]
 pub fn detect_numeric_format(s: &str) -> Option<MathDetection> {
     let trimmed = s.trim();

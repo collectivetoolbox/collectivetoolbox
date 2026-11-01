@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Attached stream integration for file entities, covering AppleSingle,
 //! AppleDouble, and Windows alternate data stream (ADS) companions and sidecars.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -480,7 +480,7 @@ pub(crate) fn write_apple_double_companion_bytes(
 /// that require preservation in an AppleDouble companion file.
 pub(crate) fn has_apple_metadata(entity: &FileEntity) -> bool {
     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+    let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
     // Reason for fallback: absent flags metadata defaults to empty slice
     let entity_flags = entity.metadata.flags.as_deref().unwrap_or(&[]);
     let has_mac_flags = entity_flags.iter().any(|f| matches!(
@@ -876,19 +876,16 @@ pub fn plan_windows_ads_companions(
                     name.as_bytes()
                 }
             }
-            None => match stream.kind {
-                StreamKind::MacOsResourceFork => {
-                    std::borrow::Cow::Borrowed(crate::streams::RESOURCE_FORK_XATTR_NAME.as_bytes())
+            None => if stream.kind == StreamKind::MacOsResourceFork {
+                std::borrow::Cow::Borrowed(crate::streams::RESOURCE_FORK_XATTR_NAME.as_bytes())
+            } else {
+                if strict_lossless {
+                    bail!(
+                        "Cannot write unnamed stream as Windows ADS companion for {}",
+                        dest_path.display()
+                    );
                 }
-                _ => {
-                    if strict_lossless {
-                        bail!(
-                            "Cannot write unnamed stream as Windows ADS companion for {}",
-                            dest_path.display()
-                        );
-                    }
-                    std::borrow::Cow::Borrowed(b"")
-                }
+                std::borrow::Cow::Borrowed(b"")
             },
         };
         let stream_bytes = raw_stream_bytes.as_ref();
@@ -979,7 +976,9 @@ pub fn plan_windows_ads_companions(
                 });
             }
             let _ = candidate_companion;
-            let warning = if cleaned_str.as_bytes() != orig_suffix {
+            let warning = if cleaned_str.as_bytes() == orig_suffix {
+                None
+            } else {
                 let orig_lossy = String::from_utf8_lossy(orig_suffix);
                 Some(format!(
                     "Adapted Windows ADS companion stream name {:?} -> {:?} on {} (best-effort: {})",
@@ -988,8 +987,6 @@ pub fn plan_windows_ads_companions(
                     dest_path.display(),
                     reason.as_deref().unwrap_or("cleaned stream name") // Reason for fallback: default description when stream name was modified
                 ))
-            } else {
-                None
             };
             (cleaned_str.into_bytes(), warning)
         };

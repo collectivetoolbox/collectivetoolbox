@@ -32,7 +32,7 @@ use ctb_build_support::lint::{
 
 fn print_usage() {
     eprintln!(
-        r#"Usage: ctb-lint [SUBCOMMAND] [OPTIONS]
+        r"Usage: ctb-lint [SUBCOMMAND] [OPTIONS]
 
 Subcommands:
   all (default)     Run all repository linters in parallel
@@ -55,7 +55,7 @@ Options:
   --require-manifest <PATH>
                     Require exact manifest agreement during recover-ledger-journal
   --dry-run         Simulate journal recovery without mutating files
-"#
+"
     );
 }
 
@@ -78,7 +78,7 @@ fn main() -> Result<()> {
             "recover-ledger-journal",
             args.get(1..).unwrap_or(&[]),
         ),
-        Some("--help") | Some("-h") => {
+        Some("--help" | "-h") => {
             print_usage();
             return Ok(());
         }

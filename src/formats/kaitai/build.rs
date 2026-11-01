@@ -181,7 +181,7 @@ fn main() -> Result<()> {
                 .components()
                 .map(|c| c.as_os_str().to_string_lossy().to_string())
                 .collect();
-            if rel_components.first().map(|s| s.as_str()) == Some("licenses") {
+            if rel_components.first().map(std::string::String::as_str) == Some("licenses") {
                 continue;
             }
             let stem = path
@@ -221,9 +221,7 @@ fn main() -> Result<()> {
         // Reason for fallback: definition at root without subfolder defaults to common category
         let top_cat = rel_path
             .components()
-            .next()
-            .map(|c| c.as_os_str().to_string_lossy().to_string())
-            .unwrap_or_else(|| "common".to_string());
+            .next().map_or_else(|| "common".to_string(), |c| c.as_os_str().to_string_lossy().to_string());
         let out_file = generated_dir.join(&top_cat).join(format!("{stem}.generated.rs"));
 
         let cached = cache.get(&rel_key);
@@ -317,7 +315,12 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                     }
                 }
 
-                if !gen_files.is_empty() {
+                if gen_files.is_empty() {
+                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
+                    if cat_file.exists() {
+                        let _ = fs::remove_file(cat_file);
+                    }
+                } else {
                     gen_files.sort();
                     let mut cat_rs = String::new();
                     cat_rs.push_str(DEFAULT_AGPL_HEADER);
@@ -333,11 +336,6 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                     let cat_file = generated_dir.join(format!("{name}.generated.rs"));
                     write_if_changed(&cat_file, &cat_rs)?;
                     categories.push(name);
-                } else {
-                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
-                    if cat_file.exists() {
-                        let _ = fs::remove_file(cat_file);
-                    }
                 }
             } else if path.is_file() && name.ends_with(".rs") {
                 if name.ends_with(".generated.rs") {

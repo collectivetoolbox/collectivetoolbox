@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Comprehensive file metadata JSON serialization and rematerialization.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -147,10 +147,7 @@ impl FileMetadataJson {
                 .identity
                 .relative_path
                 .as_deref()
-                .and_then(|p| p.file_name())
-                .map(std::ffi::OsString::from)
-                // Reason for fallback: missing original filename in metadata defaults destination leaf to "file"
-                .unwrap_or_else(|| std::ffi::OsString::from("file"));
+                .and_then(|p| p.file_name()).map_or_else(|| std::ffi::OsString::from("file"), std::ffi::OsString::from);
             target.push(orig_name);
         }
 

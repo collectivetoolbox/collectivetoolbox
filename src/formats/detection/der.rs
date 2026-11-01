@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! ASN.1 DER (Distinguished Encoding Rules) tag scanner, parser, and
 //! comparator matching upstream `file` (`src/der.c`, `src/der.h`).
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
 /// Tag names matching upstream `der__tag` in `src/der.c`.

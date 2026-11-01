@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! (`CTBMETA1`, `CTBMETA2`, `CTBMETA3`) with lossless in-memory conversion
 //! to standard Document Characters and `FileEntity` records.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -182,7 +182,7 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
                         let path_key = entity
                             .identity
                             .path_bytes()
-                            .map_or_else(Vec::new, |b| b.to_vec());
+                            .map_or_else(Vec::new, <[u8]>::to_vec);
                         pending_entities.insert(path_key, entity);
                     }
                     Err(error) => {
@@ -335,7 +335,7 @@ pub(crate) fn read_legacy_journal_reader(
     })
 }
 
-/// Converts a legacy state journal (revisions 1..=3) to the current DcMixed journal format (`CSCJRNL5`).
+/// Converts a legacy state journal (revisions 1..=3) to the current `DcMixed` journal format (`CSCJRNL5`).
 /// Embedded Dc identities are decoded strictly.
 pub fn convert_legacy_journal<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
@@ -600,7 +600,7 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
     Ok(())
 }
 
-/// Converts in-memory legacy journal bytes to current DcMixed journal bytes (`CSCJRNL5`).
+/// Converts in-memory legacy journal bytes to current `DcMixed` journal bytes (`CSCJRNL5`).
 pub fn convert_legacy_journal_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
     convert_legacy_journal_bytes_with_policy(bytes, &DcProjectionPolicy::strict())
 }
@@ -1019,9 +1019,7 @@ pub fn read_entity_payload(
         if let Some(derived) = derived_filename {
             anyhow::ensure!(
                 derived == legacy_filename,
-                "Journal entity filename disagrees with relative path: {:?} vs {:?}",
-                legacy_filename,
-                derived
+                "Journal entity filename disagrees with relative path: {legacy_filename:?} vs {derived:?}"
             );
         }
     }
@@ -1143,12 +1141,12 @@ pub fn read_entity_payload(
         for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
             stream.name = preserved.name;
             stream.kind = preserved.kind;
-            stream.entity = Box::new(read_entity_payload(
+            *stream.entity = read_entity_payload(
                 &preserved.descriptor,
                 origin_platform,
                 context,
                 policy,
-            )?);
+            )?;
             stream.data = preserved.data;
         }
         anyhow::ensure!(r.is_empty(), "Unexpected preservation record data");

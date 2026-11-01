@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Kaitai expression to Rust source code translator.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -298,12 +298,8 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         i
                     } else {
                         match detect_type_approx(idx, ctx) {
-                            Some(DataType::Int1 { signed: false })
-                            | Some(DataType::IntMulti {
-                                signed: false,
-                                width: 1 | 2,
-                                ..
-                            }) => format!("usize::from({i})"),
+                            Some(DataType::Int1 { signed: false } | DataType::IntMulti {
+signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
                             _ => format!("usize::try_from({i})?"),
                         }
                     }
@@ -508,19 +504,16 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             format!("{scoped_enum}::{variant}")
         }
         Expr::EnumById { id, .. } => {
-            let id_str = match &**id {
-                Expr::IntNum(n) => format!("{n}_i64"),
-                _ => {
-                    let s = translate_expr(id, ctx);
-                    match detect_type_approx(id, ctx) {
-                        Some(DataType::IntMulti { signed: false, width: 8, .. }) => {
-                            format!("i64::try_from({s})?")
-                        }
-                        _ if is_usize_expr_str(&s) => {
-                            format!("i64::try_from({s})?")
-                        }
-                        _ => format!("i64::from({s})"),
+            let id_str = if let Expr::IntNum(n) = &**id { format!("{n}_i64") } else {
+                let s = translate_expr(id, ctx);
+                match detect_type_approx(id, ctx) {
+                    Some(DataType::IntMulti { signed: false, width: 8, .. }) => {
+                        format!("i64::try_from({s})?")
                     }
+                    _ if is_usize_expr_str(&s) => {
+                        format!("i64::try_from({s})?")
+                    }
+                    _ => format!("i64::from({s})"),
                 }
             };
             format!("({id_str}).try_into()?")
@@ -850,12 +843,10 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         if is_float {
             if attr == "min" {
                 return format!("*{stripped}.iter().reduce(|a, b| if (a.min(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
-            } else {
-                return format!("*{stripped}.iter().reduce(|a, b| if (a.max(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
             }
-        } else {
-            return format!("*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?");
+            return format!("*{stripped}.iter().reduce(|a, b| if (a.max(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
         }
+        return format!("*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?");
     }
     let escaped_attr = super::escape_rust_keyword(attr);
     let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
@@ -865,7 +856,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     let is_vlq_value = match detect_type_approx(value, ctx) {
         Some(DataType::UserType { names, .. }) => {
             // Reason for fallback: empty names list cannot match vlq_base128 prefix
-            names.last().map_or(false, |n| n.starts_with("vlq_base128")) && attr == "value"
+            names.last().is_some_and(|n| n.starts_with("vlq_base128")) && attr == "value"
         }
         _ => false,
     };
@@ -882,7 +873,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     let (q, unwrap) = if is_inst {
         let returns_opt = if let Some(tc) = target_class {
             // Reason for fallback: absent instance attribute is not an optional-returning instance
-            tc.instances.get(attr).map_or(false, |inst| {
+            tc.instances.get(attr).is_some_and(|inst| {
                 match &inst.data_type {
                     DataType::SwitchType { cases, .. } => {
                         let is_numeric = !cases.is_empty() && cases.values().all(is_numeric_type);
@@ -1797,36 +1788,34 @@ pub fn resolve_enum_type_name(
     if let Some((class_path, simple_enum_name)) = enum_name.rsplit_once("::") {
         let parts: Vec<&str> = class_path.split("::").collect();
         let search_bases = [Some(current_class), root];
-        for base_opt in search_bases {
-            if let Some(base) = base_opt {
-                let mut curr = base;
-                let mut found = true;
-                for (i, part) in parts.iter().enumerate() {
-                    if let Some(sub) = curr.subclasses.get(*part) {
-                        curr = sub;
-                    } else if i == 0 {
-                        if let Some(imp) = base.imported_classes.get(*part) {
-                            curr = imp;
-                        } else {
-                            found = false;
-                            break;
-                        }
+        for base in search_bases.into_iter().flatten() {
+            let mut curr = base;
+            let mut found = true;
+            for (i, part) in parts.iter().enumerate() {
+                if let Some(sub) = curr.subclasses.get(*part) {
+                    curr = sub;
+                } else if i == 0 {
+                    if let Some(imp) = base.imported_classes.get(*part) {
+                        curr = imp;
                     } else {
                         found = false;
                         break;
                     }
+                } else {
+                    found = false;
+                    break;
                 }
-                if found && curr.enums.contains_key(simple_enum_name) {
-                    let mut full_parts = curr.name.clone();
-                    full_parts.push(simple_enum_name.to_string());
-                    return types_to_class_name(&full_parts);
-                }
+            }
+            if found && curr.enums.contains_key(simple_enum_name) {
+                let mut full_parts = curr.name.clone();
+                full_parts.push(simple_enum_name.to_string());
+                return types_to_class_name(&full_parts);
             }
         }
         if let Some(root_spec) = root {
             if let Some(first) = parts.first() {
                 if root_spec.external_types.iter().any(|ext| ext.first().map(String::as_str) == Some(*first))
-                    || root_spec.meta_imports.iter().any(|imp| imp.trim_start_matches('/').split('/').last() == Some(*first))
+                    || root_spec.meta_imports.iter().any(|imp| imp.trim_start_matches('/').split('/').next_back() == Some(*first))
                 {
                     let mut full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
                     full_parts.push(simple_enum_name.to_string());
@@ -2173,15 +2162,11 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 Some(DataType::Bits1 { bit_endian: BitEndianness::Big })
             } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
-            } else if let Some(spec) = resolve_user_class_spec(&s, ctx) {
-                Some(DataType::UserType {
+            } else { resolve_user_class_spec(&s, ctx).map(|spec| DataType::UserType {
                     names: spec.name.clone(),
                     is_external: false,
                     args: Vec::new(),
-                })
-            } else {
-                None
-            }
+                }) }
         }
         Expr::EnumById { enum_name, .. } => {
             let mut curr_opt = Some(current_class.name.as_slice());
@@ -2319,16 +2304,14 @@ pub(crate) fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                 }
             }
         }
-        (DataType::CalcBytesType, DataType::Bytes { .. })
-        | (DataType::Bytes { .. }, DataType::CalcBytesType)
-        | (DataType::Bytes { .. }, DataType::Bytes { .. })
-        | (DataType::CalcBytesType, DataType::CalcBytesType) => {
+        (DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) |
+(DataType::Bytes { .. }, DataType::CalcBytesType) |
+(DataType::Bytes { .. }, DataType::Bytes { .. }) => {
             DataType::CalcBytesType
         }
-        (DataType::CalcStrType, DataType::Str { .. })
-        | (DataType::Str { .. }, DataType::CalcStrType)
-        | (DataType::Str { .. }, DataType::Str { .. })
-        | (DataType::CalcStrType, DataType::CalcStrType) => {
+        (DataType::CalcStrType, DataType::Str { .. } | DataType::CalcStrType) |
+(DataType::Str { .. }, DataType::CalcStrType) |
+(DataType::Str { .. }, DataType::Str { .. }) => {
             DataType::CalcStrType
         }
         (DataType::CalcBoolType | DataType::Bits1 { .. }, DataType::CalcBoolType | DataType::Bits1 { .. }) => {
@@ -2462,12 +2445,9 @@ pub fn translate_validation_custom_expr(
             };
             let r = match right.as_ref() {
                 Expr::IntNum(n) => format!("{n}_{dt_suffix}"),
-                Expr::UnaryOp { op: UnaryOp::Invert, operand } => match operand.as_ref() {
-                    Expr::IntNum(n) => format!("!({n}_{dt_suffix})"),
-                    _ => {
-                        let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
-                        format!("!({inner})")
-                    }
+                Expr::UnaryOp { op: UnaryOp::Invert, operand } => if let Expr::IntNum(n) = operand.as_ref() { format!("!({n}_{dt_suffix})") } else {
+                    let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
+                    format!("!({inner})")
                 },
                 _ => translate_validation_custom_expr(right, dt, current_class, ctx),
             };

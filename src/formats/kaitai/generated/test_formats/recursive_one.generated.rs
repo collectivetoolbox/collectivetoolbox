@@ -180,7 +180,7 @@ impl KStruct for RecursiveOne {
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        match (i32::from(*self_rc.one())) & (3_i32) {
+        match ((i32::from(*self_rc.one())) & (3_i32)) {
             0 => {
                 let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);

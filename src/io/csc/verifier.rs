@@ -296,7 +296,7 @@ pub struct AuditPassResult {
     pub total_ignored: IgnoredDifferences,
 }
 
-/// Audits a sequence of expected entities against entries on disk in target_dir.
+/// Audits a sequence of expected entities against entries on disk in `target_dir`.
 #[expect(clippy::too_many_lines, reason = "Comprehensive entity traversal and audit against target")]
 pub fn audit_entries_against_target(
     target_dir: &Path,
@@ -427,109 +427,106 @@ pub fn audit_entries_against_target(
         }
         let full_path = target_dir.join(&disk_rel_path);
 
-        match &entity.kind {
-            FileEntityKind::Hardlink {
+        if let FileEntityKind::Hardlink {
                 target_relative_path,
-            } => {
-                let mut tgt_rel = match target_relative_path
-                    .to_path_buf_for_materialization(strict_hardlink_paths)
-                {
-                    Ok(p) => p,
-                    Err(e) => {
-                        result.changed_entries.push(EntryDiff {
-                            relative_path: rel_path.clone(),
-                            differences: vec![DiffKind::IncompatiblePath {
-                                reason: e.to_string(),
-                            }],
-                        });
-                        continue;
-                    }
-                };
-                if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&tgt_rel)).is_err() {
-                    let (adapted_tgt, _) =
-                        ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, cfg!(windows));
-                    if adapted_tgt != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_tgt)).is_ok() {
-                        tgt_rel = adapted_tgt;
-                    } else {
-                        let (adapted_win, _) =
-                            ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, true);
-                        if adapted_win != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
-                            tgt_rel = adapted_win;
-                        }
+            } = &entity.kind {
+            let mut tgt_rel = match target_relative_path
+                .to_path_buf_for_materialization(strict_hardlink_paths)
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    result.changed_entries.push(EntryDiff {
+                        relative_path: rel_path.clone(),
+                        differences: vec![DiffKind::IncompatiblePath {
+                            reason: e.to_string(),
+                        }],
+                    });
+                    continue;
+                }
+            };
+            if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&tgt_rel)).is_err() {
+                let (adapted_tgt, _) =
+                    ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, cfg!(windows));
+                if adapted_tgt != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_tgt)).is_ok() {
+                    tgt_rel = adapted_tgt;
+                } else {
+                    let (adapted_win, _) =
+                        ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, true);
+                    if adapted_win != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
+                        tgt_rel = adapted_win;
                     }
                 }
-                let tgt_full = target_dir.join(&tgt_rel);
+            }
+            let tgt_full = target_dir.join(&tgt_rel);
 
-                match (
-                    std::fs::symlink_metadata(&full_path),
-                    std::fs::symlink_metadata(&tgt_full),
-                ) {
-                    (Ok(m1), Ok(m2)) => {
-                        let first_identity = extract_file_identity(&full_path, &m1)?;
-                        let target_identity = extract_file_identity(&tgt_full, &m2)?;
-                        if first_identity != target_identity {
-                            result.changed_entries.push(EntryDiff {
-                                relative_path: rel_path.clone(),
-                                differences: vec![DiffKind::HardlinkMismatch {
-                                    expected_target: tgt_rel,
-                                    details: format!(
-                                        "File identities differ: ({}:{}) vs ({}:{})",
-                                        first_identity.device_id,
-                                        first_identity.inode,
-                                        target_identity.device_id,
-                                        target_identity.inode
-                                    ),
-                                }],
-                            });
-                        } else {
-                            result.matched_entries = result.matched_entries.saturating_add(1);
-                        }
-                    }
-                    (Err(error), _) if error.kind() != std::io::ErrorKind::NotFound => {
-                        return Err(error).with_context(|| {
-                            format!("Failed to query hardlink metadata: {}", full_path.display())
-                        });
-                    }
-                    (_, Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
-                        return Err(error).with_context(|| {
-                            format!("Failed to query hardlink target metadata: {}", tgt_full.display())
-                        });
-                    }
-                    (Err(_), _) => {
-                        result.missing_entries.push(rel_path.clone());
-                    }
-                    (_, Err(_)) => {
+            match (
+                std::fs::symlink_metadata(&full_path),
+                std::fs::symlink_metadata(&tgt_full),
+            ) {
+                (Ok(m1), Ok(m2)) => {
+                    let first_identity = extract_file_identity(&full_path, &m1)?;
+                    let target_identity = extract_file_identity(&tgt_full, &m2)?;
+                    if first_identity == target_identity {
+                        result.matched_entries = result.matched_entries.saturating_add(1);
+                    } else {
                         result.changed_entries.push(EntryDiff {
                             relative_path: rel_path.clone(),
                             differences: vec![DiffKind::HardlinkMismatch {
                                 expected_target: tgt_rel,
                                 details: format!(
-                                    "Target hardlink file missing: {}",
-                                    tgt_full.display()
+                                    "File identities differ: ({}:{}) vs ({}:{})",
+                                    first_identity.device_id,
+                                    first_identity.inode,
+                                    target_identity.device_id,
+                                    target_identity.inode
                                 ),
                             }],
                         });
                     }
                 }
-            }
-            _ => {
-                let (diffs, ignored) = audit_entity_detailed(&full_path, &entity, audit_options)?;
-                result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
-                result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
-                result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
-                result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
-                result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
-
-                if diffs.is_empty() {
-                    result.matched_entries = result.matched_entries.saturating_add(1);
-                } else if diffs == vec![DiffKind::MissingOnDisk] {
-                    result.missing_entries.push(rel_path.clone());
-                } else {
-                    result.changed_entries.push(EntryDiff {
-                        relative_path: rel_path.clone(),
-                        differences: diffs,
+                (Err(error), _) if error.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(error).with_context(|| {
+                        format!("Failed to query hardlink metadata: {}", full_path.display())
                     });
                 }
+                (_, Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(error).with_context(|| {
+                        format!("Failed to query hardlink target metadata: {}", tgt_full.display())
+                    });
+                }
+                (Err(_), _) => {
+                    result.missing_entries.push(rel_path.clone());
+                }
+                (_, Err(_)) => {
+                    result.changed_entries.push(EntryDiff {
+                        relative_path: rel_path.clone(),
+                        differences: vec![DiffKind::HardlinkMismatch {
+                            expected_target: tgt_rel,
+                            details: format!(
+                                "Target hardlink file missing: {}",
+                                tgt_full.display()
+                            ),
+                        }],
+                    });
+                }
+            }
+        } else {
+            let (diffs, ignored) = audit_entity_detailed(&full_path, &entity, audit_options)?;
+            result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
+            result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
+            result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
+            result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
+            result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
+
+            if diffs.is_empty() {
+                result.matched_entries = result.matched_entries.saturating_add(1);
+            } else if diffs == vec![DiffKind::MissingOnDisk] {
+                result.missing_entries.push(rel_path.clone());
+            } else {
+                result.changed_entries.push(EntryDiff {
+                    relative_path: rel_path.clone(),
+                    differences: diffs,
+                });
             }
         }
     }
@@ -806,44 +803,41 @@ pub(crate) fn scan_disk_entries(
 ) -> Result<HashSet<PathBuf>> {
     let mut result = HashSet::new();
 
-    match top_level_roots {
-        Some(roots) => {
-            for r in roots {
-                let full = root.join(r);
-                let sym_meta = match std::fs::symlink_metadata(&full) {
-                    Ok(metadata) => metadata,
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                    Err(error) => return Err(error).with_context(|| format!(
-                        "Failed to inspect audit subtree {}", full.display()
-                    )),
-                };
-                result.insert(r.clone());
-                if sym_meta.is_dir() {
-                    let opts = ctb_io::file::TraversalOptions::new()
-                        .yield_root(false)
-                        .error_policy(ctb_io::file::OnTraversalError::Bail);
-                    let traverser = ctb_io::file::traverse_dir(&full, opts)?;
-                    for item in traverser {
-                        let item = item.with_context(|| format!(
-                            "Failed to enumerate audit subtree {}", full.display()
-                        ))?;
-                        let rel = r.join(item.relative_path());
-                        result.insert(rel);
-                    }
+    if let Some(roots) = top_level_roots {
+        for r in roots {
+            let full = root.join(r);
+            let sym_meta = match std::fs::symlink_metadata(&full) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error).with_context(|| format!(
+                    "Failed to inspect audit subtree {}", full.display()
+                )),
+            };
+            result.insert(r.clone());
+            if sym_meta.is_dir() {
+                let opts = ctb_io::file::TraversalOptions::new()
+                    .yield_root(false)
+                    .error_policy(ctb_io::file::OnTraversalError::Bail);
+                let traverser = ctb_io::file::traverse_dir(&full, opts)?;
+                for item in traverser {
+                    let item = item.with_context(|| format!(
+                        "Failed to enumerate audit subtree {}", full.display()
+                    ))?;
+                    let rel = r.join(item.relative_path());
+                    result.insert(rel);
                 }
             }
         }
-        None => {
-            let opts = ctb_io::file::TraversalOptions::new()
-                .yield_root(false)
-                .error_policy(ctb_io::file::OnTraversalError::Bail);
-            let traverser = ctb_io::file::traverse_dir(root, opts)?;
-            for item in traverser {
-                let item = item.with_context(|| format!(
-                    "Failed to enumerate audit directory {}", root.display()
-                ))?;
-                result.insert(item.relative_path().to_path_buf());
-            }
+    } else {
+        let opts = ctb_io::file::TraversalOptions::new()
+            .yield_root(false)
+            .error_policy(ctb_io::file::OnTraversalError::Bail);
+        let traverser = ctb_io::file::traverse_dir(root, opts)?;
+        for item in traverser {
+            let item = item.with_context(|| format!(
+                "Failed to enumerate audit directory {}", root.display()
+            ))?;
+            result.insert(item.relative_path().to_path_buf());
         }
     }
 

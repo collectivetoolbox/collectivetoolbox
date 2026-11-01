@@ -2317,7 +2317,7 @@ impl Zip_LocalFileHeader_GpFlags {
             return Ok(self.deflated_mode.borrow());
         }
         self.f_deflated_mode.set(true);
-        if  (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Deflated) || (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::EnhancedDeflated)  {
+        if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Deflated) || (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::EnhancedDeflated))  {
             *self.deflated_mode.borrow_mut() = i64::from_le_bytes((*self.comp_options_raw()).to_le_bytes()).try_into()?;
         }
         Ok(self.deflated_mode.borrow())
@@ -2336,7 +2336,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_imploded_dict_byte_size.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
-            *self.imploded_dict_byte_size.borrow_mut() = ((if (to_i128((*self.comp_options_raw()) & (1_u64))) != (to_i128(0)) { 8_i32 } else { 4_i32 }).saturating_mul(1024_i32)).try_into()?;
+            *self.imploded_dict_byte_size.borrow_mut() = ((if ((to_i128(((*self.comp_options_raw()) & (1_u64)))) != (to_i128(0))) { 8_i32 } else { 4_i32 }).saturating_mul(1024_i32)).try_into()?;
         }
         Ok(self.imploded_dict_byte_size.borrow())
     }
@@ -2350,7 +2350,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_imploded_num_sf_trees.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
-            *self.imploded_num_sf_trees.borrow_mut() = (if (to_i128((*self.comp_options_raw()) & (2_u64))) != (to_i128(0)) { 3_i32 } else { 2_i32 }).try_into()?;
+            *self.imploded_num_sf_trees.borrow_mut() = (if ((to_i128(((*self.comp_options_raw()) & (2_u64)))) != (to_i128(0))) { 3_i32 } else { 2_i32 }).try_into()?;
         }
         Ok(self.imploded_num_sf_trees.borrow())
     }
@@ -2364,7 +2364,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_lzma_has_eos_marker.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Lzma {
-            *self.lzma_has_eos_marker.borrow_mut() = (((to_i128((*self.comp_options_raw()) & (1_u64))) != (to_i128(0)))).try_into()?;
+            *self.lzma_has_eos_marker.borrow_mut() = (((to_i128(((*self.comp_options_raw()) & (1_u64)))) != (to_i128(0)))).try_into()?;
         }
         Ok(self.lzma_has_eos_marker.borrow())
     }

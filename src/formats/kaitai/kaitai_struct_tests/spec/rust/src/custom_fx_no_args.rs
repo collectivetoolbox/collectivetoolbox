@@ -35,6 +35,12 @@ use kaitai::CustomDecoder;
 pub struct CustomFxNoArgs {
 }
 
+impl Default for CustomFxNoArgs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CustomFxNoArgs {
     pub fn new() -> Self {
         Self {}

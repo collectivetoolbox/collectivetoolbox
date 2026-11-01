@@ -52,9 +52,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     } else {
         // Reason for fallback: When neither HOME nor USERPROFILE is set, fall back to the system temporary directory to avoid writing state journals into the working directory.
         std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::temp_dir())
+            .or_else(|_| std::env::var("USERPROFILE")).map_or_else(|_| std::env::temp_dir(), PathBuf::from)
     };
 
     let progress = Progress::new(args.should_show_progress());

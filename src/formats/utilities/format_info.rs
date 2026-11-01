@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Metadata lookup and formatting for registered document and stream formats.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -203,7 +203,7 @@ pub fn get_format_info_by_id(
 }
 
 /// Generates a help table of supported formats and their shorthand aliases for
-/// CLI after_help text.
+/// CLI `after_help` text.
 pub fn format_help_table(
     header: &str,
     formats: &[ctb_utilities::FormatId],
@@ -263,9 +263,7 @@ pub fn format_categorized_help_table(
                 .collect();
             // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
             let primary_key = nicks
-                .first()
-                .map(|s| s.to_ascii_lowercase())
-                .unwrap_or_else(|| info.ident.to_ascii_lowercase());
+                .first().map_or_else(|| info.ident.to_ascii_lowercase(), |s| s.to_ascii_lowercase());
             let name_display = if nicks.is_empty() {
                 format!("{} ({})", info.ident.to_ascii_lowercase(), info.ident)
             } else {

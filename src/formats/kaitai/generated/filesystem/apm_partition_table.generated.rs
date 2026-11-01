@@ -337,7 +337,7 @@ impl ApmPartitionTable_PartitionEntry {
             return Ok(self.partition.borrow());
         }
         self.f_partition.set(true);
-        if (to_i128((*self.partition_status()) & (1_u32))) != (to_i128(0)) {
+        if ((to_i128(((*self.partition_status()) & (1_u32)))) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((*self.partition_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;

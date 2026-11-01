@@ -216,7 +216,7 @@ impl KStruct for NavParentFalse_Child {
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.code())) == (to_i128(73)) {
+        if ((to_i128(*self_rc.code())) == (to_i128(73))) {
             *self_rc.more.borrow_mut() = _io.read_bytes(usize::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.child_size()))?;
             *self_rc._io.borrow_mut() = _io.clone();
         }

@@ -20,14 +20,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Runtime syntax rule resolver and dynamic equivalence/rule overlays.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use super::*;
+use super::{SyntaxRuleResolver, DcRole, CharTarget, DcSyntaxRule, Digest, default_syntax_resolver, SyntaxPattern, DC_EQUIVALENT_REPRESENTATIONS, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_LIST_ELEMENT_SEPARATOR, DC_TYPE_ANY, SyntaxElement};
 
 /// Format syntax rule wrapping the format's AST syntax pattern expression.
 #[derive(Debug, Clone)]
@@ -309,10 +309,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             return true;
         }
         let canon = self.canonical_token(token);
-        if canon != token {
-            self.base.matches_script(script_name, canon)
-        } else {
+        if canon == token {
             false
+        } else {
+            self.base.matches_script(script_name, canon)
         }
     }
 
@@ -325,10 +325,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             return true;
         }
         let canon = self.canonical_token(token);
-        if canon != token {
-            self.base.matches_named_type_starter(name, canon)
-        } else {
+        if canon == token {
             false
+        } else {
+            self.base.matches_named_type_starter(name, canon)
         }
     }
 
@@ -343,10 +343,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             }
         }
         self.base.base64_digit_value(token).or_else(|| {
-            if canon != token {
-                self.base.base64_digit_value(canon)
-            } else {
+            if canon == token {
                 None
+            } else {
+                self.base.base64_digit_value(canon)
             }
         })
     }
@@ -443,10 +443,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
     fn resolve_infix_rule(&self, op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
         let canon = self.canonical_token(op_token);
         self.base.resolve_infix_rule(canon).or_else(|| {
-            if canon != op_token {
-                self.base.resolve_infix_rule(op_token)
-            } else {
+            if canon == op_token {
                 None
+            } else {
+                self.base.resolve_infix_rule(op_token)
             }
         })
     }

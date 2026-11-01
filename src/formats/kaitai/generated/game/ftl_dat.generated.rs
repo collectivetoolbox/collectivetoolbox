@@ -176,7 +176,7 @@ impl FtlDat_File {
         if self.f_meta.get() {
             return Ok(self.meta.borrow());
         }
-        if (to_i128(*self.ofs_meta())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_meta())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_meta())?)?;
             let t = Self::read_into::<_, FtlDat_Meta>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();

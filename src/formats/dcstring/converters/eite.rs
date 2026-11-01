@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Conversion between EITE formats (IntegerList, SEMS, Ascii, AsciiSafeSubset) and `DcMstring`.
+//! Conversion between EITE formats (`IntegerList`, SEMS, Ascii, `AsciiSafeSubset`) and `DcMstring`.
 
 #[expect(
     unused_imports,
@@ -51,12 +51,12 @@ fn dcmstring_to_dca(doc: &DcMstring) -> Result<(Vec<u32>, FormatLog)> {
     Ok((conv.result, conv.log))
 }
 
-/// Converts a DcIntegerList document (`.dcil`) to `DcMstring`.
+/// Converts a `DcIntegerList` document (`.dcil`) to `DcMstring`.
 pub fn dcil_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
     dcil_to_dcmstring_with_options(bytes, false)
 }
 
-/// Converts a DcIntegerList document (`.dcil`) to `DcMstring`, optionally in permissive mode.
+/// Converts a `DcIntegerList` document (`.dcil`) to `DcMstring`, optionally in permissive mode.
 pub fn dcil_to_dcmstring_with_options(
     bytes: &[u8],
     permissive: bool,
@@ -85,7 +85,7 @@ pub fn dcil_to_dcmstring_with_options(
     Ok((doc, log))
 }
 
-/// Converts a `DcMstring` to DcIntegerList document bytes (`.dcil`).
+/// Converts a `DcMstring` to `DcIntegerList` document bytes (`.dcil`).
 pub fn dcmstring_to_dcil(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     let (dca, log) = dcmstring_to_dca(doc)?;
     let bytes = ctb_formats_eite::formats::integer_list::dca_to_integer_list(&dca);

@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Atomic file materialization, metadata sequencing, and fidelity verification.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -279,7 +279,7 @@ pub fn apply_entity_metadata(
         // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
         let is_special = dest_meta
             .as_ref()
-            .map_or(false, |m| !m.is_file() && !m.is_dir());
+            .is_ok_and(|m| !m.is_file() && !m.is_dir());
         let time_res = (|| -> Result<()> {
             let atime = crate::metadata::checked_file_time(ts.atime_sec, ts.atime_nsec)?;
             let mtime = crate::metadata::checked_file_time(ts.mtime_sec, ts.mtime_nsec)?;
@@ -327,7 +327,7 @@ pub fn apply_entity_metadata(
     let has_flags = meta.flags.is_some() || meta.platform_raw_flags.is_some();
     if apply_flags && has_flags {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = meta.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
+        let source_os = meta.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
         apply_file_flags_with_source(
             dest,
             flags_slice,
@@ -493,7 +493,9 @@ pub fn materialize_entity_with_stream_source(
         options.path_policy,
     )?;
 
-    let max_leaf_bytes = if !options.strict_lossless {
+    let max_leaf_bytes = if options.strict_lossless {
+        crate::clean_name::MAX_FILENAME_BYTES
+    } else {
         if options.apple_write_mode.is_windows_ads() && !entity.streams.is_empty() {
             let max_stream_len: usize = entity
                 .streams
@@ -510,7 +512,7 @@ pub fn materialize_entity_with_stream_source(
         } else if options.apple_write_mode.double_style().is_some()
             && (!entity.streams.is_empty()
                 // Reason for fallback: absent AppleMetadata defaults to false
-                || entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()))
+                || entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()))
         {
             crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(2)
         } else if (options.apple_write_mode == AppleWriteMode::ForceAppleSingle
@@ -522,8 +524,6 @@ pub fn materialize_entity_with_stream_source(
         } else {
             crate::clean_name::MAX_FILENAME_BYTES
         }
-    } else {
-        crate::clean_name::MAX_FILENAME_BYTES
     };
 
     let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless {
@@ -875,7 +875,9 @@ pub fn materialize_entity_with_stream_source(
                 if !options.strict_lossless && is_filename_rejection_error(&err) {
                     let (win_adapted, win_warnings) =
                         crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
-                    if win_adapted != relative_path_buf {
+                    if win_adapted == relative_path_buf {
+                        return Err(err);
+                    } else {
                         for w in &win_warnings {
                             warn_fmt!("{w}");
                         }
@@ -888,8 +890,6 @@ pub fn materialize_entity_with_stream_source(
                             options.path_policy,
                         )?;
                         let _ = dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
-                    } else {
-                        return Err(err);
                     }
                 } else {
                     return Err(err);
@@ -947,7 +947,9 @@ pub fn materialize_entity_with_stream_source(
                 if !options.strict_lossless && is_filename_rejection_error(&err) {
                     let (win_adapted, win_warnings) =
                         crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
-                    if win_adapted != relative_path_buf {
+                    if win_adapted == relative_path_buf {
+                        return Err(err);
+                    } else {
                         for w in &win_warnings {
                             warn_fmt!("{w}");
                         }
@@ -970,8 +972,6 @@ pub fn materialize_entity_with_stream_source(
                             mode,
                             options.existing_entry_policy,
                         )?;
-                    } else {
-                        return Err(err);
                     }
                 } else {
                     return Err(err);
@@ -1042,7 +1042,7 @@ pub fn materialize_entity_with_stream_source(
                 || (options.apple_write_mode == AppleWriteMode::MaybeAppleSingle
                     && (!entity.streams.is_empty()
                         // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                        || entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty())));
+                        || entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty())));
 
             if is_apple_single {
                 let Some(source) = payload else {
@@ -1191,8 +1191,7 @@ pub fn materialize_entity_with_stream_source(
                         .metadata
                         .environment
                         .as_ref()
-                        .map(|env| env.os_family())
-                        .unwrap_or(OsFamily::CURRENT);
+                        .map_or(OsFamily::CURRENT, |env| env.os_family());
                     apply_file_flags_with_source(
                         &actual_dest_path,
                         flags_slice,
@@ -1506,7 +1505,7 @@ pub fn materialize_entity_with_stream_source(
                 }
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+                    let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
                     let streams_res = crate::streams::write_streams_from_source_with_warnings(
                         &temp_path,
                         Some(&dest_path),
@@ -1533,7 +1532,7 @@ pub fn materialize_entity_with_stream_source(
                 AppleWriteMode::ForceWindowsAds => {
                     write_windows_ads = !entity.streams.is_empty();
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} with Windows ADS companions",
                             dest_path.display()
@@ -1561,7 +1560,7 @@ pub fn materialize_entity_with_stream_source(
                         }
                     }
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} with Windows ADS companions",
                             dest_path.display()
@@ -1577,7 +1576,7 @@ pub fn materialize_entity_with_stream_source(
                         stream_source,
                     )?);
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} natively without AppleDouble or AppleSingle",
                             dest_path.display()
@@ -1681,7 +1680,9 @@ pub fn materialize_entity_with_stream_source(
                     if let Some(orig_name) = file_name.file_name() {
                         let (mut adapted_name, reason) =
                             crate::clean_name::adapt_component_with_max_bytes(orig_name, true, max_leaf_bytes);
-                        if adapted_name != orig_name {
+                        if adapted_name == orig_name {
+                            return Err(err);
+                        } else {
                             if options.existing_entry_policy == ExistingEntryPolicy::Refuse
                                 && std::fs::symlink_metadata(parent_dir.join(&adapted_name)).is_ok()
                             {
@@ -1722,8 +1723,6 @@ pub fn materialize_entity_with_stream_source(
                                 &file_name,
                                 options.existing_entry_policy,
                             )?;
-                        } else {
-                            return Err(err);
                         }
                     } else {
                         return Err(err);
@@ -1768,7 +1767,7 @@ pub fn materialize_entity_with_stream_source(
             let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
             if has_flags {
                 let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-                let source_os = entity.metadata.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
+                let source_os = entity.metadata.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
                 apply_file_flags_with_source(
                     &dest_path,
                     flags_slice,
@@ -1877,7 +1876,7 @@ impl Drop for TempFileCleanupGuard<'_> {
     fn drop(&mut self) {
         if self.active {
             #[cfg(unix)]
-            let _ = rustix::fs::unlinkat(&self.parent_fd, &self.temp_name, AtFlags::empty());
+            let _ = rustix::fs::unlinkat(self.parent_fd, &self.temp_name, AtFlags::empty());
             #[cfg(not(unix))]
             let _ = std::fs::remove_file(self.parent_fd.path.join(&self.temp_name));
         }
@@ -1978,7 +1977,7 @@ pub fn materialize_directory_streams_and_companions(
         }
         AppleWriteMode::MaybeAppleDouble(_) => {
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+            let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
             let res = crate::streams::write_streams_from_source_with_warnings(
                 dest_path,
                 None,
@@ -2005,7 +2004,7 @@ pub fn materialize_directory_streams_and_companions(
         AppleWriteMode::ForceWindowsAds => {
             write_windows_ads = !entity.streams.is_empty();
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
                     dest_path.display()
@@ -2033,7 +2032,7 @@ pub fn materialize_directory_streams_and_companions(
                 }
             }
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
                     dest_path.display()
@@ -2049,7 +2048,7 @@ pub fn materialize_directory_streams_and_companions(
                 stream_source,
             )?);
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
                     dest_path.display()
@@ -2356,7 +2355,7 @@ fn try_update_existing_regular_entity(
         || dest_raw.is_some()
     {
         let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = entity.metadata.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
+        let source_os = entity.metadata.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
         apply_file_flags_with_source(
             dest_path,
             flags_slice,

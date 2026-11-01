@@ -450,7 +450,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! streams without magic, and special filesystem entities (directories,
 //! symlinks, FIFOs, sockets, block and character devices).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

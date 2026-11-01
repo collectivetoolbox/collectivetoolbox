@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Platform association, operating system compatibility matching, and
 //! environment prior scoring for format detection.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

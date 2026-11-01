@@ -508,7 +508,7 @@ pub fn is_wine() -> bool {
 pub fn is_mac_os_10_or_newer() -> bool {
     capture_quick_arc().is_mac_os_10_or_newer()
 }
-/// There does not seem to be a separate iPadOS value for env::consts::OS.
+/// There does not seem to be a separate iPadOS value for `env::consts::OS`.
 pub fn is_apple_ios() -> bool {
     capture_quick_arc().is_apple_ios()
 }
@@ -574,7 +574,7 @@ pub fn is_openbsd() -> bool {
     capture_quick_arc().is_openbsd()
 }
 
-/// Is running on DragonFly BSD?
+/// Is running on `DragonFly` BSD?
 pub fn is_dragonfly() -> bool {
     capture_quick_arc().is_dragonfly()
 }
@@ -697,7 +697,7 @@ pub enum OsFamily {
     /// NetBSD.
     #[dc(name = "NetBSD")]
     NetBSD,
-    /// DragonFly BSD.
+    /// `DragonFly` BSD.
     #[dc(name = "DragonFly")]
     DragonFly,
     /// Linux kernel.

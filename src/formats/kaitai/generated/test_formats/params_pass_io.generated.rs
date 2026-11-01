@@ -120,7 +120,7 @@ impl KStruct for ParamsPassIo {
         let t = Self::read_into::<BytesReader, ParamsPassIo_Block>(&_io_first, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassIo_ParamType| Ok(t.set_params(Clone::clone(&(if (to_i128(*self_rc.first().foo())) == (to_i128(255)) { Clone::clone(&*(self_rc.first()._io())) } else { Clone::clone(&*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io())) }))));
+        let f = |t : &mut ParamsPassIo_ParamType| Ok(t.set_params(Clone::clone(&(if ((to_i128(*self_rc.first().foo())) == (to_i128(255))) { Clone::clone(&*(self_rc.first()._io())) } else { Clone::clone(&*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io())) }))));
         let t = Self::read_into_with_init::<_, ParamsPassIo_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -296,7 +296,7 @@ impl KStruct for ParamsPassIo_ParamType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::try_from(i64::try_from(self_rc.arg_stream().size())?)?)?;
+        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self_rc.arg_stream().size())?))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

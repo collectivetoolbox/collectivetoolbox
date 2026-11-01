@@ -449,7 +449,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! allocating full resource payloads, enabling rapid format detection for
 //! files whose entire type identity resides in the resource fork.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

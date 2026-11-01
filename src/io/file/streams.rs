@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Alternate data streams, resource forks, and extended attributes.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -385,7 +385,7 @@ impl StreamName {
                 #[cfg(unix)]
                 {
                     let _ = format;
-                    return Ok(OsStr::from_bytes(bytes).to_os_string());
+                    Ok(OsStr::from_bytes(bytes).to_os_string())
                 }
                 #[cfg(not(unix))]
                 {
@@ -472,7 +472,7 @@ pub enum StreamKind {
     /// POSIX default access control list.
     #[dc(short = 383)]
     PosixAclDefault,
-    /// Security label (SELinux, AppArmor, MAC).
+    /// Security label (`SELinux`, `AppArmor`, MAC).
     #[dc(short = 384)]
     SecurityLabel,
 }
@@ -893,10 +893,7 @@ impl AttachedStreamWithPayload {
     /// Converts resident bytes to `data`, retaining nonresident payload spans.
     pub fn into_attached_stream(self) -> Result<AttachedStream> {
         let data = match self.payload.as_ref() {
-            Some(p) => match p.0.as_resident_bytes() {
-                Some(b) => Some(b.to_vec()),
-                None => None,
-            },
+            Some(p) => p.0.as_resident_bytes().map(<[u8]>::to_vec),
             None => None,
         };
         Ok(AttachedStream {
@@ -1208,17 +1205,14 @@ pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
             warnings.extend(name_warnings);
             os_name
         }
-        None => match stream.kind {
-            StreamKind::MacOsResourceFork => OsString::from(RESOURCE_FORK_XATTR_NAME),
-            _ => {
-                if strict_lossless {
-                    anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
-                }
-                let msg = format!("Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
-                warn_fmt!("Caveat: {msg}");
-                warnings.push(msg);
-                return Ok(warnings);
+        None => if stream.kind == StreamKind::MacOsResourceFork { OsString::from(RESOURCE_FORK_XATTR_NAME) } else {
+            if strict_lossless {
+                anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
             }
+            let msg = format!("Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
+            warn_fmt!("Caveat: {msg}");
+            warnings.push(msg);
+            return Ok(warnings);
         },
     };
 

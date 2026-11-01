@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! [`DcProjectionContext`], primitive codec implementations, and universal
 //! roundtrip verification.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -1181,7 +1181,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 // If an argument payload exists (e.g. `lang.say "payload"` or routine(param)), resolve to it.
                 let candidate_arg = args
                     .iter()
-                    .skip(if self.token_fills_role(tok, DcRole::RoutineInvocation) { 1 } else { 0 })
+                    .skip(usize::from(self.token_fills_role(tok, DcRole::RoutineInvocation)))
                     .find(|&&id| {
                         if let Ok(child) = self.node(id) {
                             !matches!(child.kind, DcSyntaxKind::Identifier { .. })
@@ -1767,10 +1767,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 }
                 _ => {
                     if let Some(resolved) = self.resolve_expression_node(node_id)? {
-                        if resolved != node_id {
-                            resolved
-                        } else {
+                        if resolved == node_id {
                             return Ok(node_id);
+                        } else {
+                            resolved
                         }
                     } else {
                         return Ok(node_id);
@@ -2304,15 +2304,12 @@ impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
         self.encode_dc_mixed_to_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_to_with_context(&self, mst: &mut crate::DcWriter<'_>, context: &crate::SharedValueContext) -> Result<()> {
-        match self {
-            Some(val) => {
-                mst.push_char(DC_OPTIONAL_PRESENT)?;
-                val.encode_dc_mixed_to_with_context(mst, context)
-            }
-            None => {
-                mst.push_char(DC_OPTIONAL_ABSENT)?;
-                Ok(())
-            }
+        if let Some(val) = self {
+            mst.push_char(DC_OPTIONAL_PRESENT)?;
+            val.encode_dc_mixed_to_with_context(mst, context)
+        } else {
+            mst.push_char(DC_OPTIONAL_ABSENT)?;
+            Ok(())
         }
     }
 }
@@ -3421,7 +3418,7 @@ where
     Ok(())
 }
 
-/// Asserts that a document struct serializes into a valid DcMixed buffer,
+/// Asserts that a document struct serializes into a valid `DcMixed` buffer,
 /// conforms strictly to all documented syntax rules from the Dc database,
 /// decodes to an identical instance, and re-encodes identically.
 ///

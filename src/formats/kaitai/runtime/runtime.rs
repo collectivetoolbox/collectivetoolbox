@@ -47,7 +47,7 @@ SOFTWARE.
 
 //! Kaitai Struct runtime support for parsing and stream operations.
 
-#[allow(clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 pub(crate) use ctb_utilities::*;
 
 use flate2::read::ZlibDecoder;

@@ -181,7 +181,7 @@ pub enum Command {
         port: u16,
     },
     /// Convert delimited numbers between positional radix numeral systems
-    /// (bases 1..=36, or up to 64 with --output-alphabet base64_standard).
+    /// (bases 1..=36, or up to 64 with --output-alphabet `base64_standard`).
     ///
     /// NOTE: This performs mathematical place-value conversion on numbers,
     /// not raw binary data armoring. For file or byte stream encoding, see
@@ -420,7 +420,7 @@ pub enum Command {
     /// Export procedures from a .pan file into a directory of individual procedure files
     #[command(name = "pan2procedures")]
     Pan2Procedures {
-        /// Optional output directory (defaults to <pan_stem>_procedures)
+        /// Optional output directory (defaults to <`pan_stem`>_procedures)
         #[arg(long, short = 'o')]
         output_dir: Option<PathBuf>,
         /// Optional procedure file extension (e.g. "estes", defaults to no extension)
@@ -1111,7 +1111,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             pan_file.as_path(),
             output_dir.as_deref(),
             extension.as_deref(),
-            &encoding,
+            encoding,
             read_file_or_stdin,
         ),
         Command::PanMacro2Ast {

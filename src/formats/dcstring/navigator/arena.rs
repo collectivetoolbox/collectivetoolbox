@@ -20,14 +20,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Syntax arena, byte spans, binary payload references, and frame stubs.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use super::*;
+use super::{Range, BinaryChecksum, DiagnosticAction, Read, Seek, Cow, SeekFrom, Digest, DcProjectionPolicy, DcCharExt, SyntaxRuleResolver, DcExpressionEvaluator, DcForgivingDefault, DcMixedDecode, DcMstring, DcString, default_syntax_resolver, dc_char_dctf_len, SyntaxDiagnostic, DcRole, DcDocumentNavigator, SharedValueContext, DcProjectionContext, DCMM_MAGIC, DcMstr, DcStr};
 
 /// Byte span in a source buffer or on-disk file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -134,7 +134,7 @@ impl<'a> BinaryPayloadRef<'a> {
             Self::Borrowed(slice) => Ok(Cow::Borrowed(slice)),
             Self::Inline(bytes) => Ok(Cow::Owned(bytes.clone())),
             Self::FileSpan { file_offset, len, checksum, checksum_action } => {
-                let rdr = reader.as_deref_mut().context(
+                let rdr = reader.context(
                     "Cannot materialize on-disk FileSpan without a seekable reader",
                 )?;
                 let len_usize = usize::try_from(*len)
@@ -249,7 +249,7 @@ pub struct DcSyntaxNode<'a> {
     pub escaped: bool,
 }
 
-impl<'a> DcSyntaxNode<'a> {
+impl DcSyntaxNode<'_> {
     pub(super) fn semantic_token(&self) -> Option<u128> {
         let token = match &self.kind {
             DcSyntaxKind::Container { opener, .. } => opener,
@@ -499,7 +499,7 @@ impl<'a> DcSyntaxArena<'a> {
                         !key.is_empty() && !value.is_empty(),
                         "Empty legacy map operand"
                     );
-                    entries.push((key.to_vec(), value.to_vec()));
+                    entries.push((key.clone(), value.clone()));
                 }
             }
         } else {
@@ -523,7 +523,7 @@ impl<'a> DcSyntaxArena<'a> {
                     bail!("Expected two pair operands");
                 };
                 ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
-                entries.push((key.to_vec(), value.to_vec()));
+                entries.push((key.clone(), value.clone()));
             }
         }
         Ok((*opener, header.to_vec(), entries))

@@ -488,7 +488,7 @@ pub fn get_inode_or_file_index(path: &Path) -> Result<u64> {
     }
 }
 
-#[allow(unsafe_code, reason = "Unsafe Windows FFI to query file index by handle")]
+#[expect(unsafe_code, reason = "Unsafe Windows FFI to query file index by handle")]
 pub fn get_inode_or_file_index_from_descriptor(file: &File) -> Result<u64> {
     #[cfg(unix)]
     {

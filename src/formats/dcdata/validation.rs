@@ -1411,9 +1411,8 @@ fn validate_target_token(
                 }
             }
             return;
-        } else {
-            // If it failed to parse as format spec, fall through to single token validation
         }
+        // If it failed to parse as format spec, fall through to single token validation
     }
 
     let clean = token

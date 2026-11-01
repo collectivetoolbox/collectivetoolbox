@@ -517,13 +517,13 @@ fn matches_line_block(lines: &[&str], expected: &[&str]) -> bool {
 
 /// Parse and validate the new header pattern for `utilities/detection.rs` and
 /// `utilities/detection/*`:
-/// 1. HASH_BSD_DARWIN_HEADER
-/// 2. SPDX_HEADERS_DETECTION
+/// 1. `HASH_BSD_DARWIN_HEADER`
+/// 2. `SPDX_HEADERS_DETECTION`
 /// Check the detection-specific header pattern:
-/// 1. HASH_BSD_DARWIN_HEADER
-/// 2. SPDX_HEADERS_DETECTION
-/// 3. AGPL_COPYRIGHT_BLOCK
-/// 4. DESCRIPTION_DETECTION
+/// 1. `HASH_BSD_DARWIN_HEADER`
+/// 2. `SPDX_HEADERS_DETECTION`
+/// 3. `AGPL_COPYRIGHT_BLOCK`
+/// 4. `DESCRIPTION_DETECTION`
 fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
     let darwin_lines: Vec<&str> =
         HASH_BSD_DARWIN_HEADER.trim_end_matches('\n').lines().collect();
@@ -602,8 +602,8 @@ fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
 }
 
 /// Check that utilities/detection files end with:
-/// - FILE_ADDITIONAL_LICENSES
-/// - DETECTION_LICENSES_OTHER
+/// - `FILE_ADDITIONAL_LICENSES`
+/// - `DETECTION_LICENSES_OTHER`
 fn check_detection_footer(
     file_path: &Path,
     content: &str,

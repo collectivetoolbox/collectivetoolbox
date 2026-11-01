@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Platform identity, capability, and display/terminal detection.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -469,7 +469,7 @@ pub fn detect_terminal_capabilities_for(
         let is_teleprinter = term == "dumb"
             || term_info
                 .as_ref()
-                .map_or(true, |info| !info.can_cursor_address());
+                .is_none_or(|info| !info.can_cursor_address());
 
         if is_teleprinter {
             device_caps.push(FormatId::Teleprinter);
@@ -483,7 +483,7 @@ pub fn detect_terminal_capabilities_for(
             // Reason for fallback: unconfirmed cursor addressing capability defaults to false to avoid sending unsupported escape sequences
             let can_edit_past_lines = term_info
                 .as_ref()
-                .map_or(false, Terminfo::can_cursor_address);
+                .is_some_and(Terminfo::can_cursor_address);
             if can_edit_past_lines {
                 terminal_caps.push(FormatId::TerminalCanEditPastLines);
             }
@@ -491,7 +491,7 @@ pub fn detect_terminal_capabilities_for(
             // Reason for fallback: unconfirmed line editing capability defaults to false to avoid sending unsupported escape sequences
             let can_edit = term_info
                 .as_ref()
-                .map_or(false, Terminfo::can_edit_line);
+                .is_some_and(Terminfo::can_edit_line);
             if can_edit {
                 terminal_caps.push(FormatId::TerminalCanEdit);
             }
@@ -499,7 +499,7 @@ pub fn detect_terminal_capabilities_for(
             // Reason for fallback: unconfirmed VT100 compatibility defaults to false to avoid sending unsupported control sequences
             let is_vt100 = term_info
                 .as_ref()
-                .map_or(false, Terminfo::is_vt100_compatible);
+                .is_some_and(Terminfo::is_vt100_compatible);
             if is_vt100 {
                 terminal_caps.push(FormatId::Vt100);
             }
@@ -508,7 +508,7 @@ pub fn detect_terminal_capabilities_for(
             // Reason for fallback: unconfirmed mouse reporting capability defaults to false to avoid sending unsupported escape sequences
             let has_mouse = term_info
                 .as_ref()
-                .map_or(false, Terminfo::has_mouse);
+                .is_some_and(Terminfo::has_mouse);
             if has_mouse {
                 terminal_caps.push(FormatId::TerminalMouse);
             }
@@ -516,7 +516,7 @@ pub fn detect_terminal_capabilities_for(
             // Reason for fallback: unconfirmed 24-bit color capability defaults to false to avoid emitting unhandled escape sequences
             let is_truecolor = term_info
                 .as_ref()
-                .map_or(false, Terminfo::has_truecolor);
+                .is_some_and(Terminfo::has_truecolor);
 
             if is_truecolor {
                 terminal_caps.push(FormatId::TerminalColors24bit);
@@ -596,7 +596,7 @@ pub fn detect_sixel_support(
         && std::io::stdin().is_terminal()
         && std::io::stdout().is_terminal()
         // Reason for fallback: absent terminfo cannot confirm DA1 query support
-        && term_info.map_or(false, Terminfo::supports_da1);
+        && term_info.is_some_and(Terminfo::supports_da1);
 
     if can_query_da1 {
         Some(viuer::is_sixel_supported())
@@ -616,7 +616,7 @@ pub fn detect_kitty_support(
     term: &str,
 ) -> Option<bool> {
     // Reason for fallback: absent terminfo cannot refute video terminal capabilities
-    if term_info.map_or(false, |info| !info.can_cursor_address() || info.name == "dumb") {
+    if term_info.is_some_and(|info| !info.can_cursor_address() || info.name == "dumb") {
         return Some(false);
     }
 
@@ -637,7 +637,7 @@ pub fn detect_kitty_support(
         && std::io::stdin().is_terminal()
         && std::io::stdout().is_terminal()
         // Reason for fallback: absent terminfo cannot confirm escape query support
-        && term_info.map_or(false, Terminfo::supports_da1);
+        && term_info.is_some_and(Terminfo::supports_da1);
 
     if can_query {
         match viuer::get_kitty_support() {
@@ -659,7 +659,7 @@ pub fn detect_iterm_support(
     is_interactive: bool,
 ) -> Option<bool> {
     // Reason for fallback: absent terminfo cannot refute video terminal capabilities
-    if term_info.map_or(false, |info| !info.can_cursor_address() || info.name == "dumb") {
+    if term_info.is_some_and(|info| !info.can_cursor_address() || info.name == "dumb") {
         return Some(false);
     }
 
@@ -680,7 +680,7 @@ pub fn detect_iterm_support(
         && std::io::stdin().is_terminal()
         && std::io::stdout().is_terminal()
         // Reason for fallback: absent terminfo cannot confirm escape query support
-        && term_info.map_or(false, Terminfo::supports_da1);
+        && term_info.is_some_and(Terminfo::supports_da1);
 
     if can_query {
         Some(false)

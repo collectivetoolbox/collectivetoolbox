@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Static validation and diagnostic checks for Kaitai Struct schema files.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -668,14 +668,14 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
     for attr in &ksy.seq {
         if let Some(id) = &attr.id {
             if !member_ids.insert(id.clone()) {
-                bail!("Duplicate member ID '{}' in class '{}'", id, class_name);
+                bail!("Duplicate member ID '{id}' in class '{class_name}'");
             }
         }
     }
 
     for (inst_name, _) in &ksy.instances {
         if !member_ids.insert(inst_name.clone()) {
-            bail!("Duplicate member ID '{}' in class '{}'", inst_name, class_name);
+            bail!("Duplicate member ID '{inst_name}' in class '{class_name}'");
         }
     }
 
@@ -968,7 +968,7 @@ fn validate_if_expr(
     if trimmed.contains("foo_enum >") {
         bail!("Can't use comparison operator Gt on enums");
     }
-    for (attr_id, _) in attr_enums {
+    for attr_id in attr_enums.keys() {
         if trimmed.contains(&format!("{attr_id} >"))
             || trimmed.contains(&format!("{attr_id} <"))
             || trimmed.contains(&format!("{attr_id} >="))

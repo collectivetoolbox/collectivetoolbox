@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Build and version metadata for Collective Toolbox.
 
-#[allow(
+#[expect(
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]

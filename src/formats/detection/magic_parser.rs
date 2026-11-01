@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Parser for libmagic-style hierarchical magic signature rule files (`Magdir`).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -811,7 +811,7 @@ pub fn decode_magic_escapes(raw: &str) -> Vec<u8> {
                     out.push(b' ');
                     i = i.saturating_add(1);
                 }
-                Some(b'x') | Some(b'X') => {
+                Some(b'x' | b'X') => {
                     i = i.saturating_add(1);
                     let mut hex_str = String::new();
                     for _ in 0..2 {
@@ -983,7 +983,7 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
     } else {
         false
     };
-    let (base_part, ind_type, is_signed, is_inverse, op, adjustment) = if let Some(sep_idx) = inner.find(|c| c == '.' || c == ',') {
+    let (base_part, ind_type, is_signed, is_inverse, op, adjustment) = if let Some(sep_idx) = inner.find(['.', ',']) {
         let base_str = inner.get(..sep_idx)?;
         let sep = inner.as_bytes().get(sep_idx)?;
         let is_signed = *sep == b',';
@@ -1162,7 +1162,7 @@ fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize, Option<usize>, bo
         case_insensitive = s.contains('c') || s.contains('C');
         let has_line = s.contains('l') || s.contains('L');
         offset_start = s.contains('s') || s.contains('S');
-        let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+        let digits: String = s.chars().filter(char::is_ascii_digit).collect();
         let parsed_num = digits.parse::<usize>().ok();
         if has_line {
             // Reason for fallback: regex /l flag without explicit count defaults to 1 line
@@ -1182,7 +1182,7 @@ fn parse_search_flags(flags_str: Option<&str>) -> (StringFlags, usize) {
     let flags = parse_string_flags(flags_str);
     let mut max_bytes = 65536;
     if let Some(s) = flags_str {
-        let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+        let digits: String = s.chars().filter(char::is_ascii_digit).collect();
         if let Ok(num) = digits.parse::<usize>() {
             if num > 0 {
                 max_bytes = num;
@@ -1200,7 +1200,7 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
             if let Some(&first_digit) = chars.peek() {
                 if ('0'..='7').contains(&first_digit) {
                     chars.next();
-                    #[allow(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
+                    #[expect(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
                     let mut oct_val = first_digit
                         .to_digit(8)
                         .expect("first_digit in '0'..='7' is valid octal");
@@ -1208,7 +1208,7 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
                         if let Some(&d) = chars.peek() {
                             if ('0'..='7').contains(&d) {
                                 chars.next();
-                                #[allow(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
+                                #[expect(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
                                 let d_val = d
                                     .to_digit(8)
                                     .expect("digit in '0'..='7' is valid octal");
@@ -1219,7 +1219,7 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
                         }
                     }
                     if let Ok(byte_val) = u8::try_from(oct_val) {
-                        res.push_str(&format!("\\x{:02x}", byte_val));
+                        res.push_str(&format!("\\x{byte_val:02x}"));
                     } else {
                         res.push('\\');
                         res.push(first_digit);
@@ -1257,26 +1257,26 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
     }
 
     let mut cond = MagicCond::None;
-    if tokens.first().map(|s| s.as_str()) == Some("if") {
+    if tokens.first().map(std::string::String::as_str) == Some("if") {
         cond = MagicCond::If;
         tokens.remove(0);
         tokens.insert(0, "0".to_string());
-    } else if tokens.first().map(|s| s.as_str()) == Some("elif") {
+    } else if tokens.first().map(std::string::String::as_str) == Some("elif") {
         cond = MagicCond::Elif;
         tokens.remove(0);
         tokens.insert(0, "0".to_string());
-    } else if tokens.first().map(|s| s.as_str()) == Some("else") {
+    } else if tokens.first().map(std::string::String::as_str) == Some("else") {
         cond = MagicCond::Else;
         tokens.remove(0);
         tokens.insert(0, "0".to_string());
     } else if tokens.len() > 1 {
-        if tokens.get(1).map(|s| s.as_str()) == Some("if") {
+        if tokens.get(1).map(std::string::String::as_str) == Some("if") {
             cond = MagicCond::If;
             tokens.remove(1);
-        } else if tokens.get(1).map(|s| s.as_str()) == Some("elif") {
+        } else if tokens.get(1).map(std::string::String::as_str) == Some("elif") {
             cond = MagicCond::Elif;
             tokens.remove(1);
-        } else if tokens.get(1).map(|s| s.as_str()) == Some("else") {
+        } else if tokens.get(1).map(std::string::String::as_str) == Some("else") {
             cond = MagicCond::Else;
             tokens.remove(1);
         }
@@ -1284,7 +1284,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
 
     // Handle `else` shorthand when type/test are omitted (in libmagic, `else` has no condition)
     if cond == MagicCond::Else {
-        if tokens.get(1).map(|s| s.as_str()) != Some("default") {
+        if tokens.get(1).map(std::string::String::as_str) != Some("default") {
             let desc = if tokens.len() > 1 {
                 let rest_tokens = tokens.split_off(1);
                 Some(rest_tokens.join(" "))
@@ -1382,7 +1382,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
     } else if let Some(idx) = base_type.find('-') {
         let (t, a) = base_type.split_at(idx);
         // Reason for fallback: default to zero offset adjustment if negative adjustment is invalid or missing
-        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map(|v| v.saturating_neg()).unwrap_or(0);
+        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map_or(0, i64::saturating_neg);
         (t, adj)
     } else {
         (base_type, 0)
@@ -1432,11 +1432,11 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
             let (case_insensitive, max_bytes, line_limit, offset_start) = parse_regex_flags(flags_str);
             let (_, pattern_raw) = parse_op_and_val(val_str);
             let unescaped_pattern = if let Some(stripped) = pattern_raw.strip_prefix(r"\^") {
-                format!("^{}", stripped)
+                format!("^{stripped}")
             } else if let Some(stripped) = pattern_raw.strip_prefix(r"\<") {
-                format!("<{}", stripped)
+                format!("<{stripped}")
             } else if let Some(stripped) = pattern_raw.strip_prefix(r"\>") {
-                format!(">{}", stripped)
+                format!(">{stripped}")
             } else {
                 pattern_raw.to_string()
             };
@@ -1755,7 +1755,7 @@ fn pattern_len_strength(len: usize) -> u32 {
     u32::try_from(len).unwrap_or(u32::MAX)
 }
 
-/// Calculates rule strength faithful to upstream apprentice_magic_strength_1.
+/// Calculates rule strength faithful to upstream `apprentice_magic_strength_1`.
 pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
     let mult = 10u32;
     let base = 20u32;

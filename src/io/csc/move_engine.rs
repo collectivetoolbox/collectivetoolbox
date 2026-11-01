@@ -260,7 +260,11 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 .cloned()
                 .collect();
             root_records.sort_by(|a, b| a.source_path.cmp(&b.source_path));
-            let resolved_tasks = if !root_records.is_empty() {
+            let resolved_tasks = if root_records.is_empty() {
+                let mut all_paths = snap.sources.clone();
+                all_paths.push(snap.destination.clone());
+                resolve_tasks(&all_paths)?.0
+            } else {
                 root_records
                     .iter()
                     .map(|r| ResolvedCopyTask {
@@ -269,10 +273,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                         copy_contents_only: r.contents_only_root,
                     })
                     .collect::<Vec<_>>()
-            } else {
-                let mut all_paths = snap.sources.clone();
-                all_paths.push(snap.destination.clone());
-                resolve_tasks(&all_paths)?.0
             };
             let mut jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
             jw.set_defer_completion(true);
@@ -685,10 +685,10 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     let elapsed = start_time.elapsed().as_secs_f64();
     let mut summary = String::new();
     writeln!(summary, "--- MV Summary ---")?;
-    writeln!(summary, "Items renamed (same filesystem): {}", moved_renamed)?;
+    writeln!(summary, "Items renamed (same filesystem): {moved_renamed}")?;
     if moved_copied > 0 {
-        writeln!(summary, "Files copied (cross-device):     {}", moved_copied)?;
-        writeln!(summary, "Bytes transferred:               {}", bytes_copied)?;
+        writeln!(summary, "Files copied (cross-device):     {moved_copied}")?;
+        writeln!(summary, "Bytes transferred:               {bytes_copied}")?;
     }
     writeln!(summary, "Duration:                        {elapsed:.2}s")?;
     for journal in retained_journals {

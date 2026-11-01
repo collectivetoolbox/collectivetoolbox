@@ -154,7 +154,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io.borrow());
         }
         self.f_one_or_two_io.set(true);
-        *self.one_or_two_io.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) };
+        *self.one_or_two_io.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) };
         Ok(self.one_or_two_io.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -166,7 +166,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io_size1.borrow());
         }
         self.f_one_or_two_io_size1.set(true);
-        *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).try_into()?;
+        *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).try_into()?;
         Ok(self.one_or_two_io_size1.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -190,7 +190,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io_size_add_3.borrow());
         }
         self.f_one_or_two_io_size_add_3.set(true);
-        *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if (to_i128(*self.flag())) == (to_i128(64)) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).saturating_add(3_i64)).try_into()?;
+        *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).saturating_add(3_i64)).try_into()?;
         Ok(self.one_or_two_io_size_add_3.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -201,7 +201,7 @@ impl ExprIoTernary {
         if self.f_one_or_two_obj.get() {
             return Ok(self.one_or_two_obj.borrow());
         }
-        *self.one_or_two_obj.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(64)) { Struct::from_opt_rc(&(self.obj1())) } else { Struct::from_opt_rc(&(self.obj2())) }.clone();
+        *self.one_or_two_obj.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(64))) { Struct::from_opt_rc(&(self.obj1())) } else { Struct::from_opt_rc(&(self.obj2())) }.clone();
         Ok(self.one_or_two_obj.borrow())
     }
 }

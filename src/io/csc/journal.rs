@@ -208,11 +208,7 @@ fn system_time_from_sec(timestamp_sec: i64) -> std::time::SystemTime {
 
 fn sec_from_system_time(time: std::time::SystemTime) -> i64 {
     match time.duration_since(UNIX_EPOCH) {
-        Ok(dur) => match i64::try_from(dur.as_secs()) {
-            Ok(s) => s,
-            // Reason for fallback: Duration exceeding i64::MAX seconds clamps to i64::MAX.
-            Err(_) => i64::MAX,
-        },
+        Ok(dur) => i64::try_from(dur.as_secs()).unwrap_or(i64::MAX),
         Err(err) => {
             let dur = err.duration();
             let secs = match i64::try_from(dur.as_secs()) {
@@ -284,12 +280,9 @@ impl JournalErrorRecordPayload {
         &self,
         policy: &ctb_formats_dcstring::DcProjectionPolicy,
     ) -> Result<JournalErrorRecord> {
-        let stage_code = match u8::try_from(self.packed_status >> 32) {
-            Ok(code) => code,
-            Err(_) => {
-                anyhow::ensure!(!policy.is_strict(), "Invalid stage code in error record");
-                0
-            }
+        let stage_code = if let Ok(code) = u8::try_from(self.packed_status >> 32) { code } else {
+            anyhow::ensure!(!policy.is_strict(), "Invalid stage code in error record");
+            0
         };
         let os_code = u32::try_from(self.packed_status & 0xFFFF_FFFF)?;
         Ok(JournalErrorRecord {
@@ -1396,7 +1389,7 @@ pub fn dcmstring_to_cscarchive2(
     Ok((out, ctb_formats_utilities::FormatLog::default()))
 }
 
-/// Converts in-memory cscjournal bytes to current DcMixed journal bytes (`CSCJRNL5`),
+/// Converts in-memory cscjournal bytes to current `DcMixed` journal bytes (`CSCJRNL5`),
 /// or returns version 4+ journal bytes unmodified.
 pub fn convert_cscjournal_to_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
     convert_cscjournal_to_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
@@ -1427,7 +1420,7 @@ pub fn convert_cscjournal_to_bytes_with_policy(
     }
 }
 
-/// Reads a v4 native DcMixed state journal using [`ctb_formats_dcstring::DcDocumentNavigator`]
+/// Reads a v4 native `DcMixed` state journal using [`ctb_formats_dcstring::DcDocumentNavigator`]
 /// without buffering file bodies. Member metadata is retained for projection.
 pub fn read_v4_journal_snapshot(
     file: &mut File,
@@ -1445,12 +1438,9 @@ pub fn read_v4_journal_snapshot(
 
     let scanned = JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
         .with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
-    let origin_platform = match u8::try_from(scanned.session.origin_platform) {
-        Ok(platform) => platform,
-        Err(_) => {
-            anyhow::ensure!(!policy.is_strict(), "Invalid origin platform code in session header");
-            current_platform()
-        }
+    let origin_platform = if let Ok(platform) = u8::try_from(scanned.session.origin_platform) { platform } else {
+        anyhow::ensure!(!policy.is_strict(), "Invalid origin platform code in session header");
+        current_platform()
     };
     let mut committed_entities = HashMap::new();
     let mut warnings = scanned.warnings;
@@ -1468,10 +1458,10 @@ pub fn read_v4_journal_snapshot(
             });
         }
         let mut entity = member.entity;
-        if !is_archive {
-            warn_unexpected_stream_bodies(&entity, &mut warnings);
-        } else {
+        if is_archive {
             entity.strip_stream_bodies();
+        } else {
+            warn_unexpected_stream_bodies(&entity, &mut warnings);
         }
         let path_key = match entity.identity.path_bytes() {
             Some(bytes) => bytes.to_vec(),

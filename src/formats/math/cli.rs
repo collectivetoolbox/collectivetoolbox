@@ -195,7 +195,7 @@ pub struct BaseArgs {
     pub filter_chars: bool,
 
     /// Ignore non-digit characters inline while parsing numbers, preventing
-    /// them from splitting numbers (e.g. "10_000" parses as 10000).
+    /// them from splitting numbers (e.g. "`10_000`" parses as 10000).
     #[arg(
         short,
         long,

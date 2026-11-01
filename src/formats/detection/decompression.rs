@@ -446,10 +446,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Transparent and deep recursive decompression inspection for format detection.
 //!
 //! Provides bounded stream decompression across all supported compression formats,
-//! enabling inspection of inner payloads, identification of compound formats (e.g. TarGz),
+//! enabling inspection of inner payloads, identification of compound formats (e.g. `TarGz`),
 //! format chains (`@chain(f... > f...)`), and UNIX `file` compatibility mode (`-z` / `-Z`).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -488,12 +488,12 @@ impl<'a, S: DetectionSource + ?Sized> DetectionSourceReader<'a, S> {
     }
 }
 
-impl<'a, S: DetectionSource + ?Sized> Read for DetectionSourceReader<'a, S> {
+impl<S: DetectionSource + ?Sized> Read for DetectionSourceReader<'_, S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let n = self
             .source
             .read_at(self.offset, buf)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| io::Error::other(e.to_string()))?;
         let advance = u64::try_from(n)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
         self.offset = self.offset.saturating_add(advance);
@@ -538,8 +538,7 @@ impl Write for BoundedWriter {
         let remaining = self.limit.saturating_sub(self.buffer.len());
         if remaining == 0 {
             self.limit_reached = true;
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(io::Error::other(
                 "decompression byte limit reached",
             ));
         }
@@ -630,9 +629,7 @@ pub fn format_chain_directive(layers: &[FormatId]) -> String {
 fn format_chain_label(fid: FormatId) -> String {
     // Reason for fallback: format without catalog entry uses format title or ident as label
     FORMAT_CATALOG
-        .lookup_format_id(fid)
-        .map(|m| m.label.clone())
-        .unwrap_or_else(|| fid.title().unwrap_or(fid.ident()).to_string())
+        .lookup_format_id(fid).map_or_else(|| fid.title().unwrap_or(fid.ident()).to_string(), |m| m.label.clone())
 }
 
 /// Formats a human-readable pretty-printed format chain description,
@@ -668,9 +665,7 @@ pub fn build_compound_candidate(
 ) -> DetectionCandidate {
     let mapping = FORMAT_CATALOG.lookup_format_id(compound_fid);
     // Reason for fallback: unmapped compound format defaults to inner and outer descriptions
-    let desc = mapping
-        .map(|m| m.label.clone())
-        .unwrap_or_else(|| format!("{} ({})", inner_cand.description, outer_cand.description));
+    let desc = mapping.map_or_else(|| format!("{} ({})", inner_cand.description, outer_cand.description), |m| m.label.clone());
     let mime = mapping
         .and_then(|m| m.mime_types.first().cloned())
         .or_else(|| inner_cand.mime.clone());
@@ -774,11 +769,11 @@ where
     FReport: FnMut(&mut dyn DetectionSource, Option<&DetectionHint>) -> Result<DetectionReport>,
 {
     // Reason for fallback: hint defaults to non-compat mode if omitted
-    let compat = hint.map_or(false, |h| h.compat);
+    let compat = hint.is_some_and(|h| h.compat);
     // Reason for fallback: hint defaults to false for uncompress if omitted
-    let uncompress = hint.map_or(false, |h| h.uncompress);
+    let uncompress = hint.is_some_and(|h| h.uncompress);
     // Reason for fallback: hint defaults to false for uncompress_noreport if omitted
-    let uncompress_noreport = hint.map_or(false, |h| h.uncompress_noreport);
+    let uncompress_noreport = hint.is_some_and(|h| h.uncompress_noreport);
     // Reason for fallback: initial decompression depth defaults to 0 if omitted
     let depth = hint.map_or(0, |h| h.recursion_depth);
     // Reason for fallback: hint defaults to the documented default depth limit if omitted
@@ -800,7 +795,7 @@ where
     // Reason for fallback: candidate lacking format_id cannot be a recognized compression algorithm
     let outer_cand = outer_candidates.iter().find(|c| {
         c.format_id
-            .map_or(false, ctb_formats_compression::is_supported)
+            .is_some_and(ctb_formats_compression::is_supported)
     });
 
     let synth_outer: DetectionCandidate;
@@ -815,11 +810,11 @@ where
         // decompressed and inspected.
         let ext_fmt = hint
             .and_then(|h| h.extension.as_deref().or(h.filename.as_deref()))
-            .and_then(|name| {
+            .map(|name| {
                 let clean = name.trim().trim_start_matches('.');
                 // Reason for fallback: filename without period delimiter is already the extension
                 let last_ext = clean.rsplit('.').next().unwrap_or(clean);
-                Some(resolve_extension_candidates(last_ext, None))
+                resolve_extension_candidates(last_ext, None)
             })
             .into_iter()
             .flatten()
@@ -832,9 +827,7 @@ where
 
         // Reason for fallback: unmapped format uses debug format name
         let desc = FORMAT_CATALOG
-            .lookup_format_id(fid)
-            .map(|m| m.label.clone())
-            .unwrap_or_else(|| format!("{:?} compressed data", fid));
+            .lookup_format_id(fid).map_or_else(|| format!("{fid:?} compressed data"), |m| m.label.clone());
         let mime = FORMAT_CATALOG
             .lookup_format_id(fid)
             .and_then(|m| m.mime_types.first().cloned());

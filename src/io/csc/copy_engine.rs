@@ -102,7 +102,7 @@ fn handle_item_error(
         stats.files_failed = stats.files_failed.saturating_add(1);
         Ok(None)
     } else {
-        journal.mark_failed(&error_message)
+        journal.mark_failed(error_message)
             .with_context(|| format!("Failed to mark failed copy: {error_message}"))?;
         Err(err)
     }
@@ -349,10 +349,10 @@ pub fn execute_copy_pipeline(
                 if rel != orig_rel {
                     dir_entity.metadata.set_materialized_relative_path(&orig_rel, &rel);
                 }
-                let curr_tgt = if rel != orig_rel {
-                    dest_dir.root_path().join(&rel)
-                } else {
+                let curr_tgt = if rel == orig_rel {
                     curr_tgt
+                } else {
+                    dest_dir.root_path().join(&rel)
                 };
                 dir_entity.identity.relative_path = Some(rel.clone());
                 record_materialization_warnings(journal, &mut dir_entity, dir_adapt_warnings)?;
@@ -929,7 +929,7 @@ pub fn execute_copy_pipeline(
             // Reason for fallback: failed metadata read treats path as not being a special device file
             let is_special_as_regular = (args.copy_block_devices_as_regular_files
                 || args.copy_fifos_as_regular_files)
-                && std::fs::symlink_metadata(src_path).map_or(false, |m| {
+                && std::fs::symlink_metadata(src_path).is_ok_and(|m| {
                     m.file_type().is_block_device() || m.file_type().is_fifo()
                 });
             #[cfg(not(unix))]

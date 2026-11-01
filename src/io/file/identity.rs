@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! File origin, identity, and hardlink tracking identifiers.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -56,7 +56,7 @@ impl InodeKey {
     }
 
     /// Creates an `InodeKey` from a 64-bit volume serial number and a 128-bit File ID
-    /// (ReFS / modern NTFS `FILE_ID_128`).
+    /// (`ReFS` / modern NTFS `FILE_ID_128`).
     #[must_use]
     pub fn from_file_id_128(volume: u64, file_id: u128) -> Self {
         Self {
@@ -152,14 +152,14 @@ pub struct FileIdentity {
     /// Logical relative path within the operation or archive.
     #[dc(short = 337)]
     pub relative_path: Option<PathBuf>,
-    /// Original enclosing directory or root path from which relative_path was
+    /// Original enclosing directory or root path from which `relative_path` was
     /// resolved, if applicable.
     #[dc(short = 357)]
     pub enclosing_path: Option<PathBuf>,
     /// Link count on the source filesystem.
     #[dc(short = 355)]
     pub nlink: u64,
-    /// Optional hardlink grouping identifier (e.g. InodeKey or archive linkname).
+    /// Optional hardlink grouping identifier (e.g. `InodeKey` or archive linkname).
     #[serde(default, with = "crate::serde_helpers::opt_natural_flexible")]
     #[dc(short = 356)]
     pub hardlink_group: Option<Natural>,

@@ -451,7 +451,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! format detection engine, and provides live differential comparison against
 //! the system `file` command when available.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -649,7 +649,7 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
 
 
 
-/// Classifies an upstream test result into a ParityCategory.
+/// Classifies an upstream test result into a `ParityCategory`.
 pub fn classify_upstream_test(
     name: &str,
     expected: &str,
@@ -763,7 +763,7 @@ pub fn classify_upstream_test(
     }
 }
 
-//// Evaluates a single upstream test case using the in-repo detection engine.
+/// Evaluates a single upstream test case using the in-repo detection engine.
 pub fn evaluate_upstream_case(
     test_case: &UpstreamTestCase,
 ) -> Result<UpstreamTestResult> {

@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Database-syntax-driven hierarchical navigator, reusable syntax arena, and
 //! projection policies for Document Character (`Dc`) streams and files.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -81,7 +81,7 @@ pub use arena::*;
 pub use eval::*;
 pub use policy::*;
 pub use resolver::*;
-#[allow(unused_imports, reason = "Internal scanning helpers shared across navigator submodules")]
+#[expect(unused_imports, reason = "Internal scanning helpers shared across navigator submodules")]
 pub(super) use scan::*;
 
 #[derive(Debug)]
@@ -160,7 +160,7 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) scan_cache: NavScanCache,
 }
 
-impl<'b> DcBinaryResolver for DcDocumentNavigator<'b> {
+impl DcBinaryResolver for DcDocumentNavigator<'_> {
     fn materialize_binary<'a>(
         &mut self,
         payload: &BinaryPayloadRef<'a>,
@@ -791,8 +791,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 .closer_for_opener(
                     &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(260)),
                 )
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                .map_or(ctb_formats_dcdata::dc::DC_END_LITERAL, DcChar::from_u128);
             if self.spliced_has_unescaped_closer(closer, true, resolver) {
                 self.spliced_tokens.pop_front();
                 let mut type_header = Vec::new();
@@ -829,8 +828,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 .closer_for_opener(
                     &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(270)),
                 )
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                .map_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER, DcChar::from_u128);
             if self.spliced_has_unescaped_closer(closer, true, resolver) {
                 self.spliced_tokens.pop_front();
                 let mut type_ctx = SyntaxEvalContext::new(resolver, None);
@@ -853,8 +851,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 .closer_for_opener(
                     &CharTarget::from_u128(head_dc.to_u128()).unwrap_or(CharTarget::Dc(6)),
                 )
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                .map_or(ctb_formats_dcdata::dc::DC_END_NUMBER, DcChar::from_u128);
             if self.spliced_has_unescaped_closer(closer, false, resolver) {
                 self.spliced_tokens.pop_front();
                 let format = match self.spliced_tokens.front() {

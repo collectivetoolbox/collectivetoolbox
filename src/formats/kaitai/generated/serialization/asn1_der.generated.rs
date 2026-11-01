@@ -848,12 +848,12 @@ impl KStruct for Asn1Der_LenEncoded {
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.b1())) == (to_i128(130)) {
+        if ((to_i128(*self_rc.b1())) == (to_i128(130))) {
             *self_rc.int2.borrow_mut() = _io.read_u2be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.b1())) == (to_i128(129)) {
+        if ((to_i128(*self_rc.b1())) == (to_i128(129))) {
             *self_rc.int1.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -871,7 +871,7 @@ impl Asn1Der_LenEncoded {
             return Ok(self.result.borrow());
         }
         self.f_result.set(true);
-        *self.result.borrow_mut() = (if (to_i128(*self.b1())) == (to_i128(129)) { u16::from(*self.int1()) } else { if (to_i128(*self.b1())) == (to_i128(130)) { *self.int2() } else { u16::from(*self.b1()) } }).try_into()?;
+        *self.result.borrow_mut() = (if ((to_i128(*self.b1())) == (to_i128(129))) { u16::from(*self.int1()) } else { if ((to_i128(*self.b1())) == (to_i128(130))) { *self.int2() } else { u16::from(*self.b1()) } }).try_into()?;
         Ok(self.result.borrow())
     }
 }

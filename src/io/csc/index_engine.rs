@@ -249,7 +249,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
         sources_indexed = sources_indexed.saturating_add(1);
 
         if idx.saturating_add(1) < journal_paths.len() {
-            progress.message(&format!("Appended {} into database", src_name));
+            progress.message(&format!("Appended {src_name} into database"));
         }
     }
 
@@ -747,7 +747,7 @@ pub(crate) async fn ingest_journal_snapshot(
                 {
                     let full_path = match &entity.identity.relative_path {
                         Some(rel) => root_dir.join(rel),
-                        None => root_dir.to_path_buf(),
+                        None => root_dir.clone(),
                     };
                     if let Ok(mut f) = std::fs::File::open(&full_path) {
                         ctb_formats_text_extraction::to_text(&mut f, fulltext_limit).ok()

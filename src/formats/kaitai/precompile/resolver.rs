@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Type and schema resolver converting parsed YAML specs into resolved class trees.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -169,7 +169,7 @@ pub fn resolve_ksy(
             let stem = imp
                 .trim_start_matches('/')
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(imp)
                 .to_string();
             let ext = vec![stem];
@@ -192,7 +192,7 @@ pub fn resolve_ksy(
             let stem = imp
                 .trim_start_matches('/')
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(imp);
             if let Some(imported_ksy) = reg.get(stem) {
                 let imp_name = vec![stem.to_string()];
@@ -786,14 +786,10 @@ fn resolve_class_spec(
         for (raw_key, val_spec) in enum_values {
             // Reason for fallback: parse failure on malformed enum key defaults to 0 value
             let num: i64 = if let Some(stripped) = raw_key.strip_prefix("0x") {
-                u64::from_str_radix(stripped, 16)
-                    .map(|v| i64::from_le_bytes(v.to_le_bytes()))
-                    .unwrap_or_else(|_| i64::from_str_radix(stripped, 16).unwrap_or(0))
+                u64::from_str_radix(stripped, 16).map_or_else(|_| i64::from_str_radix(stripped, 16).unwrap_or(0), |v| i64::from_le_bytes(v.to_le_bytes()))
             } else {
                 raw_key
-                    .parse::<u64>()
-                    .map(|v| i64::from_le_bytes(v.to_le_bytes()))
-                    .unwrap_or_else(|_| raw_key.parse::<i64>().unwrap_or(0))
+                    .parse::<u64>().map_or_else(|_| raw_key.parse::<i64>().unwrap_or(0), |v| i64::from_le_bytes(v.to_le_bytes()))
             };
             let (label, doc, doc_ref) = match val_spec {
                 EnumValueSpec::Simple(s) => (s.clone(), None, None),
@@ -872,8 +868,7 @@ fn resolve_class_spec(
                 .iter()
                 .skip(1)
                 .map(|sub| format!("/types/{sub}"))
-                .collect::<Vec<_>>()
-                .join("");
+                .collect::<String>();
             format!("{types_prefix}/seq/{seq_idx}")
         };
 
@@ -2060,10 +2055,10 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
     }
     match (t1, t2) {
         (DataType::Int1 { signed: s1 }, DataType::Int1 { signed: s2 }) => {
-            if s1 != s2 {
-                DataType::Int1 { signed: false }
-            } else {
+            if s1 == s2 {
                 t1.clone()
+            } else {
+                DataType::Int1 { signed: false }
             }
         }
         (DataType::Int1 { .. }, DataType::IntMulti { signed, width, endian })

@@ -179,7 +179,7 @@ impl KStruct for S3m {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.has_custom_pan())) == (to_i128(252)) {
+        if ((to_i128(*self_rc.has_custom_pan())) == (to_i128(252))) {
             *self_rc.channel_pans.borrow_mut() = Vec::new();
             let l_channel_pans = 32_usize;
             for _i in 0_usize..l_channel_pans {

@@ -1017,7 +1017,7 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         *self_rc.num_samples.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.num_samples())) > (to_i128(0)) {
+        if ((to_i128(*self_rc.num_samples())) > (to_i128(0))) {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extra_header.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

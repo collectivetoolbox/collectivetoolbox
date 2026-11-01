@@ -146,7 +146,7 @@ pub fn is_known_scheme(scheme: &str) -> Result<bool> {
 /// Result of URI or URI protocol scheme detection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UriDetection {
-    /// FormatId: `FormatId::UriProtocol` for standalone schemes, `FormatId::Uri` (or `Magnet`) for full URIs.
+    /// `FormatId`: `FormatId::UriProtocol` for standalone schemes, `FormatId::Uri` (or `Magnet`) for full URIs.
     pub format_id: FormatId,
     /// Human-readable description.
     pub description: String,

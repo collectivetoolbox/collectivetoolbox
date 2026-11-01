@@ -20,14 +20,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Syntax pattern evaluation, construct validation, and subtype constraints.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use super::*;
+use super::{DcMstring, SyntaxRuleResolver, Digest, DcDocumentNavigator, SyntaxTerm, CharTarget, DcCharExt, DcRole, DcByteSpan, SyntaxDiagnostic, Arc, DcProjectionPolicy, SyntaxPattern, SyntaxElement, Quantifier, Cow, MAX_NAV_CACHE_ENTRIES, parse_data_constraint, DcFrameHeaderInfo, NavBackend, CachedLeafKind, DcStr, DcMstr, DCMM_HEADER_LEN, DcSyntaxArena, DcSyntaxKind, default_syntax_resolver, Read, DcString};
 
 /// Maximum recursion depth allowed during grammar rule expansion.
 pub const MAX_SYNTAX_EXPANSION_DEPTH: usize = 32;
@@ -54,9 +54,9 @@ pub enum ValueRequirement<'a> {
 /// Result of evaluating an expression in a value position.
 #[derive(Debug, Clone)]
 pub enum DcEvaluatedValue {
-    /// Evaluated DcMstring / token sequence that can be spliced or validated against any syntax rule.
+    /// Evaluated `DcMstring` / token sequence that can be spliced or validated against any syntax rule.
     Document(DcMstring),
-    /// Direct typed shared value from SharedValueContext.
+    /// Direct typed shared value from `SharedValueContext`.
     SharedBinding {
         /// Name of the shared binding.
         name: String,
@@ -77,7 +77,7 @@ pub trait DcExpressionEvaluator: Send + Sync {
     ) -> Result<Option<DcEvaluatedValue>>;
 
     /// Evaluates a stream-splicing invocation (such as `256 lang.say(String)`) and returns
-    /// the DcChar tokens to splice into the navigator's active stream.
+    /// the `DcChar` tokens to splice into the navigator's active stream.
     ///
     /// # Errors
     /// Returns an error if evaluating the splice invocation fails.
@@ -141,8 +141,7 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             // Reason for fallback: default closing delimiter for BeginList is DC_END_LIST.
             let list_closer = CharTarget::from_u128(list_open.to_u128())
                 .and_then(|t| resolver.closer_for_opener(&t))
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+                .map_or(ctb_formats_dcdata::dc::DC_END_LIST, DcChar::from_u128);
             let close_len = nav.char_encoded_len(list_closer);
             let Ok(mstr_len) = u64::try_from(mstr.len()) else {
                 return Ok(None);
@@ -372,7 +371,7 @@ struct EvalContextCheckpoint {
     captured_numbers: Option<std::collections::HashMap<String, malachite::Integer>>,
 }
 
-impl<'a> DcDocumentNavigator<'a> {
+impl DcDocumentNavigator<'_> {
     /// Evaluates a [`SyntaxPattern`] starting at the navigator's current cursor.
     ///
     /// If the pattern matches, advances `self.cursor` past the matched span and
@@ -731,8 +730,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         // Reason for fallback: default closer for BeginList is DC_END_LIST.
                         let list_closer = CharTarget::from_u128(list_open.to_u128())
                             .and_then(|t| ctx.resolver.closer_for_opener(&t))
-                            .map(DcChar::from_u128)
-                            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+                            .map_or(ctb_formats_dcdata::dc::DC_END_LIST, DcChar::from_u128);
                         if let Ok((_, wrapper_end, _)) = self.scan_balanced_container(
                             after_list_open,
                             list_open,
@@ -798,15 +796,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let in_set = members.iter().any(|m| {
                     m.to_u128() == first || ctx.resolver.is_equivalent_to(first, m.to_u128())
                 });
-                if !*negated {
-                    if in_set {
-                        let _ = self.pop_next_token()?;
-                        Ok(true)
-                    } else {
-                        self.restore_checkpoint(term_checkpoint);
-                        Ok(false)
-                    }
-                } else {
+                if *negated {
                     if !ctx.unescaped_literal_payload
                         && first_dc.fills_role_with(DcRole::Escape, ctx.resolver)
                     {
@@ -896,6 +886,14 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     let _ = self.pop_next_token()?;
                     Ok(true)
+                } else {
+                    if in_set {
+                        let _ = self.pop_next_token()?;
+                        Ok(true)
+                    } else {
+                        self.restore_checkpoint(term_checkpoint);
+                        Ok(false)
+                    }
                 }
             }
             SyntaxTerm::Group(group_pat) => self.eval_pattern(group_pat, ctx),
@@ -1298,8 +1296,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let list_closer = ctx
             .resolver
             .closer_for_opener(&list_target)
-            .map(DcChar::from_u128)
-            .unwrap_or(ctb_formats_dcdata::dc::DC_END_LIST);
+            .map_or(ctb_formats_dcdata::dc::DC_END_LIST, DcChar::from_u128);
         let close_len = self.char_encoded_len(list_closer);
         if list_end < after_list_open.saturating_add(close_len) {
             return Ok(None);
@@ -1796,8 +1793,7 @@ impl<'a> DcDocumentNavigator<'a> {
         // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
         let closer = CharTarget::from_u128(first_dc.to_u128())
             .and_then(|t| ctx.resolver.closer_for_opener(&t))
-            .map(DcChar::from_u128)
-            .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+            .map_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER, DcChar::from_u128);
         let leading_type_tokens = self.try_consume_optional_leading_type(closer, ctx)?;
         if ctx.has_errors {
             self.restore_checkpoint(term_checkpoint);
@@ -2104,7 +2100,7 @@ impl<'a> DcDocumentNavigator<'a> {
             let Some(val) = val else {
                 return Ok(false);
             };
-            if val < malachite::Integer::from(0) {
+            if val < 0 {
                 return Ok(false);
             }
             Some(val)
@@ -2446,8 +2442,7 @@ impl<'a> DcDocumentNavigator<'a> {
             // Reason for fallback: default closer for BeginParameter is DC_END_PARAMETER.
             let closer = CharTarget::from_u128(next_dc.to_u128())
                 .and_then(|t| resolver.closer_for_opener(&t))
-                .map(DcChar::from_u128)
-                .unwrap_or(ctb_formats_dcdata::dc::DC_END_PARAMETER);
+                .map_or(ctb_formats_dcdata::dc::DC_END_PARAMETER, DcChar::from_u128);
             let (_, after_close, _) = self.scan_balanced_container(
                 after_open,
                 next_dc,
@@ -2758,7 +2753,7 @@ pub(super) fn number_satisfies_subtype(
         }
         let fmt = FormatId::from_shorthand(part)
             .or_else(|| FormatId::from_ident(part))
-            .or_else(|| match part {
+            .or(match part {
                 "NonNegative" => Some(FormatId::Natural0),
                 "Natural" => Some(FormatId::Natural1),
                 _ => None,

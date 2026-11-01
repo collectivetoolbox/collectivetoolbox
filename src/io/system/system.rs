@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! shutting down the computer, configuring network and Wi-Fi connectivity, and
 //! interacting with system services when booting directly into CTB.
 
-#[allow(
+#[expect(
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]

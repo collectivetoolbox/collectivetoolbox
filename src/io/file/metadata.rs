@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Universal file metadata representations, timestamps, and semantic flags.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -667,6 +667,7 @@ impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
     ctb_formats_dcstring::DcMixed,
 )]
 #[dc(flatten, try_from = FileTimestampsDc, try_into = FileTimestampsDc)]
+#[derive(Default)]
 pub struct FileTimestamps {
     /// Access time in seconds since Unix epoch.
     pub atime_sec: i64,
@@ -689,21 +690,6 @@ pub struct FileTimestamps {
     pub resolution_nsec: Option<u32>,
 }
 
-impl Default for FileTimestamps {
-    fn default() -> Self {
-        Self {
-            atime_sec: 0,
-            atime_nsec: 0,
-            mtime_sec: 0,
-            mtime_nsec: 0,
-            ctime_sec: 0,
-            ctime_nsec: 0,
-            birthtime_sec: None,
-            birthtime_nsec: None,
-            resolution_nsec: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
 #[dc(flatten)]

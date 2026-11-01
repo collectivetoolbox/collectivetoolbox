@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Core data types, candidate representations, and report structures for the
 //! format detection engine.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -555,7 +555,7 @@ pub enum DetectionEvidence {
         eof_offset: Option<u64>,
         score: u32,
     },
-    /// PolyFile byte-range attribution spanning [start, end) offsets.
+    /// `PolyFile` byte-range attribution spanning [start, end) offsets.
     ByteRange {
         start: u64,
         end: u64,
@@ -578,7 +578,7 @@ pub enum DetectionEvidence {
 /// Output candidate produced by format detection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DetectionCandidate {
-    /// Authoritative workspace FormatId if a matching Dc exists.
+    /// Authoritative workspace `FormatId` if a matching Dc exists.
     pub format_id: Option<FormatId>,
     /// Global graph Document Character ID if known.
     pub dc_id: Option<u128>,

@@ -34,7 +34,7 @@ See full license information at the end of this file.
 
 //! Import resolution and registry for multi-specification compilations.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -122,7 +122,7 @@ impl SpecRegistry {
         }
 
         let Some(path) = found_path else {
-            bail!("Could not resolve import '{}'", import_str);
+            bail!("Could not resolve import '{import_str}'");
         };
 
         let content = fs::read(&path)

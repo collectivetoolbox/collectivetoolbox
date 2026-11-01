@@ -271,9 +271,9 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
         if is_raw_ipv6(addr_inside) {
             let port_str = remainder.strip_prefix(':');
             let desc = if let Some(p) = port_str {
-                format!("IPv6 address [{}]:{}", addr_inside, p)
+                format!("IPv6 address [{addr_inside}]:{p}")
             } else {
-                format!("IPv6 address [{}]", addr_inside)
+                format!("IPv6 address [{addr_inside}]")
             };
             return Some(IpDetection {
                 format_id: FormatId::IpV6String,
@@ -298,7 +298,7 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
                         has_cidr: true,
                         has_port: false,
                         is_bracketed: false,
-                        description: format!("IPv4 CIDR network {}/{}", addr_part, prefix),
+                        description: format!("IPv4 CIDR network {addr_part}/{prefix}"),
                     });
                 }
             }
@@ -311,7 +311,7 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
                         has_cidr: true,
                         has_port: false,
                         is_bracketed: false,
-                        description: format!("IPv6 CIDR network {}/{}", addr_part, prefix),
+                        description: format!("IPv6 CIDR network {addr_part}/{prefix}"),
                     });
                 }
             }
@@ -329,7 +329,7 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
                     has_cidr: false,
                     has_port: true,
                     is_bracketed: false,
-                    description: format!("IPv4 endpoint {}:{}", addr_part, port_part),
+                    description: format!("IPv4 endpoint {addr_part}:{port_part}"),
                 });
             }
         }
@@ -343,7 +343,7 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
             has_cidr: false,
             has_port: false,
             is_bracketed: false,
-            description: format!("IPv4 address {}", trimmed),
+            description: format!("IPv4 address {trimmed}"),
         });
     }
 
@@ -355,7 +355,7 @@ pub fn detect_ip_format(s: &str) -> Option<IpDetection> {
             has_cidr: false,
             has_port: false,
             is_bracketed: false,
-            description: format!("IPv6 address {}", trimmed),
+            description: format!("IPv6 address {trimmed}"),
         });
     }
 

@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Independent post-write verification, cache purging, and metadata auditing.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -447,7 +447,7 @@ pub fn has_cache_flush_privileges() -> bool {
 /// access times are restored through the open handle, including on read errors.
 /// Restoration never writes mtime. Unix cannot restore the resulting ctime
 /// change; stream and symlink reads have separate timestamp limitations.
-/// Audits a materialized filesystem entry at `path` against an `expected` FileEntity definition,
+/// Audits a materialized filesystem entry at `path` against an `expected` `FileEntity` definition,
 /// returning both detected discrepancies and a count of differences that were ignored due to
 /// best-effort tolerance or ignore options.
 #[expect(clippy::too_many_lines, reason = "Comprehensive audit of all entity attributes, hashes, streams, and extents")]
@@ -739,8 +739,7 @@ pub fn audit_entity_detailed(
                 .metadata
                 .environment
                 .as_ref()
-                .map(|env| env.os_family())
-                .unwrap_or(OsFamily::CURRENT);
+                .map_or(OsFamily::CURRENT, |env| env.os_family());
             let matches_raw = source_os == OsFamily::CURRENT
                 && actual_raw
                     .as_ref()
@@ -986,7 +985,7 @@ pub fn audit_entity_detailed(
         }
         if actual_bytes != expected_bytes && !accepts_replacement {
             diffs.push(DiffKind::SymlinkTargetMismatch {
-                expected: String::from_utf8_lossy(&expected_bytes).to_string(),
+                expected: String::from_utf8_lossy(expected_bytes).to_string(),
                 actual: String::from_utf8_lossy(actual_bytes).to_string(),
             });
         }
@@ -1289,26 +1288,25 @@ pub fn verify_materialized_entity_ext(
                 "Verification failure on {}: {difference}",
                 dest_path.display()
             );
-        } else {
-            match difference {
-                DiffKind::ContentHashMismatch { .. }
-                | DiffKind::SizeMismatch { .. }
-                | DiffKind::MissingOnDisk
-                | DiffKind::TypeMismatch { .. }
-                | DiffKind::SymlinkTargetMismatch { .. }
-                | DiffKind::StreamMismatch { .. }
-                | DiffKind::HardlinkMismatch { .. } => {
-                    anyhow::bail!(
-                        "Verification payload integrity failure on {}: {difference}",
-                        dest_path.display()
-                    );
-                }
-                _ => {
-                    warn_fmt!(
-                        "Verification metadata warning on {}: {difference}",
-                        dest_path.display()
-                    );
-                }
+        }
+        match difference {
+            DiffKind::ContentHashMismatch { .. }
+            | DiffKind::SizeMismatch { .. }
+            | DiffKind::MissingOnDisk
+            | DiffKind::TypeMismatch { .. }
+            | DiffKind::SymlinkTargetMismatch { .. }
+            | DiffKind::StreamMismatch { .. }
+            | DiffKind::HardlinkMismatch { .. } => {
+                anyhow::bail!(
+                    "Verification payload integrity failure on {}: {difference}",
+                    dest_path.display()
+                );
+            }
+            _ => {
+                warn_fmt!(
+                    "Verification metadata warning on {}: {difference}",
+                    dest_path.display()
+                );
             }
         }
     }

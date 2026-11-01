@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Freeze 2.X format (`0x1F, 0x9F`, 8192-byte LZSS window, 3-byte header, 511-symbol dynamic Huffman tree)
 //! - Freeze 1.0 format (`0x1F, 0x9E`, 4096-byte LZSS window, fixed Table 1, 315-symbol dynamic Huffman tree)
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
 use anyhow::anyhow;
 use std::io::{Read, Write};

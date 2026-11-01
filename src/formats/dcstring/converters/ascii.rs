@@ -246,7 +246,7 @@ pub fn dcmstring_to_ascii_with_settings(
 
 /// Returns true if the byte is considered printable ASCII (`0x20..=0x7E`).
 pub fn is_ascii_printable(b: u8) -> bool {
-    b >= 0x20 && b <= 0x7E
+    (0x20..=0x7E).contains(&b)
 }
 
 /// Returns true if the byte is an ASCII newline (`\r` or `\n`).

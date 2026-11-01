@@ -251,7 +251,7 @@ low_area: LowArea,
 },
             /// ASCII.
             Ascii,
-            /// MacRoman.
+            /// `MacRoman`.
             MacRoman,
             /// Windows-1252 ("ANSI").
             Windows1252,
@@ -299,7 +299,7 @@ pub const fn ascii() -> Self {
 Self::Ascii
 }
 
-            /// MacRoman.
+            /// `MacRoman`.
 #[must_use]
 pub const fn mac_roman() -> Self {
 Self::MacRoman

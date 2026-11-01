@@ -44,7 +44,7 @@ pub enum FormatSpec {
     Auto,
     /// Expect a specific supported Dc input format.
     Format(SupportedDcInputFormat),
-    /// Expect an arbitrary FormatId.
+    /// Expect an arbitrary `FormatId`.
     FormatId(FormatId),
 }
 

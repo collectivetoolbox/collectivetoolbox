@@ -161,7 +161,7 @@ pub(crate) fn is_control_codepoint(tables: &UnicodeDataTables, cp: u32) -> bool 
 /// Resolves the canonical Unicode character name for a code point using the
 /// provided UCD tables and description mode.
 ///
-/// This handles control character names (from NamesList or NameAliases),
+/// This handles control character names (from `NamesList` or `NameAliases`),
 /// algorithmic character names (Hangul syllables, CJK unified ideographs,
 /// Tangut ideographs, Khitan small script characters, Egyptian hieroglyphs),
 /// and standard character names from UnicodeData.txt / NamesList.txt.

@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - `@u123a@` = Unicode codepoint U+123A (hex)
 //! - `@f123@` = Format 123 (`FORMAT_REGION_START + 123`)
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

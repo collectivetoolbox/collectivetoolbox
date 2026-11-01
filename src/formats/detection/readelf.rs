@@ -476,7 +476,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
  * SUCH DAMAGE.
  */
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -516,7 +516,7 @@ pub struct ElfCoreDetails {
     pub execfn: Option<String>,
     /// Target hardware platform from auxiliary vector (`AT_LINUX_PLATFORM`).
     pub platform: Option<String>,
-    /// Faulting instruction pointer register (e.g. RIP / EIP / PC) if extracted from NT_PRSTATUS.
+    /// Faulting instruction pointer register (e.g. RIP / EIP / PC) if extracted from `NT_PRSTATUS`.
     pub register_ip: Option<u64>,
 }
 
@@ -547,13 +547,13 @@ pub struct ElfDetails {
     pub os_note: Option<String>,
     /// Extracted Intel CET / x86 GNU properties (e.g. "x86-64-v3", "IBT", "SHSTK").
     pub x86_properties: Vec<String>,
-    /// Extracted AArch64 security properties (e.g. "BTI", "PAC").
+    /// Extracted `AArch64` security properties (e.g. "BTI", "PAC").
     pub aarch64_properties: Vec<String>,
-    /// PaX / hardened Linux execution flags if present.
+    /// `PaX` / hardened Linux execution flags if present.
     pub pax_flags: Option<String>,
     /// Android Memtag / MTE mode if present.
     pub android_memtag: Option<String>,
-    /// Core dump introspected details if e_type == 4 (ET_CORE).
+    /// Core dump introspected details if `e_type` == 4 (`ET_CORE`).
     pub core_details: Option<ElfCoreDetails>,
     /// Whether `.debug_info` debug symbols section was found.
     pub has_debug_info: bool,
@@ -806,7 +806,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             } else {
                 let off = u64::from(read_u32(phdr_buf.get(4..8)?, is_le)?);
                 // Reason for fallback: virtual address defaults to 0 if absent in segment
-                let va = phdr_buf.get(8..12).and_then(|s| read_u32(s, is_le)).map(u64::from).unwrap_or(0);
+                let va = phdr_buf.get(8..12).and_then(|s| read_u32(s, is_le)).map_or(0, u64::from);
                 let fsz = u64::from(read_u32(phdr_buf.get(16..20)?, is_le)?);
                 // Reason for fallback: flags default to 0 if segment header is truncated
                 let flags = phdr_buf.get(24..28).and_then(|s| read_u32(s, is_le)).unwrap_or(0);
@@ -828,8 +828,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                     let total_entries = usize::try_from(clamped_filesz)
                         .ok()
                         .and_then(|sz| sz.checked_div(dyn_entry_size))
-                        .map(|n| n.min(max_dyn_entries))
-                        .unwrap_or(0);
+                        .map_or(0, |n| n.min(max_dyn_entries));
 
                     let mut dyn_buf = vec![0u8; dyn_entry_size];
                     for d_idx in 0..total_entries {
@@ -1217,7 +1216,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                                     };
                                     let non_printable = clean_slice
                                         .iter()
-                                        .any(|&b| b < 0x20 || b > 0x7E || b == b'\'' || b == b'"' || b == b'`');
+                                        .any(|&b| !(0x20..=0x7E).contains(&b) || b == b'\'' || b == b'"' || b == b'`');
                                     if !non_printable && clean_len >= 1 {
                                         let cmd = String::from_utf8_lossy(clean_slice)
                                             .trim()
@@ -1336,7 +1335,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             }
 
             // GNU Build-ID
-            if clean_name == "GNU" && note_type == NT_GNU_BUILD_ID && descsz >= 4 && descsz <= 64 {
+            if clean_name == "GNU" && note_type == NT_GNU_BUILD_ID && (4..=64).contains(&descsz) {
                 if !did_build_id {
                     did_build_id = true;
                     let btype = match descsz {

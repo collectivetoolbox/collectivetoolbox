@@ -38,7 +38,7 @@ static MIME_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 pub fn get_httpd_mime_types() -> Option<&'static [u8]> {
     MIME_DATA_DIR
         .get_file("httpd/mime.types")
-        .map(|f| f.contents())
+        .map(include_dir::File::contents)
 }
 
 /// Returns the embedded raw bytes of the IANA `media-types.txt` registry.
@@ -46,7 +46,7 @@ pub fn get_httpd_mime_types() -> Option<&'static [u8]> {
 pub fn get_iana_media_types() -> Option<&'static [u8]> {
     MIME_DATA_DIR
         .get_file("iana/media-types.txt")
-        .map(|f| f.contents())
+        .map(include_dir::File::contents)
 }
 
 /// Returns the embedded raw bytes of the `mime-db/db.json` dataset.
@@ -54,7 +54,7 @@ pub fn get_iana_media_types() -> Option<&'static [u8]> {
 pub fn get_mime_db_json() -> Option<&'static [u8]> {
     MIME_DATA_DIR
         .get_file("mime-db/db.json")
-        .map(|f| f.contents())
+        .map(include_dir::File::contents)
 }
 
 /// Standard IANA and widely recognized top-level media type trees.
@@ -136,9 +136,7 @@ pub fn parse_mime_type(s: &str) -> Option<MimeDetection> {
     }
 
     let top_lower = top_clean.to_ascii_lowercase();
-    let is_standard_top = STANDARD_TOP_LEVEL_TYPES
-        .iter()
-        .any(|&t| t == top_lower.as_str());
+    let is_standard_top = STANDARD_TOP_LEVEL_TYPES.contains(&top_lower.as_str());
     let is_x_top = top_lower.starts_with("x-");
     if !is_standard_top && !is_x_top {
         return None;
@@ -263,7 +261,7 @@ pub static MIME_DATABASE: LazyLock<MimeDatabase> = LazyLock::new(MimeDatabase::n
 /// - Direct equality (case-insensitive)
 /// - `+xml` subtypes inherit from `application/xml`
 /// - `+json` subtypes inherit from `application/json`
-/// - `+zip` subtypes, OpenDocument, OpenXML, JAR, APK inherit from `application/zip`
+/// - `+zip` subtypes, `OpenDocument`, `OpenXML`, JAR, APK inherit from `application/zip`
 /// - XML, JSON, and non-plain `text/*` types inherit from `text/plain`
 #[must_use]
 pub fn is_mime_subclass_of(child_mime: &str, parent_mime: &str) -> bool {

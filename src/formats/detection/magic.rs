@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Hierarchical magic byte pattern evaluation engine for format identification.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -585,7 +585,7 @@ fn extract_string16<S: DetectionSource + ?Sized>(
     let mut out = String::new();
     let mut pairs_consumed = 0usize;
     for chunk in slice.chunks_exact(2) {
-        let b0 = *chunk.get(0)?;
+        let b0 = *chunk.first()?;
         let b1 = *chunk.get(1)?;
         let (lo, hi) = if is_be { (b1, b0) } else { (b0, b1) };
         if lo == 0 && hi == 0 {
@@ -601,10 +601,10 @@ fn extract_string16<S: DetectionSource + ?Sized>(
                 u16::from_le_bytes([b0, b1])
             };
             if let Some(ch) = char::from_u32(u32::from(u)) {
-                if !ch.is_control() {
-                    out.push(ch);
-                } else {
+                if ch.is_control() {
                     out.push(' ');
+                } else {
+                    out.push(ch);
                 }
             } else {
                 out.push(' ');
@@ -754,41 +754,41 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
                 }
                 ('x', FormatValue::U64(n)) => {
                     let s = if alt_form && *n != 0 {
-                        format!("0x{:x}", n)
+                        format!("0x{n:x}")
                     } else {
-                        format!("{:x}", n)
+                        format!("{n:x}")
                     };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('x', FormatValue::I64(n)) => {
                     let s = if alt_form && *n != 0 {
-                        format!("0x{:x}", n)
+                        format!("0x{n:x}")
                     } else {
-                        format!("{:x}", n)
+                        format!("{n:x}")
                     };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('X', FormatValue::U64(n)) => {
                     let s = if alt_form && *n != 0 {
-                        format!("0X{:X}", n)
+                        format!("0X{n:X}")
                     } else {
-                        format!("{:X}", n)
+                        format!("{n:X}")
                     };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('X', FormatValue::I64(n)) => {
                     let s = if alt_form && *n != 0 {
-                        format!("0X{:X}", n)
+                        format!("0X{n:X}")
                     } else {
-                        format!("{:X}", n)
+                        format!("{n:X}")
                     };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('o', FormatValue::U64(n)) => {
                     let s = if alt_form && *n != 0 {
-                        format!("0{:o}", n)
+                        format!("0{n:o}")
                     } else {
-                        format!("{:o}", n)
+                        format!("{n:o}")
                     };
                     apply_padding(&s, width, zero_pad)
                 }
@@ -1229,7 +1229,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                             break;
                         };
                         let eq = if flags.case_insensitive {
-                            pa.to_ascii_lowercase() == pb.to_ascii_lowercase()
+                            pa.eq_ignore_ascii_case(&pb)
                         } else {
                             pa == pb
                         };
@@ -1259,18 +1259,15 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     false
                 }
             } else {
-                let check_len = pattern.len().saturating_add(if flags.full_word { 1 } else { 0 });
+                let check_len = pattern.len().saturating_add(usize::from(flags.full_word));
                 let mut buf = vec![0u8; check_len];
                 let n = source.read_at(pos, &mut buf).ok()?;
                 if n < pattern.len() {
                     false
                 } else {
-                    let pat_buf = match buf.get(..pattern.len()) {
-                        Some(p) => p,
-                        None => return None,
-                    };
+                    let pat_buf = buf.get(..pattern.len())?;
                     let mut ok = if flags.case_insensitive {
-                        pat_buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
+                        pat_buf.eq_ignore_ascii_case(pattern)
                     } else {
                         pat_buf == pattern.as_slice()
                     };
@@ -1961,7 +1958,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 for (i, &b) in slice.iter().enumerate() {
                     bytes_consumed = i.saturating_add(1);
                     let chunk = u64::from(b & 0x7F);
-                    val = val | (chunk << shift);
+                    val |= chunk << shift;
                     shift = shift.saturating_add(7);
                     if (b & 0x80) == 0 {
                         found_end = true;
@@ -1975,7 +1972,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     false
                 } else {
                     if let Some(m) = mask {
-                        val = val & m;
+                        val &= m;
                     }
                     let ok = eval_rel_op(val, *op, *value);
                     if ok {
@@ -2011,7 +2008,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     false
                 } else {
                     if let Some(m) = mask {
-                        val = val & m;
+                        val &= m;
                     }
                     let ok = eval_rel_op(val, *op, *value);
                     if ok {
@@ -2134,13 +2131,13 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                                 if w == pat_lower.as_slice() {
                                     let before_ok = if idx > 0 {
                                         // Reason for fallback: invalid index defaults to valid boundary
-                                        slice.get(idx.saturating_sub(1)).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                        slice.get(idx.saturating_sub(1)).is_none_or(|&b| !b.is_ascii_alphanumeric() && b != b'_')
                                     } else {
                                         true
                                     };
                                     let after_idx = idx.saturating_add(pattern.len());
                                     // Reason for fallback: invalid index defaults to valid boundary
-                                    let after_ok = slice.get(after_idx).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_');
+                                    let after_ok = slice.get(after_idx).is_none_or(|&b| !b.is_ascii_alphanumeric() && b != b'_');
                                     if before_ok && after_ok {
                                         Some(idx)
                                     } else {
@@ -2155,13 +2152,13 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                                 if w == pattern.as_slice() {
                                     let before_ok = if idx > 0 {
                                         // Reason for fallback: invalid index defaults to valid boundary
-                                        slice.get(idx.saturating_sub(1)).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                        slice.get(idx.saturating_sub(1)).is_none_or(|&b| !b.is_ascii_alphanumeric() && b != b'_')
                                     } else {
                                         true
                                     };
                                     let after_idx = idx.saturating_add(pattern.len());
                                     // Reason for fallback: invalid index defaults to valid boundary
-                                    let after_ok = slice.get(after_idx).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_');
+                                    let after_ok = slice.get(after_idx).is_none_or(|&b| !b.is_ascii_alphanumeric() && b != b'_');
                                     if before_ok && after_ok {
                                         Some(idx)
                                     } else {

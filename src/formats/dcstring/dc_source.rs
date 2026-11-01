@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Source annotations for typed interpretations of Dc strings.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -421,7 +421,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         }).collect();
         if let Err(err) = parsed {
             let err_msg = err.to_string();
-            if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+            if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
                 diagnostics.push(DcDiagnostic { position: nav.position(), error: err });
             }
             return Self {
@@ -467,7 +467,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             Ok((value, _)) => Some(value),
             Err(e) => {
                 let err_msg = e.to_string();
-                if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+                if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
                     let pos = if ctx_pos != 0 {
                         ctx_pos
                     } else {
@@ -483,7 +483,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         };
         if let Some(error) = trailing_error {
             let err_msg = error.to_string();
-            if !diagnostics.last().is_some_and(|d| d.error.to_string() == err_msg) {
+            if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
                 diagnostics.push(DcDiagnostic { position: ctx_pos, error });
             }
         }

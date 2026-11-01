@@ -137,18 +137,18 @@ impl KStruct for AndroidImg {
         *self_rc.extra_cmdline.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(1024_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header_version())) > (to_i128(0)) {
+        if ((to_i128(*self_rc.header_version())) > (to_i128(0))) {
             let t = Self::read_into::<_, AndroidImg_SizeOffset>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.recovery_dtbo.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header_version())) > (to_i128(0)) {
+        if ((to_i128(*self_rc.header_version())) > (to_i128(0))) {
             *self_rc.boot_header_size.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header_version())) > (to_i128(1)) {
+        if ((to_i128(*self_rc.header_version())) > (to_i128(1))) {
             let t = Self::read_into::<_, AndroidImg_LoadLong>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dtb.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
@@ -183,7 +183,7 @@ impl AndroidImg {
             return Ok(self.dtb_img.borrow());
         }
         self.f_dtb_img.set(true);
-        if  (((to_i128(*self.header_version())) > (to_i128(1)))) && (((to_i128(*self.dtb().size())) > (to_i128(0))))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(1)))) && (((to_i128(*self.dtb().size())) > (to_i128(0)))))  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.second().size())).saturating_add(*self.recovery_dtbo().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.dtb().size())?)?;
@@ -204,8 +204,8 @@ impl AndroidImg {
             return Ok(self.dtb_offset.borrow());
         }
         self.f_dtb_offset.set(true);
-        if (to_i128(*self.header_version())) > (to_i128(1)) {
-            *self.dtb_offset.borrow_mut() = (if (to_i128(*self.dtb().addr())) > (to_i128(0)) { (*self.dtb().addr()).saturating_sub(u64::try_from(*self.base()?)?) } else { 0_u64 }).try_into()?;
+        if ((to_i128(*self.header_version())) > (to_i128(1))) {
+            *self.dtb_offset.borrow_mut() = (if ((to_i128(*self.dtb().addr())) > (to_i128(0))) { (*self.dtb().addr()).saturating_sub(u64::try_from(*self.base()?)?) } else { 0_u64 }).try_into()?;
         }
         Ok(self.dtb_offset.borrow())
     }
@@ -249,7 +249,7 @@ impl AndroidImg {
             return Ok(self.ramdisk_img.borrow());
         }
         self.f_ramdisk_img.set(true);
-        if (to_i128(*self.ramdisk().size())) > (to_i128(0)) {
+        if ((to_i128(*self.ramdisk().size())) > (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.ramdisk().size())?)?;
@@ -270,7 +270,7 @@ impl AndroidImg {
             return Ok(self.ramdisk_offset.borrow());
         }
         self.f_ramdisk_offset.set(true);
-        *self.ramdisk_offset.borrow_mut() = (if (to_i128(*self.ramdisk().addr())) > (to_i128(0)) { (*self.ramdisk().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
+        *self.ramdisk_offset.borrow_mut() = (if ((to_i128(*self.ramdisk().addr())) > (to_i128(0))) { (*self.ramdisk().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.ramdisk_offset.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -282,7 +282,7 @@ impl AndroidImg {
             return Ok(self.recovery_dtbo_img.borrow());
         }
         self.f_recovery_dtbo_img.set(true);
-        if  (((to_i128(*self.header_version())) > (to_i128(0)))) && (((to_i128(*self.recovery_dtbo().size())) > (to_i128(0))))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(0)))) && (((to_i128(*self.recovery_dtbo().size())) > (to_i128(0)))))  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.recovery_dtbo().offset())?)?;
             *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.recovery_dtbo().size())?)?;
@@ -299,7 +299,7 @@ impl AndroidImg {
             return Ok(self.second_img.borrow());
         }
         self.f_second_img.set(true);
-        if (to_i128(*self.second().size())) > (to_i128(0)) {
+        if ((to_i128(*self.second().size())) > (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
             *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.second().size())?)?;
@@ -320,7 +320,7 @@ impl AndroidImg {
             return Ok(self.second_offset.borrow());
         }
         self.f_second_offset.set(true);
-        *self.second_offset.borrow_mut() = (if (to_i128(*self.second().addr())) > (to_i128(0)) { (*self.second().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
+        *self.second_offset.borrow_mut() = (if ((to_i128(*self.second().addr())) > (to_i128(0))) { (*self.second().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.second_offset.borrow())
     }
 

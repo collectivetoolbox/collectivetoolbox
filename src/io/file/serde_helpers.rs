@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Custom serde serialization and deserialization helpers for file entities.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -32,7 +32,7 @@ use serde::{Deserialize, Deserializer, Serializer};
 
 /// Serde helper for `[u8; 32]` SHA-256 digests.
 pub mod hex_sha256 {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, Deserializer};
 
     /// Serializes a 32-byte digest into a 64-character lowercase hexadecimal string.
     pub fn serialize<S>(val: &[u8; 32], serializer: S) -> Result<S::Ok, S::Error>
@@ -105,7 +105,7 @@ pub mod hex_sha256 {
 
 /// Serde helper for optional Base64 byte payloads (`Option<Vec<u8>>`).
 pub mod opt_base64 {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, Engine, BASE64_STANDARD, Deserializer};
 
     /// Serializes optional bytes as a Base64 string or none.
     pub fn serialize<S>(
@@ -153,7 +153,7 @@ pub mod opt_base64 {
 
 /// Serde helper for byte sequences that prefer UTF-8 strings when losslessly encodable.
 pub mod text_or_bytes {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, Deserializer};
 
     /// Serializes bytes as a UTF-8 string if valid, otherwise as a byte sequence.
     pub fn serialize<S>(val: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -188,7 +188,7 @@ pub mod text_or_bytes {
 
 /// Serde helper for optional byte sequences (`Option<Vec<u8>>`) that prefer UTF-8 strings when losslessly encodable.
 pub mod opt_text_or_base64 {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, Engine, BASE64_STANDARD, Deserializer};
 
     /// Serializes optional bytes as a UTF-8 string, Base64, or none.
     pub fn serialize<S>(val: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
@@ -233,7 +233,7 @@ pub mod opt_text_or_base64 {
 /// Serializes as integer if fitting in `u64`, otherwise as decimal string.
 /// Deserializes from `u64`, `u128`, `i64`, or decimal `String`.
 pub mod natural_flexible {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, Deserializer};
     use malachite::Natural;
     use std::str::FromStr;
 
@@ -286,7 +286,7 @@ pub mod natural_flexible {
 
 /// Serde helper for `Option<malachite::Natural>`.
 pub mod opt_natural_flexible {
-    use super::*;
+    use super::{Deserialize, Serializer, Result, natural_flexible, Deserializer};
     use malachite::Natural;
     use std::str::FromStr;
 

@@ -36,7 +36,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   auxiliary companion file (such as `._<filename>`), keeping the data fork
 //!   in a separate plain file.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -156,7 +156,7 @@ pub enum AppleSingleExtension {
     /// No extension added (bare filename, e.g. `foo`). Default for writing.
     #[default]
     WithoutExtension,
-    /// StuffIt style `.as` extension (e.g. `foo.as`).
+    /// `StuffIt` style `.as` extension (e.g. `foo.as`).
     As,
     /// `.asf` extension (e.g. `foo.asf`).
     Asf,
@@ -489,7 +489,7 @@ pub struct AppleArchiveEntry {
     Deserialize,
 )]
 pub struct AppleRawEntry {
-    /// 32-bit entry type identifier (e.g. 5 for IconBw, 6 for IconColor, 10 for MacintoshFileInfo).
+    /// 32-bit entry type identifier (e.g. 5 for `IconBw`, 6 for `IconColor`, 10 for `MacintoshFileInfo`).
     pub entry_id: u32,
     /// Raw payload bytes of the entry.
     pub data: Vec<u8>,
@@ -846,7 +846,7 @@ pub struct ExtendedFinderInfo {
     /// Directory ID for put away.
     #[dc(495, default, omit_default)]
     pub put_away: u32,
-    /// Icon view scroll position for folders (DXInfo `frScroll`).
+    /// Icon view scroll position for folders (`DXInfo` `frScroll`).
     #[dc(407, representation = f523, default, omit_default)]
     pub scroll_position: Option<(i16, i16)>,
 }

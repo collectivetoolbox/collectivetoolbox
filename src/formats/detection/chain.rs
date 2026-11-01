@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Multipart filename extension peeling, format candidate chain derivation,
 //! and format chain specification formatting.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -652,7 +652,7 @@ pub fn guess_format_chains(
 /// branching format at any layer is transitively implied by all other
 /// siblings that match on every other layer. When an ambiguous extension
 /// resolves to a format family whose members all `@implies()` a shared
-/// general format (e.g. the CscJournal variants), the extension could not
+/// general format (e.g. the `CscJournal` variants), the extension could not
 /// distinguish between the candidates, so the undifferentiated superset gets
 /// a minimal +1 nudge to rank first without distorting the wider score tiers
 /// used for confidence.

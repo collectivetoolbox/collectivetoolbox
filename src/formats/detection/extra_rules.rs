@@ -896,7 +896,7 @@ pub fn detect_small_format_candidates(
 }
 
 /// Detects custom text document formats (such as DcText with `@<token>@` tokens
-/// or DcIntegerList / Dcal integer lists) within `sample`.
+/// or `DcIntegerList` / Dcal integer lists) within `sample`.
 ///
 /// In compat mode (`hint.compat == true`), this returns `None` so that output
 /// strictly matches upstream UNIX `file`.
@@ -998,9 +998,7 @@ pub fn detect_custom_text_format_candidate(
                     .and_then(|m| m.mime_types.first().cloned())
                     .or_else(|| Some("text/plain".to_string()));
                 // Reason for fallback: unmapped format identifier falls back to standard DcText document label
-                let description = mapping
-                    .map(|m| format!("{} document", m.label))
-                    .unwrap_or_else(|| "DcText document".to_string());
+                let description = mapping.map_or_else(|| "DcText document".to_string(), |m| format!("{} document", m.label));
                 let mut score = 85u32;
                 let mut evidence = vec![DetectionEvidence::CtbRule {
                     description: format!("{} @token@ document", fmt.ident()),

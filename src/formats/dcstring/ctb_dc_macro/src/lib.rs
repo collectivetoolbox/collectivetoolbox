@@ -1051,19 +1051,18 @@ fn generate_field_value_decoder(
                     }
                 }
             });
-        } else {
-            return Ok(quote! {
-                match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr) {
-                    ::std::result::Result::Ok(v) => v,
-                    ::std::result::Result::Err(_orig_err) => {
-                        match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id) {
-                            ::std::result::Result::Ok(v) => v,
-                            ::std::result::Result::Err(_) => return ::std::result::Result::Err(_orig_err),
-                        }
+        }
+        return Ok(quote! {
+            match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr) {
+                ::std::result::Result::Ok(v) => v,
+                ::std::result::Result::Err(_orig_err) => {
+                    match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id) {
+                        ::std::result::Result::Ok(v) => v,
+                        ::std::result::Result::Err(_) => return ::std::result::Result::Err(_orig_err),
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     if let Some(inner_ty) = inner_opt {

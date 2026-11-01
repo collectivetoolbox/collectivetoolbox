@@ -445,7 +445,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Command-line interface runner and reporting for file format detection.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -572,7 +572,7 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
             } else {
                 path.file_name()
                     .and_then(|n| n.to_str())
-                    .map(|s| s.to_string())
+                    .map(std::string::ToString::to_string)
             },
             compat: args.compat,
             uncompress: args.uncompress,
@@ -829,9 +829,7 @@ fn render_rich_output(
                 // innermost-first, so compare against the reversed sequence.
                 let innermost_first: Vec<FormatId> =
                     chain.layers.iter().rev().copied().collect();
-                let verified = verified_sequences
-                    .iter()
-                    .any(|seq| *seq == innermost_first);
+                let verified = verified_sequences.contains(&innermost_first);
                 (chain, verified)
             })
             .collect();

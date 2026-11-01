@@ -194,7 +194,7 @@ impl Progress {
             format_percentage(u128::from(items_done), u128::from(total))
         });
         // Reason for fallback: unformatted or absent percentage defaults to false for 100% completion check
-        let is_100_pct = pct_opt.as_ref().map_or(false, |p| p.whole == "100");
+        let is_100_pct = pct_opt.as_ref().is_some_and(|p| p.whole == "100");
 
         // Reason for fallback: absent task detail string defaults to empty suffix
         let detail_suffix = detail.map_or(String::new(), |d| format!(" ({d})"));

@@ -452,7 +452,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   PPTX, EPUB, APK, JAR, ODF) via Central Directory inspection without
 //!   eager in-memory decompression or unpacking.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -1534,19 +1534,13 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                     }
                     let mut bof_ok = true;
                     for sub in &bs.subsequences {
-                        let min_off = match usize::try_from(sub.min_offset) {
-                            Ok(m) => m,
-                            Err(_) => {
-                                bof_ok = false;
-                                break;
-                            }
+                        let min_off = if let Ok(m) = usize::try_from(sub.min_offset) { m } else {
+                            bof_ok = false;
+                            break;
                         };
-                        let max_off = match usize::try_from(sub.max_offset) {
-                            Ok(m) => m,
-                            Err(_) => {
-                                bof_ok = false;
-                                break;
-                            }
+                        let max_off = if let Ok(m) = usize::try_from(sub.max_offset) { m } else {
+                            bof_ok = false;
+                            break;
                         };
                         let pat = &sub.sequence;
                         if pat.len() < 2 {
@@ -1599,19 +1593,13 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                     let mut eof_ok = true;
                     let sample_len = eof_sample.len();
                     for sub in &bs.subsequences {
-                        let min_off = match usize::try_from(sub.min_offset) {
-                            Ok(m) => m,
-                            Err(_) => {
-                                eof_ok = false;
-                                break;
-                            }
+                        let min_off = if let Ok(m) = usize::try_from(sub.min_offset) { m } else {
+                            eof_ok = false;
+                            break;
                         };
-                        let max_off = match usize::try_from(sub.max_offset) {
-                            Ok(m) => m,
-                            Err(_) => {
-                                eof_ok = false;
-                                break;
-                            }
+                        let max_off = if let Ok(m) = usize::try_from(sub.max_offset) { m } else {
+                            eof_ok = false;
+                            break;
                         };
                         let pat = &sub.sequence;
                         if pat.len() < 2 {
@@ -1692,7 +1680,7 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                                 crate::mime_derivation::FORMAT_CATALOG
                                     .lookup_description_or_ident(&fmt.name)
                             });
-                        let format_id = mapping.and_then(|m| m.format_id).or_else(|| {
+                        let format_id = mapping.and_then(|m| m.format_id).or({
                             if is_elf_puid {
                                 Some(FormatId::Elf)
                             } else {
@@ -2066,12 +2054,9 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
             };
 
             if let Some(ref text_sig) = file_rule.text_signature {
-                let payload = match read_zip_entry_payload(source, entry, 65536)? {
-                    Some(p) => p,
-                    None => {
-                        all_files_matched = false;
-                        break;
-                    }
+                let payload = if let Some(p) = read_zip_entry_payload(source, entry, 65536)? { p } else {
+                    all_files_matched = false;
+                    break;
                 };
                 let text = String::from_utf8_lossy(&payload);
                 if !text.contains(text_sig) {
@@ -2081,12 +2066,9 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
             }
 
             if let Some(ref bin_sig) = file_rule.binary_signature {
-                let payload = match read_zip_entry_payload(source, entry, 65536)? {
-                    Some(p) => p,
-                    None => {
-                        all_files_matched = false;
-                        break;
-                    }
+                let payload = if let Some(p) = read_zip_entry_payload(source, entry, 65536)? { p } else {
+                    all_files_matched = false;
+                    break;
                 };
                 if !payload.windows(bin_sig.len()).any(|w| w == bin_sig.as_slice()) {
                     all_files_matched = false;
@@ -2461,7 +2443,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML Word structure with word/ entry: {}", desc),
+                    detail: format!("Identified OOXML Word structure with word/ entry: {desc}"),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2495,7 +2477,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML Excel structure with xl/ entry: {}", desc),
+                    detail: format!("Identified OOXML Excel structure with xl/ entry: {desc}"),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2523,7 +2505,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML PowerPoint structure: {}", desc),
+                    detail: format!("Identified OOXML PowerPoint structure: {desc}"),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2574,7 +2556,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::HighestConfidence,
             score: 95,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: format!("Identified Android structure with AndroidManifest.xml: {}", desc),
+                detail: format!("Identified Android structure with AndroidManifest.xml: {desc}"),
                 score: 95,
             }],
             chain_layers: None,
@@ -2615,7 +2597,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::Strong,
             score: 90,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: format!("Identified Java archive with META-INF: {}", desc),
+                detail: format!("Identified Java archive with META-INF: {desc}"),
                 score: 90,
             }],
             chain_layers: None,

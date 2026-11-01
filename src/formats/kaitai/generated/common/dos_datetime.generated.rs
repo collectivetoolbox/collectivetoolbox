@@ -229,7 +229,7 @@ impl DosDatetime_Date {
             return Ok(self.padded_day.borrow());
         }
         self.f_padded_day.set(true);
-        *self.padded_day.borrow_mut() = format!("{}{}", if (to_i128(*self.day())) <= (to_i128(9)) { "0".to_string() } else { "".to_string() }, self.day().to_string()).to_string();
+        *self.padded_day.borrow_mut() = format!("{}{}", if ((to_i128(*self.day())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.day().to_string()).to_string();
         Ok(self.padded_day.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -241,7 +241,7 @@ impl DosDatetime_Date {
             return Ok(self.padded_month.borrow());
         }
         self.f_padded_month.set(true);
-        *self.padded_month.borrow_mut() = format!("{}{}", if (to_i128(*self.month())) <= (to_i128(9)) { "0".to_string() } else { "".to_string() }, self.month().to_string()).to_string();
+        *self.padded_month.borrow_mut() = format!("{}{}", if ((to_i128(*self.month())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.month().to_string()).to_string();
         Ok(self.padded_month.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -398,7 +398,7 @@ impl DosDatetime_Time {
             return Ok(self.padded_hour.borrow());
         }
         self.f_padded_hour.set(true);
-        *self.padded_hour.borrow_mut() = format!("{}{}", if (to_i128(*self.hour())) <= (to_i128(9)) { "0".to_string() } else { "".to_string() }, self.hour().to_string()).to_string();
+        *self.padded_hour.borrow_mut() = format!("{}{}", if ((to_i128(*self.hour())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.hour().to_string()).to_string();
         Ok(self.padded_hour.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -410,7 +410,7 @@ impl DosDatetime_Time {
             return Ok(self.padded_minute.borrow());
         }
         self.f_padded_minute.set(true);
-        *self.padded_minute.borrow_mut() = format!("{}{}", if (to_i128(*self.minute())) <= (to_i128(9)) { "0".to_string() } else { "".to_string() }, self.minute().to_string()).to_string();
+        *self.padded_minute.borrow_mut() = format!("{}{}", if ((to_i128(*self.minute())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.minute().to_string()).to_string();
         Ok(self.padded_minute.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]

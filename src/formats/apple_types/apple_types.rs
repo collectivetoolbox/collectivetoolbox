@@ -36,7 +36,7 @@ pub struct AppleUtiDetection {
     pub description: String,
 }
 
-/// Structured detection result for an Apple 4-character OS / Creator Type code (OSType).
+/// Structured detection result for an Apple 4-character OS / Creator Type code (`OSType`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppleTypeCodeDetection {
     /// Four-byte raw character code array (e.g. `*b"alis"`, `*b"TEXT"`).
@@ -90,7 +90,7 @@ pub fn is_valid_apple_type_code(s: &str) -> bool {
     bytes.iter().all(|&b| b.is_ascii_graphic() || b == b' ')
 }
 
-/// Detects and validates an Apple 4-character OS / Creator Type code (OSType).
+/// Detects and validates an Apple 4-character OS / Creator Type code (`OSType`).
 #[must_use]
 pub fn detect_apple_type_code(s: &str) -> Option<AppleTypeCodeDetection> {
     let trimmed = s.trim();

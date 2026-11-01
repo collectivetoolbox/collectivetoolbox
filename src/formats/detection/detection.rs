@@ -592,7 +592,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! # }
 //! ```
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
@@ -819,7 +819,7 @@ pub fn guess_format_report(
         (&*COMPILED_CTB_MAGIC_RULES, true),
         (&*COMPILED_FILE_MAGIC_RULES, false),
     ] {
-        for rule in rule_set.iter() {
+        for rule in rule_set {
             if let Some(mut match_res) = evaluate_rule_with_mode(rule, source, eval_mode) {
                 if let Some(ref elf) = elf_details {
                     if match_res.description.starts_with("ELF ") {
@@ -875,7 +875,7 @@ pub fn guess_format_report(
                         })
                     });
 
-                let format_id = mapping.and_then(|m| m.format_id).or_else(|| {
+                let format_id = mapping.and_then(|m| m.format_id).or({
                     if is_elf_match {
                         Some(FormatId::Elf)
                     } else {
@@ -892,7 +892,7 @@ pub fn guess_format_report(
                 let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
                 // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
                 let description = if match_res.description.is_empty() {
-                    mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
+                    mapping.map_or_else(|| "Unknown Format".to_string(), |m| m.label.clone())
                 } else {
                     match_res.description
                 };
@@ -901,14 +901,14 @@ pub fn guess_format_report(
                 if let Some(ext) = hint_ext {
                     let ext_normalized = ext.to_ascii_lowercase();
                     // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                    let rule_ext_match = match_res.ext.as_deref().map(|e| {
+                    let rule_ext_match = match_res.ext.as_deref().is_some_and(|e| {
                         e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                    }).unwrap_or(false);
+                    });
 
                     // Reason for fallback: unmapped format evaluates to false for extension concordance
-                    let mapping_ext_match = mapping.map(|m| {
+                    let mapping_ext_match = mapping.is_some_and(|m| {
                         m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
-                    }).unwrap_or(false);
+                    });
 
                     if rule_ext_match || mapping_ext_match {
                         score = score.saturating_add(25);
@@ -1055,7 +1055,7 @@ pub fn guess_format_report(
         |inner_src, inner_h| guess_format_report(inner_src, inner_h),
     ) {
         // Reason for fallback: default to false if hint is not provided
-        if hint.map_or(false, |h| h.compat && (h.uncompress || h.uncompress_noreport)) {
+        if hint.is_some_and(|h| h.compat && (h.uncompress || h.uncompress_noreport)) {
             if !decomp_cands.is_empty() {
                 candidates = decomp_cands;
             }
@@ -1186,9 +1186,7 @@ pub fn guess_format_report(
             let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
             let dc_id = mapping.map(|m| m.dc_id);
             // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
-            let description = mapping
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| fmt.ident().to_string());
+            let description = mapping.map_or_else(|| fmt.ident().to_string(), |m| m.label.clone());
             let mime = mapping.and_then(|m| m.mime_types.first().cloned());
 
             let mut final_score = ext_score;
@@ -1248,8 +1246,7 @@ pub fn guess_format_report(
             resolved.retain(|c| {
                 // Reason for fallback: candidates lacking a format_id are excluded when restricting by category
                 c.format_id
-                    .map(|fid| h.allows_category(fid.category()))
-                    .unwrap_or(false)
+                    .is_some_and(|fid| h.allows_category(fid.category()))
             });
         }
     }
@@ -1576,8 +1573,7 @@ pub fn detect_file_report_with_hint(
                                         evidence: vec![DetectionEvidence::AttachedStream {
                                             stream_kind_name: "ExtendedAttribute".to_string(),
                                             detail: format!(
-                                                "Explicit xattr MIME '{}'",
-                                                clean_mime
+                                                "Explicit xattr MIME '{clean_mime}'"
                                             ),
                                             score: 85,
                                         }],
@@ -1606,7 +1602,7 @@ pub fn detect_file_report_with_hint(
     };
 
     let mut hint = DetectionHint {
-        filename: filename.map(|s| s.to_string()),
+        filename: filename.map(std::string::ToString::to_string),
         extension: None,
         platform: effective_platform,
         expected_category: None,
@@ -1926,20 +1922,17 @@ pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
 /// # }
 /// ```
 pub fn guess_and_report_file(file: &File) -> Result<DetectionReport> {
-    match &file.identity.origin {
-        FileOrigin::Filesystem { canonical_path, .. } => {
-            if file.kind.entity_type() == FileEntityType::Regular {
-                let mut source = DiskPayloadSource::open(canonical_path)?;
-                detect_file_report(file, &mut source)
-            } else {
-                let mut source = MemoryPayloadSource::new(Vec::new())?;
-                detect_file_report(file, &mut source)
-            }
-        }
-        _ => {
+    if let FileOrigin::Filesystem { canonical_path, .. } = &file.identity.origin {
+        if file.kind.entity_type() == FileEntityType::Regular {
+            let mut source = DiskPayloadSource::open(canonical_path)?;
+            detect_file_report(file, &mut source)
+        } else {
             let mut source = MemoryPayloadSource::new(Vec::new())?;
             detect_file_report(file, &mut source)
         }
+    } else {
+        let mut source = MemoryPayloadSource::new(Vec::new())?;
+        detect_file_report(file, &mut source)
     }
 }
 

@@ -135,12 +135,9 @@ impl JournalReader {
                 0,
                 payload.len(),
             ),
-            None => match &stream.data {
-                Some(bytes) => (None, bytes.clone(), 0, u64::try_from(bytes.len())?),
-                None => {
-                    ensure!(*size == 0, "Nonempty stream is missing stream data");
-                    (None, Vec::new(), 0, 0)
-                }
+            None => if let Some(bytes) = &stream.data { (None, bytes.clone(), 0, u64::try_from(bytes.len())?) } else {
+                ensure!(*size == 0, "Nonempty stream is missing stream data");
+                (None, Vec::new(), 0, 0)
             },
         };
         ensure!(length == *size, "Archive stream payload size mismatch");

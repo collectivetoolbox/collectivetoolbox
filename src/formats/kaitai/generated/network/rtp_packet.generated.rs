@@ -110,7 +110,7 @@ impl KStruct for RtpPacket {
             *self_rc.header_extension.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from(i64::try_from(_io.size())?)?).saturating_sub(_io.pos())).saturating_sub(usize::try_from(*self_rc.len_padding()?)?))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(usize::try_from(*self_rc.len_padding()?)?))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();

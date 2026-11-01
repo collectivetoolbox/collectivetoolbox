@@ -20,14 +20,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Projection policies, diagnostic actions, and forgiving defaults.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use super::*;
+use super::{Read, Seek, DcCharExt, SyntaxRuleResolver, Digest, DcBinaryResolver, DcExpressionEvaluator, DcMixedDecode, DEFAULT_MAX_PROJECTION_DEPTH, PathBuf, Natural, Integer, BinaryPayload, DcMstring, DcString, Ipv4Addr, Ipv6Addr, IpAddr, SystemTime, UNIX_EPOCH, Duration, BTreeMap, Arc};
 
 /// Maximum binary payload size (in bytes) eagerly loaded into memory when
 /// navigating or expanding frames from a seekable on-disk `.dcmm` file.

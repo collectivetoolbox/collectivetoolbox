@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Candidate conflict resolution, subsumption hierarchies, and MIME
 //! specialization scoring for format detection.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -516,7 +516,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 || parent_candidate.description.starts_with("OLE 2 Compound Document")
                 || parent_candidate.description.starts_with("Composite Document File")
                 // Reason for fallback: candidate without format_id is not compression category
-                || parent_candidate.format_id.map_or(false, |fid| {
+                || parent_candidate.format_id.is_some_and(|fid| {
                     fid.category() == ctb_utilities::FormatCategory::Compression
                 });
 
@@ -536,7 +536,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                                     || detail.contains("Excel")
                                     || detail.contains("PowerPoint"))
                             // Reason for fallback: candidate without format_id is not compression category
-                            || (parent_candidate.format_id.map_or(false, |fid| {
+                            || (parent_candidate.format_id.is_some_and(|fid| {
                                 fid.category() == ctb_utilities::FormatCategory::Compression
                             }) && (detail.contains("compound format")
                                 || detail.contains("Decompressed payload")
@@ -607,8 +607,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     let is_encoding = |c: &DetectionCandidate| {
         // Reason for fallback: candidates without a format_id are not encoding formats
         c.format_id
-            .map(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
-            .unwrap_or(false)
+            .is_some_and(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
     };
     let is_chain = |c: &DetectionCandidate| {
         c.description.starts_with("@chain(")

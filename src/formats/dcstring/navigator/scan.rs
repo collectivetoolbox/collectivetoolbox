@@ -20,14 +20,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Low-level token, binary encapsulation, and primitive frame scanners.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use super::*;
+use super::{BufReader, File, Seek, SeekFrom, DcDocumentNavigator, NavBackend, decode_dctf_buf, Read, decode_utf_8e_128_buf, DcProjectionPolicy, SyntaxRuleResolver, DcFrameHeaderInfo, DcByteSpan, Digest, DcStr, BinaryChecksum, DcCharExt, DcRole, MAX_NAV_CACHE_ENTRIES, CachedBalancedContainer, DefaultDcExpressionEvaluator, DcExpressionEvaluator, CharTarget, SyntaxEvalContext, SyntaxTerm, DcSyntaxKind, BinaryPayloadRef, INLINE_BINARY_THRESHOLD, DcMstring, default_syntax_resolver, NavigatorCheckpoint, encode_dctf_buf};
 
 pub(super) fn seek_buffered_file(
     reader: &mut BufReader<File>,
@@ -977,35 +977,32 @@ impl<'a> DcDocumentNavigator<'a> {
         if !checksum_ok {
             return Ok((final_end, sequence_id, false));
         }
-        let checksum = match bin_header {
-            DcFrameHeaderInfo::Binary {
+        let checksum = if let DcFrameHeaderInfo::Binary {
                 data_type: Some(data_type),
                 payload_span: Some(pspan),
                 ..
-            } => {
-                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, pspan.len(), policy, resolver)? else {
-                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
-                    return Ok((final_end, sequence_id, false));
-                };
-                BinaryChecksum {
-                    algorithm,
-                    expected_digest: self.read_span_bytes(pspan)?.into_owned(),
-                }
+            } = bin_header {
+            let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, pspan.len(), policy, resolver)? else {
+                self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                return Ok((final_end, sequence_id, false));
+            };
+            BinaryChecksum {
+                algorithm,
+                expected_digest: self.read_span_bytes(pspan)?.into_owned(),
             }
-            _ => {
-                let DcSyntaxKind::Binary {
-                    data_type: Some(data_type),
-                    payload,
-                    ..
-                } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy, resolver)? else {
-                    bail!("Section digest requires a typed checksum payload");
-                };
-                let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, payload.len(), policy, resolver)? else {
-                    self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
-                    return Ok((final_end, sequence_id, false));
-                };
-                BinaryChecksum { algorithm, expected_digest: payload.materialize_bytes()?.into_owned() }
-            }
+        } else {
+            let DcSyntaxKind::Binary {
+                data_type: Some(data_type),
+                payload,
+                ..
+            } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy, resolver)? else {
+                bail!("Section digest requires a typed checksum payload");
+            };
+            let Some(algorithm) = BinaryChecksum::algorithm_for_digest_with_resolver(&data_type, payload.len(), policy, resolver)? else {
+                self.syntax_issue(policy, body_span.start, "Section checksum algorithm is unsupported; integrity was not verified".to_owned())?;
+                return Ok((final_end, sequence_id, false));
+            };
+            BinaryChecksum { algorithm, expected_digest: payload.materialize_bytes()?.into_owned() }
         };
         let matches = match &mut self.backend {
             NavBackend::MemoryMstr(mstr) => {
@@ -1118,7 +1115,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     checksum,
                 } = info
                 else {
-                    bail!("Expected binary header info at span {:?}", span);
+                    bail!("Expected binary header info at span {span:?}");
                 };
                 let checksum_format = data_type.as_ref().and_then(|d| d.chars().next());
                 if let Some(checksum) = &checksum {
@@ -1267,8 +1264,7 @@ impl<'a> DcDocumentNavigator<'a> {
         // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
         let closer = CharTarget::from_u128(first.to_u128())
             .and_then(|t| resolver.closer_for_opener(&t))
-            .map(DcChar::from_u128)
-            .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+            .map_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER, DcChar::from_u128);
         let saved_cursor = self.cursor;
         let saved_span = self.active_span;
         self.cursor = offset;

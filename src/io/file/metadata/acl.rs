@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! restoration outside xattrs. Supports Darwin ACLs (NFSv4/POSIX.1e draft 17)
 //! on macOS and FreeBSD NFSv4/POSIX.1e ACLs.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -413,8 +413,8 @@ impl Posix1eAcl {
         Ok(Self { entries })
     }
 
-    /// True if the ACL only contains base POSIX permission entries (user::,
-    /// group::, other::) without extended users, groups, or masks.
+    /// True if the ACL only contains base POSIX permission entries (`user::`,
+    /// `group::`, `other::`) without extended users, groups, or masks.
     #[must_use]
     pub fn is_trivial(&self) -> bool {
         let mut has_user_obj = false;
@@ -461,7 +461,7 @@ impl Posix1eAcl {
     }
 }
 
-/// A single FreeBSD NFSv4 access control entry.
+/// A single FreeBSD `NFSv4` access control entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Nfs4AclEntry {
     pub tag: String,
@@ -470,14 +470,14 @@ pub struct Nfs4AclEntry {
     pub is_allow: bool,
 }
 
-/// Parsed FreeBSD NFSv4 access control list.
+/// Parsed FreeBSD `NFSv4` access control list.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Nfs4Acl {
     pub entries: Vec<Nfs4AclEntry>,
 }
 
 impl Nfs4Acl {
-    /// Parses FreeBSD NFSv4 text format (`tag:perms:flags:allow/deny`).
+    /// Parses FreeBSD `NFSv4` text format (`tag:perms:flags:allow/deny`).
     pub fn parse_text(text: &str) -> Result<Self> {
         let mut entries = Vec::new();
         for line in text.lines() {
@@ -504,7 +504,7 @@ impl Nfs4Acl {
         Ok(Self { entries })
     }
 
-    /// True if the NFSv4 ACL only represents standard owner@, group@, everyone@
+    /// True if the `NFSv4` ACL only represents standard owner@, group@, everyone@
     /// without extended entries.
     #[must_use]
     pub fn is_trivial(&self) -> bool {
@@ -518,7 +518,7 @@ impl Nfs4Acl {
             && tags.contains(&"everyone@")
     }
 
-    /// Formats NFSv4 entries to standard text.
+    /// Formats `NFSv4` entries to standard text.
     #[must_use]
     pub fn to_text(&self) -> String {
         let mut out = String::new();

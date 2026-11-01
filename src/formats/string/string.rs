@@ -49,7 +49,7 @@ pub fn split_camel_case(s: &str) -> Vec<String> {
         let is_lower_to_upper = prev.is_lowercase() && curr.is_uppercase();
         let is_upper_to_upper_then_lower = prev.is_uppercase()
             && curr.is_uppercase()
-            && next.is_some_and(|n| n.is_lowercase());
+            && next.is_some_and(char::is_lowercase);
         let is_letter_to_digit = prev.is_alphabetic() && curr.is_ascii_digit();
         let is_digit_to_letter = prev.is_ascii_digit() && curr.is_alphabetic();
 

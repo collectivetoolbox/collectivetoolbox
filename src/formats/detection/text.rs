@@ -444,14 +444,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 //! Text and character encoding detection subsystem ported from `file`
-//! (`ascmagic.c`, `encoding.c`) and PolyFile.
+//! (`ascmagic.c`, `encoding.c`) and `PolyFile`.
 //!
 //! Provides comprehensive character set identification (UTF-8, UTF-16, UTF-32,
 //! ASCII, ISO-8859, non-ISO extended ASCII, EBCDIC), line ending and layout
 //! profiling, and text language and syntax heuristics (shebang, programming
 //! languages, markup, mail headers).
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -1109,7 +1109,7 @@ pub fn looks_iso8859(buf: &[u8]) -> Option<IdentifiedEncoding> {
     }
 }
 
-/// Evaluates whether `buf` is non-ISO 8-bit extended ASCII (CP437, MacRoman, Windows-1252).
+/// Evaluates whether `buf` is non-ISO 8-bit extended ASCII (CP437, `MacRoman`, Windows-1252).
 #[must_use]
 pub fn looks_extended_ascii(buf: &[u8]) -> Option<IdentifiedEncoding> {
     if buf.is_empty() {
@@ -1130,10 +1130,10 @@ pub fn looks_extended_ascii(buf: &[u8]) -> Option<IdentifiedEncoding> {
         // Evaluate likelihood of Windows-1252 vs MacRoman vs CP437
         // Windows-1252 has unused bytes at 0x81, 0x8D, 0x8F, 0x90, 0x9D
         let has_win_unused = buf.iter().any(|&b| matches!(b, 0x81 | 0x8D | 0x8F | 0x90 | 0x9D));
-        if !has_win_unused {
-            Some(IdentifiedEncoding::ExtendedAscii(CharEncoding::windows_1252()))
-        } else {
+        if has_win_unused {
             Some(IdentifiedEncoding::ExtendedAscii(CharEncoding::cp437()))
+        } else {
+            Some(IdentifiedEncoding::ExtendedAscii(CharEncoding::windows_1252()))
         }
     } else {
         None
@@ -1354,7 +1354,7 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
 }
 
 /// Helper updating layout counters for a single decoded character code.
-#[allow(
+#[expect(
     clippy::too_many_arguments,
     reason = "Layout counters are tracked individually for accurate newline profiling"
 )]

@@ -206,7 +206,7 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
                     // Reason for fallback: module execution mode prepends current working directory to sys.path, falling back to empty string if directory cannot be determined or is non-UTF-8
                     let cwd = std::env::current_dir()
                         .ok()
-                        .and_then(|p| p.to_str().map(|s| s.to_owned()))
+                        .and_then(|p| p.to_str().map(std::borrow::ToOwned::to_owned))
                         .unwrap_or_default();
                     vm.insert_sys_path(vm.new_pyobj(cwd))?;
                 }

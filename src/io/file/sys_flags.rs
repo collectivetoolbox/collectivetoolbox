@@ -115,7 +115,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -323,7 +323,7 @@ define_platform_flags! {
     ],
 }
 
-/// Mask of settable flags on DragonFly BSD (`UF_SETTABLE | SF_SETTABLE`).
+/// Mask of settable flags on `DragonFly` BSD (`UF_SETTABLE | SF_SETTABLE`).
 pub const DRAGONFLY_SETTABLE_MASK: u32 = DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
 
 
@@ -1271,12 +1271,11 @@ fn apply_file_flags_native(
                         "Failed to set file flags via ioctl for {}: {e}",
                         path.display()
                     );
-                } else {
-                    warn_fmt!(
-                        "Failed to set file flags via ioctl for {}: {e} (proceeding best-effort)",
-                        path.display()
-                    );
                 }
+                warn_fmt!(
+                    "Failed to set file flags via ioctl for {}: {e} (proceeding best-effort)",
+                    path.display()
+                );
             }
         }
 
