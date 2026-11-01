@@ -101,11 +101,7 @@ impl KStruct for EnumNegative {
     type Root = EnumNegative;
     type Parent = EnumNegative;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for EnumNegative {
         Ok(())
     }
 }
-impl EnumNegative {}
+impl EnumNegative {
+}
 impl EnumNegative {
     pub fn f1(&self) -> Ref<'_, EnumNegative_Constants> {
         self.f1.borrow()
@@ -170,13 +167,12 @@ impl From<&EnumNegative_Constants> for i64 {
         match *v {
             EnumNegative_Constants::NegativeOne => -1,
             EnumNegative_Constants::PositiveOne => 1,
-            EnumNegative_Constants::Unknown(v) => v,
+            EnumNegative_Constants::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumNegative_Constants {
-    fn default() -> Self {
-        EnumNegative_Constants::Unknown(0)
-    }
+    fn default() -> Self { EnumNegative_Constants::Unknown(0) }
 }
+

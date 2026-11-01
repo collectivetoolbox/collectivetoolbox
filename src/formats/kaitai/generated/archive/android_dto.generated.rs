@@ -62,11 +62,7 @@ impl KStruct for AndroidDto {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,23 +74,13 @@ impl KStruct for AndroidDto {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, AndroidDto_DtTableHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, AndroidDto_DtTableHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self_rc.header().dt_entry_count())?;
         for _i in 0_usize..l_entries {
-            let t = Self::read_into::<_, AndroidDto_DtTableEntry>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, AndroidDto_DtTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -102,7 +88,8 @@ impl KStruct for AndroidDto {
         Ok(())
     }
 }
-impl AndroidDto {}
+impl AndroidDto {
+}
 impl AndroidDto {
     pub fn header(&self) -> Ref<'_, OptRc<AndroidDto_DtTableHeader>> {
         self.header.borrow()
@@ -166,9 +153,7 @@ impl DowncastOptRc<AndroidDto_DtTableEntry> for OptRc<AndroidDto_DtTableEntry> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndroidDto_DtTableEntry>
-    for &OptRc<AndroidDto_DtTableEntry>
-{
+impl DowncastOptRc<AndroidDto_DtTableEntry> for &OptRc<AndroidDto_DtTableEntry> {
     fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableEntry>, KError> {
         Ok((*self).clone())
     }
@@ -177,11 +162,7 @@ impl KStruct for AndroidDto_DtTableEntry {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -212,34 +193,23 @@ impl KStruct for AndroidDto_DtTableEntry {
     }
 }
 impl AndroidDto_DtTableEntry {
+
     /**
      * DTB/DTBO file
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.dt_offset())?)?;
-        *self.body.borrow_mut() =
-            io.read_bytes(usize::try_from(*self.dt_size())?)?;
+        *self.body.borrow_mut() = io.read_bytes(usize::try_from(*self.dt_size())?)?;
         io.seek(_pos)?;
         Ok(self.body.borrow())
     }
@@ -329,34 +299,22 @@ impl TryFrom<&&AndroidDto_DtTableHeader> for OptRc<AndroidDto_DtTableHeader> {
     }
 }
 impl DowncastOptRc<AndroidDto_DtTableHeader> for AndroidDto_DtTableHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<AndroidDto_DtTableHeader> for &AndroidDto_DtTableHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AndroidDto_DtTableHeader>
-    for OptRc<AndroidDto_DtTableHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+impl DowncastOptRc<AndroidDto_DtTableHeader> for OptRc<AndroidDto_DtTableHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndroidDto_DtTableHeader>
-    for &OptRc<AndroidDto_DtTableHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+impl DowncastOptRc<AndroidDto_DtTableHeader> for &OptRc<AndroidDto_DtTableHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -364,11 +322,7 @@ impl KStruct for AndroidDto_DtTableHeader {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -382,10 +336,7 @@ impl KStruct for AndroidDto_DtTableHeader {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xd7u8, 0xb7u8, 0xabu8, 0x1eu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dt_table_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dt_table_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_size.borrow_mut() = _io.read_u4be()?;
@@ -406,7 +357,8 @@ impl KStruct for AndroidDto_DtTableHeader {
         Ok(())
     }
 }
-impl AndroidDto_DtTableHeader {}
+impl AndroidDto_DtTableHeader {
+}
 impl AndroidDto_DtTableHeader {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

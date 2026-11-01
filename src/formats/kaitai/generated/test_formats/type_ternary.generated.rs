@@ -109,11 +109,7 @@ impl KStruct for TypeTernary {
     type Root = TypeTernary;
     type Parent = TypeTernary;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,26 +126,15 @@ impl KStruct for TypeTernary {
             let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
             let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
-            let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(
-                &_io_dif_wo_hack,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_wo_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
         *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
-        let _processed_dif_with_hack =
-            process_xor_one(&_raw_dif_with_hack, 3_u8);
+        let _processed_dif_with_hack = process_xor_one(&_raw_dif_with_hack, 3_u8);
         let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
-        let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(
-            &_io_dif_with_hack,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_with_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dif_with_hack.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -157,30 +142,21 @@ impl KStruct for TypeTernary {
     }
 }
 impl TypeTernary {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn dif(&self) -> KResult<Ref<'_, OptRc<TypeTernary_Dummy>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn dif(
+        &self
+    ) -> KResult<Ref<'_, OptRc<TypeTernary_Dummy>>> {
         let _io = self._io.borrow();
         if self.f_dif.get() {
             return Ok(self.dif.borrow());
         }
-        *self.dif.borrow_mut() = if !(*self.is_hack()?) {
-            self.dif_wo_hack().clone()
-        } else {
-            self.dif_with_hack().clone()
-        }
-        .clone();
+        *self.dif.borrow_mut() = if !(*self.is_hack()?) { self.dif_wo_hack().clone() } else { self.dif_with_hack().clone() }.clone();
         Ok(self.dif.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn dif_value(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn dif_value(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_dif_value.get() {
             return Ok(self.dif_value.borrow());
@@ -189,12 +165,10 @@ impl TypeTernary {
         *self.dif_value.borrow_mut() = (*self.dif()?.value()).try_into()?;
         Ok(self.dif_value.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_hack(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_hack(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_hack.get() {
             return Ok(self.is_hack.borrow());
@@ -280,11 +254,7 @@ impl KStruct for TypeTernary_Dummy {
     type Root = TypeTernary;
     type Parent = TypeTernary;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -302,7 +272,8 @@ impl KStruct for TypeTernary_Dummy {
         Ok(())
     }
 }
-impl TypeTernary_Dummy {}
+impl TypeTernary_Dummy {
+}
 impl TypeTernary_Dummy {
     pub fn value(&self) -> Ref<'_, u8> {
         self.value.borrow()

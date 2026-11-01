@@ -103,11 +103,7 @@ impl KStruct for EnumLongRangeU {
     type Root = EnumLongRangeU;
     type Parent = EnumLongRangeU;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,23 +115,20 @@ impl KStruct for EnumLongRangeU {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.f1.borrow_mut() =
-            i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
+        *self_rc.f1.borrow_mut() = i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.f2.borrow_mut() =
-            i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
+        *self_rc.f2.borrow_mut() = i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.f3.borrow_mut() =
-            i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
+        *self_rc.f3.borrow_mut() = i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.f4.borrow_mut() =
-            i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
+        *self_rc.f4.borrow_mut() = i64::from_le_bytes((_io.read_u8be()?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EnumLongRangeU {}
+impl EnumLongRangeU {
+}
 impl EnumLongRangeU {
     pub fn f1(&self) -> Ref<'_, EnumLongRangeU_Constants> {
         self.f1.borrow()
@@ -196,13 +189,12 @@ impl From<&EnumLongRangeU_Constants> for i64 {
             EnumLongRangeU_Constants::Zero => 0,
             EnumLongRangeU_Constants::IntMax => 4294967295,
             EnumLongRangeU_Constants::IntOverMax => 4294967296,
-            EnumLongRangeU_Constants::Unknown(v) => v,
+            EnumLongRangeU_Constants::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumLongRangeU_Constants {
-    fn default() -> Self {
-        EnumLongRangeU_Constants::Unknown(0)
-    }
+    fn default() -> Self { EnumLongRangeU_Constants::Unknown(0) }
 }
+

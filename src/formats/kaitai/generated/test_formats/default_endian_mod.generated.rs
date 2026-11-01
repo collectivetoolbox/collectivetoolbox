@@ -100,11 +100,7 @@ impl KStruct for DefaultEndianMod {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,19 +112,15 @@ impl KStruct for DefaultEndianMod {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DefaultEndianMod_MainObj>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DefaultEndianMod_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DefaultEndianMod {}
+impl DefaultEndianMod {
+}
 impl DefaultEndianMod {
     pub fn main(&self) -> Ref<'_, OptRc<DefaultEndianMod_MainObj>> {
         self.main.borrow()
@@ -169,34 +161,22 @@ impl TryFrom<&&DefaultEndianMod_MainObj> for OptRc<DefaultEndianMod_MainObj> {
     }
 }
 impl DowncastOptRc<DefaultEndianMod_MainObj> for DefaultEndianMod_MainObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<DefaultEndianMod_MainObj> for &DefaultEndianMod_MainObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj>
-    for OptRc<DefaultEndianMod_MainObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj> for OptRc<DefaultEndianMod_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj>
-    for &OptRc<DefaultEndianMod_MainObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj> for &OptRc<DefaultEndianMod_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -204,11 +184,7 @@ impl KStruct for DefaultEndianMod_MainObj {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -222,27 +198,18 @@ impl KStruct for DefaultEndianMod_MainObj {
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DefaultEndianMod_MainObj_Subnest>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DefaultEndianMod_MainObj_Subnest>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.nest.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DefaultEndianMod_MainObj_SubnestBe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DefaultEndianMod_MainObj_SubnestBe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.nest_be.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DefaultEndianMod_MainObj {}
+impl DefaultEndianMod_MainObj {
+}
 impl DefaultEndianMod_MainObj {
     pub fn one(&self) -> Ref<'_, i32> {
         self.one.borrow()
@@ -254,9 +221,7 @@ impl DefaultEndianMod_MainObj {
     }
 }
 impl DefaultEndianMod_MainObj {
-    pub fn nest_be(
-        &self,
-    ) -> Ref<'_, OptRc<DefaultEndianMod_MainObj_SubnestBe>> {
+    pub fn nest_be(&self) -> Ref<'_, OptRc<DefaultEndianMod_MainObj_SubnestBe>> {
         self.nest_be.borrow()
     }
 }
@@ -280,59 +245,35 @@ pub struct DefaultEndianMod_MainObj_Subnest {
     two: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&DefaultEndianMod_MainObj_Subnest>
-    for OptRc<DefaultEndianMod_MainObj_Subnest>
-{
+impl TryFrom<&DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
     type Error = KError;
-    fn try_from(
-        v: &DefaultEndianMod_MainObj_Subnest,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &DefaultEndianMod_MainObj_Subnest) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DefaultEndianMod_MainObj_Subnest>
-    for OptRc<DefaultEndianMod_MainObj_Subnest>
-{
+impl TryFrom<&&DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
     type Error = KError;
-    fn try_from(
-        v: &&DefaultEndianMod_MainObj_Subnest,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&DefaultEndianMod_MainObj_Subnest) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest>
-    for DefaultEndianMod_MainObj_Subnest
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for DefaultEndianMod_MainObj_Subnest {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest>
-    for &DefaultEndianMod_MainObj_Subnest
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for &DefaultEndianMod_MainObj_Subnest {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest>
-    for OptRc<DefaultEndianMod_MainObj_Subnest>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest>
-    for &OptRc<DefaultEndianMod_MainObj_Subnest>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for &OptRc<DefaultEndianMod_MainObj_Subnest> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
         Ok((*self).clone())
     }
 }
@@ -340,11 +281,7 @@ impl KStruct for DefaultEndianMod_MainObj_Subnest {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod_MainObj;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -362,7 +299,8 @@ impl KStruct for DefaultEndianMod_MainObj_Subnest {
         Ok(())
     }
 }
-impl DefaultEndianMod_MainObj_Subnest {}
+impl DefaultEndianMod_MainObj_Subnest {
+}
 impl DefaultEndianMod_MainObj_Subnest {
     pub fn two(&self) -> Ref<'_, i32> {
         self.two.borrow()
@@ -388,59 +326,35 @@ pub struct DefaultEndianMod_MainObj_SubnestBe {
     two: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&DefaultEndianMod_MainObj_SubnestBe>
-    for OptRc<DefaultEndianMod_MainObj_SubnestBe>
-{
+impl TryFrom<&DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
     type Error = KError;
-    fn try_from(
-        v: &DefaultEndianMod_MainObj_SubnestBe,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &DefaultEndianMod_MainObj_SubnestBe) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DefaultEndianMod_MainObj_SubnestBe>
-    for OptRc<DefaultEndianMod_MainObj_SubnestBe>
-{
+impl TryFrom<&&DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
     type Error = KError;
-    fn try_from(
-        v: &&DefaultEndianMod_MainObj_SubnestBe,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&DefaultEndianMod_MainObj_SubnestBe) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe>
-    for DefaultEndianMod_MainObj_SubnestBe
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for DefaultEndianMod_MainObj_SubnestBe {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe>
-    for &DefaultEndianMod_MainObj_SubnestBe
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for &DefaultEndianMod_MainObj_SubnestBe {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe>
-    for OptRc<DefaultEndianMod_MainObj_SubnestBe>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe>
-    for &OptRc<DefaultEndianMod_MainObj_SubnestBe>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for &OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
         Ok((*self).clone())
     }
 }
@@ -448,11 +362,7 @@ impl KStruct for DefaultEndianMod_MainObj_SubnestBe {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod_MainObj;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -470,7 +380,8 @@ impl KStruct for DefaultEndianMod_MainObj_SubnestBe {
         Ok(())
     }
 }
-impl DefaultEndianMod_MainObj_SubnestBe {}
+impl DefaultEndianMod_MainObj_SubnestBe {
+}
 impl DefaultEndianMod_MainObj_SubnestBe {
     pub fn two(&self) -> Ref<'_, i32> {
         self.two.borrow()

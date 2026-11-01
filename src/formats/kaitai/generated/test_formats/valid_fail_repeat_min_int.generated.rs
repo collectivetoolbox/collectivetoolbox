@@ -100,11 +100,7 @@ impl KStruct for ValidFailRepeatMinInt {
     type Root = ValidFailRepeatMinInt;
     type Parent = ValidFailRepeatMinInt;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,17 +122,15 @@ impl KStruct for ValidFailRepeatMinInt {
         }
         let min_val: i8 = (0).try_into()?;
         if !self_rc.foo().iter().all(|_x| *_x >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRepeatMinInt {}
+impl ValidFailRepeatMinInt {
+}
 impl ValidFailRepeatMinInt {
     pub fn foo(&self) -> Ref<'_, Vec<i8>> {
         self.foo.borrow()

@@ -100,11 +100,7 @@ impl KStruct for RepeatEosTermBytes {
     type Root = RepeatEosTermBytes;
     type Parent = RepeatEosTermBytes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,10 +116,7 @@ impl KStruct for RepeatEosTermBytes {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc
-                    .records
-                    .borrow_mut()
-                    .push(_io.read_bytes_term(178, true, true, true)?);
+                self_rc.records.borrow_mut().push(_io.read_bytes_term(178, true, true, true)?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -132,7 +125,8 @@ impl KStruct for RepeatEosTermBytes {
         Ok(())
     }
 }
-impl RepeatEosTermBytes {}
+impl RepeatEosTermBytes {
+}
 impl RepeatEosTermBytes {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

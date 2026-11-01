@@ -77,11 +77,7 @@ impl KStruct for Edid {
     type Root = Edid;
     type Parent = Edid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -94,15 +90,8 @@ impl KStruct for Edid {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.magic()
-            == vec![
-                0x0u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x0u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+        if !(*self_rc.magic() == vec![0x0u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x0u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mfg_bytes.borrow_mut() = _io.read_u2be()?;
@@ -129,20 +118,10 @@ impl KStruct for Edid {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.features_flags.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Edid_ChromacityInfo>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Edid_ChromacityInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.chromacity.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Edid_EstTimingsInfo>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Edid_EstTimingsInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.est_timings.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.std_timings.borrow_mut() = Vec::new();
@@ -150,12 +129,7 @@ impl KStruct for Edid {
         for _i in 0_usize..l_std_timings {
             let _raw_std_timings = _io.read_bytes(2_usize)?;
             let _io_std_timings = BytesReader::from(_raw_std_timings);
-            let t = Self::read_into::<BytesReader, Edid_StdTiming>(
-                &_io_std_timings,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, Edid_StdTiming>(&_io_std_timings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.std_timings.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -164,109 +138,78 @@ impl KStruct for Edid {
     }
 }
 impl Edid {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn gamma(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn gamma(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_gamma.get() {
             return Ok(self.gamma.borrow());
         }
         self.f_gamma.set(true);
-        if ((to_i128(*self.gamma_mod())) != (to_i128(255))) {
-            *self.gamma.borrow_mut() = ((to_f64(
-                (i32::from(*self.gamma_mod())).saturating_add(100_i32),
-            )) / (100.0))
-                .try_into()?;
+        if (to_i128(*self.gamma_mod())) != (to_i128(255)) {
+            *self.gamma.borrow_mut() = (((to_f64((i32::from(*self.gamma_mod())).saturating_add(100_i32))) / (100.0))).try_into()?;
         }
         Ok(self.gamma.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mfg_id_ch1(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mfg_id_ch1(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mfg_id_ch1.get() {
             return Ok(self.mfg_id_ch1.borrow());
         }
         self.f_mfg_id_ch1.set(true);
-        *self.mfg_id_ch1.borrow_mut() = (((i32::from(*self.mfg_bytes()))
-            & (31744_i32))
-            .wrapping_shr(10_u32))
-        .try_into()?;
+        *self.mfg_id_ch1.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (31744_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.mfg_id_ch1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mfg_id_ch2(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mfg_id_ch2(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mfg_id_ch2.get() {
             return Ok(self.mfg_id_ch2.borrow());
         }
         self.f_mfg_id_ch2.set(true);
-        *self.mfg_id_ch2.borrow_mut() =
-            (((i32::from(*self.mfg_bytes())) & (992_i32)).wrapping_shr(5_u32))
-                .try_into()?;
+        *self.mfg_id_ch2.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (992_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.mfg_id_ch2.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mfg_id_ch3(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mfg_id_ch3(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mfg_id_ch3.get() {
             return Ok(self.mfg_id_ch3.borrow());
         }
         self.f_mfg_id_ch3.set(true);
-        *self.mfg_id_ch3.borrow_mut() =
-            ((i32::from(*self.mfg_bytes())) & (31_i32)).try_into()?;
+        *self.mfg_id_ch3.borrow_mut() = (((i32::from(*self.mfg_bytes())) & (31_i32))).try_into()?;
         Ok(self.mfg_id_ch3.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mfg_str(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mfg_str(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_mfg_str.get() {
             return Ok(self.mfg_str.borrow());
         }
         self.f_mfg_str.set(true);
-        *self.mfg_str.borrow_mut() = bytes_to_str(
-            &vec![
-                u8::try_from((*self.mfg_id_ch1()?).saturating_add(64_i32))?,
-                u8::try_from((*self.mfg_id_ch2()?).saturating_add(64_i32))?,
-                u8::try_from((*self.mfg_id_ch3()?).saturating_add(64_i32))?,
-            ],
-            "ASCII",
-        )?
-        .to_string();
+        *self.mfg_str.borrow_mut() = bytes_to_str(&vec![u8::try_from((*self.mfg_id_ch1()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch2()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch3()?).saturating_add(64_i32))?], "ASCII")?.to_string();
         Ok(self.mfg_str.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mfg_year(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mfg_year(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_mfg_year.get() {
             return Ok(self.mfg_year.borrow());
         }
         self.f_mfg_year.set(true);
-        *self.mfg_year.borrow_mut() = ((i32::from(*self.mfg_year_mod()))
-            .saturating_add(1990_i32))
-        .try_into()?;
+        *self.mfg_year.borrow_mut() = ((i32::from(*self.mfg_year_mod())).saturating_add(1990_i32)).try_into()?;
         Ok(self.mfg_year.borrow())
     }
 }
@@ -518,11 +461,7 @@ impl KStruct for Edid_ChromacityInfo {
     type Root = Edid;
     type Parent = Edid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -572,291 +511,228 @@ impl KStruct for Edid_ChromacityInfo {
     }
 }
 impl Edid_ChromacityInfo {
+
     /**
      * Blue X coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blue_x(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blue_x(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_blue_x.get() {
             return Ok(self.blue_x.borrow());
         }
         self.f_blue_x.set(true);
-        *self.blue_x.borrow_mut() =
-            ((to_f64(*self.blue_x_int()?)) / (1024.0)).try_into()?;
+        *self.blue_x.borrow_mut() = (((to_f64(*self.blue_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_x.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blue_x_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blue_x_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_blue_x_int.get() {
             return Ok(self.blue_x_int.borrow());
         }
         self.f_blue_x_int.set(true);
-        *self.blue_x_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.blue_x_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.blue_x_1_0()))
-        .try_into()?;
+        *self.blue_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.blue_x_9_2())).wrapping_shl(2_u32))?) | (*self.blue_x_1_0()))).try_into()?;
         Ok(self.blue_x_int.borrow())
     }
 
     /**
      * Blue Y coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blue_y(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blue_y(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_blue_y.get() {
             return Ok(self.blue_y.borrow());
         }
         self.f_blue_y.set(true);
-        *self.blue_y.borrow_mut() =
-            ((to_f64(*self.blue_y_int()?)) / (1024.0)).try_into()?;
+        *self.blue_y.borrow_mut() = (((to_f64(*self.blue_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_y.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blue_y_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blue_y_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_blue_y_int.get() {
             return Ok(self.blue_y_int.borrow());
         }
         self.f_blue_y_int.set(true);
-        *self.blue_y_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.blue_y_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.blue_y_1_0()))
-        .try_into()?;
+        *self.blue_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.blue_y_9_2())).wrapping_shl(2_u32))?) | (*self.blue_y_1_0()))).try_into()?;
         Ok(self.blue_y_int.borrow())
     }
 
     /**
      * Green X coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn green_x(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn green_x(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_green_x.get() {
             return Ok(self.green_x.borrow());
         }
         self.f_green_x.set(true);
-        *self.green_x.borrow_mut() =
-            ((to_f64(*self.green_x_int()?)) / (1024.0)).try_into()?;
+        *self.green_x.borrow_mut() = (((to_f64(*self.green_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_x.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn green_x_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn green_x_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_green_x_int.get() {
             return Ok(self.green_x_int.borrow());
         }
         self.f_green_x_int.set(true);
-        *self.green_x_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.green_x_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.green_x_1_0()))
-        .try_into()?;
+        *self.green_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.green_x_9_2())).wrapping_shl(2_u32))?) | (*self.green_x_1_0()))).try_into()?;
         Ok(self.green_x_int.borrow())
     }
 
     /**
      * Green Y coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn green_y(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn green_y(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_green_y.get() {
             return Ok(self.green_y.borrow());
         }
         self.f_green_y.set(true);
-        *self.green_y.borrow_mut() =
-            ((to_f64(*self.green_y_int()?)) / (1024.0)).try_into()?;
+        *self.green_y.borrow_mut() = (((to_f64(*self.green_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_y.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn green_y_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn green_y_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_green_y_int.get() {
             return Ok(self.green_y_int.borrow());
         }
         self.f_green_y_int.set(true);
-        *self.green_y_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.green_y_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.green_y_1_0()))
-        .try_into()?;
+        *self.green_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.green_y_9_2())).wrapping_shl(2_u32))?) | (*self.green_y_1_0()))).try_into()?;
         Ok(self.green_y_int.borrow())
     }
 
     /**
      * Red X coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn red_x(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn red_x(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_red_x.get() {
             return Ok(self.red_x.borrow());
         }
         self.f_red_x.set(true);
-        *self.red_x.borrow_mut() =
-            ((to_f64(*self.red_x_int()?)) / (1024.0)).try_into()?;
+        *self.red_x.borrow_mut() = (((to_f64(*self.red_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_x.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn red_x_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn red_x_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_red_x_int.get() {
             return Ok(self.red_x_int.borrow());
         }
         self.f_red_x_int.set(true);
-        *self.red_x_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.red_x_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.red_x_1_0()))
-        .try_into()?;
+        *self.red_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.red_x_9_2())).wrapping_shl(2_u32))?) | (*self.red_x_1_0()))).try_into()?;
         Ok(self.red_x_int.borrow())
     }
 
     /**
      * Red Y coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn red_y(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn red_y(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_red_y.get() {
             return Ok(self.red_y.borrow());
         }
         self.f_red_y.set(true);
-        *self.red_y.borrow_mut() =
-            ((to_f64(*self.red_y_int()?)) / (1024.0)).try_into()?;
+        *self.red_y.borrow_mut() = (((to_f64(*self.red_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_y.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn red_y_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn red_y_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_red_y_int.get() {
             return Ok(self.red_y_int.borrow());
         }
         self.f_red_y_int.set(true);
-        *self.red_y_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.red_y_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.red_y_1_0()))
-        .try_into()?;
+        *self.red_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.red_y_9_2())).wrapping_shl(2_u32))?) | (*self.red_y_1_0()))).try_into()?;
         Ok(self.red_y_int.borrow())
     }
 
     /**
      * White X coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn white_x(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn white_x(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_white_x.get() {
             return Ok(self.white_x.borrow());
         }
         self.f_white_x.set(true);
-        *self.white_x.borrow_mut() =
-            ((to_f64(*self.white_x_int()?)) / (1024.0)).try_into()?;
+        *self.white_x.borrow_mut() = (((to_f64(*self.white_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_x.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn white_x_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn white_x_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_white_x_int.get() {
             return Ok(self.white_x_int.borrow());
         }
         self.f_white_x_int.set(true);
-        *self.white_x_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.white_x_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.white_x_1_0()))
-        .try_into()?;
+        *self.white_x_int.borrow_mut() = (((u64::try_from((i32::from(*self.white_x_9_2())).wrapping_shl(2_u32))?) | (*self.white_x_1_0()))).try_into()?;
         Ok(self.white_x_int.borrow())
     }
 
     /**
      * White Y coordinate
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn white_y(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn white_y(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_white_y.get() {
             return Ok(self.white_y.borrow());
         }
         self.f_white_y.set(true);
-        *self.white_y.borrow_mut() =
-            ((to_f64(*self.white_y_int()?)) / (1024.0)).try_into()?;
+        *self.white_y.borrow_mut() = (((to_f64(*self.white_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_y.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn white_y_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn white_y_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_white_y_int.get() {
             return Ok(self.white_y_int.borrow());
         }
         self.f_white_y_int.set(true);
-        *self.white_y_int.borrow_mut() = ((u64::try_from(
-            (i32::from(*self.white_y_9_2())).wrapping_shl(2_u32),
-        )?) | (*self.white_y_1_0()))
-        .try_into()?;
+        *self.white_y_int.borrow_mut() = (((u64::try_from((i32::from(*self.white_y_9_2())).wrapping_shl(2_u32))?) | (*self.white_y_1_0()))).try_into()?;
         Ok(self.white_y_int.borrow())
     }
 }
@@ -1077,11 +953,7 @@ impl KStruct for Edid_EstTimingsInfo {
     type Root = Edid;
     type Parent = Edid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1093,56 +965,39 @@ impl KStruct for Edid_EstTimingsInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.can_720x400px_70hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_720x400px_70hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_720x400px_88hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_720x400px_88hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_640x480px_60hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_640x480px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_640x480px_67hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_640x480px_67hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_640x480px_72hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_640x480px_72hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_640x480px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_640x480px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_800x600px_56hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_800x600px_56hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_800x600px_60hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_800x600px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_800x600px_72hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_800x600px_72hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_800x600px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_800x600px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_832x624px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_832x624px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1024x768px_87hz_i.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1024x768px_87hz_i.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1024x768px_60hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1024x768px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1024x768px_70hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1024x768px_70hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1024x768px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1024x768px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1280x1024px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1280x1024px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.can_1152x870px_75hz.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.can_1152x870px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1150,7 +1005,8 @@ impl KStruct for Edid_EstTimingsInfo {
         Ok(())
     }
 }
-impl Edid_EstTimingsInfo {}
+impl Edid_EstTimingsInfo {
+}
 
 /**
  * Supports 720 x 400 @ 70Hz
@@ -1375,11 +1231,7 @@ impl KStruct for Edid_StdTiming {
     type Root = Edid;
     type Parent = Edid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1393,9 +1245,7 @@ impl KStruct for Edid_StdTiming {
         let _io = io;
         *self_rc.horiz_active_pixels_mod.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.aspect_ratio.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.aspect_ratio.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.refresh_rate_mod.borrow_mut() = _io.read_bits_int_be(6)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1404,12 +1254,10 @@ impl KStruct for Edid_StdTiming {
     }
 }
 impl Edid_StdTiming {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bytes_lookahead(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bytes_lookahead(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_bytes_lookahead.get() {
             return Ok(self.bytes_lookahead.borrow());
@@ -1425,60 +1273,47 @@ impl Edid_StdTiming {
     /**
      * Range of horizontal active pixels.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn horiz_active_pixels(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn horiz_active_pixels(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_horiz_active_pixels.get() {
             return Ok(self.horiz_active_pixels.borrow());
         }
         self.f_horiz_active_pixels.set(true);
         if *self.is_used()? {
-            *self.horiz_active_pixels.borrow_mut() =
-                (((i32::from(*self.horiz_active_pixels_mod()))
-                    .saturating_add(31_i32))
-                .saturating_mul(8_i32))
-                .try_into()?;
+            *self.horiz_active_pixels.borrow_mut() = (((i32::from(*self.horiz_active_pixels_mod())).saturating_add(31_i32)).saturating_mul(8_i32)).try_into()?;
         }
         Ok(self.horiz_active_pixels.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_used(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_used(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_used.get() {
             return Ok(self.is_used.borrow());
         }
         self.f_is_used.set(true);
-        *self.is_used.borrow_mut() =
-            (*self.bytes_lookahead()? != vec![0x1u8, 0x1u8]).try_into()?;
+        *self.is_used.borrow_mut() = (*self.bytes_lookahead()? != vec![0x1u8, 0x1u8]).try_into()?;
         Ok(self.is_used.borrow())
     }
 
     /**
      * Vertical refresh rate, Hz.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn refresh_rate(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn refresh_rate(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_refresh_rate.get() {
             return Ok(self.refresh_rate.borrow());
         }
         self.f_refresh_rate.set(true);
         if *self.is_used()? {
-            *self.refresh_rate.borrow_mut() = ((*self.refresh_rate_mod())
-                .saturating_add(60_u64))
-            .try_into()?;
+            *self.refresh_rate.borrow_mut() = ((*self.refresh_rate_mod()).saturating_add(60_u64)).try_into()?;
         }
         Ok(self.refresh_rate.borrow())
     }
@@ -1554,13 +1389,12 @@ impl From<&Edid_StdTiming_AspectRatios> for i64 {
             Edid_StdTiming_AspectRatios::Ratio43 => 1,
             Edid_StdTiming_AspectRatios::Ratio54 => 2,
             Edid_StdTiming_AspectRatios::Ratio169 => 3,
-            Edid_StdTiming_AspectRatios::Unknown(v) => v,
+            Edid_StdTiming_AspectRatios::Unknown(v) => v
         }
     }
 }
 
 impl Default for Edid_StdTiming_AspectRatios {
-    fn default() -> Self {
-        Edid_StdTiming_AspectRatios::Unknown(0)
-    }
+    fn default() -> Self { Edid_StdTiming_AspectRatios::Unknown(0) }
 }
+

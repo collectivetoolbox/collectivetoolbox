@@ -100,11 +100,7 @@ impl KStruct for StrEos {
     type Root = StrEos;
     type Parent = StrEos;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,14 +112,14 @@ impl KStruct for StrEos {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEos {}
+impl StrEos {
+}
 impl StrEos {
     pub fn str(&self) -> Ref<'_, String> {
         self.str.borrow()

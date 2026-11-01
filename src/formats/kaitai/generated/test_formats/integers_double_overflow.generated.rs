@@ -115,11 +115,7 @@ impl KStruct for IntegersDoubleOverflow {
     type Root = IntegersDoubleOverflow;
     type Parent = IntegersDoubleOverflow;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -152,12 +148,10 @@ impl KStruct for IntegersDoubleOverflow {
     }
 }
 impl IntegersDoubleOverflow {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn unsigned_safe_max_be(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn unsigned_safe_max_be(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_unsigned_safe_max_be.get() {
             return Ok(self.unsigned_safe_max_be.borrow());
@@ -169,12 +163,10 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_safe_max_be.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn unsigned_safe_max_le(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn unsigned_safe_max_le(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_unsigned_safe_max_le.get() {
             return Ok(self.unsigned_safe_max_le.borrow());
@@ -186,12 +178,10 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_safe_max_le.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn unsigned_unsafe_pos_be(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn unsigned_unsafe_pos_be(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_unsigned_unsafe_pos_be.get() {
             return Ok(self.unsigned_unsafe_pos_be.borrow());
@@ -203,12 +193,10 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_unsafe_pos_be.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn unsigned_unsafe_pos_le(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn unsigned_unsafe_pos_le(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_unsigned_unsafe_pos_le.get() {
             return Ok(self.unsigned_unsafe_pos_le.borrow());

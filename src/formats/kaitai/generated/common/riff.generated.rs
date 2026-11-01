@@ -67,11 +67,7 @@ impl KStruct for Riff {
     type Root = Riff;
     type Parent = Riff;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,12 +79,7 @@ impl KStruct for Riff {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Riff_Chunk>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -96,43 +87,33 @@ impl KStruct for Riff {
     }
 }
 impl Riff {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_id(&self) -> KResult<Ref<'_, Riff_Fourcc>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_id(
+        &self
+    ) -> KResult<Ref<'_, Riff_Fourcc>> {
         let _io = self._io.borrow();
         if self.f_chunk_id.get() {
             return Ok(self.chunk_id.borrow());
         }
         self.f_chunk_id.set(true);
-        *self.chunk_id.borrow_mut() =
-            i64::from(*self.chunk().id()).try_into()?;
+        *self.chunk_id.borrow_mut() = i64::from(*self.chunk().id()).try_into()?;
         Ok(self.chunk_id.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_riff_chunk(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_riff_chunk(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_riff_chunk.get() {
             return Ok(self.is_riff_chunk.borrow());
         }
         self.f_is_riff_chunk.set(true);
-        *self.is_riff_chunk.borrow_mut() =
-            (*self.chunk_id()? == Riff_Fourcc::Riff).try_into()?;
+        *self.is_riff_chunk.borrow_mut() = (*self.chunk_id()? == Riff_Fourcc::Riff).try_into()?;
         Ok(self.is_riff_chunk.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn parent_chunk_data(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Riff_ParentChunkData>>> {
         let _io = self._io.borrow();
         if self.f_parent_chunk_data.get() {
@@ -142,44 +123,30 @@ impl Riff {
             let io = KStream::clone(&*self.chunk().data_slot()._io());
             let _pos = io.pos();
             io.seek(0_usize)?;
-            let t = Self::read_into::<_, Riff_ParentChunkData>(
-                &io,
-                Some(self._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, Riff_ParentChunkData>(&io, Some(self._root.clone()), None)?.into();
             *self.parent_chunk_data.borrow_mut() = t;
             io.seek(_pos)?;
         }
         Ok(self.parent_chunk_data.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn subchunks(&self) -> KResult<Ref<'_, Vec<OptRc<Riff_ChunkType>>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn subchunks(
+        &self
+    ) -> KResult<Ref<'_, Vec<OptRc<Riff_ChunkType>>>> {
         let _io = self._io.borrow();
         if self.f_subchunks.get() {
             return Ok(self.subchunks.borrow());
         }
         self.f_subchunks.set(true);
         if *self.is_riff_chunk()? {
-            let io = KStream::clone(
-                &*self.parent_chunk_data()?.subchunks_slot()._io(),
-            );
+            let io = KStream::clone(&*self.parent_chunk_data()?.subchunks_slot()._io());
             let _pos = io.pos();
             io.seek(0_usize)?;
             *self.subchunks.borrow_mut() = Vec::new();
             {
                 let mut _i = 0_usize;
                 while !_io.is_eof() {
-                    let t = Self::read_into::<_, Riff_ChunkType>(
-                        &*_io,
-                        Some(self._root.clone()),
-                        None,
-                    )?
-                    .into();
+                    let t = Self::read_into::<_, Riff_ChunkType>(&*_io, Some(self._root.clone()), None)?.into();
                     self.subchunks.borrow_mut().push(t);
                     _i = _i.saturating_add(1);
                 }
@@ -231,16 +198,15 @@ impl From<&Riff_Fourcc> for i64 {
             Riff_Fourcc::Riff => 1179011410,
             Riff_Fourcc::Info => 1330007625,
             Riff_Fourcc::List => 1414744396,
-            Riff_Fourcc::Unknown(v) => v,
+            Riff_Fourcc::Unknown(v) => v
         }
     }
 }
 
 impl Default for Riff_Fourcc {
-    fn default() -> Self {
-        Riff_Fourcc::Unknown(0)
-    }
+    fn default() -> Self { Riff_Fourcc::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Riff_Chunk {
@@ -291,11 +257,7 @@ impl KStruct for Riff_Chunk {
     type Root = Riff;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -311,29 +273,20 @@ impl KStruct for Riff_Chunk {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_data_slot =
-            _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        let _raw_data_slot = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
         *self_rc.data_slot_raw.borrow_mut() = _raw_data_slot.clone();
         let _io_data_slot = BytesReader::from(_raw_data_slot);
-        let t = Self::read_into::<BytesReader, Riff_Chunk_Slot>(
-            &_io_data_slot,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Riff_Chunk_Slot>(&_io_data_slot, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_slot.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from(
-            (*self_rc.len())
-                .checked_rem(2_u32)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).checked_rem(2_u32).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Riff_Chunk {}
+impl Riff_Chunk {
+}
 impl Riff_Chunk {
     pub fn id(&self) -> Ref<'_, u32> {
         self.id.borrow()
@@ -419,11 +372,7 @@ impl KStruct for Riff_Chunk_Slot {
     type Root = Riff;
     type Parent = Riff_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -439,7 +388,8 @@ impl KStruct for Riff_Chunk_Slot {
         Ok(())
     }
 }
-impl Riff_Chunk_Slot {}
+impl Riff_Chunk_Slot {
+}
 impl Riff_Chunk_Slot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -540,11 +490,7 @@ impl KStruct for Riff_ChunkType {
     type Root = Riff;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -561,12 +507,7 @@ impl KStruct for Riff_ChunkType {
             *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, Riff_Chunk>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -574,13 +515,9 @@ impl KStruct for Riff_ChunkType {
     }
 }
 impl Riff_ChunkType {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn chunk_data(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<Riff_ChunkType_ChunkData>>> {
         let _io = self._io.borrow();
         if self.f_chunk_data.get() {
@@ -592,12 +529,7 @@ impl Riff_ChunkType {
         io.seek(0_usize)?;
         match *self.chunk_id()? {
             Riff_Fourcc::List => {
-                let t = Self::read_into::<_, Riff_ListChunkData>(
-                    &io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Riff_ListChunkData>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.chunk_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -605,27 +537,22 @@ impl Riff_ChunkType {
         io.seek(_pos)?;
         Ok(self.chunk_data.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_id(&self) -> KResult<Ref<'_, Riff_Fourcc>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_id(
+        &self
+    ) -> KResult<Ref<'_, Riff_Fourcc>> {
         let _io = self._io.borrow();
         if self.f_chunk_id.get() {
             return Ok(self.chunk_id.borrow());
         }
         self.f_chunk_id.set(true);
-        *self.chunk_id.borrow_mut() =
-            i64::from(*self.chunk().id()).try_into()?;
+        *self.chunk_id.borrow_mut() = i64::from(*self.chunk().id()).try_into()?;
         Ok(self.chunk_id.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_id_readable(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_id_readable(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_chunk_id_readable.get() {
             return Ok(self.chunk_id_readable.borrow());
@@ -633,17 +560,14 @@ impl Riff_ChunkType {
         self.f_chunk_id_readable.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.chunk_ofs()?)?)?;
-        *self.chunk_id_readable.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self.chunk_id_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         _io.seek(_pos)?;
         Ok(self.chunk_id_readable.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_ofs(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_ofs(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_chunk_ofs.get() {
             return Ok(self.chunk_ofs.borrow());
@@ -770,11 +694,7 @@ impl KStruct for Riff_InfoSubchunk {
     type Root = Riff;
     type Parent = Riff_ListChunkData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -791,12 +711,7 @@ impl KStruct for Riff_InfoSubchunk {
             *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, Riff_Chunk>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -804,13 +719,9 @@ impl KStruct for Riff_InfoSubchunk {
     }
 }
 impl Riff_InfoSubchunk {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn chunk_data(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<Riff_InfoSubchunk_ChunkData>>> {
         let _io = self._io.borrow();
         if self.f_chunk_data.get() {
@@ -821,33 +732,29 @@ impl Riff_InfoSubchunk {
         let _pos = io.pos();
         io.seek(0_usize)?;
         match *self.is_unregistered_tag()? {
-            false => {}
+            false => {
+            }
             _ => {}
         }
         io.seek(_pos)?;
         Ok(self.chunk_data.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_id_readable(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_id_readable(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_chunk_id_readable.get() {
             return Ok(self.chunk_id_readable.borrow());
         }
         self.f_chunk_id_readable.set(true);
-        *self.chunk_id_readable.borrow_mut() =
-            bytes_to_str(&*self.id_chars()?, "ASCII")?.to_string();
+        *self.chunk_id_readable.borrow_mut() = bytes_to_str(&*self.id_chars()?, "ASCII")?.to_string();
         Ok(self.chunk_id_readable.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn chunk_ofs(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn chunk_ofs(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_chunk_ofs.get() {
             return Ok(self.chunk_ofs.borrow());
@@ -856,12 +763,10 @@ impl Riff_InfoSubchunk {
         *self.chunk_ofs.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.chunk_ofs.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn id_chars(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn id_chars(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_id_chars.get() {
             return Ok(self.id_chars.borrow());
@@ -877,51 +782,16 @@ impl Riff_InfoSubchunk {
     /**
      * Check if chunk_id contains lowercase characters ([a-z], ASCII 97 = a, ASCII 122 = z).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_unregistered_tag(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_unregistered_tag(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_unregistered_tag.get() {
             return Ok(self.is_unregistered_tag.borrow());
         }
         self.f_is_unregistered_tag.set(true);
-        *self.is_unregistered_tag.borrow_mut() = ((((to_i128(
-            *(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?),
-        )) >= (to_i128(97)))
-            && ((to_i128(
-                *(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?),
-            )) <= (to_i128(122))))
-            || (((to_i128(
-                *(self.id_chars()?.get(1_usize).ok_or(KError::CastError)?),
-            )) >= (to_i128(97)))
-                && ((to_i128(
-                    *(self
-                        .id_chars()?
-                        .get(1_usize)
-                        .ok_or(KError::CastError)?),
-                )) <= (to_i128(122))))
-            || (((to_i128(
-                *(self.id_chars()?.get(2_usize).ok_or(KError::CastError)?),
-            )) >= (to_i128(97)))
-                && ((to_i128(
-                    *(self
-                        .id_chars()?
-                        .get(2_usize)
-                        .ok_or(KError::CastError)?),
-                )) <= (to_i128(122))))
-            || (((to_i128(
-                *(self.id_chars()?.get(3_usize).ok_or(KError::CastError)?),
-            )) >= (to_i128(97)))
-                && ((to_i128(
-                    *(self
-                        .id_chars()?
-                        .get(3_usize)
-                        .ok_or(KError::CastError)?),
-                )) <= (to_i128(122)))))
-        .try_into()?;
+        *self.is_unregistered_tag.borrow_mut() = ( (( ((((to_i128(*(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?))) >= (to_i128(97)))) && (((to_i128(*(self.id_chars()?.get(0_usize).ok_or(KError::CastError)?))) <= (to_i128(122))))) ) || ( ((((to_i128(*(self.id_chars()?.get(1_usize).ok_or(KError::CastError)?))) >= (to_i128(97)))) && (((to_i128(*(self.id_chars()?.get(1_usize).ok_or(KError::CastError)?))) <= (to_i128(122))))) ) || ( ((((to_i128(*(self.id_chars()?.get(2_usize).ok_or(KError::CastError)?))) >= (to_i128(97)))) && (((to_i128(*(self.id_chars()?.get(2_usize).ok_or(KError::CastError)?))) <= (to_i128(122))))) ) || ( ((((to_i128(*(self.id_chars()?.get(3_usize).ok_or(KError::CastError)?))) >= (to_i128(97)))) && (((to_i128(*(self.id_chars()?.get(3_usize).ok_or(KError::CastError)?))) <= (to_i128(122))))) )) ).try_into()?;
         Ok(self.is_unregistered_tag.borrow())
     }
 }
@@ -986,9 +856,7 @@ impl TryFrom<&Riff_ListChunkData_Subchunks> for OptRc<Riff_InfoSubchunk> {
 }
 impl TryFrom<&&Riff_ListChunkData_Subchunks> for OptRc<Riff_InfoSubchunk> {
     type Error = KError;
-    fn try_from(
-        v: &&Riff_ListChunkData_Subchunks,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Riff_ListChunkData_Subchunks) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -1018,9 +886,7 @@ impl TryFrom<&Riff_ListChunkData_Subchunks> for OptRc<Riff_ChunkType> {
 }
 impl TryFrom<&&Riff_ListChunkData_Subchunks> for OptRc<Riff_ChunkType> {
     type Error = KError;
-    fn try_from(
-        v: &&Riff_ListChunkData_Subchunks,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Riff_ListChunkData_Subchunks) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -1075,11 +941,7 @@ impl KStruct for Riff_ListChunkData {
     type Root = Riff;
     type Parent = Riff_ChunkType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1093,16 +955,10 @@ impl KStruct for Riff_ListChunkData {
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.parent_chunk_data_ofs()? < 0 {
-            *self_rc.save_parent_chunk_data_ofs.borrow_mut() =
-                _io.read_bytes(0_usize)?;
+            *self_rc.save_parent_chunk_data_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, Riff_ParentChunkData>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Riff_ParentChunkData>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.parent_chunk_data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -1110,27 +966,22 @@ impl KStruct for Riff_ListChunkData {
     }
 }
 impl Riff_ListChunkData {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn form_type(&self) -> KResult<Ref<'_, Riff_Fourcc>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn form_type(
+        &self
+    ) -> KResult<Ref<'_, Riff_Fourcc>> {
         let _io = self._io.borrow();
         if self.f_form_type.get() {
             return Ok(self.form_type.borrow());
         }
         self.f_form_type.set(true);
-        *self.form_type.borrow_mut() =
-            i64::from(*self.parent_chunk_data().form_type()).try_into()?;
+        *self.form_type.borrow_mut() = i64::from(*self.parent_chunk_data().form_type()).try_into()?;
         Ok(self.form_type.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn form_type_readable(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn form_type_readable(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_form_type_readable.get() {
             return Ok(self.form_type_readable.borrow());
@@ -1138,17 +989,14 @@ impl Riff_ListChunkData {
         self.f_form_type_readable.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.parent_chunk_data_ofs()?)?)?;
-        *self.form_type_readable.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self.form_type_readable.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         _io.seek(_pos)?;
         Ok(self.form_type_readable.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn parent_chunk_data_ofs(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn parent_chunk_data_ofs(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_parent_chunk_data_ofs.get() {
             return Ok(self.parent_chunk_data_ofs.borrow());
@@ -1157,21 +1005,16 @@ impl Riff_ListChunkData {
         *self.parent_chunk_data_ofs.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.parent_chunk_data_ofs.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn subchunks(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Vec<Riff_ListChunkData_Subchunks>>> {
         let _io = self._io.borrow();
         if self.f_subchunks.get() {
             return Ok(self.subchunks.borrow());
         }
         self.f_subchunks.set(true);
-        let io =
-            KStream::clone(&*self.parent_chunk_data().subchunks_slot()._io());
+        let io = KStream::clone(&*self.parent_chunk_data().subchunks_slot()._io());
         let _pos = io.pos();
         io.seek(0_usize)?;
         *self.subchunks.borrow_mut() = Vec::new();
@@ -1180,21 +1023,11 @@ impl Riff_ListChunkData {
             while !_io.is_eof() {
                 match *self.form_type()? {
                     Riff_Fourcc::Info => {
-                        let t = Self::read_into::<_, Riff_InfoSubchunk>(
-                            &*_io,
-                            Some(self._root.clone()),
-                            Some(self._self_shared.clone()),
-                        )?
-                        .into();
+                        let t = Self::read_into::<_, Riff_InfoSubchunk>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                         self.subchunks.borrow_mut().push(t);
                     }
                     _ => {
-                        let t = Self::read_into::<_, Riff_ChunkType>(
-                            &*_io,
-                            Some(self._root.clone()),
-                            None,
-                        )?
-                        .into();
+                        let t = Self::read_into::<_, Riff_ChunkType>(&*_io, Some(self._root.clone()), None)?.into();
                         self.subchunks.borrow_mut().push(t);
                     }
                 }
@@ -1278,11 +1111,7 @@ impl KStruct for Riff_ParentChunkData {
     type Root = Riff;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1299,19 +1128,15 @@ impl KStruct for Riff_ParentChunkData {
         let _raw_subchunks_slot = _io.read_bytes_full()?;
         *self_rc.subchunks_slot_raw.borrow_mut() = _raw_subchunks_slot.clone();
         let _io_subchunks_slot = BytesReader::from(_raw_subchunks_slot);
-        let t = Self::read_into::<BytesReader, Riff_ParentChunkData_Slot>(
-            &_io_subchunks_slot,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Riff_ParentChunkData_Slot>(&_io_subchunks_slot, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.subchunks_slot.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Riff_ParentChunkData {}
+impl Riff_ParentChunkData {
+}
 impl Riff_ParentChunkData {
     pub fn form_type(&self) -> Ref<'_, u32> {
         self.form_type.borrow()
@@ -1359,34 +1184,22 @@ impl TryFrom<&&Riff_ParentChunkData_Slot> for OptRc<Riff_ParentChunkData_Slot> {
     }
 }
 impl DowncastOptRc<Riff_ParentChunkData_Slot> for Riff_ParentChunkData_Slot {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Riff_ParentChunkData_Slot> for &Riff_ParentChunkData_Slot {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Riff_ParentChunkData_Slot>
-    for OptRc<Riff_ParentChunkData_Slot>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for OptRc<Riff_ParentChunkData_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Riff_ParentChunkData_Slot>
-    for &OptRc<Riff_ParentChunkData_Slot>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for &OptRc<Riff_ParentChunkData_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1394,11 +1207,7 @@ impl KStruct for Riff_ParentChunkData_Slot {
     type Root = Riff;
     type Parent = Riff_ParentChunkData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1414,7 +1223,8 @@ impl KStruct for Riff_ParentChunkData_Slot {
         Ok(())
     }
 }
-impl Riff_ParentChunkData_Slot {}
+impl Riff_ParentChunkData_Slot {
+}
 impl Riff_ParentChunkData_Slot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

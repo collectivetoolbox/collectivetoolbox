@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::imports_circular_b::ImportsCircularB;
-use super::imports_circular_b::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::imports_circular_b::ImportsCircularB;
+use super::imports_circular_b::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsCircularA {
@@ -103,11 +103,7 @@ impl KStruct for ImportsCircularA {
     type Root = ImportsCircularA;
     type Parent = ImportsCircularA;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,15 +117,15 @@ impl KStruct for ImportsCircularA {
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t =
-            Self::read_into::<_, ImportsCircularB>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, ImportsCircularB>(&*_io, None, None)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ImportsCircularA {}
+impl ImportsCircularA {
+}
 impl ImportsCircularA {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()

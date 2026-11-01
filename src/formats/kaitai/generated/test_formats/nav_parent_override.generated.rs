@@ -102,11 +102,7 @@ impl KStruct for NavParentOverride {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,27 +116,18 @@ impl KStruct for NavParentOverride {
         let _io = io;
         *self_rc.child_size.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NavParentOverride_Child>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NavParentOverride_Child>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.child_1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NavParentOverride_Mediator>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NavParentOverride_Mediator>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mediator_2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParentOverride {}
+impl NavParentOverride {
+}
 impl NavParentOverride {
     pub fn child_size(&self) -> Ref<'_, u8> {
         self.child_size.borrow()
@@ -204,9 +191,7 @@ impl DowncastOptRc<NavParentOverride_Child> for OptRc<NavParentOverride_Child> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NavParentOverride_Child>
-    for &OptRc<NavParentOverride_Child>
-{
+impl DowncastOptRc<NavParentOverride_Child> for &OptRc<NavParentOverride_Child> {
     fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Child>, KError> {
         Ok((*self).clone())
     }
@@ -215,11 +200,7 @@ impl KStruct for NavParentOverride_Child {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -231,22 +212,14 @@ impl KStruct for NavParentOverride_Child {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(
-            *self_rc
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .child_size(),
-        ))?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.child_size()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParentOverride_Child {}
+impl NavParentOverride_Child {
+}
 impl NavParentOverride_Child {
     pub fn data(&self) -> Ref<'_, Vec<u8>> {
         self.data.borrow()
@@ -277,51 +250,35 @@ pub struct NavParentOverride_Mediator {
     child_2: RefCell<OptRc<NavParentOverride_Child>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&NavParentOverride_Mediator>
-    for OptRc<NavParentOverride_Mediator>
-{
+impl TryFrom<&NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
     type Error = KError;
     fn try_from(v: &NavParentOverride_Mediator) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NavParentOverride_Mediator>
-    for OptRc<NavParentOverride_Mediator>
-{
+impl TryFrom<&&NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
     type Error = KError;
     fn try_from(v: &&NavParentOverride_Mediator) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<NavParentOverride_Mediator> for NavParentOverride_Mediator {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<NavParentOverride_Mediator> for &NavParentOverride_Mediator {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NavParentOverride_Mediator>
-    for OptRc<NavParentOverride_Mediator>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+impl DowncastOptRc<NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NavParentOverride_Mediator>
-    for &OptRc<NavParentOverride_Mediator>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+impl DowncastOptRc<NavParentOverride_Mediator> for &OptRc<NavParentOverride_Mediator> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
         Ok((*self).clone())
     }
 }
@@ -329,11 +286,7 @@ impl KStruct for NavParentOverride_Mediator {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -345,28 +298,15 @@ impl KStruct for NavParentOverride_Mediator {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NavParentOverride_Child>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(SharedType::new(
-                self_rc
-                    ._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .clone(),
-            )),
-        )?
-        .into();
+        let t = Self::read_into::<_, NavParentOverride_Child>(&*_io, Some(self_rc._root.clone()), Some(SharedType::new(self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())))?.into();
         *self_rc.child_2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParentOverride_Mediator {}
+impl NavParentOverride_Mediator {
+}
 impl NavParentOverride_Mediator {
     pub fn child_2(&self) -> Ref<'_, OptRc<NavParentOverride_Child>> {
         self.child_2.borrow()

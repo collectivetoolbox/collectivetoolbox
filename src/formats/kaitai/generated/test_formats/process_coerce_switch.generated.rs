@@ -76,26 +76,18 @@ pub enum ProcessCoerceSwitch_BufUnproc {
     ProcessCoerceSwitch_Foo(OptRc<ProcessCoerceSwitch_Foo>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&ProcessCoerceSwitch_BufUnproc>
-    for OptRc<ProcessCoerceSwitch_Foo>
-{
+impl TryFrom<&ProcessCoerceSwitch_BufUnproc> for OptRc<ProcessCoerceSwitch_Foo> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessCoerceSwitch_BufUnproc,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
         if let ProcessCoerceSwitch_BufUnproc::ProcessCoerceSwitch_Foo(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&ProcessCoerceSwitch_BufUnproc>
-    for OptRc<ProcessCoerceSwitch_Foo>
-{
+impl TryFrom<&&ProcessCoerceSwitch_BufUnproc> for OptRc<ProcessCoerceSwitch_Foo> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessCoerceSwitch_BufUnproc,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -116,9 +108,7 @@ impl From<OptRc<ProcessCoerceSwitch_Foo>> for ProcessCoerceSwitch_BufUnproc {
 }
 impl TryFrom<&ProcessCoerceSwitch_BufUnproc> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessCoerceSwitch_BufUnproc,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
         if let ProcessCoerceSwitch_BufUnproc::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -127,9 +117,7 @@ impl TryFrom<&ProcessCoerceSwitch_BufUnproc> for Vec<u8> {
 }
 impl TryFrom<&&ProcessCoerceSwitch_BufUnproc> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessCoerceSwitch_BufUnproc,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -229,11 +217,7 @@ impl KStruct for ProcessCoerceSwitch {
     type Root = ProcessCoerceSwitch;
     type Parent = ProcessCoerceSwitch;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -250,59 +234,34 @@ impl KStruct for ProcessCoerceSwitch {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) == (to_i128(0)) {
             match *self_rc.buf_type() {
                 0 => {
-                    *self_rc.buf_unproc_raw.borrow_mut() =
-                        _io.read_bytes(4_usize)?.into();
+                    *self_rc.buf_unproc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                     let buf_unproc_raw = self_rc.buf_unproc_raw.borrow();
-                    let _t_buf_unproc_raw_io =
-                        BytesReader::from(buf_unproc_raw.clone());
-                    let t = Self::read_into::<
-                        BytesReader,
-                        ProcessCoerceSwitch_Foo,
-                    >(
-                        &_t_buf_unproc_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                    let _t_buf_unproc_raw_io = BytesReader::from(buf_unproc_raw.clone());
+                    let t = Self::read_into::<BytesReader, ProcessCoerceSwitch_Foo>(&_t_buf_unproc_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.buf_unproc.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.buf_unproc.borrow_mut() =
-                        Some(_io.read_bytes(4_usize)?.into());
+                    *self_rc.buf_unproc.borrow_mut() = Some(_io.read_bytes(4_usize)?.into());
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) != (to_i128(0)) {
             match *self_rc.buf_type() {
                 0 => {
-                    *self_rc.buf_proc_raw.borrow_mut() =
-                        _io.read_bytes(4_usize)?.into();
+                    *self_rc.buf_proc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                     let buf_proc_raw = self_rc.buf_proc_raw.borrow();
-                    let _t_buf_proc_raw_proc =
-                        process_xor_one(&buf_proc_raw, 170_u8);
-                    let _t_buf_proc_raw_io =
-                        BytesReader::from(_t_buf_proc_raw_proc);
-                    let t = Self::read_into::<
-                        BytesReader,
-                        ProcessCoerceSwitch_Foo,
-                    >(
-                        &_t_buf_proc_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                    let _t_buf_proc_raw_proc = process_xor_one(&buf_proc_raw, 170_u8);
+                    let _t_buf_proc_raw_io = BytesReader::from(_t_buf_proc_raw_proc);
+                    let t = Self::read_into::<BytesReader, ProcessCoerceSwitch_Foo>(&_t_buf_proc_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.buf_proc.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.buf_proc.borrow_mut() = Some(
-                        process_xor_one(&_io.read_bytes(4_usize)?, 170_u8)
-                            .into(),
-                    );
+                    *self_rc.buf_proc.borrow_mut() = Some(process_xor_one(&_io.read_bytes(4_usize)?, 170_u8).into());
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -312,26 +271,15 @@ impl KStruct for ProcessCoerceSwitch {
     }
 }
 impl ProcessCoerceSwitch {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn buf(&self) -> KResult<Ref<'_, OptRc<ProcessCoerceSwitch_Foo>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn buf(
+        &self
+    ) -> KResult<Ref<'_, OptRc<ProcessCoerceSwitch_Foo>>> {
         let _io = self._io.borrow();
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
-        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) {
-            OptRc::<ProcessCoerceSwitch_Foo>::try_from(
-                &*(self.buf_unproc()).as_ref().ok_or(KError::CastError)?,
-            )?
-        } else {
-            OptRc::<ProcessCoerceSwitch_Foo>::try_from(
-                &*(self.buf_proc()).as_ref().ok_or(KError::CastError)?,
-            )?
-        }
-        .clone();
+        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_unproc()).as_ref().ok_or(KError::CastError)?)? } else { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_proc()).as_ref().ok_or(KError::CastError)?)? }.clone();
         Ok(self.buf.borrow())
     }
 }
@@ -413,9 +361,7 @@ impl DowncastOptRc<ProcessCoerceSwitch_Foo> for OptRc<ProcessCoerceSwitch_Foo> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessCoerceSwitch_Foo>
-    for &OptRc<ProcessCoerceSwitch_Foo>
-{
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for &OptRc<ProcessCoerceSwitch_Foo> {
     fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
         Ok((*self).clone())
     }
@@ -424,11 +370,7 @@ impl KStruct for ProcessCoerceSwitch_Foo {
     type Root = ProcessCoerceSwitch;
     type Parent = ProcessCoerceSwitch;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -446,7 +388,8 @@ impl KStruct for ProcessCoerceSwitch_Foo {
         Ok(())
     }
 }
-impl ProcessCoerceSwitch_Foo {}
+impl ProcessCoerceSwitch_Foo {
+}
 impl ProcessCoerceSwitch_Foo {
     pub fn bar(&self) -> Ref<'_, Vec<u8>> {
         self.bar.borrow()

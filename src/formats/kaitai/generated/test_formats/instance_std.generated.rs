@@ -101,11 +101,7 @@ impl KStruct for InstanceStd {
     type Root = InstanceStd;
     type Parent = InstanceStd;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,12 +118,10 @@ impl KStruct for InstanceStd {
     }
 }
 impl InstanceStd {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn header(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn header(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_header.get() {
             return Ok(self.header.borrow());
@@ -135,8 +129,7 @@ impl InstanceStd {
         self.f_header.set(true);
         let _pos = _io.pos();
         _io.seek(2_usize)?;
-        *self.header.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self.header.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
         _io.seek(_pos)?;
         Ok(self.header.borrow())
     }

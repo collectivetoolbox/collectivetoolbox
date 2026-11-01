@@ -102,11 +102,7 @@ impl KStruct for EofExceptionU4 {
     type Root = EofExceptionU4;
     type Parent = EofExceptionU4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,7 +122,8 @@ impl KStruct for EofExceptionU4 {
         Ok(())
     }
 }
-impl EofExceptionU4 {}
+impl EofExceptionU4 {
+}
 impl EofExceptionU4 {
     pub fn prebuf(&self) -> Ref<'_, Vec<u8>> {
         self.prebuf.borrow()

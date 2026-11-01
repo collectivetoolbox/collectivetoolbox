@@ -100,11 +100,7 @@ impl KStruct for ValidFailRangeFloat {
     type Root = ValidFailRangeFloat;
     type Parent = ValidFailRangeFloat;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,23 +116,18 @@ impl KStruct for ValidFailRangeFloat {
         let min_val: f32 = (0.25).try_into()?;
         let max_val: f32 = (0.375).try_into()?;
         if !(*self_rc.foo() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
         }
         if !(*self_rc.foo() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::GreaterThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRangeFloat {}
+impl ValidFailRangeFloat {
+}
 impl ValidFailRangeFloat {
     pub fn foo(&self) -> Ref<'_, f32> {
         self.foo.borrow()

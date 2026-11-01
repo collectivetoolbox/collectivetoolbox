@@ -61,11 +61,7 @@ impl KStruct for Specpr {
     type Root = Specpr;
     type Parent = Specpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,12 +77,7 @@ impl KStruct for Specpr {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Specpr_Record>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Specpr_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -96,7 +87,8 @@ impl KStruct for Specpr {
         Ok(())
     }
 }
-impl Specpr {}
+impl Specpr {
+}
 impl Specpr {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<Specpr_Record>>> {
         self.records.borrow()
@@ -142,16 +134,15 @@ impl From<&Specpr_RecordType> for i64 {
             Specpr_RecordType::TextInitial => 1,
             Specpr_RecordType::DataContinuation => 2,
             Specpr_RecordType::TextContinuation => 3,
-            Specpr_RecordType::Unknown(v) => v,
+            Specpr_RecordType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Specpr_RecordType {
-    fn default() -> Self {
-        Specpr_RecordType::Unknown(0)
-    }
+    fn default() -> Self { Specpr_RecordType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Specpr_CoarseTimestamp {
@@ -199,11 +190,7 @@ impl KStruct for Specpr_CoarseTimestamp {
     type Root = Specpr;
     type Parent = Specpr_DataInitial;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -222,19 +209,16 @@ impl KStruct for Specpr_CoarseTimestamp {
     }
 }
 impl Specpr_CoarseTimestamp {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn seconds(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn seconds(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_seconds.get() {
             return Ok(self.seconds.borrow());
         }
         self.f_seconds.set(true);
-        *self.seconds.borrow_mut() =
-            ((to_f64(*self.scaled_seconds())) * (24000.0)).try_into()?;
+        *self.seconds.borrow_mut() = (((to_f64(*self.scaled_seconds())) * (24000.0))).try_into()?;
         Ok(self.seconds.borrow())
     }
 }
@@ -290,9 +274,7 @@ impl DowncastOptRc<Specpr_DataContinuation> for OptRc<Specpr_DataContinuation> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Specpr_DataContinuation>
-    for &OptRc<Specpr_DataContinuation>
-{
+impl DowncastOptRc<Specpr_DataContinuation> for &OptRc<Specpr_DataContinuation> {
     fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
         Ok((*self).clone())
     }
@@ -301,11 +283,7 @@ impl KStruct for Specpr_DataContinuation {
     type Root = Specpr;
     type Parent = Specpr_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -327,7 +305,8 @@ impl KStruct for Specpr_DataContinuation {
         Ok(())
     }
 }
-impl Specpr_DataContinuation {}
+impl Specpr_DataContinuation {
+}
 
 /**
  * The continuation of the data values (383 channels of 32 bit real numbers).
@@ -425,11 +404,7 @@ impl KStruct for Specpr_DataInitial {
     type Root = Specpr;
     type Parent = Specpr_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -441,40 +416,20 @@ impl KStruct for Specpr_DataInitial {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Specpr_Identifiers>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_Identifiers>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ids.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.iscta.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.isctb.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.jdatea.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.jdateb.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.istb.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.isra.borrow_mut() = _io.read_s4be()?;
@@ -501,41 +456,20 @@ impl KStruct for Specpr_DataInitial {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itpntr.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ihist.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(60_usize)?,
-                None,
-                false,
-                Some(32),
-            ),
-            "ascii",
-        )?;
+        *self_rc.ihist.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(60_usize)?, None, false, Some(32)), "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mhist.borrow_mut() = Vec::new();
         let l_mhist = 4_usize;
         for _i in 0_usize..l_mhist {
-            self_rc
-                .mhist
-                .borrow_mut()
-                .push(bytes_to_str(&_io.read_bytes(74_usize)?, "ascii")?);
+            self_rc.mhist.borrow_mut().push(bytes_to_str(&_io.read_bytes(74_usize)?, "ascii")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nruns.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Specpr_IllumAngle>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_IllumAngle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.siangl.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Specpr_IllumAngle>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_IllumAngle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seangl.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sphase.borrow_mut() = _io.read_s4be()?;
@@ -563,22 +497,20 @@ impl KStruct for Specpr_DataInitial {
     }
 }
 impl Specpr_DataInitial {
+
     /**
      * The phase angle between iangl and eangl in seconds
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn phase_angle_arcsec(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn phase_angle_arcsec(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_phase_angle_arcsec.get() {
             return Ok(self.phase_angle_arcsec.borrow());
         }
         self.f_phase_angle_arcsec.set(true);
-        *self.phase_angle_arcsec.borrow_mut() =
-            ((to_f64(*self.sphase())) / (1500.0)).try_into()?;
+        *self.phase_angle_arcsec.borrow_mut() = (((to_f64(*self.sphase())) / (1500.0))).try_into()?;
         Ok(self.phase_angle_arcsec.borrow())
     }
 }
@@ -922,11 +854,7 @@ impl KStruct for Specpr_Icflag {
     type Root = Specpr;
     type Parent = Specpr_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -957,25 +885,16 @@ impl KStruct for Specpr_Icflag {
     }
 }
 impl Specpr_Icflag {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn r#type(&self) -> KResult<Ref<'_, Specpr_RecordType>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn r#type(
+        &self
+    ) -> KResult<Ref<'_, Specpr_RecordType>> {
         let _io = self._io.borrow();
         if self.f_type.get() {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = i64::from(
-            ((if *self.text() { 1_i32 } else { 0_i32 }).saturating_mul(1_i32))
-                .saturating_add(
-                    (if *self.continuation() { 1_i32 } else { 0_i32 })
-                        .saturating_mul(2_i32),
-                ),
-        )
-        .try_into()?;
+        *self.r#type.borrow_mut() = i64::from((((if *self.text() { 1_i32 } else { 0_i32 })).saturating_mul(1_i32)).saturating_add(((if *self.continuation() { 1_i32 } else { 0_i32 })).saturating_mul(2_i32))).try_into()?;
         Ok(self.r#type.borrow())
     }
 }
@@ -1110,11 +1029,7 @@ impl KStruct for Specpr_Identifiers {
     type Root = Specpr;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1126,24 +1041,16 @@ impl KStruct for Specpr_Identifiers {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ititle.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(40_usize)?,
-                None,
-                false,
-                Some(32),
-            ),
-            "ascii",
-        )?;
+        *self_rc.ititle.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(40_usize)?, None, false, Some(32)), "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.usernm.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ascii")?;
+        *self_rc.usernm.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Specpr_Identifiers {}
+impl Specpr_Identifiers {
+}
 
 /**
  * Title which describes the data
@@ -1234,11 +1141,7 @@ impl KStruct for Specpr_IllumAngle {
     type Root = Specpr;
     type Parent = Specpr_DataInitial;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1257,51 +1160,40 @@ impl KStruct for Specpr_IllumAngle {
     }
 }
 impl Specpr_IllumAngle {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn degrees_total(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn degrees_total(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_degrees_total.get() {
             return Ok(self.degrees_total.borrow());
         }
         self.f_degrees_total.set(true);
-        *self.degrees_total.borrow_mut() =
-            (div_floor(i64::from(*self.minutes_total()?), 60_i64)?)
-                .try_into()?;
+        *self.degrees_total.borrow_mut() = (div_floor(i64::from(*self.minutes_total()?), 60_i64)?).try_into()?;
         Ok(self.degrees_total.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn minutes_total(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn minutes_total(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_minutes_total.get() {
             return Ok(self.minutes_total.borrow());
         }
         self.f_minutes_total.set(true);
-        *self.minutes_total.borrow_mut() =
-            (div_floor(i64::from(*self.seconds_total()?), 60_i64)?)
-                .try_into()?;
+        *self.minutes_total.borrow_mut() = (div_floor(i64::from(*self.seconds_total()?), 60_i64)?).try_into()?;
         Ok(self.minutes_total.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn seconds_total(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn seconds_total(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_seconds_total.get() {
             return Ok(self.seconds_total.borrow());
         }
         self.f_seconds_total.set(true);
-        *self.seconds_total.borrow_mut() =
-            (div_floor(i64::from(*self.angl()), 6000_i64)?).try_into()?;
+        *self.seconds_total.borrow_mut() = (div_floor(i64::from(*self.angl()), 6000_i64)?).try_into()?;
         Ok(self.seconds_total.borrow())
     }
 }
@@ -1520,11 +1412,7 @@ impl KStruct for Specpr_Record {
     type Root = Specpr;
     type Parent = Specpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1536,88 +1424,40 @@ impl KStruct for Specpr_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Specpr_Icflag>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_Icflag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.icflag.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.icflag().r#type()? {
             Specpr_RecordType::DataContinuation => {
-                *self_rc.content_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        (1536_i32).saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into();
                 let content_raw = self_rc.content_raw.borrow();
                 let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Specpr_DataContinuation>(
-                        &_t_content_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Specpr_DataContinuation>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Specpr_RecordType::DataInitial => {
-                *self_rc.content_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        (1536_i32).saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into();
                 let content_raw = self_rc.content_raw.borrow();
                 let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, Specpr_DataInitial>(
-                    &_t_content_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Specpr_DataInitial>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Specpr_RecordType::TextContinuation => {
-                *self_rc.content_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        (1536_i32).saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into();
                 let content_raw = self_rc.content_raw.borrow();
                 let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Specpr_TextContinuation>(
-                        &_t_content_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Specpr_TextContinuation>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Specpr_RecordType::TextInitial => {
-                *self_rc.content_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        (1536_i32).saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into();
                 let content_raw = self_rc.content_raw.borrow();
                 let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, Specpr_TextInitial>(
-                    &_t_content_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Specpr_TextInitial>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.content.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(
-                        (1536_i32).saturating_sub(4_i32),
-                    )?)?
-                    .into(),
-                );
+                *self_rc.content.borrow_mut() = Some(_io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1625,7 +1465,8 @@ impl KStruct for Specpr_Record {
         Ok(())
     }
 }
-impl Specpr_Record {}
+impl Specpr_Record {
+}
 
 /**
  * Total number of bytes comprising the document.
@@ -1693,9 +1534,7 @@ impl DowncastOptRc<Specpr_TextContinuation> for OptRc<Specpr_TextContinuation> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Specpr_TextContinuation>
-    for &OptRc<Specpr_TextContinuation>
-{
+impl DowncastOptRc<Specpr_TextContinuation> for &OptRc<Specpr_TextContinuation> {
     fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
         Ok((*self).clone())
     }
@@ -1704,11 +1543,7 @@ impl KStruct for Specpr_TextContinuation {
     type Root = Specpr;
     type Parent = Specpr_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1720,14 +1555,14 @@ impl KStruct for Specpr_TextContinuation {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tdata.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(1532_usize)?, "ascii")?;
+        *self_rc.tdata.borrow_mut() = bytes_to_str(&_io.read_bytes(1532_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Specpr_TextContinuation {}
+impl Specpr_TextContinuation {
+}
 
 /**
  * 1532 characters of text.
@@ -1802,11 +1637,7 @@ impl KStruct for Specpr_TextInitial {
     type Root = Specpr;
     type Parent = Specpr_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1818,26 +1649,21 @@ impl KStruct for Specpr_TextInitial {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Specpr_Identifiers>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Specpr_Identifiers>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ids.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itxtpt.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itxtch.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.itext.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(1476_usize)?, "ascii")?;
+        *self_rc.itext.borrow_mut() = bytes_to_str(&_io.read_bytes(1476_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Specpr_TextInitial {}
+impl Specpr_TextInitial {
+}
 impl Specpr_TextInitial {
     pub fn ids(&self) -> Ref<'_, OptRc<Specpr_Identifiers>> {
         self.ids.borrow()

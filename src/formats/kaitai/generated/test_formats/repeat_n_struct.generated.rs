@@ -101,11 +101,7 @@ impl KStruct for RepeatNStruct {
     type Root = RepeatNStruct;
     type Parent = RepeatNStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,12 +118,7 @@ impl KStruct for RepeatNStruct {
         *self_rc.chunks.borrow_mut() = Vec::new();
         let l_chunks = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_chunks {
-            let t = Self::read_into::<_, RepeatNStruct_Chunk>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, RepeatNStruct_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -135,7 +126,8 @@ impl KStruct for RepeatNStruct {
         Ok(())
     }
 }
-impl RepeatNStruct {}
+impl RepeatNStruct {
+}
 impl RepeatNStruct {
     pub fn qty(&self) -> Ref<'_, u32> {
         self.qty.borrow()
@@ -203,11 +195,7 @@ impl KStruct for RepeatNStruct_Chunk {
     type Root = RepeatNStruct;
     type Parent = RepeatNStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -227,7 +215,8 @@ impl KStruct for RepeatNStruct_Chunk {
         Ok(())
     }
 }
-impl RepeatNStruct_Chunk {}
+impl RepeatNStruct_Chunk {
+}
 impl RepeatNStruct_Chunk {
     pub fn offset(&self) -> Ref<'_, u32> {
         self.offset.borrow()

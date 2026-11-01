@@ -50,11 +50,7 @@ impl KStruct for Icc4 {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -66,27 +62,18 @@ impl KStruct for Icc4 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Icc4_ProfileHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_ProfileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_TagTable>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_TagTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tag_table.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4 {}
+impl Icc4 {
+}
 impl Icc4 {
     pub fn header(&self) -> Ref<'_, OptRc<Icc4_ProfileHeader>> {
         self.header.borrow()
@@ -158,11 +145,7 @@ impl KStruct for Icc4_DateTimeNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -190,7 +173,8 @@ impl KStruct for Icc4_DateTimeNumber {
         Ok(())
     }
 }
-impl Icc4_DateTimeNumber {}
+impl Icc4_DateTimeNumber {
+}
 impl Icc4_DateTimeNumber {
     pub fn year(&self) -> Ref<'_, u16> {
         self.year.borrow()
@@ -238,16 +222,10 @@ pub struct Icc4_DeviceAttributes {
     pub(crate) _root: SharedType<Icc4>,
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
-    reflective_or_transparency:
-        RefCell<Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>,
-    glossy_or_matte:
-        RefCell<Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte>,
-    positive_or_negative_media_polarity: RefCell<
-        Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity,
-    >,
-    colour_or_black_and_white_media: RefCell<
-        Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia,
-    >,
+    reflective_or_transparency: RefCell<Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>,
+    glossy_or_matte: RefCell<Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte>,
+    positive_or_negative_media_polarity: RefCell<Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity>,
+    colour_or_black_and_white_media: RefCell<Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia>,
     reserved: RefCell<u64>,
     vendor_specific: RefCell<u64>,
     _io: RefCell<BytesReader>,
@@ -288,11 +266,7 @@ impl KStruct for Icc4_DeviceAttributes {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -304,21 +278,13 @@ impl KStruct for Icc4_DeviceAttributes {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.reflective_or_transparency.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.reflective_or_transparency.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.glossy_or_matte.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.glossy_or_matte.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.positive_or_negative_media_polarity.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.positive_or_negative_media_polarity.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.colour_or_black_and_white_media.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.colour_or_black_and_white_media.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(28)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -328,37 +294,25 @@ impl KStruct for Icc4_DeviceAttributes {
         Ok(())
     }
 }
-impl Icc4_DeviceAttributes {}
 impl Icc4_DeviceAttributes {
-    pub fn reflective_or_transparency(
-        &self,
-    ) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>
-    {
+}
+impl Icc4_DeviceAttributes {
+    pub fn reflective_or_transparency(&self) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency> {
         self.reflective_or_transparency.borrow()
     }
 }
 impl Icc4_DeviceAttributes {
-    pub fn glossy_or_matte(
-        &self,
-    ) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte> {
+    pub fn glossy_or_matte(&self) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte> {
         self.glossy_or_matte.borrow()
     }
 }
 impl Icc4_DeviceAttributes {
-    pub fn positive_or_negative_media_polarity(
-        &self,
-    ) -> Ref<
-        '_,
-        Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity,
-    > {
+    pub fn positive_or_negative_media_polarity(&self) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity> {
         self.positive_or_negative_media_polarity.borrow()
     }
 }
 impl Icc4_DeviceAttributes {
-    pub fn colour_or_black_and_white_media(
-        &self,
-    ) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia>
-    {
+    pub fn colour_or_black_and_white_media(&self) -> Ref<'_, Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia> {
         self.colour_or_black_and_white_media.borrow()
     }
 }
@@ -390,14 +344,9 @@ pub enum Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia {
     Unknown(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia
-{
+impl TryFrom<i64> for Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia>
-    {
+    fn try_from(flag: i64) -> KResult<Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia> {
         match flag {
             0 => Ok(Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::ColourMedia),
             1 => Ok(Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::BlackAndWhiteMedia),
@@ -406,12 +355,8 @@ impl TryFrom<i64>
     }
 }
 
-impl From<&Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia>
-    for i64
-{
-    fn from(
-        v: &Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia,
-    ) -> Self {
+impl From<&Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia> for i64 {
+    fn from(v: &Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia) -> Self {
         match *v {
             Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::ColourMedia => 0,
             Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::BlackAndWhiteMedia => 1,
@@ -420,12 +365,8 @@ impl From<&Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia>
     }
 }
 
-impl Default
-    for Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia
-{
-    fn default() -> Self {
-        Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::Unknown(0)
-    }
+impl Default for Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia {
+    fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -437,19 +378,11 @@ pub enum Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte {
 
 impl TryFrom<i64> for Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte> {
+    fn try_from(flag: i64) -> KResult<Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte> {
         match flag {
-            0 => {
-                Ok(Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Glossy)
-            }
+            0 => Ok(Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Glossy),
             1 => Ok(Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Matte),
-            _ => Ok(
-                Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(
-                    flag,
-                ),
-            ),
+            _ => Ok(Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(flag)),
         }
     }
 }
@@ -459,17 +392,13 @@ impl From<&Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte> for i64 {
         match *v {
             Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Glossy => 0,
             Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Matte => 1,
-            Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(v) => {
-                v
-            }
+            Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte {
-    fn default() -> Self {
-        Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(0)
-    }
+    fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -479,15 +408,9 @@ pub enum Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity {
     Unknown(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity
-{
+impl TryFrom<i64> for Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<
-        Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity,
-    > {
+    fn try_from(flag: i64) -> KResult<Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity> {
         match flag {
             0 => Ok(Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::PositiveMediaPolarity),
             1 => Ok(Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::NegativeMediaPolarity),
@@ -496,13 +419,8 @@ impl TryFrom<i64>
     }
 }
 
-impl
-    From<&Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity>
-    for i64
-{
-    fn from(
-        v: &Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity,
-    ) -> Self {
+impl From<&Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity> for i64 {
+    fn from(v: &Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity) -> Self {
         match *v {
             Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::PositiveMediaPolarity => 0,
             Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::NegativeMediaPolarity => 1,
@@ -511,12 +429,8 @@ impl
     }
 }
 
-impl Default
-    for Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity
-{
-    fn default() -> Self {
-        Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::Unknown(0)
-    }
+impl Default for Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity {
+    fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -526,14 +440,9 @@ pub enum Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency {
     Unknown(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency
-{
+impl TryFrom<i64> for Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>
-    {
+    fn try_from(flag: i64) -> KResult<Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency> {
         match flag {
             0 => Ok(Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Reflective),
             1 => Ok(Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Transparency),
@@ -542,12 +451,8 @@ impl TryFrom<i64>
     }
 }
 
-impl From<&Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>
-    for i64
-{
-    fn from(
-        v: &Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency,
-    ) -> Self {
+impl From<&Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency> for i64 {
+    fn from(v: &Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency) -> Self {
         match *v {
             Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Reflective => 0,
             Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Transparency => 1,
@@ -556,15 +461,10 @@ impl From<&Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency>
     }
 }
 
-impl Default
-    for Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency
-{
-    fn default() -> Self {
-        Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Unknown(
-            0,
-        )
-    }
+impl Default for Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency {
+    fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_DeviceManufacturer {
@@ -601,9 +501,7 @@ impl DowncastOptRc<Icc4_DeviceManufacturer> for OptRc<Icc4_DeviceManufacturer> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_DeviceManufacturer>
-    for &OptRc<Icc4_DeviceManufacturer>
-{
+impl DowncastOptRc<Icc4_DeviceManufacturer> for &OptRc<Icc4_DeviceManufacturer> {
     fn downcast_optrc(&self) -> Result<OptRc<Icc4_DeviceManufacturer>, KError> {
         Ok((*self).clone())
     }
@@ -612,11 +510,7 @@ impl KStruct for Icc4_DeviceManufacturer {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -628,18 +522,16 @@ impl KStruct for Icc4_DeviceManufacturer {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.device_manufacturer.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.device_manufacturer.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_DeviceManufacturer {}
 impl Icc4_DeviceManufacturer {
-    pub fn device_manufacturer(
-        &self,
-    ) -> Ref<'_, Icc4_DeviceManufacturer_DeviceManufacturers> {
+}
+impl Icc4_DeviceManufacturer {
+    pub fn device_manufacturer(&self) -> Ref<'_, Icc4_DeviceManufacturer_DeviceManufacturers> {
         self.device_manufacturer.borrow()
     }
 }
@@ -924,9 +816,7 @@ pub enum Icc4_DeviceManufacturer_DeviceManufacturers {
 
 impl TryFrom<i64> for Icc4_DeviceManufacturer_DeviceManufacturers {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_DeviceManufacturer_DeviceManufacturers> {
+    fn try_from(flag: i64) -> KResult<Icc4_DeviceManufacturer_DeviceManufacturers> {
         match flag {
             878981744 => Ok(Icc4_DeviceManufacturer_DeviceManufacturers::ErdtSystemsGmbhAndCoKg),
             1094798657 => Ok(Icc4_DeviceManufacturer_DeviceManufacturers::AamazingTechnologiesInc),
@@ -1468,10 +1358,9 @@ impl From<&Icc4_DeviceManufacturer_DeviceManufacturers> for i64 {
 }
 
 impl Default for Icc4_DeviceManufacturer_DeviceManufacturers {
-    fn default() -> Self {
-        Icc4_DeviceManufacturer_DeviceManufacturers::Unknown(0)
-    }
+    fn default() -> Self { Icc4_DeviceManufacturer_DeviceManufacturers::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_PositionNumber {
@@ -1518,11 +1407,7 @@ impl KStruct for Icc4_PositionNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1542,7 +1427,8 @@ impl KStruct for Icc4_PositionNumber {
         Ok(())
     }
 }
-impl Icc4_PositionNumber {}
+impl Icc4_PositionNumber {
+}
 impl Icc4_PositionNumber {
     pub fn offset_to_data_element(&self) -> Ref<'_, u32> {
         self.offset_to_data_element.borrow()
@@ -1630,11 +1516,7 @@ impl KStruct for Icc4_ProfileHeader {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1648,90 +1530,44 @@ impl KStruct for Icc4_ProfileHeader {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.preferred_cmm_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.preferred_cmm_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_ProfileHeader_VersionField>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_ProfileHeader_VersionField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.device_class.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.device_class.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.color_space.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.color_space.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.pcs.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.pcs.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DateTimeNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.creation_date_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_signature.borrow_mut() = _io.read_bytes(4_usize)?;
-        if !(*self_rc.file_signature() == vec![0x61u8, 0x63u8, 0x73u8, 0x70u8])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/profile_header/seq/7".to_string(),
-            }));
+        if !(*self_rc.file_signature() == vec![0x61u8, 0x63u8, 0x73u8, 0x70u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.primary_platform.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.primary_platform.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_ProfileHeader_ProfileFlags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_ProfileHeader_ProfileFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.profile_flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.device_model.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DeviceAttributes>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.rendering_intent.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.rendering_intent.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_XyzNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.nciexyz_values_of_illuminant_of_pcs.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.creator.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.identifier.borrow_mut() = _io.read_bytes(16_usize)?;
@@ -1742,16 +1578,15 @@ impl KStruct for Icc4_ProfileHeader {
         Ok(())
     }
 }
-impl Icc4_ProfileHeader {}
+impl Icc4_ProfileHeader {
+}
 impl Icc4_ProfileHeader {
     pub fn size(&self) -> Ref<'_, u32> {
         self.size.borrow()
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn preferred_cmm_type(
-        &self,
-    ) -> Ref<'_, Icc4_ProfileHeader_CmmSignatures> {
+    pub fn preferred_cmm_type(&self) -> Ref<'_, Icc4_ProfileHeader_CmmSignatures> {
         self.preferred_cmm_type.borrow()
     }
 }
@@ -1786,23 +1621,17 @@ impl Icc4_ProfileHeader {
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn primary_platform(
-        &self,
-    ) -> Ref<'_, Icc4_ProfileHeader_PrimaryPlatforms> {
+    pub fn primary_platform(&self) -> Ref<'_, Icc4_ProfileHeader_PrimaryPlatforms> {
         self.primary_platform.borrow()
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn profile_flags(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_ProfileHeader_ProfileFlags>> {
+    pub fn profile_flags(&self) -> Ref<'_, OptRc<Icc4_ProfileHeader_ProfileFlags>> {
         self.profile_flags.borrow()
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn device_manufacturer(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_DeviceManufacturer>> {
+    pub fn device_manufacturer(&self) -> Ref<'_, OptRc<Icc4_DeviceManufacturer>> {
         self.device_manufacturer.borrow()
     }
 }
@@ -1817,16 +1646,12 @@ impl Icc4_ProfileHeader {
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn rendering_intent(
-        &self,
-    ) -> Ref<'_, Icc4_ProfileHeader_RenderingIntents> {
+    pub fn rendering_intent(&self) -> Ref<'_, Icc4_ProfileHeader_RenderingIntents> {
         self.rendering_intent.borrow()
     }
 }
 impl Icc4_ProfileHeader {
-    pub fn nciexyz_values_of_illuminant_of_pcs(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
+    pub fn nciexyz_values_of_illuminant_of_pcs(&self) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
         self.nciexyz_values_of_illuminant_of_pcs.borrow()
     }
 }
@@ -1913,9 +1738,7 @@ impl TryFrom<i64> for Icc4_ProfileHeader_CmmSignatures {
     type Error = KError;
     fn try_from(flag: i64) -> KResult<Icc4_ProfileHeader_CmmSignatures> {
         match flag {
-            858931796 => {
-                Ok(Icc4_ProfileHeader_CmmSignatures::TheImagingFactoryCmm)
-            }
+            858931796 => Ok(Icc4_ProfileHeader_CmmSignatures::TheImagingFactoryCmm),
             1094929747 => Ok(Icc4_ProfileHeader_CmmSignatures::AgfaCmm),
             1094992453 => Ok(Icc4_ProfileHeader_CmmSignatures::AdobeCmm),
             1128484179 => Ok(Icc4_ProfileHeader_CmmSignatures::ColorGearCmm),
@@ -1927,22 +1750,16 @@ impl TryFrom<i64> for Icc4_ProfileHeader_CmmSignatures {
             1212370253 => Ok(Icc4_ProfileHeader_CmmSignatures::HarlequinRipCmm),
             1212435744 => Ok(Icc4_ProfileHeader_CmmSignatures::HeidelbergCmm),
             1262701907 => Ok(Icc4_ProfileHeader_CmmSignatures::KodakCmm),
-            1296256324 => {
-                Ok(Icc4_ProfileHeader_CmmSignatures::KonicaMinoltaCmm)
-            }
+            1296256324 => Ok(Icc4_ProfileHeader_CmmSignatures::KonicaMinoltaCmm),
             1330534744 => Ok(Icc4_ProfileHeader_CmmSignatures::OnyxGraphicsCmm),
             1380404563 => Ok(Icc4_ProfileHeader_CmmSignatures::DeviceLinkCmm),
             1380535640 => Ok(Icc4_ProfileHeader_CmmSignatures::ReficcmaxCmm),
             1397310275 => Ok(Icc4_ProfileHeader_CmmSignatures::SampleIccCmm),
             1397311310 => Ok(Icc4_ProfileHeader_CmmSignatures::MutohCmm),
             1413696845 => Ok(Icc4_ProfileHeader_CmmSignatures::ToshibaCmm),
-            1430471501 => {
-                Ok(Icc4_ProfileHeader_CmmSignatures::ColorGearCmmLite)
-            }
+            1430471501 => Ok(Icc4_ProfileHeader_CmmSignatures::ColorGearCmmLite),
             1430474067 => Ok(Icc4_ProfileHeader_CmmSignatures::ColorGearCmmC),
-            1464029984 => {
-                Ok(Icc4_ProfileHeader_CmmSignatures::WindowsColorSystemCmm)
-            }
+            1464029984 => Ok(Icc4_ProfileHeader_CmmSignatures::WindowsColorSystemCmm),
             1465141024 => Ok(Icc4_ProfileHeader_CmmSignatures::WareToGoCmm),
             1634758764 => Ok(Icc4_ProfileHeader_CmmSignatures::AppleCmm),
             1634887532 => Ok(Icc4_ProfileHeader_CmmSignatures::ArgyllCmsCmm),
@@ -1978,24 +1795,20 @@ impl From<&Icc4_ProfileHeader_CmmSignatures> for i64 {
             Icc4_ProfileHeader_CmmSignatures::ToshibaCmm => 1413696845,
             Icc4_ProfileHeader_CmmSignatures::ColorGearCmmLite => 1430471501,
             Icc4_ProfileHeader_CmmSignatures::ColorGearCmmC => 1430474067,
-            Icc4_ProfileHeader_CmmSignatures::WindowsColorSystemCmm => {
-                1464029984
-            }
+            Icc4_ProfileHeader_CmmSignatures::WindowsColorSystemCmm => 1464029984,
             Icc4_ProfileHeader_CmmSignatures::WareToGoCmm => 1465141024,
             Icc4_ProfileHeader_CmmSignatures::AppleCmm => 1634758764,
             Icc4_ProfileHeader_CmmSignatures::ArgyllCmsCmm => 1634887532,
             Icc4_ProfileHeader_CmmSignatures::LittleCmsCmm => 1818455411,
             Icc4_ProfileHeader_CmmSignatures::VivoCmm => 1986623087,
             Icc4_ProfileHeader_CmmSignatures::ZoranCmm => 2053320752,
-            Icc4_ProfileHeader_CmmSignatures::Unknown(v) => v,
+            Icc4_ProfileHeader_CmmSignatures::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_ProfileHeader_CmmSignatures {
-    fn default() -> Self {
-        Icc4_ProfileHeader_CmmSignatures::Unknown(0)
-    }
+    fn default() -> Self { Icc4_ProfileHeader_CmmSignatures::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2045,26 +1858,16 @@ impl TryFrom<i64> for Icc4_ProfileHeader_DataColourSpaces {
             1128483922 => Ok(Icc4_ProfileHeader_DataColourSpaces::TwelveColour),
             1129142560 => Ok(Icc4_ProfileHeader_DataColourSpaces::Cmy),
             1129142603 => Ok(Icc4_ProfileHeader_DataColourSpaces::Cmyk),
-            1145261138 => {
-                Ok(Icc4_ProfileHeader_DataColourSpaces::ThirteenColour)
-            }
-            1162038354 => {
-                Ok(Icc4_ProfileHeader_DataColourSpaces::FourteenColour)
-            }
-            1178815570 => {
-                Ok(Icc4_ProfileHeader_DataColourSpaces::FifteenColour)
-            }
+            1145261138 => Ok(Icc4_ProfileHeader_DataColourSpaces::ThirteenColour),
+            1162038354 => Ok(Icc4_ProfileHeader_DataColourSpaces::FourteenColour),
+            1178815570 => Ok(Icc4_ProfileHeader_DataColourSpaces::FifteenColour),
             1196573017 => Ok(Icc4_ProfileHeader_DataColourSpaces::Gray),
             1212961568 => Ok(Icc4_ProfileHeader_DataColourSpaces::Hls),
             1213421088 => Ok(Icc4_ProfileHeader_DataColourSpaces::Hsv),
-            1281450528 => {
-                Ok(Icc4_ProfileHeader_DataColourSpaces::CielabOrPcslab)
-            }
+            1281450528 => Ok(Icc4_ProfileHeader_DataColourSpaces::CielabOrPcslab),
             1282766368 => Ok(Icc4_ProfileHeader_DataColourSpaces::Cieluv),
             1380401696 => Ok(Icc4_ProfileHeader_DataColourSpaces::Rgb),
-            1482250784 => {
-                Ok(Icc4_ProfileHeader_DataColourSpaces::NciexyzOrPcsxyz)
-            }
+            1482250784 => Ok(Icc4_ProfileHeader_DataColourSpaces::NciexyzOrPcsxyz),
             1497588338 => Ok(Icc4_ProfileHeader_DataColourSpaces::Ycbcr),
             1501067552 => Ok(Icc4_ProfileHeader_DataColourSpaces::Cieyxy),
             _ => Ok(Icc4_ProfileHeader_DataColourSpaces::Unknown(flag)),
@@ -2100,15 +1903,13 @@ impl From<&Icc4_ProfileHeader_DataColourSpaces> for i64 {
             Icc4_ProfileHeader_DataColourSpaces::NciexyzOrPcsxyz => 1482250784,
             Icc4_ProfileHeader_DataColourSpaces::Ycbcr => 1497588338,
             Icc4_ProfileHeader_DataColourSpaces::Cieyxy => 1501067552,
-            Icc4_ProfileHeader_DataColourSpaces::Unknown(v) => v,
+            Icc4_ProfileHeader_DataColourSpaces::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_ProfileHeader_DataColourSpaces {
-    fn default() -> Self {
-        Icc4_ProfileHeader_DataColourSpaces::Unknown(0)
-    }
+    fn default() -> Self { Icc4_ProfileHeader_DataColourSpaces::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2124,18 +1925,10 @@ impl TryFrom<i64> for Icc4_ProfileHeader_PrimaryPlatforms {
     type Error = KError;
     fn try_from(flag: i64) -> KResult<Icc4_ProfileHeader_PrimaryPlatforms> {
         match flag {
-            1095782476 => {
-                Ok(Icc4_ProfileHeader_PrimaryPlatforms::AppleComputerInc)
-            }
-            1297303124 => {
-                Ok(Icc4_ProfileHeader_PrimaryPlatforms::MicrosoftCorporation)
-            }
-            1397180704 => {
-                Ok(Icc4_ProfileHeader_PrimaryPlatforms::SiliconGraphicsInc)
-            }
-            1398099543 => {
-                Ok(Icc4_ProfileHeader_PrimaryPlatforms::SunMicrosystems)
-            }
+            1095782476 => Ok(Icc4_ProfileHeader_PrimaryPlatforms::AppleComputerInc),
+            1297303124 => Ok(Icc4_ProfileHeader_PrimaryPlatforms::MicrosoftCorporation),
+            1397180704 => Ok(Icc4_ProfileHeader_PrimaryPlatforms::SiliconGraphicsInc),
+            1398099543 => Ok(Icc4_ProfileHeader_PrimaryPlatforms::SunMicrosystems),
             _ => Ok(Icc4_ProfileHeader_PrimaryPlatforms::Unknown(flag)),
         }
     }
@@ -2145,22 +1938,16 @@ impl From<&Icc4_ProfileHeader_PrimaryPlatforms> for i64 {
     fn from(v: &Icc4_ProfileHeader_PrimaryPlatforms) -> Self {
         match *v {
             Icc4_ProfileHeader_PrimaryPlatforms::AppleComputerInc => 1095782476,
-            Icc4_ProfileHeader_PrimaryPlatforms::MicrosoftCorporation => {
-                1297303124
-            }
-            Icc4_ProfileHeader_PrimaryPlatforms::SiliconGraphicsInc => {
-                1397180704
-            }
+            Icc4_ProfileHeader_PrimaryPlatforms::MicrosoftCorporation => 1297303124,
+            Icc4_ProfileHeader_PrimaryPlatforms::SiliconGraphicsInc => 1397180704,
             Icc4_ProfileHeader_PrimaryPlatforms::SunMicrosystems => 1398099543,
-            Icc4_ProfileHeader_PrimaryPlatforms::Unknown(v) => v,
+            Icc4_ProfileHeader_PrimaryPlatforms::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_ProfileHeader_PrimaryPlatforms {
-    fn default() -> Self {
-        Icc4_ProfileHeader_PrimaryPlatforms::Unknown(0)
-    }
+    fn default() -> Self { Icc4_ProfileHeader_PrimaryPlatforms::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2179,27 +1966,13 @@ impl TryFrom<i64> for Icc4_ProfileHeader_ProfileClasses {
     type Error = KError;
     fn try_from(flag: i64) -> KResult<Icc4_ProfileHeader_ProfileClasses> {
         match flag {
-            1633842036 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::AbstractProfile)
-            }
-            1818848875 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::DeviceLinkProfile)
-            }
-            1835955314 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::DisplayDeviceProfile)
-            }
-            1852662636 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::NamedColorProfile)
-            }
-            1886549106 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::OutputDeviceProfile)
-            }
-            1935896178 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::InputDeviceProfile)
-            }
-            1936744803 => {
-                Ok(Icc4_ProfileHeader_ProfileClasses::ColorSpaceProfile)
-            }
+            1633842036 => Ok(Icc4_ProfileHeader_ProfileClasses::AbstractProfile),
+            1818848875 => Ok(Icc4_ProfileHeader_ProfileClasses::DeviceLinkProfile),
+            1835955314 => Ok(Icc4_ProfileHeader_ProfileClasses::DisplayDeviceProfile),
+            1852662636 => Ok(Icc4_ProfileHeader_ProfileClasses::NamedColorProfile),
+            1886549106 => Ok(Icc4_ProfileHeader_ProfileClasses::OutputDeviceProfile),
+            1935896178 => Ok(Icc4_ProfileHeader_ProfileClasses::InputDeviceProfile),
+            1936744803 => Ok(Icc4_ProfileHeader_ProfileClasses::ColorSpaceProfile),
             _ => Ok(Icc4_ProfileHeader_ProfileClasses::Unknown(flag)),
         }
     }
@@ -2210,24 +1983,18 @@ impl From<&Icc4_ProfileHeader_ProfileClasses> for i64 {
         match *v {
             Icc4_ProfileHeader_ProfileClasses::AbstractProfile => 1633842036,
             Icc4_ProfileHeader_ProfileClasses::DeviceLinkProfile => 1818848875,
-            Icc4_ProfileHeader_ProfileClasses::DisplayDeviceProfile => {
-                1835955314
-            }
+            Icc4_ProfileHeader_ProfileClasses::DisplayDeviceProfile => 1835955314,
             Icc4_ProfileHeader_ProfileClasses::NamedColorProfile => 1852662636,
-            Icc4_ProfileHeader_ProfileClasses::OutputDeviceProfile => {
-                1886549106
-            }
+            Icc4_ProfileHeader_ProfileClasses::OutputDeviceProfile => 1886549106,
             Icc4_ProfileHeader_ProfileClasses::InputDeviceProfile => 1935896178,
             Icc4_ProfileHeader_ProfileClasses::ColorSpaceProfile => 1936744803,
-            Icc4_ProfileHeader_ProfileClasses::Unknown(v) => v,
+            Icc4_ProfileHeader_ProfileClasses::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_ProfileHeader_ProfileClasses {
-    fn default() -> Self {
-        Icc4_ProfileHeader_ProfileClasses::Unknown(0)
-    }
+    fn default() -> Self { Icc4_ProfileHeader_ProfileClasses::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2244,13 +2011,9 @@ impl TryFrom<i64> for Icc4_ProfileHeader_RenderingIntents {
     fn try_from(flag: i64) -> KResult<Icc4_ProfileHeader_RenderingIntents> {
         match flag {
             0 => Ok(Icc4_ProfileHeader_RenderingIntents::Perceptual),
-            1 => Ok(
-                Icc4_ProfileHeader_RenderingIntents::MediaRelativeColorimetric,
-            ),
+            1 => Ok(Icc4_ProfileHeader_RenderingIntents::MediaRelativeColorimetric),
             2 => Ok(Icc4_ProfileHeader_RenderingIntents::Saturation),
-            3 => {
-                Ok(Icc4_ProfileHeader_RenderingIntents::IccAbsoluteColorimetric)
-            }
+            3 => Ok(Icc4_ProfileHeader_RenderingIntents::IccAbsoluteColorimetric),
             _ => Ok(Icc4_ProfileHeader_RenderingIntents::Unknown(flag)),
         }
     }
@@ -2263,16 +2026,15 @@ impl From<&Icc4_ProfileHeader_RenderingIntents> for i64 {
             Icc4_ProfileHeader_RenderingIntents::MediaRelativeColorimetric => 1,
             Icc4_ProfileHeader_RenderingIntents::Saturation => 2,
             Icc4_ProfileHeader_RenderingIntents::IccAbsoluteColorimetric => 3,
-            Icc4_ProfileHeader_RenderingIntents::Unknown(v) => v,
+            Icc4_ProfileHeader_RenderingIntents::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_ProfileHeader_RenderingIntents {
-    fn default() -> Self {
-        Icc4_ProfileHeader_RenderingIntents::Unknown(0)
-    }
+    fn default() -> Self { Icc4_ProfileHeader_RenderingIntents::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_ProfileHeader_ProfileFlags {
@@ -2284,59 +2046,35 @@ pub struct Icc4_ProfileHeader_ProfileFlags {
     other_flags: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_ProfileHeader_ProfileFlags>
-    for OptRc<Icc4_ProfileHeader_ProfileFlags>
-{
+impl TryFrom<&Icc4_ProfileHeader_ProfileFlags> for OptRc<Icc4_ProfileHeader_ProfileFlags> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_ProfileHeader_ProfileFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_ProfileHeader_ProfileFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_ProfileHeader_ProfileFlags>
-    for OptRc<Icc4_ProfileHeader_ProfileFlags>
-{
+impl TryFrom<&&Icc4_ProfileHeader_ProfileFlags> for OptRc<Icc4_ProfileHeader_ProfileFlags> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_ProfileHeader_ProfileFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_ProfileHeader_ProfileFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags>
-    for Icc4_ProfileHeader_ProfileFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags> for Icc4_ProfileHeader_ProfileFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags>
-    for &Icc4_ProfileHeader_ProfileFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags> for &Icc4_ProfileHeader_ProfileFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags>
-    for OptRc<Icc4_ProfileHeader_ProfileFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags> for OptRc<Icc4_ProfileHeader_ProfileFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags>
-    for &OptRc<Icc4_ProfileHeader_ProfileFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_ProfileFlags> for &OptRc<Icc4_ProfileHeader_ProfileFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_ProfileFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2344,11 +2082,7 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2362,9 +2096,7 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
         let _io = io;
         *self_rc.embedded_profile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc
-            .profile_can_be_used_independently_of_embedded_colour_data
-            .borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.profile_can_be_used_independently_of_embedded_colour_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.other_flags.borrow_mut() = _io.read_bits_int_be(30)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2372,18 +2104,16 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
         Ok(())
     }
 }
-impl Icc4_ProfileHeader_ProfileFlags {}
+impl Icc4_ProfileHeader_ProfileFlags {
+}
 impl Icc4_ProfileHeader_ProfileFlags {
     pub fn embedded_profile(&self) -> Ref<'_, bool> {
         self.embedded_profile.borrow()
     }
 }
 impl Icc4_ProfileHeader_ProfileFlags {
-    pub fn profile_can_be_used_independently_of_embedded_colour_data(
-        &self,
-    ) -> Ref<'_, bool> {
-        self.profile_can_be_used_independently_of_embedded_colour_data
-            .borrow()
+    pub fn profile_can_be_used_independently_of_embedded_colour_data(&self) -> Ref<'_, bool> {
+        self.profile_can_be_used_independently_of_embedded_colour_data.borrow()
     }
 }
 impl Icc4_ProfileHeader_ProfileFlags {
@@ -2414,59 +2144,35 @@ pub struct Icc4_ProfileHeader_VersionField {
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_ProfileHeader_VersionField>
-    for OptRc<Icc4_ProfileHeader_VersionField>
-{
+impl TryFrom<&Icc4_ProfileHeader_VersionField> for OptRc<Icc4_ProfileHeader_VersionField> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_ProfileHeader_VersionField,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_ProfileHeader_VersionField) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_ProfileHeader_VersionField>
-    for OptRc<Icc4_ProfileHeader_VersionField>
-{
+impl TryFrom<&&Icc4_ProfileHeader_VersionField> for OptRc<Icc4_ProfileHeader_VersionField> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_ProfileHeader_VersionField,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_ProfileHeader_VersionField) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_VersionField>
-    for Icc4_ProfileHeader_VersionField
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_VersionField> for Icc4_ProfileHeader_VersionField {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_VersionField>
-    for &Icc4_ProfileHeader_VersionField
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_VersionField> for &Icc4_ProfileHeader_VersionField {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_VersionField>
-    for OptRc<Icc4_ProfileHeader_VersionField>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_VersionField> for OptRc<Icc4_ProfileHeader_VersionField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_ProfileHeader_VersionField>
-    for &OptRc<Icc4_ProfileHeader_VersionField>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
+impl DowncastOptRc<Icc4_ProfileHeader_VersionField> for &OptRc<Icc4_ProfileHeader_VersionField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_ProfileHeader_VersionField>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2474,11 +2180,7 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2492,11 +2194,7 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
         let _io = io;
         *self_rc.major.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.major() == vec![0x4u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/profile_header/types/version_field/seq/0"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/types/version_field/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor.borrow_mut() = _io.read_bits_int_be(4)?;
@@ -2506,18 +2204,15 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
         io.align_to_byte()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/profile_header/types/version_field/seq/3"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/types/version_field/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_ProfileHeader_VersionField {}
+impl Icc4_ProfileHeader_VersionField {
+}
 impl Icc4_ProfileHeader_VersionField {
     pub fn major(&self) -> Ref<'_, Vec<u8>> {
         self.major.borrow()
@@ -2596,11 +2291,7 @@ impl KStruct for Icc4_Response16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2616,25 +2307,18 @@ impl KStruct for Icc4_Response16Number {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/response_16_number/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/response_16_number/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_S15Fixed16Number>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_S15Fixed16Number>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.measurement_value.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_Response16Number {}
+impl Icc4_Response16Number {
+}
 impl Icc4_Response16Number {
     pub fn number(&self) -> Ref<'_, u32> {
         self.number.borrow()
@@ -2707,11 +2391,7 @@ impl KStruct for Icc4_S15Fixed16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2729,7 +2409,8 @@ impl KStruct for Icc4_S15Fixed16Number {
         Ok(())
     }
 }
-impl Icc4_S15Fixed16Number {}
+impl Icc4_S15Fixed16Number {
+}
 impl Icc4_S15Fixed16Number {
     pub fn number(&self) -> Ref<'_, Vec<u8>> {
         self.number.borrow()
@@ -2757,63 +2438,38 @@ pub struct Icc4_StandardIlluminantEncoding {
     pub(crate) _root: SharedType<Icc4>,
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
-    standard_illuminant_encoding:
-        RefCell<Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>,
+    standard_illuminant_encoding: RefCell<Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_StandardIlluminantEncoding>
-    for OptRc<Icc4_StandardIlluminantEncoding>
-{
+impl TryFrom<&Icc4_StandardIlluminantEncoding> for OptRc<Icc4_StandardIlluminantEncoding> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_StandardIlluminantEncoding,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_StandardIlluminantEncoding) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_StandardIlluminantEncoding>
-    for OptRc<Icc4_StandardIlluminantEncoding>
-{
+impl TryFrom<&&Icc4_StandardIlluminantEncoding> for OptRc<Icc4_StandardIlluminantEncoding> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_StandardIlluminantEncoding,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_StandardIlluminantEncoding) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_StandardIlluminantEncoding>
-    for Icc4_StandardIlluminantEncoding
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
+impl DowncastOptRc<Icc4_StandardIlluminantEncoding> for Icc4_StandardIlluminantEncoding {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_StandardIlluminantEncoding>
-    for &Icc4_StandardIlluminantEncoding
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
+impl DowncastOptRc<Icc4_StandardIlluminantEncoding> for &Icc4_StandardIlluminantEncoding {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_StandardIlluminantEncoding>
-    for OptRc<Icc4_StandardIlluminantEncoding>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
+impl DowncastOptRc<Icc4_StandardIlluminantEncoding> for OptRc<Icc4_StandardIlluminantEncoding> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_StandardIlluminantEncoding>
-    for &OptRc<Icc4_StandardIlluminantEncoding>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
+impl DowncastOptRc<Icc4_StandardIlluminantEncoding> for &OptRc<Icc4_StandardIlluminantEncoding> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_StandardIlluminantEncoding>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2821,11 +2477,7 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2837,19 +2489,16 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.standard_illuminant_encoding.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.standard_illuminant_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_StandardIlluminantEncoding {}
 impl Icc4_StandardIlluminantEncoding {
-    pub fn standard_illuminant_encoding(
-        &self,
-    ) -> Ref<'_, Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>
-    {
+}
+impl Icc4_StandardIlluminantEncoding {
+    pub fn standard_illuminant_encoding(&self) -> Ref<'_, Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings> {
         self.standard_illuminant_encoding.borrow()
     }
 }
@@ -2878,14 +2527,9 @@ pub enum Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings {
     UnknownVariant(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings
-{
+impl TryFrom<i64> for Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>
-    {
+    fn try_from(flag: i64) -> KResult<Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings> {
         match flag {
             0 => Ok(Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::Unknown),
             1 => Ok(Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::D50),
@@ -2901,12 +2545,8 @@ impl TryFrom<i64>
     }
 }
 
-impl From<&Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>
-    for i64
-{
-    fn from(
-        v: &Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings,
-    ) -> Self {
+impl From<&Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings> for i64 {
+    fn from(v: &Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings) -> Self {
         match *v {
             Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::Unknown => 0,
             Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::D50 => 1,
@@ -2923,10 +2563,9 @@ impl From<&Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings>
 }
 
 impl Default for Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings {
-    fn default() -> Self {
-        Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::UnknownVariant(0)
-    }
+    fn default() -> Self { Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings::UnknownVariant(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable {
@@ -2973,11 +2612,7 @@ impl KStruct for Icc4_TagTable {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2994,12 +2629,7 @@ impl KStruct for Icc4_TagTable {
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.tag_count())?;
         for _i in 0_usize..l_tags {
-            let t = Self::read_into::<_, Icc4_TagTable_TagDefinition>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Icc4_TagTable_TagDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tags.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -3007,7 +2637,8 @@ impl KStruct for Icc4_TagTable {
         Ok(())
     }
 }
-impl Icc4_TagTable {}
+impl Icc4_TagTable {
+}
 impl Icc4_TagTable {
     pub fn tag_count(&self) -> Ref<'_, u32> {
         self.tag_count.borrow()
@@ -3041,2607 +2672,1534 @@ pub struct Icc4_TagTable_TagDefinition {
     _io: RefCell<BytesReader>,
     tag_data_element_raw: RefCell<Vec<u8>>,
     f_tag_data_element: Cell<bool>,
-    tag_data_element:
-        RefCell<Option<Icc4_TagTable_TagDefinition_TagDataElement>>,
+    tag_data_element: RefCell<Option<Icc4_TagTable_TagDefinition_TagDataElement>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_TagDataElement {
-    Icc4_TagTable_TagDefinition_AToB0Tag(
-        OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_AToB1Tag(
-        OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_AToB2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToA0Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToA1Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToA2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToD0Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToD1Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToD2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BToD3Tag(
-        OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(
-        OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>,
-    ),
-    Icc4_TagTable_TagDefinition_BlueTrcTag(
-        OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>,
-    ),
-    Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(
-        OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>,
-    ),
-    Icc4_TagTable_TagDefinition_CharTargetTag(
-        OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(
-        OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ChromaticityTag(
-        OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ColorantOrderTag(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ColorantTableTag(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ColorantTableOutTag(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-    ),
-    Icc4_TagTable_TagDefinition_CopyrightTag(
-        OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>,
-    ),
-    Icc4_TagTable_TagDefinition_DToB0Tag(
-        OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_DToB1Tag(
-        OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_DToB2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_DToB3Tag(
-        OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_DeviceMfgDescTag(
-        OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>,
-    ),
-    Icc4_TagTable_TagDefinition_DeviceModelDescTag(
-        OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>,
-    ),
-    Icc4_TagTable_TagDefinition_GamutTag(
-        OptRc<Icc4_TagTable_TagDefinition_GamutTag>,
-    ),
-    Icc4_TagTable_TagDefinition_GrayTrcTag(
-        OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>,
-    ),
-    Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(
-        OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>,
-    ),
-    Icc4_TagTable_TagDefinition_GreenTrcTag(
-        OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>,
-    ),
-    Icc4_TagTable_TagDefinition_LuminanceTag(
-        OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>,
-    ),
-    Icc4_TagTable_TagDefinition_MeasurementTag(
-        OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>,
-    ),
-    Icc4_TagTable_TagDefinition_MediaWhitePointTag(
-        OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>,
-    ),
-    Icc4_TagTable_TagDefinition_NamedColor2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_OutputResponseTag(
-        OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>,
-    ),
-    Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-    ),
-    Icc4_TagTable_TagDefinition_Preview0Tag(
-        OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_Preview1Tag(
-        OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_Preview2Tag(
-        OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>,
-    ),
-    Icc4_TagTable_TagDefinition_ProfileDescriptionTag(
-        OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ProfileSequenceTag(
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-    ),
-    Icc4_TagTable_TagDefinition_RedMatrixColumnTag(
-        OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>,
-    ),
-    Icc4_TagTable_TagDefinition_RedTrcTag(
-        OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>,
-    ),
-    Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-    ),
-    Icc4_TagTable_TagDefinition_TechnologyTag(
-        OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ViewingCondDescTag(
-        OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>,
-    ),
-    Icc4_TagTable_TagDefinition_ViewingConditionsTag(
-        OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>,
-    ),
+    Icc4_TagTable_TagDefinition_AToB0Tag(OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>),
+    Icc4_TagTable_TagDefinition_AToB1Tag(OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>),
+    Icc4_TagTable_TagDefinition_AToB2Tag(OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>),
+    Icc4_TagTable_TagDefinition_BToA0Tag(OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>),
+    Icc4_TagTable_TagDefinition_BToA1Tag(OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>),
+    Icc4_TagTable_TagDefinition_BToA2Tag(OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>),
+    Icc4_TagTable_TagDefinition_BToD0Tag(OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>),
+    Icc4_TagTable_TagDefinition_BToD1Tag(OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>),
+    Icc4_TagTable_TagDefinition_BToD2Tag(OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>),
+    Icc4_TagTable_TagDefinition_BToD3Tag(OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>),
+    Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>),
+    Icc4_TagTable_TagDefinition_BlueTrcTag(OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>),
+    Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>),
+    Icc4_TagTable_TagDefinition_CharTargetTag(OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>),
+    Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>),
+    Icc4_TagTable_TagDefinition_ChromaticityTag(OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>),
+    Icc4_TagTable_TagDefinition_ColorantOrderTag(OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>),
+    Icc4_TagTable_TagDefinition_ColorantTableTag(OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>),
+    Icc4_TagTable_TagDefinition_ColorantTableOutTag(OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>),
+    Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>),
+    Icc4_TagTable_TagDefinition_CopyrightTag(OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>),
+    Icc4_TagTable_TagDefinition_DToB0Tag(OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>),
+    Icc4_TagTable_TagDefinition_DToB1Tag(OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>),
+    Icc4_TagTable_TagDefinition_DToB2Tag(OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>),
+    Icc4_TagTable_TagDefinition_DToB3Tag(OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>),
+    Icc4_TagTable_TagDefinition_DeviceMfgDescTag(OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>),
+    Icc4_TagTable_TagDefinition_DeviceModelDescTag(OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>),
+    Icc4_TagTable_TagDefinition_GamutTag(OptRc<Icc4_TagTable_TagDefinition_GamutTag>),
+    Icc4_TagTable_TagDefinition_GrayTrcTag(OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>),
+    Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>),
+    Icc4_TagTable_TagDefinition_GreenTrcTag(OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>),
+    Icc4_TagTable_TagDefinition_LuminanceTag(OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>),
+    Icc4_TagTable_TagDefinition_MeasurementTag(OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>),
+    Icc4_TagTable_TagDefinition_MediaWhitePointTag(OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>),
+    Icc4_TagTable_TagDefinition_NamedColor2Tag(OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>),
+    Icc4_TagTable_TagDefinition_OutputResponseTag(OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>),
+    Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>),
+    Icc4_TagTable_TagDefinition_Preview0Tag(OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>),
+    Icc4_TagTable_TagDefinition_Preview1Tag(OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>),
+    Icc4_TagTable_TagDefinition_Preview2Tag(OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>),
+    Icc4_TagTable_TagDefinition_ProfileDescriptionTag(OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>),
+    Icc4_TagTable_TagDefinition_ProfileSequenceTag(OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>),
+    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>),
+    Icc4_TagTable_TagDefinition_RedMatrixColumnTag(OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>),
+    Icc4_TagTable_TagDefinition_RedTrcTag(OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>),
+    Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>),
+    Icc4_TagTable_TagDefinition_TechnologyTag(OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>),
+    Icc4_TagTable_TagDefinition_ViewingCondDescTag(OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>),
+    Icc4_TagTable_TagDefinition_ViewingConditionsTag(OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB0Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_AToB0Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_AToB0Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB1Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_AToB1Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_AToB1Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_AToB2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_AToB2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA0Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToA0Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToA0Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA1Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToA1Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToA1Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToA2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToA2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD0Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToD0Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToD0Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD1Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToD1Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToD1Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToD2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToD2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD3Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BToD3Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BToD3Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueTrcTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_BlueTrcTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_BlueTrcTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CharTargetTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CharTargetTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CharTargetTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticityTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ChromaticityTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ChromaticityTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantOrderTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantOrderTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantOrderTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantTableTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableOutTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantTableOutTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableOutTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CopyrightTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CopyrightTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CopyrightTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB0Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DToB0Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DToB0Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB1Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DToB1Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DToB1Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DToB2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DToB2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB3Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DToB3Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DToB3Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceMfgDescTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DeviceMfgDescTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceModelDescTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DeviceModelDescTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DeviceModelDescTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GamutTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_GamutTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_GamutTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_GamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_GamutTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_GamutTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GrayTrcTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_GrayTrcTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_GrayTrcTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenTrcTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_GreenTrcTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_GreenTrcTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_LuminanceTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LuminanceTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LuminanceTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MeasurementTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_MeasurementTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MeasurementTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MediaWhitePointTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_MediaWhitePointTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MediaWhitePointTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_NamedColor2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_NamedColor2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_NamedColor2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_OutputResponseTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_OutputResponseTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_OutputResponseTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>::try_from(self)
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview0Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Preview0Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Preview0Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview1Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Preview1Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Preview1Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview2Tag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Preview2Tag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Preview2Tag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileDescriptionTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileDescriptionTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ProfileSequenceTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedMatrixColumnTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_RedMatrixColumnTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedTrcTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_RedTrcTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_RedTrcTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>::try_from(self)
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_TechnologyTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_TechnologyTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_TechnologyTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingCondDescTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ViewingCondDescTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ViewingCondDescTag(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingConditionsTag(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_ViewingConditionsTag>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ViewingConditionsTag>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for &Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for &Icc4_TagTable_TagDefinition_TagDataElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>>
-    for Icc4_TagTable_TagDefinition_TagDataElement
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ViewingConditionsTag(v)
     }
 }
 impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -5650,9 +4208,7 @@ impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for Vec<u8> {
 }
 impl TryFrom<&&Icc4_TagTable_TagDefinition_TagDataElement> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TagDataElement,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -5661,55 +4217,35 @@ impl From<Vec<u8>> for Icc4_TagTable_TagDefinition_TagDataElement {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition>
-    for OptRc<Icc4_TagTable_TagDefinition>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition> for OptRc<Icc4_TagTable_TagDefinition> {
     type Error = KError;
     fn try_from(v: &Icc4_TagTable_TagDefinition) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition>
-    for OptRc<Icc4_TagTable_TagDefinition>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition> for OptRc<Icc4_TagTable_TagDefinition> {
     type Error = KError;
     fn try_from(v: &&Icc4_TagTable_TagDefinition) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition>
-    for Icc4_TagTable_TagDefinition
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition> for Icc4_TagTable_TagDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition>
-    for &Icc4_TagTable_TagDefinition
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition> for &Icc4_TagTable_TagDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition>
-    for OptRc<Icc4_TagTable_TagDefinition>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition> for OptRc<Icc4_TagTable_TagDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition>
-    for &OptRc<Icc4_TagTable_TagDefinition>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition> for &OptRc<Icc4_TagTable_TagDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition>, KError> {
         Ok((*self).clone())
     }
 }
@@ -5717,11 +4253,7 @@ impl KStruct for Icc4_TagTable_TagDefinition {
     type Root = Icc4;
     type Parent = Icc4_TagTable;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5733,8 +4265,7 @@ impl KStruct for Icc4_TagTable_TagDefinition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_signature.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_signature.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_data_element.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -5745,15 +4276,10 @@ impl KStruct for Icc4_TagTable_TagDefinition {
     }
 }
 impl Icc4_TagTable_TagDefinition {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_data_element(
-        &self,
-    ) -> KResult<Ref<'_, Option<Icc4_TagTable_TagDefinition_TagDataElement>>>
-    {
+        &self
+    ) -> KResult<Ref<'_, Option<Icc4_TagTable_TagDefinition_TagDataElement>>> {
         let _io = self._io.borrow();
         if self.f_tag_data_element.get() {
             return Ok(self.tag_data_element.borrow());
@@ -6114,9 +4640,7 @@ impl Icc4_TagTable_TagDefinition {
     }
 }
 impl Icc4_TagTable_TagDefinition {
-    pub fn tag_signature(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagSignatures> {
+    pub fn tag_signature(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagSignatures> {
         self.tag_signature.borrow()
     }
 }
@@ -6161,9 +4685,7 @@ pub enum Icc4_TagTable_TagDefinition_MultiProcessElementsTypes {
 
 impl TryFrom<i64> for Icc4_TagTable_TagDefinition_MultiProcessElementsTypes {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_TagTable_TagDefinition_MultiProcessElementsTypes> {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_MultiProcessElementsTypes> {
         match flag {
             1648444243 => Ok(Icc4_TagTable_TagDefinition_MultiProcessElementsTypes::BacsElementType),
             1668052340 => Ok(Icc4_TagTable_TagDefinition_MultiProcessElementsTypes::ClutElementType),
@@ -6195,9 +4717,7 @@ impl From<&Icc4_TagTable_TagDefinition_MultiProcessElementsTypes> for i64 {
 }
 
 impl Default for Icc4_TagTable_TagDefinition_MultiProcessElementsTypes {
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_MultiProcessElementsTypes::Unknown(0)
-    }
+    fn default() -> Self { Icc4_TagTable_TagDefinition_MultiProcessElementsTypes::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -6256,9 +4776,7 @@ pub enum Icc4_TagTable_TagDefinition_TagSignatures {
 
 impl TryFrom<i64> for Icc4_TagTable_TagDefinition_TagSignatures {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_TagTable_TagDefinition_TagSignatures> {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_TagSignatures> {
         match flag {
             1093812784 => Ok(Icc4_TagTable_TagDefinition_TagSignatures::AToB0),
             1093812785 => Ok(Icc4_TagTable_TagDefinition_TagSignatures::AToB1),
@@ -6372,9 +4890,7 @@ impl From<&Icc4_TagTable_TagDefinition_TagSignatures> for i64 {
 }
 
 impl Default for Icc4_TagTable_TagDefinition_TagSignatures {
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_TagSignatures::Unknown(0)
-    }
+    fn default() -> Self { Icc4_TagTable_TagDefinition_TagSignatures::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -6412,9 +4928,7 @@ pub enum Icc4_TagTable_TagDefinition_TagTypeSignatures {
 
 impl TryFrom<i64> for Icc4_TagTable_TagDefinition_TagTypeSignatures {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         match flag {
             1482250784 => Ok(Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType),
             1667789421 => Ok(Icc4_TagTable_TagDefinition_TagTypeSignatures::ChromaticityType),
@@ -6486,10 +5000,9 @@ impl From<&Icc4_TagTable_TagDefinition_TagTypeSignatures> for i64 {
 }
 
 impl Default for Icc4_TagTable_TagDefinition_TagTypeSignatures {
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_TagTypeSignatures::Unknown(0)
-    }
+    fn default() -> Self { Icc4_TagTable_TagDefinition_TagTypeSignatures::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_AToB0Tag {
@@ -6502,213 +5015,129 @@ pub struct Icc4_TagTable_TagDefinition_AToB0Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutAToBType(
-        OptRc<Icc4_TagTable_TagDefinition_LutAToBType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutAToBType(OptRc<Icc4_TagTable_TagDefinition_LutAToBType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutAToBType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutAToBType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_AToB0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for Icc4_TagTable_TagDefinition_AToB0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for Icc4_TagTable_TagDefinition_AToB0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for &Icc4_TagTable_TagDefinition_AToB0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for &Icc4_TagTable_TagDefinition_AToB0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB0Tag> for &OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -6716,11 +5145,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6732,8 +5157,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
@@ -6755,18 +5179,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB0Tag {}
 impl Icc4_TagTable_TagDefinition_AToB0Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_AToB0Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_AToB0Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB0Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB0Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -6793,213 +5214,129 @@ pub struct Icc4_TagTable_TagDefinition_AToB1Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutAToBType(
-        OptRc<Icc4_TagTable_TagDefinition_LutAToBType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutAToBType(OptRc<Icc4_TagTable_TagDefinition_LutAToBType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutAToBType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutAToBType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_AToB1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for Icc4_TagTable_TagDefinition_AToB1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for Icc4_TagTable_TagDefinition_AToB1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for &Icc4_TagTable_TagDefinition_AToB1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for &Icc4_TagTable_TagDefinition_AToB1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB1Tag> for &OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -7007,11 +5344,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7023,8 +5356,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
@@ -7046,18 +5378,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB1Tag {}
 impl Icc4_TagTable_TagDefinition_AToB1Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_AToB1Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_AToB1Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB1Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB1Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -7084,213 +5413,129 @@ pub struct Icc4_TagTable_TagDefinition_AToB2Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutAToBType(
-        OptRc<Icc4_TagTable_TagDefinition_LutAToBType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutAToBType(OptRc<Icc4_TagTable_TagDefinition_LutAToBType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutAToBType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutAToBType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_AToB2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_AToB2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_AToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_AToB2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_AToB2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for Icc4_TagTable_TagDefinition_AToB2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for Icc4_TagTable_TagDefinition_AToB2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for &Icc4_TagTable_TagDefinition_AToB2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for &Icc4_TagTable_TagDefinition_AToB2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_AToB2Tag> for &OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -7298,11 +5543,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7314,8 +5555,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
@@ -7337,18 +5577,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB2Tag {}
 impl Icc4_TagTable_TagDefinition_AToB2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_AToB2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_AToB2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB2Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_AToB2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -7375,213 +5612,129 @@ pub struct Icc4_TagTable_TagDefinition_BToA0Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_BToA0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for Icc4_TagTable_TagDefinition_BToA0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for Icc4_TagTable_TagDefinition_BToA0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for &Icc4_TagTable_TagDefinition_BToA0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for &Icc4_TagTable_TagDefinition_BToA0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA0Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -7589,11 +5742,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7605,8 +5754,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -7628,18 +5776,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA0Tag {}
 impl Icc4_TagTable_TagDefinition_BToA0Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToA0Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToA0Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA0Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA0Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -7666,213 +5811,129 @@ pub struct Icc4_TagTable_TagDefinition_BToA1Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_BToA1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for Icc4_TagTable_TagDefinition_BToA1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for Icc4_TagTable_TagDefinition_BToA1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for &Icc4_TagTable_TagDefinition_BToA1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for &Icc4_TagTable_TagDefinition_BToA1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA1Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -7880,11 +5941,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7896,8 +5953,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -7919,18 +5975,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA1Tag {}
 impl Icc4_TagTable_TagDefinition_BToA1Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToA1Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToA1Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA1Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA1Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -7957,213 +6010,129 @@ pub struct Icc4_TagTable_TagDefinition_BToA2Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_BToA2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToA2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToA2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToA2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToA2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for Icc4_TagTable_TagDefinition_BToA2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for Icc4_TagTable_TagDefinition_BToA2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for &Icc4_TagTable_TagDefinition_BToA2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for &Icc4_TagTable_TagDefinition_BToA2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToA2Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8171,11 +6140,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8187,8 +6152,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -8210,18 +6174,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA2Tag {}
 impl Icc4_TagTable_TagDefinition_BToA2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToA2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToA2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA2Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToA2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -8248,121 +6209,67 @@ pub struct Icc4_TagTable_TagDefinition_BToD0Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToD0Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_BToD0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_BToD0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_BToD0Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for Icc4_TagTable_TagDefinition_BToD0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for Icc4_TagTable_TagDefinition_BToD0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for &Icc4_TagTable_TagDefinition_BToD0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for &Icc4_TagTable_TagDefinition_BToD0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD0Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8370,11 +6277,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8386,8 +6289,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -8401,18 +6303,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD0Tag {}
 impl Icc4_TagTable_TagDefinition_BToD0Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToD0Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToD0Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD0Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD0Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -8439,121 +6338,67 @@ pub struct Icc4_TagTable_TagDefinition_BToD1Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToD1Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_BToD1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_BToD1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_BToD1Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for Icc4_TagTable_TagDefinition_BToD1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for Icc4_TagTable_TagDefinition_BToD1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for &Icc4_TagTable_TagDefinition_BToD1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for &Icc4_TagTable_TagDefinition_BToD1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD1Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8561,11 +6406,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8577,8 +6418,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -8592,18 +6432,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD1Tag {}
 impl Icc4_TagTable_TagDefinition_BToD1Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToD1Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToD1Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD1Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD1Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -8630,121 +6467,67 @@ pub struct Icc4_TagTable_TagDefinition_BToD2Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToD2Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_BToD2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_BToD2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_BToD2Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for Icc4_TagTable_TagDefinition_BToD2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for Icc4_TagTable_TagDefinition_BToD2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for &Icc4_TagTable_TagDefinition_BToD2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for &Icc4_TagTable_TagDefinition_BToD2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD2Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8752,11 +6535,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8768,8 +6547,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -8783,18 +6561,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD2Tag {}
 impl Icc4_TagTable_TagDefinition_BToD2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToD2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToD2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD2Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -8821,121 +6596,67 @@ pub struct Icc4_TagTable_TagDefinition_BToD3Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD3Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD3Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD3Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToD3Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD3Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD3Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD3Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_BToD3Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_BToD3Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_BToD3Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BToD3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD3Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BToD3Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD3Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BToD3Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BToD3Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BToD3Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for Icc4_TagTable_TagDefinition_BToD3Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for Icc4_TagTable_TagDefinition_BToD3Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for &Icc4_TagTable_TagDefinition_BToD3Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for &Icc4_TagTable_TagDefinition_BToD3Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BToD3Tag> for &OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8943,11 +6664,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8959,8 +6676,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -8974,18 +6690,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD3Tag {}
 impl Icc4_TagTable_TagDefinition_BToD3Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BToD3Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BToD3Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD3Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BToD3Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -9007,122 +6720,72 @@ pub struct Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
-    Icc4_TagTable_TagDefinition_XyzType(
-        OptRc<Icc4_TagTable_TagDefinition_XyzType>,
-    ),
+    Icc4_TagTable_TagDefinition_XyzType(OptRc<Icc4_TagTable_TagDefinition_XyzType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_XyzType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>>
-    for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> for &OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9130,11 +6793,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9146,18 +6805,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_XyzType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -9167,19 +6819,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {}
 impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -9206,164 +6854,98 @@ pub struct Icc4_TagTable_TagDefinition_BlueTrcTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
-    Icc4_TagTable_TagDefinition_CurveType(
-        OptRc<Icc4_TagTable_TagDefinition_CurveType>,
-    ),
-    Icc4_TagTable_TagDefinition_ParametricCurveType(
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>,
-    ),
+    Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
+    Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>>
-    for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>>
-    for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_BlueTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_BlueTrcTag> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_BlueTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_BlueTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for Icc4_TagTable_TagDefinition_BlueTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for Icc4_TagTable_TagDefinition_BlueTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for &Icc4_TagTable_TagDefinition_BlueTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for &Icc4_TagTable_TagDefinition_BlueTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> for &OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9371,11 +6953,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9387,8 +6965,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
@@ -9406,18 +6983,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_BlueTrcTag {}
 impl Icc4_TagTable_TagDefinition_BlueTrcTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_BlueTrcTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_BlueTrcTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -9439,122 +7013,72 @@ pub struct Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
-    Icc4_TagTable_TagDefinition_DateTimeType(
-        OptRc<Icc4_TagTable_TagDefinition_DateTimeType>,
-    ),
+    Icc4_TagTable_TagDefinition_DateTimeType(OptRc<Icc4_TagTable_TagDefinition_DateTimeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData::Icc4_TagTable_TagDefinition_DateTimeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_DateTimeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>>
-    for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>> for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DateTimeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DateTimeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> for &OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9562,11 +7086,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9578,20 +7098,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::DateTimeType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_DateTimeType,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DateTimeType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -9601,21 +7112,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {}
 impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>,
-    > {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -9637,117 +7142,72 @@ pub struct Icc4_TagTable_TagDefinition_CharTargetTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_CharTargetTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_CharTargetTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
-    Icc4_TagTable_TagDefinition_TextType(
-        OptRc<Icc4_TagTable_TagDefinition_TextType>,
-    ),
+    Icc4_TagTable_TagDefinition_TextType(OptRc<Icc4_TagTable_TagDefinition_TextType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CharTargetTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CharTargetTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CharTargetTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CharTargetTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_CharTargetTag_TagData::Icc4_TagTable_TagDefinition_TextType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CharTargetTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CharTargetTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CharTargetTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CharTargetTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for Icc4_TagTable_TagDefinition_CharTargetTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_TextType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for &Icc4_TagTable_TagDefinition_CharTargetTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for &Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_TextType>>
-    for Icc4_TagTable_TagDefinition_CharTargetTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_TextType>> for Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_TextType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_TextType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CharTargetTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CharTargetTag> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CharTargetTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CharTargetTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CharTargetTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CharTargetTag> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CharTargetTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CharTargetTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for Icc4_TagTable_TagDefinition_CharTargetTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for Icc4_TagTable_TagDefinition_CharTargetTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for &Icc4_TagTable_TagDefinition_CharTargetTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for &Icc4_TagTable_TagDefinition_CharTargetTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CharTargetTag> for &OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9755,11 +7215,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9771,18 +7227,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::TextType => {
-                let t =
-                    Self::read_into::<_, Icc4_TagTable_TagDefinition_TextType>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TextType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -9792,19 +7241,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_CharTargetTag {}
 impl Icc4_TagTable_TagDefinition_CharTargetTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_CharTargetTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_CharTargetTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_CharTargetTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_CharTargetTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -9826,124 +7271,72 @@ pub struct Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
-    Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(
-        OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>,
-    ),
+    Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData::Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>>
-    for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>> for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> for &OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9951,11 +7344,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9967,8 +7356,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::S15Fixed16ArrayType => {
@@ -9982,21 +7370,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {}
 impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>,
-    > {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -10018,123 +7400,72 @@ pub struct Icc4_TagTable_TagDefinition_ChromaticityTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
-    Icc4_TagTable_TagDefinition_ChromaticityType(
-        OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>,
-    ),
+    Icc4_TagTable_TagDefinition_ChromaticityType(OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticityTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticityTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ChromaticityTag_TagData::Icc4_TagTable_TagDefinition_ChromaticityType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for Icc4_TagTable_TagDefinition_ChromaticityTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ChromaticityType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for &Icc4_TagTable_TagDefinition_ChromaticityTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for &Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>>
-    for Icc4_TagTable_TagDefinition_ChromaticityTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>> for Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ChromaticityType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticityTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticityTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticityTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticityTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for Icc4_TagTable_TagDefinition_ChromaticityTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for Icc4_TagTable_TagDefinition_ChromaticityTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for &Icc4_TagTable_TagDefinition_ChromaticityTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for &Icc4_TagTable_TagDefinition_ChromaticityTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> for &OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -10142,11 +7473,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10158,20 +7485,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ChromaticityType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_ChromaticityType,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -10181,19 +7499,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticityTag {}
 impl Icc4_TagTable_TagDefinition_ChromaticityTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ChromaticityTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ChromaticityTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -10220,63 +7534,35 @@ pub struct Icc4_TagTable_TagDefinition_ChromaticityType {
     ciexy_coordinates_per_channel: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityType>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityType> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticityType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticityType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityType>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityType> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticityType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticityType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for Icc4_TagTable_TagDefinition_ChromaticityType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for Icc4_TagTable_TagDefinition_ChromaticityType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for &Icc4_TagTable_TagDefinition_ChromaticityType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for &Icc4_TagTable_TagDefinition_ChromaticityType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType> for &OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -10284,11 +7570,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10307,12 +7589,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_device_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.colorant_and_phosphor_encoding.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.colorant_and_phosphor_encoding.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ciexy_coordinates_per_channel.borrow_mut() = Vec::new();
-        let l_ciexy_coordinates_per_channel =
-            usize::from(*self_rc.number_of_device_channels());
+        let l_ciexy_coordinates_per_channel = usize::from(*self_rc.number_of_device_channels());
         for _i in 0_usize..l_ciexy_coordinates_per_channel {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ciexy_coordinates_per_channel.borrow_mut().push(t);
@@ -10322,7 +7602,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticityType {}
+impl Icc4_TagTable_TagDefinition_ChromaticityType {
+}
 impl Icc4_TagTable_TagDefinition_ChromaticityType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -10334,12 +7615,12 @@ impl Icc4_TagTable_TagDefinition_ChromaticityType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ChromaticityType {
-    pub fn colorant_and_phosphor_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings>{
+    pub fn colorant_and_phosphor_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings> {
         self.colorant_and_phosphor_encoding.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ChromaticityType {
-    pub fn ciexy_coordinates_per_channel(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>>>{
+    pub fn ciexy_coordinates_per_channel(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>>> {
         self.ciexy_coordinates_per_channel.borrow()
     }
 }
@@ -10355,8 +7636,7 @@ impl Icc4_TagTable_TagDefinition_ChromaticityType {
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings
-{
+pub enum Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings {
     Unknown,
     ItuRBt7092,
     SmpteRp145,
@@ -10396,125 +7676,53 @@ impl Default for Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhospho
     fn default() -> Self { Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings::UnknownVariant(0) }
 }
 
+
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ChromaticityType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ChromaticityType>,
     pub(crate) _self_shared: SharedType<Self>,
     x_coordinate: RefCell<u16>,
     y_coordinate: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl
-    TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>
-    for OptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl
-    TryFrom<
-        &&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-    for OptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    > for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    > for &Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for &Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-    for OptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-    for &OptRc<
-        Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-    >
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> for &OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10534,7 +7742,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {}
+impl Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
+}
 impl Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues {
     pub fn x_coordinate(&self) -> Ref<'_, u16> {
         self.x_coordinate.borrow()
@@ -10563,123 +7772,72 @@ pub struct Icc4_TagTable_TagDefinition_ColorantOrderTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
-    Icc4_TagTable_TagDefinition_ColorantOrderType(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>,
-    ),
+    Icc4_TagTable_TagDefinition_ColorantOrderType(OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData::Icc4_TagTable_TagDefinition_ColorantOrderType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantOrderType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for &Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for &Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>>
-    for Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>> for Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantOrderType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantOrderTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantOrderTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantOrderTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantOrderTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for Icc4_TagTable_TagDefinition_ColorantOrderTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for Icc4_TagTable_TagDefinition_ColorantOrderTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for &Icc4_TagTable_TagDefinition_ColorantOrderTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for &Icc4_TagTable_TagDefinition_ColorantOrderTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> for &OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -10687,11 +7845,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10703,8 +7857,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantOrderType => {
@@ -10718,19 +7871,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantOrderTag {}
 impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -10749,71 +7898,42 @@ impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorantOrderType {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ColorantOrderTag>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ColorantOrderTag>,
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     count_of_colorants: RefCell<u32>,
     numbers_of_colorants_in_order_of_printing: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderType> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantOrderType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantOrderType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantOrderType> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantOrderType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantOrderType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for Icc4_TagTable_TagDefinition_ColorantOrderType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for Icc4_TagTable_TagDefinition_ColorantOrderType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for &Icc4_TagTable_TagDefinition_ColorantOrderType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for &Icc4_TagTable_TagDefinition_ColorantOrderType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> for &OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -10821,11 +7941,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantOrderTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10844,23 +7960,18 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_colorants.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc
-            .numbers_of_colorants_in_order_of_printing
-            .borrow_mut() = Vec::new();
-        let l_numbers_of_colorants_in_order_of_printing =
-            usize::try_from(*self_rc.count_of_colorants())?;
+        *self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut() = Vec::new();
+        let l_numbers_of_colorants_in_order_of_printing = usize::try_from(*self_rc.count_of_colorants())?;
         for _i in 0_usize..l_numbers_of_colorants_in_order_of_printing {
-            self_rc
-                .numbers_of_colorants_in_order_of_printing
-                .borrow_mut()
-                .push(_io.read_u1()?);
+            self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantOrderType {}
+impl Icc4_TagTable_TagDefinition_ColorantOrderType {
+}
 impl Icc4_TagTable_TagDefinition_ColorantOrderType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -10872,9 +7983,7 @@ impl Icc4_TagTable_TagDefinition_ColorantOrderType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorantOrderType {
-    pub fn numbers_of_colorants_in_order_of_printing(
-        &self,
-    ) -> Ref<'_, Vec<u8>> {
+    pub fn numbers_of_colorants_in_order_of_printing(&self) -> Ref<'_, Vec<u8>> {
         self.numbers_of_colorants_in_order_of_printing.borrow()
     }
 }
@@ -10896,124 +8005,72 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableOutTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
-    Icc4_TagTable_TagDefinition_ColorantTableType(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>,
-    ),
+    Icc4_TagTable_TagDefinition_ColorantTableType(OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData::Icc4_TagTable_TagDefinition_ColorantTableType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantTableType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for &Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for &Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>>
-    for Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>> for Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableOutTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableOutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableOutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableOutTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableOutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableOutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for Icc4_TagTable_TagDefinition_ColorantTableOutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for &Icc4_TagTable_TagDefinition_ColorantTableOutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for &Icc4_TagTable_TagDefinition_ColorantTableOutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11021,11 +8078,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11037,8 +8090,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
@@ -11052,19 +8104,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {}
 impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -11086,123 +8134,72 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
-    Icc4_TagTable_TagDefinition_ColorantTableType(
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>,
-    ),
+    Icc4_TagTable_TagDefinition_ColorantTableType(OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ColorantTableTag_TagData::Icc4_TagTable_TagDefinition_ColorantTableType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for Icc4_TagTable_TagDefinition_ColorantTableTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ColorantTableType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for &Icc4_TagTable_TagDefinition_ColorantTableTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for &Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>>
-    for Icc4_TagTable_TagDefinition_ColorantTableTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>> for Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for Icc4_TagTable_TagDefinition_ColorantTableTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for Icc4_TagTable_TagDefinition_ColorantTableTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for &Icc4_TagTable_TagDefinition_ColorantTableTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for &Icc4_TagTable_TagDefinition_ColorantTableTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11210,11 +8207,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11226,8 +8219,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
@@ -11241,19 +8233,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableTag {}
 impl Icc4_TagTable_TagDefinition_ColorantTableTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ColorantTableTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorantTableTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -11276,68 +8264,38 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableType {
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     count_of_colorants: RefCell<u32>,
-    colorants: RefCell<
-        Vec<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>>,
-    >,
+    colorants: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableType> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableType> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for Icc4_TagTable_TagDefinition_ColorantTableType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for Icc4_TagTable_TagDefinition_ColorantTableType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for &Icc4_TagTable_TagDefinition_ColorantTableType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for &Icc4_TagTable_TagDefinition_ColorantTableType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType> for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11345,11 +8303,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11371,15 +8325,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
         *self_rc.colorants.borrow_mut() = Vec::new();
         let l_colorants = usize::try_from(*self_rc.count_of_colorants())?;
         for _i in 0_usize..l_colorants {
-            let t = Self::read_into::<
-                _,
-                Icc4_TagTable_TagDefinition_ColorantTableType_Colorant,
-            >(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colorants.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -11387,7 +8333,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableType {}
+impl Icc4_TagTable_TagDefinition_ColorantTableType {
+}
 impl Icc4_TagTable_TagDefinition_ColorantTableType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -11399,12 +8346,7 @@ impl Icc4_TagTable_TagDefinition_ColorantTableType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorantTableType {
-    pub fn colorants(
-        &self,
-    ) -> Ref<
-        '_,
-        Vec<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>>,
-    > {
+    pub fn colorants(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>>> {
         self.colorants.borrow()
     }
 }
@@ -11423,8 +8365,7 @@ impl Icc4_TagTable_TagDefinition_ColorantTableType {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ColorantTableType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ColorantTableType>,
     pub(crate) _self_shared: SharedType<Self>,
     name: RefCell<String>,
     padding: RefCell<Vec<Vec<u8>>>,
@@ -11432,71 +8373,35 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     _io: RefCell<BytesReader>,
     pcs_values_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorantTableType_Colorant,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableType_Colorant) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorantTableType_Colorant) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for &Icc4_TagTable_TagDefinition_ColorantTableType_Colorant
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for &Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> for &OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11504,11 +8409,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantTableType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11520,12 +8421,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = Vec::new();
-        let l_padding =
-            usize::try_from((32_usize).saturating_sub(self_rc.name().len()))?;
+        let l_padding = usize::try_from((32_usize).saturating_sub(self_rc.name().len()))?;
         for _i in 0_usize..l_padding {
             self_rc.padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
@@ -11539,7 +8438,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {}
+impl Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
+}
 impl Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()
@@ -11578,136 +8478,72 @@ pub struct Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<
-            Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-        >,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
-    Icc4_TagTable_TagDefinition_SignatureType(
-        OptRc<Icc4_TagTable_TagDefinition_SignatureType>,
-    ),
+    Icc4_TagTable_TagDefinition_SignatureType(OptRc<Icc4_TagTable_TagDefinition_SignatureType>),
 }
-impl
-    TryFrom<
-        &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl
-    TryFrom<
-        &&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_SignatureType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>>
-    for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> for &OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11715,11 +8551,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11731,18 +8563,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_SignatureType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -11752,23 +8577,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {}
 impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<
-            Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData,
-        >,
-    > {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -11795,121 +8612,67 @@ pub struct Icc4_TagTable_TagDefinition_CopyrightTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
-    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CopyrightTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CopyrightTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CopyrightTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CopyrightTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_CopyrightTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CopyrightTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CopyrightTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CopyrightTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CopyrightTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_CopyrightTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_CopyrightTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    for Icc4_TagTable_TagDefinition_CopyrightTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CopyrightTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CopyrightTag> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CopyrightTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CopyrightTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CopyrightTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CopyrightTag> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CopyrightTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CopyrightTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for Icc4_TagTable_TagDefinition_CopyrightTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for Icc4_TagTable_TagDefinition_CopyrightTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for &Icc4_TagTable_TagDefinition_CopyrightTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for &Icc4_TagTable_TagDefinition_CopyrightTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CopyrightTag> for &OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11917,11 +8680,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11933,8 +8692,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
@@ -11948,18 +8706,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_CopyrightTag {}
 impl Icc4_TagTable_TagDefinition_CopyrightTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_CopyrightTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_CopyrightTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_CopyrightTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_CopyrightTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -11986,59 +8741,35 @@ pub struct Icc4_TagTable_TagDefinition_CurveType {
     curve_value: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_CurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_CurveType> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_CurveType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CurveType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_CurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_CurveType> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_CurveType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_CurveType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for Icc4_TagTable_TagDefinition_CurveType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for Icc4_TagTable_TagDefinition_CurveType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &Icc4_TagTable_TagDefinition_CurveType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &Icc4_TagTable_TagDefinition_CurveType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12046,11 +8777,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12070,7 +8797,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
         *self_rc.number_of_entries.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.number_of_entries())) > (to_i128(1))) {
+        if (to_i128(*self_rc.number_of_entries())) > (to_i128(1)) {
             *self_rc.curve_values.borrow_mut() = Vec::new();
             let l_curve_values = usize::try_from(*self_rc.number_of_entries())?;
             for _i in 0_usize..l_curve_values {
@@ -12079,7 +8806,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.number_of_entries())) == (to_i128(1))) {
+        if (to_i128(*self_rc.number_of_entries())) == (to_i128(1)) {
             *self_rc.curve_value.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -12087,7 +8814,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_CurveType {}
+impl Icc4_TagTable_TagDefinition_CurveType {
+}
 impl Icc4_TagTable_TagDefinition_CurveType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -12131,121 +8859,67 @@ pub struct Icc4_TagTable_TagDefinition_DToB0Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DToB0Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_DToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_DToB0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_DToB0Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for Icc4_TagTable_TagDefinition_DToB0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for Icc4_TagTable_TagDefinition_DToB0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for &Icc4_TagTable_TagDefinition_DToB0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for &Icc4_TagTable_TagDefinition_DToB0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB0Tag> for &OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12253,11 +8927,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12269,8 +8939,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -12284,18 +8953,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB0Tag {}
 impl Icc4_TagTable_TagDefinition_DToB0Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DToB0Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DToB0Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB0Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB0Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -12322,121 +8988,67 @@ pub struct Icc4_TagTable_TagDefinition_DToB1Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DToB1Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_DToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_DToB1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_DToB1Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for Icc4_TagTable_TagDefinition_DToB1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for Icc4_TagTable_TagDefinition_DToB1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for &Icc4_TagTable_TagDefinition_DToB1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for &Icc4_TagTable_TagDefinition_DToB1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB1Tag> for &OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12444,11 +9056,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12460,8 +9068,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -12475,18 +9082,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB1Tag {}
 impl Icc4_TagTable_TagDefinition_DToB1Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DToB1Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DToB1Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB1Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB1Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -12513,121 +9117,67 @@ pub struct Icc4_TagTable_TagDefinition_DToB2Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DToB2Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_DToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_DToB2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_DToB2Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for Icc4_TagTable_TagDefinition_DToB2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for Icc4_TagTable_TagDefinition_DToB2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for &Icc4_TagTable_TagDefinition_DToB2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for &Icc4_TagTable_TagDefinition_DToB2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB2Tag> for &OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12635,11 +9185,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12651,8 +9197,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -12666,18 +9211,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB2Tag {}
 impl Icc4_TagTable_TagDefinition_DToB2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DToB2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DToB2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB2Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -12704,121 +9246,67 @@ pub struct Icc4_TagTable_TagDefinition_DToB3Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
-    Icc4_TagTable_TagDefinition_MultiProcessElementsType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiProcessElementsType(OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB3Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB3Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB3Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DToB3Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB3Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB3Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB3Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_DToB3Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiProcessElementsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_DToB3Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>>
-    for Icc4_TagTable_TagDefinition_DToB3Tag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DToB3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB3Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DToB3Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB3Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DToB3Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DToB3Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DToB3Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for Icc4_TagTable_TagDefinition_DToB3Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for Icc4_TagTable_TagDefinition_DToB3Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for &Icc4_TagTable_TagDefinition_DToB3Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for &Icc4_TagTable_TagDefinition_DToB3Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DToB3Tag> for &OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12826,11 +9314,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12842,8 +9326,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
@@ -12857,18 +9340,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB3Tag {}
 impl Icc4_TagTable_TagDefinition_DToB3Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DToB3Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DToB3Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB3Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DToB3Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -12892,59 +9372,35 @@ pub struct Icc4_TagTable_TagDefinition_DataType {
     data_flag: RefCell<Icc4_TagTable_TagDefinition_DataType_DataTypes>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DataType>
-    for OptRc<Icc4_TagTable_TagDefinition_DataType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DataType> for OptRc<Icc4_TagTable_TagDefinition_DataType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DataType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DataType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DataType>
-    for OptRc<Icc4_TagTable_TagDefinition_DataType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DataType> for OptRc<Icc4_TagTable_TagDefinition_DataType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DataType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DataType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType>
-    for Icc4_TagTable_TagDefinition_DataType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType> for Icc4_TagTable_TagDefinition_DataType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType>
-    for &Icc4_TagTable_TagDefinition_DataType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType> for &Icc4_TagTable_TagDefinition_DataType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType>
-    for OptRc<Icc4_TagTable_TagDefinition_DataType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType> for OptRc<Icc4_TagTable_TagDefinition_DataType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType>
-    for &OptRc<Icc4_TagTable_TagDefinition_DataType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DataType> for &OptRc<Icc4_TagTable_TagDefinition_DataType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DataType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12952,11 +9408,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12968,18 +9420,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data_flag.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.data_flag.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DataType {}
 impl Icc4_TagTable_TagDefinition_DataType {
-    pub fn data_flag(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_DataType_DataTypes> {
+}
+impl Icc4_TagTable_TagDefinition_DataType {
+    pub fn data_flag(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_DataType_DataTypes> {
         self.data_flag.borrow()
     }
 }
@@ -13003,15 +9453,11 @@ pub enum Icc4_TagTable_TagDefinition_DataType_DataTypes {
 
 impl TryFrom<i64> for Icc4_TagTable_TagDefinition_DataType_DataTypes {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Icc4_TagTable_TagDefinition_DataType_DataTypes> {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_DataType_DataTypes> {
         match flag {
             0 => Ok(Icc4_TagTable_TagDefinition_DataType_DataTypes::AsciiData),
             1 => Ok(Icc4_TagTable_TagDefinition_DataType_DataTypes::BinaryData),
-            _ => Ok(Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(
-                flag,
-            )),
+            _ => Ok(Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(flag)),
         }
     }
 }
@@ -13021,80 +9467,54 @@ impl From<&Icc4_TagTable_TagDefinition_DataType_DataTypes> for i64 {
         match *v {
             Icc4_TagTable_TagDefinition_DataType_DataTypes::AsciiData => 0,
             Icc4_TagTable_TagDefinition_DataType_DataTypes::BinaryData => 1,
-            Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(v) => v,
+            Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(v) => v
         }
     }
 }
 
 impl Default for Icc4_TagTable_TagDefinition_DataType_DataTypes {
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(0)
-    }
+    fn default() -> Self { Icc4_TagTable_TagDefinition_DataType_DataTypes::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DateTimeType {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>,
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     date_and_time: RefCell<OptRc<Icc4_DateTimeNumber>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DateTimeType>
-    for OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DateTimeType> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DateTimeType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DateTimeType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DateTimeType>
-    for OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DateTimeType> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DateTimeType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DateTimeType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for Icc4_TagTable_TagDefinition_DateTimeType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for Icc4_TagTable_TagDefinition_DateTimeType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for &Icc4_TagTable_TagDefinition_DateTimeType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for &Icc4_TagTable_TagDefinition_DateTimeType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-    for &OptRc<Icc4_TagTable_TagDefinition_DateTimeType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DateTimeType> for &OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13102,11 +9522,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CalibrationDateTimeTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13123,19 +9539,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/date_time_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DateTimeNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.date_and_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DateTimeType {}
+impl Icc4_TagTable_TagDefinition_DateTimeType {
+}
 impl Icc4_TagTable_TagDefinition_DateTimeType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -13164,131 +9576,72 @@ pub struct Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
-    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    for Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DeviceMfgDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceMfgDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DeviceMfgDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DeviceMfgDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for Icc4_TagTable_TagDefinition_DeviceMfgDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for &Icc4_TagTable_TagDefinition_DeviceMfgDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for &Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> for &OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13296,11 +9649,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13312,8 +9661,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
@@ -13327,19 +9675,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {}
 impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -13361,131 +9705,72 @@ pub struct Icc4_TagTable_TagDefinition_DeviceModelDescTag {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
-    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    for Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceModelDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_DeviceModelDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceModelDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_DeviceModelDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_DeviceModelDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_DeviceModelDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for Icc4_TagTable_TagDefinition_DeviceModelDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for &Icc4_TagTable_TagDefinition_DeviceModelDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for &Icc4_TagTable_TagDefinition_DeviceModelDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> for &OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13493,11 +9778,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13509,8 +9790,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
@@ -13524,19 +9804,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {}
 impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -13563,213 +9839,129 @@ pub struct Icc4_TagTable_TagDefinition_GamutTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GamutTag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_GamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_GamutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GamutTag> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for Icc4_TagTable_TagDefinition_GamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for Icc4_TagTable_TagDefinition_GamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for &Icc4_TagTable_TagDefinition_GamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for &Icc4_TagTable_TagDefinition_GamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_GamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GamutTag> for &OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GamutTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13777,11 +9969,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13793,8 +9981,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -13816,18 +10003,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_GamutTag {}
 impl Icc4_TagTable_TagDefinition_GamutTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_GamutTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_GamutTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GamutTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GamutTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -13854,164 +10038,98 @@ pub struct Icc4_TagTable_TagDefinition_GrayTrcTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
-    Icc4_TagTable_TagDefinition_CurveType(
-        OptRc<Icc4_TagTable_TagDefinition_CurveType>,
-    ),
-    Icc4_TagTable_TagDefinition_ParametricCurveType(
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>,
-    ),
+    Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
+    Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>>
-    for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>>
-    for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GrayTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GrayTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GrayTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GrayTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for Icc4_TagTable_TagDefinition_GrayTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for Icc4_TagTable_TagDefinition_GrayTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for &Icc4_TagTable_TagDefinition_GrayTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for &Icc4_TagTable_TagDefinition_GrayTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> for &OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14019,11 +10137,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14035,8 +10149,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
@@ -14054,18 +10167,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_GrayTrcTag {}
 impl Icc4_TagTable_TagDefinition_GrayTrcTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_GrayTrcTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_GrayTrcTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -14087,122 +10197,72 @@ pub struct Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
-    Icc4_TagTable_TagDefinition_XyzType(
-        OptRc<Icc4_TagTable_TagDefinition_XyzType>,
-    ),
+    Icc4_TagTable_TagDefinition_XyzType(OptRc<Icc4_TagTable_TagDefinition_XyzType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_XyzType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>>
-    for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> for &OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14210,11 +10270,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14226,18 +10282,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_XyzType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -14247,19 +10296,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {}
 impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -14286,164 +10331,98 @@ pub struct Icc4_TagTable_TagDefinition_GreenTrcTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
-    Icc4_TagTable_TagDefinition_CurveType(
-        OptRc<Icc4_TagTable_TagDefinition_CurveType>,
-    ),
-    Icc4_TagTable_TagDefinition_ParametricCurveType(
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>,
-    ),
+    Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
+    Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>>
-    for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>>
-    for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_GreenTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_GreenTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_GreenTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_GreenTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for Icc4_TagTable_TagDefinition_GreenTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for Icc4_TagTable_TagDefinition_GreenTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for &Icc4_TagTable_TagDefinition_GreenTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for &Icc4_TagTable_TagDefinition_GreenTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> for &OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14451,11 +10430,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14467,8 +10442,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
@@ -14486,18 +10460,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_GreenTrcTag {}
 impl Icc4_TagTable_TagDefinition_GreenTrcTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_GreenTrcTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_GreenTrcTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -14524,111 +10495,67 @@ pub struct Icc4_TagTable_TagDefinition_LuminanceTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
-    Icc4_TagTable_TagDefinition_XyzType(
-        OptRc<Icc4_TagTable_TagDefinition_XyzType>,
-    ),
+    Icc4_TagTable_TagDefinition_XyzType(OptRc<Icc4_TagTable_TagDefinition_XyzType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_LuminanceTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_LuminanceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_LuminanceTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_LuminanceTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_LuminanceTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_LuminanceTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_LuminanceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_LuminanceTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_LuminanceTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_LuminanceTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_XyzType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_LuminanceTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>>
-    for Icc4_TagTable_TagDefinition_LuminanceTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_LuminanceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_LuminanceTag> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_LuminanceTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_LuminanceTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_LuminanceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_LuminanceTag> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_LuminanceTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_LuminanceTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for Icc4_TagTable_TagDefinition_LuminanceTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for Icc4_TagTable_TagDefinition_LuminanceTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for &Icc4_TagTable_TagDefinition_LuminanceTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for &Icc4_TagTable_TagDefinition_LuminanceTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LuminanceTag> for &OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14636,11 +10563,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14652,18 +10575,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_XyzType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -14673,18 +10589,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_LuminanceTag {}
 impl Icc4_TagTable_TagDefinition_LuminanceTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_LuminanceTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_LuminanceTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_LuminanceTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_LuminanceTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -14721,59 +10634,35 @@ pub struct Icc4_TagTable_TagDefinition_Lut16Type {
     clut_values_raw: RefCell<Vec<u8>>,
     output_tables_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Lut16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Lut16Type> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Lut16Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Lut16Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Lut16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Lut16Type> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Lut16Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Lut16Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_Lut16Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_Lut16Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_Lut16Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_Lut16Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14781,11 +10670,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14816,51 +10701,25 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
         let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
-            self_rc
-                .encoded_e_parameters
-                .borrow_mut()
-                .push(_io.read_s4be()?);
+            self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_input_table_entries.borrow_mut() =
-            _io.read_u2be()?;
+        *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_output_table_entries.borrow_mut() =
-            _io.read_u2be()?;
+        *self_rc.number_of_output_table_entries.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.input_tables.borrow_mut() =
-            _io.read_bytes(usize::try_from(
-                ((2_i32).saturating_mul(i32::from(
-                    *self_rc.number_of_input_channels(),
-                )))
-                .saturating_mul(i32::from(
-                    *self_rc.number_of_input_table_entries(),
-                )),
-            )?)?;
+        *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels()))).saturating_mul(i32::from(*self_rc.number_of_input_table_entries())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((2_i32).saturating_mul(i32::from(
-                ((*self_rc.number_of_clut_grid_points())
-                    ^ (*self_rc.number_of_input_channels())),
-            )))
-            .saturating_mul(i32::from(*self_rc.number_of_output_channels())),
-        )?)?;
+        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels())))).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.output_tables.borrow_mut() =
-            _io.read_bytes(usize::try_from(
-                ((2_i32).saturating_mul(i32::from(
-                    *self_rc.number_of_output_channels(),
-                )))
-                .saturating_mul(i32::from(
-                    *self_rc.number_of_output_table_entries(),
-                )),
-            )?)?;
+        *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels()))).saturating_mul(i32::from(*self_rc.number_of_output_table_entries())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_Lut16Type {}
+impl Icc4_TagTable_TagDefinition_Lut16Type {
+}
 impl Icc4_TagTable_TagDefinition_Lut16Type {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -14964,59 +10823,35 @@ pub struct Icc4_TagTable_TagDefinition_Lut8Type {
     clut_values_raw: RefCell<Vec<u8>>,
     output_tables_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Lut8Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Lut8Type> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Lut8Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Lut8Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Lut8Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Lut8Type> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Lut8Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Lut8Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_Lut8Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_Lut8Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_Lut8Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_Lut8Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         Ok((*self).clone())
     }
 }
@@ -15024,11 +10859,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -15059,39 +10890,25 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
         let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
-            self_rc
-                .encoded_e_parameters
-                .borrow_mut()
-                .push(_io.read_s4be()?);
+            self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_input_table_entries.borrow_mut() =
-            _io.read_u4be()?;
+        *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_output_table_entries.borrow_mut() =
-            _io.read_u4be()?;
+        *self_rc.number_of_output_table_entries.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.input_tables.borrow_mut() =
-            _io.read_bytes(usize::try_from((256_i32).saturating_mul(
-                i32::from(*self_rc.number_of_input_channels()),
-            ))?)?;
+        *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::from(
-            ((*self_rc.number_of_clut_grid_points())
-                ^ (*self_rc.number_of_input_channels()))
-            .saturating_mul(*self_rc.number_of_output_channels()),
-        ))?;
+        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::from((((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))).saturating_mul(*self_rc.number_of_output_channels())))?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.output_tables.borrow_mut() =
-            _io.read_bytes(usize::try_from((256_i32).saturating_mul(
-                i32::from(*self_rc.number_of_output_channels()),
-            ))?)?;
+        *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_Lut8Type {}
+impl Icc4_TagTable_TagDefinition_Lut8Type {
+}
 impl Icc4_TagTable_TagDefinition_Lut8Type {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -15191,59 +11008,35 @@ pub struct Icc4_TagTable_TagDefinition_LutAToBType {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_LutAToBType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_LutAToBType> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_LutAToBType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_LutAToBType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_LutAToBType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_LutAToBType> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_LutAToBType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_LutAToBType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for Icc4_TagTable_TagDefinition_LutAToBType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for Icc4_TagTable_TagDefinition_LutAToBType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &Icc4_TagTable_TagDefinition_LutAToBType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &Icc4_TagTable_TagDefinition_LutAToBType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -15251,11 +11044,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -15297,7 +11086,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_LutAToBType {}
+impl Icc4_TagTable_TagDefinition_LutAToBType {
+}
 impl Icc4_TagTable_TagDefinition_LutAToBType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -15377,59 +11167,35 @@ pub struct Icc4_TagTable_TagDefinition_LutBToAType {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_LutBToAType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_LutBToAType> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_LutBToAType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_LutBToAType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_LutBToAType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_LutBToAType> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_LutBToAType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_LutBToAType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_LutBToAType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_LutBToAType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_LutBToAType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_LutBToAType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -15437,11 +11203,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -15483,7 +11245,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_LutBToAType {}
+impl Icc4_TagTable_TagDefinition_LutBToAType {
+}
 impl Icc4_TagTable_TagDefinition_LutBToAType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -15552,119 +11315,72 @@ pub struct Icc4_TagTable_TagDefinition_MeasurementTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_MeasurementTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_MeasurementTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
-    Icc4_TagTable_TagDefinition_MeasurementType(
-        OptRc<Icc4_TagTable_TagDefinition_MeasurementType>,
-    ),
+    Icc4_TagTable_TagDefinition_MeasurementType(OptRc<Icc4_TagTable_TagDefinition_MeasurementType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MeasurementTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MeasurementTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_MeasurementTag_TagData::Icc4_TagTable_TagDefinition_MeasurementType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MeasurementTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MeasurementTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for Icc4_TagTable_TagDefinition_MeasurementTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_MeasurementType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for &Icc4_TagTable_TagDefinition_MeasurementTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for &Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>>
-    for Icc4_TagTable_TagDefinition_MeasurementTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>> for Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MeasurementType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MeasurementType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementTag> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MeasurementTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MeasurementTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementTag> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MeasurementTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MeasurementTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for Icc4_TagTable_TagDefinition_MeasurementTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for Icc4_TagTable_TagDefinition_MeasurementTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for &Icc4_TagTable_TagDefinition_MeasurementTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for &Icc4_TagTable_TagDefinition_MeasurementTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementTag> for &OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -15672,11 +11388,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -15688,20 +11400,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MeasurementType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_MeasurementType,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MeasurementType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -15711,19 +11414,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_MeasurementTag {}
 impl Icc4_TagTable_TagDefinition_MeasurementTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_MeasurementTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_MeasurementTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_MeasurementTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -15752,63 +11451,35 @@ pub struct Icc4_TagTable_TagDefinition_MeasurementType {
     standard_illuminant_encoding: RefCell<OptRc<Icc4_StandardIlluminantEncoding>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementType>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementType> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MeasurementType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MeasurementType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementType>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MeasurementType> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MeasurementType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MeasurementType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for Icc4_TagTable_TagDefinition_MeasurementType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for Icc4_TagTable_TagDefinition_MeasurementType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for &Icc4_TagTable_TagDefinition_MeasurementType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for &Icc4_TagTable_TagDefinition_MeasurementType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-    for &OptRc<Icc4_TagTable_TagDefinition_MeasurementType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MeasurementType> for &OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -15816,11 +11487,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MeasurementTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -15837,80 +11504,51 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/measurement_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.standard_observer_encoding.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.standard_observer_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_XyzNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
-        *self_rc
-            .nciexyz_tristimulus_values_for_measurement_backing
-            .borrow_mut() = t;
+        let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        *self_rc.nciexyz_tristimulus_values_for_measurement_backing.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.measurement_geometry_encoding.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.measurement_geometry_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.measurement_flare_encoding.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.measurement_flare_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.standard_illuminant_encoding.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_MeasurementType {}
+impl Icc4_TagTable_TagDefinition_MeasurementType {
+}
 impl Icc4_TagTable_TagDefinition_MeasurementType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementType {
-    pub fn standard_observer_encoding(
-        &self,
-    ) -> Ref<
-        '_,
-        Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings,
-    > {
+    pub fn standard_observer_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings> {
         self.standard_observer_encoding.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementType {
-    pub fn nciexyz_tristimulus_values_for_measurement_backing(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
-        self.nciexyz_tristimulus_values_for_measurement_backing
-            .borrow()
+    pub fn nciexyz_tristimulus_values_for_measurement_backing(&self) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
+        self.nciexyz_tristimulus_values_for_measurement_backing.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementType {
-    pub fn measurement_geometry_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings>{
+    pub fn measurement_geometry_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings> {
         self.measurement_geometry_encoding.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementType {
-    pub fn measurement_flare_encoding(
-        &self,
-    ) -> Ref<
-        '_,
-        Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings,
-    > {
+    pub fn measurement_flare_encoding(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings> {
         self.measurement_flare_encoding.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MeasurementType {
-    pub fn standard_illuminant_encoding(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_StandardIlluminantEncoding>> {
+    pub fn standard_illuminant_encoding(&self) -> Ref<'_, OptRc<Icc4_StandardIlluminantEncoding>> {
         self.standard_illuminant_encoding.borrow()
     }
 }
@@ -15932,15 +11570,9 @@ pub enum Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings {
     Unknown(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings
-{
+impl TryFrom<i64> for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<
-        Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings,
-    > {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings> {
         match flag {
             0 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::ZeroPercent),
             65536 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::OneHundredPercent),
@@ -15949,13 +11581,8 @@ impl TryFrom<i64>
     }
 }
 
-impl
-    From<&Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings>
-    for i64
-{
-    fn from(
-        v: &Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings,
-    ) -> Self {
+impl From<&Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings> for i64 {
+    fn from(v: &Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings) -> Self {
         match *v {
             Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::ZeroPercent => 0,
             Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::OneHundredPercent => 65536,
@@ -15964,28 +11591,21 @@ impl
     }
 }
 
-impl Default
-    for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings
-{
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::Unknown(0)
-    }
+impl Default for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings {
+    fn default() -> Self { Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings
-{
+pub enum Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings {
     Unknown,
     ZeroDegreesTo45DegreesOr45DegreesToZeroDegrees,
     ZeroDegreesToDDegreesOrDDegreesToZeroDegrees,
     UnknownVariant(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings
-{
+impl TryFrom<i64> for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings {
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings>{
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings> {
         match flag {
             0 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings::Unknown),
             1 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings::ZeroDegreesTo45DegreesOr45DegreesToZeroDegrees),
@@ -16006,12 +11626,8 @@ impl From<&Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodi
     }
 }
 
-impl Default
-    for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings
-{
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings::UnknownVariant(0)
-    }
+impl Default for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings {
+    fn default() -> Self { Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings::UnknownVariant(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -16022,15 +11638,9 @@ pub enum Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings {
     UnknownVariant(i64),
 }
 
-impl TryFrom<i64>
-    for Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings
-{
+impl TryFrom<i64> for Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<
-        Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings,
-    > {
+    fn try_from(flag: i64) -> KResult<Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings> {
         match flag {
             0 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::Unknown),
             1 => Ok(Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::Cie1931StandardColorimetricObserver),
@@ -16040,13 +11650,8 @@ impl TryFrom<i64>
     }
 }
 
-impl
-    From<&Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings>
-    for i64
-{
-    fn from(
-        v: &Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings,
-    ) -> Self {
+impl From<&Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings> for i64 {
+    fn from(v: &Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings) -> Self {
         match *v {
             Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::Unknown => 0,
             Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::Cie1931StandardColorimetricObserver => 1,
@@ -16056,13 +11661,10 @@ impl
     }
 }
 
-impl Default
-    for Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings
-{
-    fn default() -> Self {
-        Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::UnknownVariant(0)
-    }
+impl Default for Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings {
+    fn default() -> Self { Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings::UnknownVariant(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_MediaWhitePointTag {
@@ -16070,121 +11672,72 @@ pub struct Icc4_TagTable_TagDefinition_MediaWhitePointTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
-    Icc4_TagTable_TagDefinition_XyzType(
-        OptRc<Icc4_TagTable_TagDefinition_XyzType>,
-    ),
+    Icc4_TagTable_TagDefinition_XyzType(OptRc<Icc4_TagTable_TagDefinition_XyzType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_XyzType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>>
-    for Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MediaWhitePointTag> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MediaWhitePointTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MediaWhitePointTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MediaWhitePointTag> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MediaWhitePointTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MediaWhitePointTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for Icc4_TagTable_TagDefinition_MediaWhitePointTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for &Icc4_TagTable_TagDefinition_MediaWhitePointTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for &Icc4_TagTable_TagDefinition_MediaWhitePointTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> for &OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -16192,11 +11745,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -16208,18 +11757,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_XyzType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -16229,19 +11771,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {}
 impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -16265,78 +11803,38 @@ pub struct Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     reserved: RefCell<Vec<u8>>,
     number_of_records: RefCell<u32>,
     record_size: RefCell<u32>,
-    records: RefCell<
-        Vec<
-            OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        >,
-    >,
+    records: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -16344,11 +11842,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -16372,15 +11866,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = usize::try_from(*self_rc.number_of_records())?;
         for _i in 0_usize..l_records {
-            let t = Self::read_into::<
-                _,
-                Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record,
-            >(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -16388,7 +11874,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {}
+impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
+}
 impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -16405,14 +11892,7 @@ impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     }
 }
 impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
-    pub fn records(
-        &self,
-    ) -> Ref<
-        '_,
-        Vec<
-            OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        >,
-    > {
+    pub fn records(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>>> {
         self.records.borrow()
     }
 }
@@ -16431,8 +11911,7 @@ impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
     pub(crate) _self_shared: SharedType<Self>,
     language_code: RefCell<u16>,
     country_code: RefCell<u16>,
@@ -16442,71 +11921,35 @@ pub struct Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     f_string_data: Cell<bool>,
     string_data: RefCell<String>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for &Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-    for &OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> for &OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>, KError> {
         Ok((*self).clone())
     }
 }
@@ -16514,11 +11957,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -16543,12 +11982,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     }
 }
 impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn string_data(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn string_data(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_string_data.get() {
             return Ok(self.string_data.borrow());
@@ -16556,10 +11993,7 @@ impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
         self.f_string_data.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.string_offset())?)?;
-        *self.string_data.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self.string_length())?)?,
-            "UTF-16BE",
-        )?;
+        *self.string_data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self.string_length())?)?, "UTF-16BE")?;
         _io.seek(_pos)?;
         Ok(self.string_data.borrow())
     }
@@ -16609,71 +12043,35 @@ pub struct Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_MultiProcessElementsType> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_MultiProcessElementsType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MultiProcessElementsType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_MultiProcessElementsType> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_MultiProcessElementsType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_MultiProcessElementsType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for Icc4_TagTable_TagDefinition_MultiProcessElementsType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &Icc4_TagTable_TagDefinition_MultiProcessElementsType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &Icc4_TagTable_TagDefinition_MultiProcessElementsType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-    for &OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> for &OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -16681,11 +12079,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -16706,19 +12100,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_processing_elements.borrow_mut() =
-            _io.read_u4be()?;
+        *self_rc.number_of_processing_elements.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.process_element_positions_table.borrow_mut() = Vec::new();
-        let l_process_element_positions_table =
-            usize::try_from(*self_rc.number_of_processing_elements())?;
+        let l_process_element_positions_table = usize::try_from(*self_rc.number_of_processing_elements())?;
         for _i in 0_usize..l_process_element_positions_table {
-            let t = Self::read_into::<_, Icc4_PositionNumber>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.process_element_positions_table.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -16728,7 +12115,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_MultiProcessElementsType {}
+impl Icc4_TagTable_TagDefinition_MultiProcessElementsType {
+}
 impl Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -16750,9 +12138,7 @@ impl Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     }
 }
 impl Icc4_TagTable_TagDefinition_MultiProcessElementsType {
-    pub fn process_element_positions_table(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Icc4_PositionNumber>>> {
+    pub fn process_element_positions_table(&self) -> Ref<'_, Vec<OptRc<Icc4_PositionNumber>>> {
         self.process_element_positions_table.borrow()
     }
 }
@@ -16779,119 +12165,72 @@ pub struct Icc4_TagTable_TagDefinition_NamedColor2Tag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
-    Icc4_TagTable_TagDefinition_NamedColor2Type(
-        OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>,
-    ),
+    Icc4_TagTable_TagDefinition_NamedColor2Type(OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData::Icc4_TagTable_TagDefinition_NamedColor2Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_NamedColor2Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for &Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for &Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>>
-    for Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>> for Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_NamedColor2Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Tag> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_NamedColor2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_NamedColor2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Tag> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_NamedColor2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_NamedColor2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for Icc4_TagTable_TagDefinition_NamedColor2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for Icc4_TagTable_TagDefinition_NamedColor2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for &Icc4_TagTable_TagDefinition_NamedColor2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for &Icc4_TagTable_TagDefinition_NamedColor2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> for &OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -16899,11 +12238,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -16915,20 +12250,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::NamedColor2Type => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_NamedColor2Type,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -16938,19 +12264,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_NamedColor2Tag {}
 impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -16982,63 +12304,35 @@ pub struct Icc4_TagTable_TagDefinition_NamedColor2Type {
     named_colour_definitions: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Type> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_NamedColor2Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_NamedColor2Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Type> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_NamedColor2Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_NamedColor2Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for Icc4_TagTable_TagDefinition_NamedColor2Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for Icc4_TagTable_TagDefinition_NamedColor2Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for &Icc4_TagTable_TagDefinition_NamedColor2Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for &Icc4_TagTable_TagDefinition_NamedColor2Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-    for &OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> for &OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>, KError> {
         Ok((*self).clone())
     }
 }
@@ -17046,11 +12340,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -17071,57 +12361,32 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_named_colours.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc
-            .number_of_device_coordinates_for_each_named_colour
-            .borrow_mut() = _io.read_u4be()?;
+        *self_rc.number_of_device_coordinates_for_each_named_colour.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.prefix_for_each_colour_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.prefix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.prefix_for_each_colour_name_padding.borrow_mut() = Vec::new();
-        let l_prefix_for_each_colour_name_padding = usize::try_from(
-            (32_usize)
-                .saturating_sub(self_rc.prefix_for_each_colour_name().len()),
-        )?;
+        let l_prefix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.prefix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_prefix_for_each_colour_name_padding {
-            self_rc
-                .prefix_for_each_colour_name_padding
-                .borrow_mut()
-                .push(_io.read_bytes(1_usize)?);
+            self_rc.prefix_for_each_colour_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
-        if !self_rc
-            .prefix_for_each_colour_name_padding()
-            .iter()
-            .all(|_x| *_x == vec![0x0u8])
-        {
+        if !self_rc.prefix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.suffix_for_each_colour_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.suffix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.suffix_for_each_colour_name_padding.borrow_mut() = Vec::new();
-        let l_suffix_for_each_colour_name_padding = usize::try_from(
-            (32_usize)
-                .saturating_sub(self_rc.suffix_for_each_colour_name().len()),
-        )?;
+        let l_suffix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.suffix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_suffix_for_each_colour_name_padding {
-            self_rc
-                .suffix_for_each_colour_name_padding
-                .borrow_mut()
-                .push(_io.read_bytes(1_usize)?);
+            self_rc.suffix_for_each_colour_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
-        if !self_rc
-            .suffix_for_each_colour_name_padding()
-            .iter()
-            .all(|_x| *_x == vec![0x0u8])
-        {
+        if !self_rc.suffix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.named_colour_definitions.borrow_mut() = Vec::new();
-        let l_named_colour_definitions =
-            usize::try_from(*self_rc.count_of_named_colours())?;
+        let l_named_colour_definitions = usize::try_from(*self_rc.count_of_named_colours())?;
         for _i in 0_usize..l_named_colour_definitions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.named_colour_definitions.borrow_mut().push(t);
@@ -17131,7 +12396,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_NamedColor2Type {}
+impl Icc4_TagTable_TagDefinition_NamedColor2Type {
+}
 impl Icc4_TagTable_TagDefinition_NamedColor2Type {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -17148,11 +12414,8 @@ impl Icc4_TagTable_TagDefinition_NamedColor2Type {
     }
 }
 impl Icc4_TagTable_TagDefinition_NamedColor2Type {
-    pub fn number_of_device_coordinates_for_each_named_colour(
-        &self,
-    ) -> Ref<'_, u32> {
-        self.number_of_device_coordinates_for_each_named_colour
-            .borrow()
+    pub fn number_of_device_coordinates_for_each_named_colour(&self) -> Ref<'_, u32> {
+        self.number_of_device_coordinates_for_each_named_colour.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_NamedColor2Type {
@@ -17176,7 +12439,7 @@ impl Icc4_TagTable_TagDefinition_NamedColor2Type {
     }
 }
 impl Icc4_TagTable_TagDefinition_NamedColor2Type {
-    pub fn named_colour_definitions(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>>>{
+    pub fn named_colour_definitions(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>>> {
         self.named_colour_definitions.borrow()
     }
 }
@@ -17204,106 +12467,43 @@ pub struct Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
     _io: RefCell<BytesReader>,
     pcs_coordinates_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl
-    TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    > for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    > for &Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for &Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    >
-    for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    >
-    for &OptRc<
-        Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-    >
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<
-            Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition,
-        >,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> for &OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition
-{
+impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Type;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -17315,57 +12515,25 @@ impl KStruct
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.root_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.root_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.root_name_padding.borrow_mut() = Vec::new();
-        let l_root_name_padding = usize::try_from(
-            (32_usize).saturating_sub(self_rc.root_name().len()),
-        )?;
+        let l_root_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.root_name().len()))?;
         for _i in 0_usize..l_root_name_padding {
-            self_rc
-                .root_name_padding
-                .borrow_mut()
-                .push(_io.read_bytes(1_usize)?);
+            self_rc.root_name_padding.borrow_mut().push(_io.read_bytes(1_usize)?);
         }
-        if !self_rc
-            .root_name_padding()
-            .iter()
-            .all(|_x| *_x == vec![0x0u8])
-        {
+        if !self_rc.root_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/types/named_colour_definition/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pcs_coordinates.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(
-            *self_rc
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .number_of_device_coordinates_for_each_named_colour(),
-        )) > (to_i128(0)))
-        {
+        if (to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())) > (to_i128(0)) {
             *self_rc.device_coordinates.borrow_mut() = Vec::new();
-            let l_device_coordinates = usize::try_from(
-                *self_rc
-                    ._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .number_of_device_coordinates_for_each_named_colour(),
-            )?;
+            let l_device_coordinates = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())?;
             for _i in 0_usize..l_device_coordinates {
-                self_rc
-                    .device_coordinates
-                    .borrow_mut()
-                    .push(_io.read_u2be()?);
+                self_rc.device_coordinates.borrow_mut().push(_io.read_u2be()?);
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -17373,7 +12541,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {}
+impl Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
+}
 impl Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
     pub fn root_name(&self) -> Ref<'_, String> {
         self.root_name.borrow()
@@ -17417,127 +12586,72 @@ pub struct Icc4_TagTable_TagDefinition_OutputResponseTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
-    Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(
-        OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_OutputResponseTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_OutputResponseTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_OutputResponseTag_TagData::Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for Icc4_TagTable_TagDefinition_OutputResponseTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for &Icc4_TagTable_TagDefinition_OutputResponseTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for &Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>>
-    for Icc4_TagTable_TagDefinition_OutputResponseTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>> for Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_OutputResponseTag> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_OutputResponseTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_OutputResponseTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_OutputResponseTag> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_OutputResponseTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_OutputResponseTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for Icc4_TagTable_TagDefinition_OutputResponseTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for Icc4_TagTable_TagDefinition_OutputResponseTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for &Icc4_TagTable_TagDefinition_OutputResponseTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for &Icc4_TagTable_TagDefinition_OutputResponseTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> for &OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -17545,11 +12659,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -17561,8 +12671,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ResponseCurveSet16Type => {
@@ -17576,19 +12685,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_OutputResponseTag {}
 impl Icc4_TagTable_TagDefinition_OutputResponseTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_OutputResponseTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_OutputResponseTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -17623,198 +12728,93 @@ pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
     Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC>),
     Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>::try_from(self)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl
-    From<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn from(
-        v: OptRc<
-            Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-        >,
-    ) -> Self {
-        Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996(
-            v,
-        )
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>) -> Self {
+        Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>::try_from(self)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl
-    From<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn from(
-        v: OptRc<
-            Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-        >,
-    ) -> Self {
-        Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621(
-            v,
-        )
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>) -> Self {
+        Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>::try_from(self)
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl
-    From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>>
-    for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters
-{
-    fn from(
-        v: OptRc<
-            Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-        >,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663(v)
     }
 }
@@ -17878,63 +12878,35 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXTo
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for Icc4_TagTable_TagDefinition_ParametricCurveType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for Icc4_TagTable_TagDefinition_ParametricCurveType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &Icc4_TagTable_TagDefinition_ParametricCurveType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &Icc4_TagTable_TagDefinition_ParametricCurveType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -17942,11 +12914,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -17963,8 +12931,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/parametric_curve_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.function_type.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.function_type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_2.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved_2() == vec![0x0u8, 0x0u8]) {
@@ -17999,14 +12966,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType {}
+impl Icc4_TagTable_TagDefinition_ParametricCurveType {
+}
 impl Icc4_TagTable_TagDefinition_ParametricCurveType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ParametricCurveType {
-    pub fn function_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions>{
+    pub fn function_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions> {
         self.function_type.borrow()
     }
 }
@@ -18016,12 +12984,7 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ParametricCurveType {
-    pub fn parameters(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>,
-    > {
+    pub fn parameters(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>> {
         self.parameters.borrow()
     }
 }
@@ -18037,8 +13000,7 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType {
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions
-{
+pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions {
     YEqualsXToPowerOfG,
     Cie1221996,
     Iec619663,
@@ -18078,106 +13040,54 @@ impl Default for Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurve
     fn default() -> Self { Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::Unknown(0) }
 }
 
+
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
     pub(crate) _self_shared: SharedType<Self>,
     g: RefCell<i32>,
     a: RefCell<i32>,
     b: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    >
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996,
-    >
-    for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -18199,7 +13109,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {}
+impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
+}
 impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
     pub fn g(&self) -> Ref<'_, i32> {
         self.g.borrow()
@@ -18230,8 +13141,7 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996 {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
     pub(crate) _self_shared: SharedType<Self>,
     g: RefCell<i32>,
     a: RefCell<i32>,
@@ -18240,95 +13150,43 @@ pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
     d: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    >
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621,
-    >
-    for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -18354,7 +13212,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {}
+impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
+}
 impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
     pub fn g(&self) -> Ref<'_, i32> {
         self.g.borrow()
@@ -18395,8 +13254,7 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621 {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
     pub(crate) _self_shared: SharedType<Self>,
     g: RefCell<i32>,
     a: RefCell<i32>,
@@ -18404,95 +13262,43 @@ pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
     c: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    > for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    > for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for &Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    >
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663,
-    >
-    for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> for &OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -18516,7 +13322,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {}
+impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
+}
 impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
     pub fn g(&self) -> Ref<'_, i32> {
         self.g.borrow()
@@ -18550,11 +13357,9 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663 {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC
-{
+pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
     pub(crate) _self_shared: SharedType<Self>,
     g: RefCell<i32>,
     a: RefCell<i32>,
@@ -18681,11 +13486,9 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToP
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG
-{
+pub struct Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ParametricCurveType>,
     pub(crate) _self_shared: SharedType<Self>,
     g: RefCell<i32>,
     _io: RefCell<BytesReader>,
@@ -18722,17 +13525,11 @@ impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEquals
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -18750,7 +13547,8 @@ impl KStruct
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG {}
+impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG {
+}
 impl Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG {
     pub fn g(&self) -> Ref<'_, i32> {
         self.g.borrow()
@@ -18779,131 +13577,67 @@ pub struct Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
-    Icc4_TagTable_TagDefinition_SignatureType(
-        OptRc<Icc4_TagTable_TagDefinition_SignatureType>,
-    ),
+    Icc4_TagTable_TagDefinition_SignatureType(OptRc<Icc4_TagTable_TagDefinition_SignatureType>),
 }
-impl
-    TryFrom<
-        &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl
-    TryFrom<
-        &&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_SignatureType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>>
-    for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> for &OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -18911,11 +13645,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -18927,18 +13657,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_SignatureType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -18948,16 +13671,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {}
 impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
-    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData>>{
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -18984,264 +13706,160 @@ pub struct Icc4_TagTable_TagDefinition_Preview0Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutAToBType(
-        OptRc<Icc4_TagTable_TagDefinition_LutAToBType>,
-    ),
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutAToBType(OptRc<Icc4_TagTable_TagDefinition_LutAToBType>),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutAToBType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType>
-    for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutAToBType> for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutAToBType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_Preview0Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview0Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview0Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview0Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for Icc4_TagTable_TagDefinition_Preview0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for Icc4_TagTable_TagDefinition_Preview0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for &Icc4_TagTable_TagDefinition_Preview0Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for &Icc4_TagTable_TagDefinition_Preview0Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview0Tag> for &OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -19249,11 +13867,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -19265,8 +13879,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
@@ -19292,18 +13905,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview0Tag {}
 impl Icc4_TagTable_TagDefinition_Preview0Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_Preview0Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_Preview0Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview0Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview0Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -19330,213 +13940,129 @@ pub struct Icc4_TagTable_TagDefinition_Preview1Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_Preview1Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview1Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview1Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview1Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for Icc4_TagTable_TagDefinition_Preview1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for Icc4_TagTable_TagDefinition_Preview1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for &Icc4_TagTable_TagDefinition_Preview1Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for &Icc4_TagTable_TagDefinition_Preview1Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview1Tag> for &OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -19544,11 +14070,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -19560,8 +14082,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -19583,18 +14104,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview1Tag {}
 impl Icc4_TagTable_TagDefinition_Preview1Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_Preview1Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_Preview1Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview1Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview1Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -19621,213 +14139,129 @@ pub struct Icc4_TagTable_TagDefinition_Preview2Tag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
-    Icc4_TagTable_TagDefinition_LutBToAType(
-        OptRc<Icc4_TagTable_TagDefinition_LutBToAType>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut8Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut8Type>,
-    ),
-    Icc4_TagTable_TagDefinition_Lut16Type(
-        OptRc<Icc4_TagTable_TagDefinition_Lut16Type>,
-    ),
+    Icc4_TagTable_TagDefinition_LutBToAType(OptRc<Icc4_TagTable_TagDefinition_LutBToAType>),
+    Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
+    Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_LutBToAType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType>
-    for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_LutBToAType> for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_LutBToAType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut8Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type>
-    for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut8Type> for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut8Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_Lut16Type>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type>
-    for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Lut16Type> for &Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>>
-    for Icc4_TagTable_TagDefinition_Preview2Tag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_Lut16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_Lut16Type(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_Preview2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_Preview2Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_Preview2Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_Preview2Tag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for Icc4_TagTable_TagDefinition_Preview2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for Icc4_TagTable_TagDefinition_Preview2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for &Icc4_TagTable_TagDefinition_Preview2Tag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for &Icc4_TagTable_TagDefinition_Preview2Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-    for &OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_Preview2Tag> for &OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -19835,11 +14269,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -19851,8 +14281,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
@@ -19874,18 +14303,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview2Tag {}
 impl Icc4_TagTable_TagDefinition_Preview2Tag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_Preview2Tag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_Preview2Tag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview2Tag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_Preview2Tag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -19907,132 +14333,72 @@ pub struct Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
-    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    for Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileDescriptionTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileDescriptionTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileDescriptionTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileDescriptionTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for Icc4_TagTable_TagDefinition_ProfileDescriptionTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for &Icc4_TagTable_TagDefinition_ProfileDescriptionTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for &Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> for &OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -20040,11 +14406,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -20056,8 +14418,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
@@ -20071,21 +14432,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {}
 impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>,
-    > {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -20111,71 +14466,35 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     profile_descriptions: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceDescType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceDescType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceDescType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceDescType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceDescType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceDescType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for &Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -20183,11 +14502,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -20204,12 +14519,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/profile_sequence_desc_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.number_of_description_structures.borrow_mut() =
-            _io.read_u4be()?;
+        *self_rc.number_of_description_structures.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.profile_descriptions.borrow_mut() = Vec::new();
-        let l_profile_descriptions =
-            usize::try_from(*self_rc.number_of_description_structures())?;
+        let l_profile_descriptions = usize::try_from(*self_rc.number_of_description_structures())?;
         for _i in 0_usize..l_profile_descriptions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_descriptions.borrow_mut().push(t);
@@ -20219,7 +14532,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {}
+impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
+}
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -20231,7 +14545,7 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
-    pub fn profile_descriptions(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>>>{
+    pub fn profile_descriptions(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>>> {
         self.profile_descriptions.borrow()
     }
 }
@@ -20248,36 +14562,22 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription
-{
+pub struct Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
     pub(crate) _self_shared: SharedType<Self>,
     device_manufacturer: RefCell<OptRc<Icc4_DeviceManufacturer>>,
     device_model: RefCell<String>,
     device_attributes: RefCell<OptRc<Icc4_DeviceAttributes>>,
-    device_technology:
-        RefCell<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>>,
-    description_of_device_manufacturer:
-        RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>>,
-    description_of_device_model:
-        RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>>,
+    device_technology: RefCell<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>>,
+    description_of_device_manufacturer: RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>>,
+    description_of_device_model: RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>>,
     _io: RefCell<BytesReader>,
     device_model_raw: RefCell<Vec<u8>>,
 }
-impl
-    TryFrom<
-        &Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-    for OptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
@@ -20287,61 +14587,31 @@ impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescri
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-    for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription
-{
-    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError>{
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription
-{
-    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError>{
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> for &Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-    for OptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-{
-    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError>{
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-    for &OptRc<
-        Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription,
-    >
-{
-    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError>{
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>, KError> {
         Ok((*self).clone())
     }
 }
-impl KStruct
-    for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription
-{
+impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceDescType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -20353,57 +14623,31 @@ impl KStruct
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.device_model.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_DeviceAttributes>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t =
-            Self::read_into::<_, Icc4_TagTable_TagDefinition_TechnologyTag>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+        let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TechnologyTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_technology.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<
-            _,
-            Icc4_TagTable_TagDefinition_DeviceMfgDescTag,
-        >(&*_io, Some(self_rc._root.clone()), None)?
-        .into();
+        let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DeviceMfgDescTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.description_of_device_manufacturer.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<
-            _,
-            Icc4_TagTable_TagDefinition_DeviceModelDescTag,
-        >(&*_io, Some(self_rc._root.clone()), None)?
-        .into();
+        let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DeviceModelDescTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.description_of_device_model.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {}
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
-    pub fn device_manufacturer(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_DeviceManufacturer>> {
+}
+impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
+    pub fn device_manufacturer(&self) -> Ref<'_, OptRc<Icc4_DeviceManufacturer>> {
         self.device_manufacturer.borrow()
     }
 }
@@ -20418,23 +14662,17 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
-    pub fn device_technology(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>> {
+    pub fn device_technology(&self) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>> {
         self.device_technology.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
-    pub fn description_of_device_manufacturer(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>> {
+    pub fn description_of_device_manufacturer(&self) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>> {
         self.description_of_device_manufacturer.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
-    pub fn description_of_device_model(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>> {
+    pub fn description_of_device_model(&self) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>> {
         self.description_of_device_model.borrow()
     }
 }
@@ -20461,140 +14699,72 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<
-            Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData,
-        >,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-    ),
+    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>> for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -20602,11 +14772,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -20618,8 +14784,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceIdentifierType => {
@@ -20633,23 +14798,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {}
 impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<
-        '_,
-        Option<
-            Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData,
-        >,
-    > {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -20676,71 +14833,35 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     profile_identifiers: RefCell<Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -20748,11 +14869,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -20772,21 +14889,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
         *self_rc.number_of_structures.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.positions_table.borrow_mut() = Vec::new();
-        let l_positions_table =
-            usize::try_from(*self_rc.number_of_structures())?;
+        let l_positions_table = usize::try_from(*self_rc.number_of_structures())?;
         for _i in 0_usize..l_positions_table {
-            let t = Self::read_into::<_, Icc4_PositionNumber>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.positions_table.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.profile_identifiers.borrow_mut() = Vec::new();
-        let l_profile_identifiers =
-            usize::try_from(*self_rc.number_of_structures())?;
+        let l_profile_identifiers = usize::try_from(*self_rc.number_of_structures())?;
         for _i in 0_usize..l_profile_identifiers {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_identifiers.borrow_mut().push(t);
@@ -20796,7 +14906,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {}
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
+}
 impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -20813,7 +14924,7 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
-    pub fn profile_identifiers(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>>>{
+    pub fn profile_identifiers(&self) -> Ref<'_, Vec<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>>> {
         self.profile_identifiers.borrow()
     }
 }
@@ -20830,15 +14941,12 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
+pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>,
     pub(crate) _self_shared: SharedType<Self>,
     profile_id: RefCell<Vec<u8>>,
-    profile_description:
-        RefCell<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>,
+    profile_description: RefCell<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>,
     _io: RefCell<BytesReader>,
     profile_id_raw: RefCell<Vec<u8>>,
 }
@@ -20899,30 +15007,19 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_Profi
         Ok(())
     }
 }
-impl
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
 }
-impl
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
     pub fn profile_id(&self) -> Ref<'_, Vec<u8>> {
         self.profile_id.borrow()
     }
 }
-impl
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
-    pub fn profile_description(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    {
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
+    pub fn profile_description(&self) -> Ref<'_, OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> {
         self.profile_description.borrow()
     }
 }
-impl
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
@@ -20933,9 +15030,7 @@ impl
         self._root.get().ok()
     }
 }
-impl
-    Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
-{
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
     pub fn profile_id_raw(&self) -> Ref<'_, Vec<u8>> {
         self.profile_id_raw.borrow()
     }
@@ -20947,131 +15042,72 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
-    Icc4_TagTable_TagDefinition_ProfileSequenceDescType(
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-    ),
+    Icc4_TagTable_TagDefinition_ProfileSequenceDescType(OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData::Icc4_TagTable_TagDefinition_ProfileSequenceDescType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> for &Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>> for Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceDescType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ProfileSequenceTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ProfileSequenceTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ProfileSequenceTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ProfileSequenceTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for Icc4_TagTable_TagDefinition_ProfileSequenceTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for &Icc4_TagTable_TagDefinition_ProfileSequenceTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for &Icc4_TagTable_TagDefinition_ProfileSequenceTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> for &OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -21079,11 +15115,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -21095,8 +15127,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceDescType => {
@@ -21110,19 +15141,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {}
 impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -21144,121 +15171,72 @@ pub struct Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
-    Icc4_TagTable_TagDefinition_XyzType(
-        OptRc<Icc4_TagTable_TagDefinition_XyzType>,
-    ),
+    Icc4_TagTable_TagDefinition_XyzType(OptRc<Icc4_TagTable_TagDefinition_XyzType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_XyzType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>>
-    for Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_RedMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_RedMatrixColumnTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_RedMatrixColumnTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for Icc4_TagTable_TagDefinition_RedMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for &Icc4_TagTable_TagDefinition_RedMatrixColumnTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for &Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> for &OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -21266,11 +15244,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -21282,18 +15256,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_XyzType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -21303,19 +15270,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {}
 impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -21342,164 +15305,98 @@ pub struct Icc4_TagTable_TagDefinition_RedTrcTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
-    Icc4_TagTable_TagDefinition_CurveType(
-        OptRc<Icc4_TagTable_TagDefinition_CurveType>,
-    ),
-    Icc4_TagTable_TagDefinition_ParametricCurveType(
-        OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>,
-    ),
+    Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
+    Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_CurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_RedTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_CurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType>
-    for &Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_CurveType> for &Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_CurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>>
-    for Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_CurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_RedTrcTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_ParametricCurveType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>
-    for &Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> for &Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>>
-    for Icc4_TagTable_TagDefinition_RedTrcTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_RedTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_RedTrcTag> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_RedTrcTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_RedTrcTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for Icc4_TagTable_TagDefinition_RedTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for Icc4_TagTable_TagDefinition_RedTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for &Icc4_TagTable_TagDefinition_RedTrcTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for &Icc4_TagTable_TagDefinition_RedTrcTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_RedTrcTag> for &OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -21507,11 +15404,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -21523,8 +15416,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
@@ -21542,18 +15434,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_RedTrcTag {}
 impl Icc4_TagTable_TagDefinition_RedTrcTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_RedTrcTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_RedTrcTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_RedTrcTag_TagData>> {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_RedTrcTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -21572,8 +15461,7 @@ impl Icc4_TagTable_TagDefinition_RedTrcTag {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_OutputResponseTag>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_OutputResponseTag>,
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     number_of_channels: RefCell<u16>,
@@ -21582,63 +15470,35 @@ pub struct Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     response_curve_structures: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ResponseCurveSet16Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ResponseCurveSet16Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ResponseCurveSet16Type) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for &Icc4_TagTable_TagDefinition_ResponseCurveSet16Type
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for &Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-    for &OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> for &OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>, KError> {
         Ok((*self).clone())
     }
 }
@@ -21646,11 +15506,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_OutputResponseTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -21672,23 +15528,19 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
         *self_rc.count_of_measurement_types.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.response_curve_structure_offsets.borrow_mut() = Vec::new();
-        let l_response_curve_structure_offsets =
-            usize::from(*self_rc.count_of_measurement_types());
+        let l_response_curve_structure_offsets = usize::from(*self_rc.count_of_measurement_types());
         for _i in 0_usize..l_response_curve_structure_offsets {
-            self_rc
-                .response_curve_structure_offsets
-                .borrow_mut()
-                .push(_io.read_u4be()?);
+            self_rc.response_curve_structure_offsets.borrow_mut().push(_io.read_u4be()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.response_curve_structures.borrow_mut() =
-            _io.read_bytes_full()?;
+        *self_rc.response_curve_structures.borrow_mut() = _io.read_bytes_full()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {}
+impl Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
+}
 impl Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -21729,70 +15581,41 @@ impl Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>,
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     values: RefCell<Vec<OptRc<Icc4_S15Fixed16Number>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_S15Fixed16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_S15Fixed16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_S15Fixed16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for &Icc4_TagTable_TagDefinition_S15Fixed16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for &Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -21800,11 +15623,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticAdaptationTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -21825,12 +15644,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Icc4_S15Fixed16Number>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_S15Fixed16Number>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 self_rc.values.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -21840,7 +15654,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {}
+impl Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -21874,131 +15689,67 @@ pub struct Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
-    Icc4_TagTable_TagDefinition_SignatureType(
-        OptRc<Icc4_TagTable_TagDefinition_SignatureType>,
-    ),
+    Icc4_TagTable_TagDefinition_SignatureType(OptRc<Icc4_TagTable_TagDefinition_SignatureType>),
 }
-impl
-    TryFrom<
-        &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl
-    TryFrom<
-        &&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData,
-    > for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_SignatureType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>>
-    for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         Ok(self.clone())
     }
 }
-impl
-    DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> for &OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22006,11 +15757,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22022,18 +15769,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_SignatureType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -22043,16 +15783,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {}
 impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
-    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData>>{
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -22078,59 +15817,35 @@ pub struct Icc4_TagTable_TagDefinition_SignatureType {
     _io: RefCell<BytesReader>,
     signature_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_SignatureType>
-    for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_SignatureType> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_SignatureType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_SignatureType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_SignatureType>
-    for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_SignatureType> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_SignatureType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_SignatureType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for Icc4_TagTable_TagDefinition_SignatureType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for Icc4_TagTable_TagDefinition_SignatureType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &Icc4_TagTable_TagDefinition_SignatureType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &Icc4_TagTable_TagDefinition_SignatureType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22138,11 +15853,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22159,14 +15870,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/signature_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.signature.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.signature.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_SignatureType {}
+impl Icc4_TagTable_TagDefinition_SignatureType {
+}
 impl Icc4_TagTable_TagDefinition_SignatureType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -22200,117 +15911,72 @@ pub struct Icc4_TagTable_TagDefinition_TechnologyTag {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_TechnologyTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_TechnologyTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
-    Icc4_TagTable_TagDefinition_SignatureType(
-        OptRc<Icc4_TagTable_TagDefinition_SignatureType>,
-    ),
+    Icc4_TagTable_TagDefinition_SignatureType(OptRc<Icc4_TagTable_TagDefinition_SignatureType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TechnologyTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TechnologyTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TechnologyTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TechnologyTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TechnologyTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TechnologyTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_SignatureType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TechnologyTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TechnologyTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TechnologyTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for Icc4_TagTable_TagDefinition_TechnologyTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         OptRc::<Icc4_TagTable_TagDefinition_SignatureType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType>
-    for &Icc4_TagTable_TagDefinition_TechnologyTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_SignatureType> for &Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_SignatureType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>>
-    for Icc4_TagTable_TagDefinition_TechnologyTag_TagData
-{
+impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TechnologyTag>
-    for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TechnologyTag> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TechnologyTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TechnologyTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TechnologyTag>
-    for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TechnologyTag> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TechnologyTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TechnologyTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for Icc4_TagTable_TagDefinition_TechnologyTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for Icc4_TagTable_TagDefinition_TechnologyTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for &Icc4_TagTable_TagDefinition_TechnologyTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for &Icc4_TagTable_TagDefinition_TechnologyTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TechnologyTag> for &OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22318,11 +15984,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22334,18 +15996,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                let t = Self::read_into::<
-                    _,
-                    Icc4_TagTable_TagDefinition_SignatureType,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -22355,19 +16010,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_TechnologyTag {}
 impl Icc4_TagTable_TagDefinition_TechnologyTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_TechnologyTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_TechnologyTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_TechnologyTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_TechnologyTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -22392,59 +16043,35 @@ pub struct Icc4_TagTable_TagDefinition_TextType {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_TextType>
-    for OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_TextType> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_TextType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TextType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_TextType>
-    for OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_TextType> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_TextType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_TextType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for Icc4_TagTable_TagDefinition_TextType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for Icc4_TagTable_TagDefinition_TextType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for &Icc4_TagTable_TagDefinition_TextType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for &Icc4_TagTable_TagDefinition_TextType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType>
-    for &OptRc<Icc4_TagTable_TagDefinition_TextType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_TextType> for &OptRc<Icc4_TagTable_TagDefinition_TextType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_TextType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22452,11 +16079,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CharTargetTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22473,16 +16096,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/text_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.value.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None),
-            "ASCII",
-        )?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_TextType {}
+impl Icc4_TagTable_TagDefinition_TextType {
+}
 impl Icc4_TagTable_TagDefinition_TextType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -22514,63 +16135,35 @@ pub struct Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
     values: RefCell<Vec<OptRc<Icc4_U16Fixed16Number>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_U16Fixed16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_U16Fixed16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_U16Fixed16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for &Icc4_TagTable_TagDefinition_U16Fixed16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for &Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22578,11 +16171,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22603,12 +16192,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Icc4_U16Fixed16Number>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_U16Fixed16Number>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.values.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -22618,7 +16202,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {}
+impl Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -22650,63 +16235,35 @@ pub struct Icc4_TagTable_TagDefinition_UInt16ArrayType {
     values: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_UInt16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_UInt16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_UInt16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_UInt16ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_UInt16ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for Icc4_TagTable_TagDefinition_UInt16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> for Icc4_TagTable_TagDefinition_UInt16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for &Icc4_TagTable_TagDefinition_UInt16ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> for &Icc4_TagTable_TagDefinition_UInt16ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt16ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22714,11 +16271,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22748,7 +16301,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_UInt16ArrayType {}
+impl Icc4_TagTable_TagDefinition_UInt16ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_UInt16ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -22780,63 +16334,35 @@ pub struct Icc4_TagTable_TagDefinition_UInt32ArrayType {
     values: RefCell<Vec<u32>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_UInt32ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_UInt32ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_UInt32ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt32ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_UInt32ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_UInt32ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for Icc4_TagTable_TagDefinition_UInt32ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> for Icc4_TagTable_TagDefinition_UInt32ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for &Icc4_TagTable_TagDefinition_UInt32ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> for &Icc4_TagTable_TagDefinition_UInt32ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt32ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22844,11 +16370,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -22878,7 +16400,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_UInt32ArrayType {}
+impl Icc4_TagTable_TagDefinition_UInt32ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_UInt32ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -22910,63 +16433,35 @@ pub struct Icc4_TagTable_TagDefinition_UInt64ArrayType {
     values: RefCell<Vec<u64>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_UInt64ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_UInt64ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_UInt64ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt64ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_UInt64ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_UInt64ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for Icc4_TagTable_TagDefinition_UInt64ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> for Icc4_TagTable_TagDefinition_UInt64ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for &Icc4_TagTable_TagDefinition_UInt64ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> for &Icc4_TagTable_TagDefinition_UInt64ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt64ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -22974,11 +16469,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23008,7 +16499,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_UInt64ArrayType {}
+impl Icc4_TagTable_TagDefinition_UInt64ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_UInt64ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -23040,59 +16532,35 @@ pub struct Icc4_TagTable_TagDefinition_UInt8ArrayType {
     values: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_UInt8ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_UInt8ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_UInt8ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_UInt8ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_UInt8ArrayType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_UInt8ArrayType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for Icc4_TagTable_TagDefinition_UInt8ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> for Icc4_TagTable_TagDefinition_UInt8ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for &Icc4_TagTable_TagDefinition_UInt8ArrayType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> for &Icc4_TagTable_TagDefinition_UInt8ArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> for OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-    for &OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> for &OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_UInt8ArrayType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -23100,11 +16568,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23134,7 +16598,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_UInt8ArrayType {}
+impl Icc4_TagTable_TagDefinition_UInt8ArrayType {
+}
 impl Icc4_TagTable_TagDefinition_UInt8ArrayType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -23163,131 +16628,72 @@ pub struct Icc4_TagTable_TagDefinition_ViewingCondDescTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data:
-        RefCell<Option<Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>>,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
-    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ),
+    Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
-        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>
-    for &Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<
-        OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-        KError,
-    > {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> for &Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>
-    for Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingCondDescTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ViewingCondDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingCondDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingCondDescTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ViewingCondDescTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ViewingCondDescTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for Icc4_TagTable_TagDefinition_ViewingCondDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for &Icc4_TagTable_TagDefinition_ViewingCondDescTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for &Icc4_TagTable_TagDefinition_ViewingCondDescTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> for &OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -23295,11 +16701,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23311,8 +16713,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
@@ -23326,19 +16727,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {}
 impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -23360,128 +16757,72 @@ pub struct Icc4_TagTable_TagDefinition_ViewingConditionsTag {
     pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition>,
     pub(crate) _self_shared: SharedType<Self>,
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
-    tag_data: RefCell<
-        Option<Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>,
-    >,
+    tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>>,
     _io: RefCell<BytesReader>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
-    Icc4_TagTable_TagDefinition_ViewingConditionsType(
-        OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>,
-    ),
+    Icc4_TagTable_TagDefinition_ViewingConditionsType(OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>),
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData::Icc4_TagTable_TagDefinition_ViewingConditionsType(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
-        OptRc::<Icc4_TagTable_TagDefinition_ViewingConditionsType>::try_from(
-            self,
-        )
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
+        OptRc::<Icc4_TagTable_TagDefinition_ViewingConditionsType>::try_from(self)
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for &Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for &Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>>
-    for Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData
-{
-    fn from(
-        v: OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>,
-    ) -> Self {
+impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>> for Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
+    fn from(v: OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ViewingConditionsType(v)
     }
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ViewingConditionsTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingConditionsTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ViewingConditionsTag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ViewingConditionsTag) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for Icc4_TagTable_TagDefinition_ViewingConditionsTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for &Icc4_TagTable_TagDefinition_ViewingConditionsTag
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for &Icc4_TagTable_TagDefinition_ViewingConditionsTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-    for &OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> for &OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>, KError> {
         Ok((*self).clone())
     }
 }
@@ -23489,11 +16830,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23505,8 +16842,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tag_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ViewingConditionsType => {
@@ -23520,19 +16856,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {}
 impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
-    pub fn tag_type(
-        &self,
-    ) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
+}
+impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
+    pub fn tag_type(&self) -> Ref<'_, Icc4_TagTable_TagDefinition_TagTypeSignatures> {
         self.tag_type.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
-    pub fn tag_data(
-        &self,
-    ) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>>
-    {
+    pub fn tag_data(&self) -> Ref<'_, Option<Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>> {
         self.tag_data.borrow()
     }
 }
@@ -23551,8 +16883,7 @@ impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ViewingConditionsType {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_ViewingConditionsTag>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_ViewingConditionsTag>,
     pub(crate) _self_shared: SharedType<Self>,
     reserved: RefCell<Vec<u8>>,
     un_normalized_ciexyz_values_for_illuminant: RefCell<OptRc<Icc4_XyzNumber>>,
@@ -23560,63 +16891,35 @@ pub struct Icc4_TagTable_TagDefinition_ViewingConditionsType {
     illuminant_type: RefCell<OptRc<Icc4_StandardIlluminantEncoding>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsType> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_ViewingConditionsType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingConditionsType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_ViewingConditionsType> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_ViewingConditionsType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_ViewingConditionsType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for Icc4_TagTable_TagDefinition_ViewingConditionsType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for Icc4_TagTable_TagDefinition_ViewingConditionsType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for &Icc4_TagTable_TagDefinition_ViewingConditionsType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for &Icc4_TagTable_TagDefinition_ViewingConditionsType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-    for &OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError>
-    {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> for &OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -23624,11 +16927,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ViewingConditionsTag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23645,62 +16944,38 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/viewing_conditions_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_XyzNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
-        *self_rc
-            .un_normalized_ciexyz_values_for_illuminant
-            .borrow_mut() = t;
+        let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        *self_rc.un_normalized_ciexyz_values_for_illuminant.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_XyzNumber>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
-        *self_rc
-            .un_normalized_ciexyz_values_for_surround
-            .borrow_mut() = t;
+        let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        *self_rc.un_normalized_ciexyz_values_for_surround.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.illuminant_type.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_ViewingConditionsType {}
+impl Icc4_TagTable_TagDefinition_ViewingConditionsType {
+}
 impl Icc4_TagTable_TagDefinition_ViewingConditionsType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ViewingConditionsType {
-    pub fn un_normalized_ciexyz_values_for_illuminant(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
+    pub fn un_normalized_ciexyz_values_for_illuminant(&self) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
         self.un_normalized_ciexyz_values_for_illuminant.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ViewingConditionsType {
-    pub fn un_normalized_ciexyz_values_for_surround(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
+    pub fn un_normalized_ciexyz_values_for_surround(&self) -> Ref<'_, OptRc<Icc4_XyzNumber>> {
         self.un_normalized_ciexyz_values_for_surround.borrow()
     }
 }
 impl Icc4_TagTable_TagDefinition_ViewingConditionsType {
-    pub fn illuminant_type(
-        &self,
-    ) -> Ref<'_, OptRc<Icc4_StandardIlluminantEncoding>> {
+    pub fn illuminant_type(&self) -> Ref<'_, OptRc<Icc4_StandardIlluminantEncoding>> {
         self.illuminant_type.borrow()
     }
 }
@@ -23725,59 +17000,35 @@ pub struct Icc4_TagTable_TagDefinition_XyzType {
     values: RefCell<Vec<OptRc<Icc4_XyzNumber>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Icc4_TagTable_TagDefinition_XyzType>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&Icc4_TagTable_TagDefinition_XyzType> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &Icc4_TagTable_TagDefinition_XyzType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Icc4_TagTable_TagDefinition_XyzType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Icc4_TagTable_TagDefinition_XyzType>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
+impl TryFrom<&&Icc4_TagTable_TagDefinition_XyzType> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
     type Error = KError;
-    fn try_from(
-        v: &&Icc4_TagTable_TagDefinition_XyzType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Icc4_TagTable_TagDefinition_XyzType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for Icc4_TagTable_TagDefinition_XyzType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for Icc4_TagTable_TagDefinition_XyzType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &Icc4_TagTable_TagDefinition_XyzType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &Icc4_TagTable_TagDefinition_XyzType {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType>
-    for &OptRc<Icc4_TagTable_TagDefinition_XyzType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
+impl DowncastOptRc<Icc4_TagTable_TagDefinition_XyzType> for &OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Icc4_TagTable_TagDefinition_XyzType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -23785,11 +17036,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23803,24 +17050,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path:
-                    "/types/tag_table/types/tag_definition/types/xyz_type/seq/0"
-                        .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/xyz_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Icc4_XyzNumber>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 self_rc.values.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -23830,7 +17067,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
         Ok(())
     }
 }
-impl Icc4_TagTable_TagDefinition_XyzType {}
+impl Icc4_TagTable_TagDefinition_XyzType {
+}
 impl Icc4_TagTable_TagDefinition_XyzType {
     pub fn reserved(&self) -> Ref<'_, Vec<u8>> {
         self.reserved.borrow()
@@ -23856,8 +17094,7 @@ impl Icc4_TagTable_TagDefinition_XyzType {
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_U16Fixed16Number {
     pub(crate) _root: SharedType<Icc4>,
-    pub(crate) _parent:
-        SharedType<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>,
+    pub(crate) _parent: SharedType<Icc4_TagTable_TagDefinition_U16Fixed16ArrayType>,
     pub(crate) _self_shared: SharedType<Self>,
     number: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
@@ -23899,11 +17136,7 @@ impl KStruct for Icc4_U16Fixed16Number {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_U16Fixed16ArrayType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -23921,7 +17154,8 @@ impl KStruct for Icc4_U16Fixed16Number {
         Ok(())
     }
 }
-impl Icc4_U16Fixed16Number {}
+impl Icc4_U16Fixed16Number {
+}
 impl Icc4_U16Fixed16Number {
     pub fn number(&self) -> Ref<'_, Vec<u8>> {
         self.number.borrow()
@@ -23989,11 +17223,7 @@ impl KStruct for Icc4_U1Fixed15Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -24011,7 +17241,8 @@ impl KStruct for Icc4_U1Fixed15Number {
         Ok(())
     }
 }
-impl Icc4_U1Fixed15Number {}
+impl Icc4_U1Fixed15Number {
+}
 impl Icc4_U1Fixed15Number {
     pub fn number(&self) -> Ref<'_, Vec<u8>> {
         self.number.borrow()
@@ -24079,11 +17310,7 @@ impl KStruct for Icc4_U8Fixed8Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -24101,7 +17328,8 @@ impl KStruct for Icc4_U8Fixed8Number {
         Ok(())
     }
 }
-impl Icc4_U8Fixed8Number {}
+impl Icc4_U8Fixed8Number {
+}
 impl Icc4_U8Fixed8Number {
     pub fn number(&self) -> Ref<'_, Vec<u8>> {
         self.number.borrow()
@@ -24173,11 +17401,7 @@ impl KStruct for Icc4_XyzNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -24199,7 +17423,8 @@ impl KStruct for Icc4_XyzNumber {
         Ok(())
     }
 }
-impl Icc4_XyzNumber {}
+impl Icc4_XyzNumber {
+}
 impl Icc4_XyzNumber {
     pub fn x(&self) -> Ref<'_, Vec<u8>> {
         self.x.borrow()

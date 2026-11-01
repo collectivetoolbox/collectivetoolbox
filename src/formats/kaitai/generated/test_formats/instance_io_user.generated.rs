@@ -103,11 +103,7 @@ impl KStruct for InstanceIoUser {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,31 +120,22 @@ impl KStruct for InstanceIoUser {
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self_rc.qty_entries())?;
         for _i in 0_usize..l_entries {
-            let t = Self::read_into::<_, InstanceIoUser_Entry>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, InstanceIoUser_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_strings = _io.read_bytes_full()?;
         *self_rc.strings_raw.borrow_mut() = _raw_strings.clone();
         let _io_strings = BytesReader::from(_raw_strings);
-        let t = Self::read_into::<BytesReader, InstanceIoUser_StringsObj>(
-            &_io_strings,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceIoUser_StringsObj>(&_io_strings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.strings.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl InstanceIoUser {}
+impl InstanceIoUser {
+}
 impl InstanceIoUser {
     pub fn qty_entries(&self) -> Ref<'_, u32> {
         self.qty_entries.borrow()
@@ -228,11 +215,7 @@ impl KStruct for InstanceIoUser_Entry {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -253,32 +236,19 @@ impl KStruct for InstanceIoUser_Entry {
     }
 }
 impl InstanceIoUser_Entry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .strings()
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.strings()._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.name_ofs())?)?;
-        *self.name.borrow_mut() =
-            bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         io.seek(_pos)?;
         Ok(self.name.borrow())
     }
@@ -326,34 +296,22 @@ impl TryFrom<&&InstanceIoUser_StringsObj> for OptRc<InstanceIoUser_StringsObj> {
     }
 }
 impl DowncastOptRc<InstanceIoUser_StringsObj> for InstanceIoUser_StringsObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<InstanceIoUser_StringsObj> for &InstanceIoUser_StringsObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<InstanceIoUser_StringsObj>
-    for OptRc<InstanceIoUser_StringsObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+impl DowncastOptRc<InstanceIoUser_StringsObj> for OptRc<InstanceIoUser_StringsObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceIoUser_StringsObj>
-    for &OptRc<InstanceIoUser_StringsObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+impl DowncastOptRc<InstanceIoUser_StringsObj> for &OptRc<InstanceIoUser_StringsObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -361,11 +319,7 @@ impl KStruct for InstanceIoUser_StringsObj {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -381,10 +335,7 @@ impl KStruct for InstanceIoUser_StringsObj {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.str.borrow_mut().push(bytes_to_str(
-                    &_io.read_bytes_term(0, false, true, true)?,
-                    "UTF-8",
-                )?);
+                self_rc.str.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -393,7 +344,8 @@ impl KStruct for InstanceIoUser_StringsObj {
         Ok(())
     }
 }
-impl InstanceIoUser_StringsObj {}
+impl InstanceIoUser_StringsObj {
+}
 impl InstanceIoUser_StringsObj {
     pub fn str(&self) -> Ref<'_, Vec<String>> {
         self.str.borrow()

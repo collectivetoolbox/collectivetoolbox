@@ -127,11 +127,7 @@ impl KStruct for ExprBytesOps {
     type Root = ExprBytesOps;
     type Parent = ExprBytesOps;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -150,90 +146,70 @@ impl KStruct for ExprBytesOps {
     }
 }
 impl ExprBytesOps {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_first(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_first(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_first.get() {
             return Ok(self.one_first.borrow());
         }
         self.f_one_first.set(true);
-        *self.one_first.borrow_mut() =
-            (*self.one().first().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.one_first.borrow_mut() = (*self.one().first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_first.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_last(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_last(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_last.get() {
             return Ok(self.one_last.borrow());
         }
         self.f_one_last.set(true);
-        *self.one_last.borrow_mut() =
-            (*self.one().last().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.one_last.borrow_mut() = (*self.one().last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_last.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_max(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_max(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_max.get() {
             return Ok(self.one_max.borrow());
         }
         self.f_one_max.set(true);
-        *self.one_max.borrow_mut() =
-            (*self.one().iter().max().ok_or(KError::EmptyIterator)?)
-                .try_into()?;
+        *self.one_max.borrow_mut() = (*self.one().iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_max.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_mid(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_mid(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_mid.get() {
             return Ok(self.one_mid.borrow());
         }
         self.f_one_mid.set(true);
-        *self.one_mid.borrow_mut() =
-            (*(self.one().get(1_usize).ok_or(KError::CastError)?))
-                .try_into()?;
+        *self.one_mid.borrow_mut() = (*(self.one().get(1_usize).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.one_mid.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_min(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_min(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_min.get() {
             return Ok(self.one_min.borrow());
         }
         self.f_one_min.set(true);
-        *self.one_min.borrow_mut() =
-            (*self.one().iter().min().ok_or(KError::EmptyIterator)?)
-                .try_into()?;
+        *self.one_min.borrow_mut() = (*self.one().iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_min.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_one_size.get() {
             return Ok(self.one_size.borrow());
@@ -242,12 +218,10 @@ impl ExprBytesOps {
         *self.one_size.borrow_mut() = (self.one().len()).try_into()?;
         Ok(self.one_size.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_two.get() {
             return Ok(self.two.borrow());
@@ -256,90 +230,70 @@ impl ExprBytesOps {
         *self.two.borrow_mut() = vec![0x41u8, 0xffu8, 0x4bu8];
         Ok(self.two.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_first(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_first(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_first.get() {
             return Ok(self.two_first.borrow());
         }
         self.f_two_first.set(true);
-        *self.two_first.borrow_mut() =
-            (*self.two()?.first().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.two_first.borrow_mut() = (*self.two()?.first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_first.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_last(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_last(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_last.get() {
             return Ok(self.two_last.borrow());
         }
         self.f_two_last.set(true);
-        *self.two_last.borrow_mut() =
-            (*self.two()?.last().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.two_last.borrow_mut() = (*self.two()?.last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_last.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_max(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_max(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_max.get() {
             return Ok(self.two_max.borrow());
         }
         self.f_two_max.set(true);
-        *self.two_max.borrow_mut() =
-            (*self.two()?.iter().max().ok_or(KError::EmptyIterator)?)
-                .try_into()?;
+        *self.two_max.borrow_mut() = (*self.two()?.iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_max.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_mid(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_mid(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_mid.get() {
             return Ok(self.two_mid.borrow());
         }
         self.f_two_mid.set(true);
-        *self.two_mid.borrow_mut() =
-            (*(self.two()?.get(1_usize).ok_or(KError::CastError)?))
-                .try_into()?;
+        *self.two_mid.borrow_mut() = (*(self.two()?.get(1_usize).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.two_mid.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_min(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_min(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_min.get() {
             return Ok(self.two_min.borrow());
         }
         self.f_two_min.set(true);
-        *self.two_min.borrow_mut() =
-            (*self.two()?.iter().min().ok_or(KError::EmptyIterator)?)
-                .try_into()?;
+        *self.two_min.borrow_mut() = (*self.two()?.iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_min.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_two_size.get() {
             return Ok(self.two_size.borrow());

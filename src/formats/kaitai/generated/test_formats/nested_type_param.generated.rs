@@ -100,11 +100,7 @@ impl KStruct for NestedTypeParam {
     type Root = NestedTypeParam;
     type Parent = NestedTypeParam;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,23 +112,16 @@ impl KStruct for NestedTypeParam {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t: &mut NestedTypeParam_Nested_MyType| {
-            Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?))
-        };
-        let t = Self::read_into_with_init::<_, NestedTypeParam_Nested_MyType>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-            &f,
-        )?
-        .into();
+        let f = |t : &mut NestedTypeParam_Nested_MyType| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?));
+        let t = Self::read_into_with_init::<_, NestedTypeParam_Nested_MyType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.main_seq.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedTypeParam {}
+impl NestedTypeParam {
+}
 impl NestedTypeParam {
     pub fn main_seq(&self) -> Ref<'_, OptRc<NestedTypeParam_Nested_MyType>> {
         self.main_seq.borrow()
@@ -193,11 +182,7 @@ impl KStruct for NestedTypeParam_Nested {
     type Root = NestedTypeParam;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -213,7 +198,8 @@ impl KStruct for NestedTypeParam_Nested {
         Ok(())
     }
 }
-impl NestedTypeParam_Nested {}
+impl NestedTypeParam_Nested {
+}
 impl NestedTypeParam_Nested {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -236,59 +222,35 @@ pub struct NestedTypeParam_Nested_MyType {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&NestedTypeParam_Nested_MyType>
-    for OptRc<NestedTypeParam_Nested_MyType>
-{
+impl TryFrom<&NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
     type Error = KError;
-    fn try_from(
-        v: &NestedTypeParam_Nested_MyType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &NestedTypeParam_Nested_MyType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedTypeParam_Nested_MyType>
-    for OptRc<NestedTypeParam_Nested_MyType>
-{
+impl TryFrom<&&NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
     type Error = KError;
-    fn try_from(
-        v: &&NestedTypeParam_Nested_MyType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&NestedTypeParam_Nested_MyType) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedTypeParam_Nested_MyType>
-    for NestedTypeParam_Nested_MyType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for NestedTypeParam_Nested_MyType {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedTypeParam_Nested_MyType>
-    for &NestedTypeParam_Nested_MyType
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for &NestedTypeParam_Nested_MyType {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedTypeParam_Nested_MyType>
-    for OptRc<NestedTypeParam_Nested_MyType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedTypeParam_Nested_MyType>
-    for &OptRc<NestedTypeParam_Nested_MyType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for &OptRc<NestedTypeParam_Nested_MyType> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -296,11 +258,7 @@ impl KStruct for NestedTypeParam_Nested_MyType {
     type Root = NestedTypeParam;
     type Parent = NestedTypeParam;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,10 +270,7 @@ impl KStruct for NestedTypeParam_Nested_MyType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.my_len())?)?,
-            "ASCII",
-        )?;
+        *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.my_len())?)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -331,7 +286,8 @@ impl NestedTypeParam_Nested_MyType {
         *self.my_len.borrow_mut() = my_len;
     }
 }
-impl NestedTypeParam_Nested_MyType {}
+impl NestedTypeParam_Nested_MyType {
+}
 impl NestedTypeParam_Nested_MyType {
     pub fn body(&self) -> Ref<'_, String> {
         self.body.borrow()

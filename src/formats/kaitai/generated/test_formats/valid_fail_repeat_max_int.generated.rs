@@ -100,11 +100,7 @@ impl KStruct for ValidFailRepeatMaxInt {
     type Root = ValidFailRepeatMaxInt;
     type Parent = ValidFailRepeatMaxInt;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,17 +122,15 @@ impl KStruct for ValidFailRepeatMaxInt {
         }
         let max_val: u8 = (254).try_into()?;
         if !self_rc.foo().iter().all(|_x| *_x <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::GreaterThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRepeatMaxInt {}
+impl ValidFailRepeatMaxInt {
+}
 impl ValidFailRepeatMaxInt {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

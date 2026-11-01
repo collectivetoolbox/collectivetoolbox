@@ -102,11 +102,7 @@ impl KStruct for InstanceInRepeatExpr {
     type Root = InstanceInRepeatExpr;
     type Parent = InstanceInRepeatExpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,12 +117,7 @@ impl KStruct for InstanceInRepeatExpr {
         *self_rc.chunks.borrow_mut() = Vec::new();
         let l_chunks = usize::try_from(*self_rc.num_chunks()?)?;
         for _i in 0_usize..l_chunks {
-            let t = Self::read_into::<_, InstanceInRepeatExpr_Chunk>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, InstanceInRepeatExpr_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -135,12 +126,10 @@ impl KStruct for InstanceInRepeatExpr {
     }
 }
 impl InstanceInRepeatExpr {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_chunks(&self) -> KResult<Ref<'_, u32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_chunks(
+        &self
+    ) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_num_chunks.get() {
             return Ok(self.num_chunks.borrow());
@@ -179,51 +168,35 @@ pub struct InstanceInRepeatExpr_Chunk {
     len: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&InstanceInRepeatExpr_Chunk>
-    for OptRc<InstanceInRepeatExpr_Chunk>
-{
+impl TryFrom<&InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
     type Error = KError;
     fn try_from(v: &InstanceInRepeatExpr_Chunk) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&InstanceInRepeatExpr_Chunk>
-    for OptRc<InstanceInRepeatExpr_Chunk>
-{
+impl TryFrom<&&InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
     type Error = KError;
     fn try_from(v: &&InstanceInRepeatExpr_Chunk) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for InstanceInRepeatExpr_Chunk {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for &InstanceInRepeatExpr_Chunk {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<InstanceInRepeatExpr_Chunk>
-    for OptRc<InstanceInRepeatExpr_Chunk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceInRepeatExpr_Chunk>
-    for &OptRc<InstanceInRepeatExpr_Chunk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for &OptRc<InstanceInRepeatExpr_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
         Ok((*self).clone())
     }
 }
@@ -231,11 +204,7 @@ impl KStruct for InstanceInRepeatExpr_Chunk {
     type Root = InstanceInRepeatExpr;
     type Parent = InstanceInRepeatExpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -255,7 +224,8 @@ impl KStruct for InstanceInRepeatExpr_Chunk {
         Ok(())
     }
 }
-impl InstanceInRepeatExpr_Chunk {}
+impl InstanceInRepeatExpr_Chunk {
+}
 impl InstanceInRepeatExpr_Chunk {
     pub fn offset(&self) -> Ref<'_, u32> {
         self.offset.borrow()

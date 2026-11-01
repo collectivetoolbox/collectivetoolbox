@@ -111,11 +111,7 @@ impl KStruct for ExprSizeofValue0 {
     type Root = ExprSizeofValue0;
     type Parent = ExprSizeofValue0;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,12 +123,7 @@ impl KStruct for ExprSizeofValue0 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ExprSizeofValue0_Block>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ExprSizeofValue0_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.more.borrow_mut() = _io.read_u2le()?;
@@ -142,12 +133,10 @@ impl KStruct for ExprSizeofValue0 {
     }
 }
 impl ExprSizeofValue0 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn self_sizeof(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn self_sizeof(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_self_sizeof.get() {
             return Ok(self.self_sizeof.borrow());
@@ -156,12 +145,10 @@ impl ExprSizeofValue0 {
         *self.self_sizeof.borrow_mut() = (9_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block.get() {
             return Ok(self.sizeof_block.borrow());
@@ -170,12 +157,10 @@ impl ExprSizeofValue0 {
         *self.sizeof_block.borrow_mut() = (7_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_a(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_a(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_a.get() {
             return Ok(self.sizeof_block_a.borrow());
@@ -184,12 +169,10 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_b(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_b(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_b.get() {
             return Ok(self.sizeof_block_b.borrow());
@@ -198,12 +181,10 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_c(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_c(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_c.get() {
             return Ok(self.sizeof_block_c.borrow());
@@ -282,11 +263,7 @@ impl KStruct for ExprSizeofValue0_Block {
     type Root = ExprSizeofValue0;
     type Parent = ExprSizeofValue0;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -308,7 +285,8 @@ impl KStruct for ExprSizeofValue0_Block {
         Ok(())
     }
 }
-impl ExprSizeofValue0_Block {}
+impl ExprSizeofValue0_Block {
+}
 impl ExprSizeofValue0_Block {
     pub fn a(&self) -> Ref<'_, u8> {
         self.a.borrow()

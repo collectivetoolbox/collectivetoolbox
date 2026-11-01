@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use crate::generated::common::dos_datetime::DosDatetime;
-use crate::generated::common::dos_datetime::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use crate::generated::common::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::*;
 
 /**
  * ZIP is a popular archive file format, introduced in 1989 by Phil Katz
@@ -66,11 +66,7 @@ impl KStruct for Zip {
     type Root = Zip;
     type Parent = Zip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -86,12 +82,7 @@ impl KStruct for Zip {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Zip_PkSection>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_PkSection>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 self_rc.sections.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -101,7 +92,8 @@ impl KStruct for Zip {
         Ok(())
     }
 }
-impl Zip {}
+impl Zip {
+}
 impl Zip {
     pub fn sections(&self) -> Ref<'_, Vec<OptRc<Zip_PkSection>>> {
         self.sections.borrow()
@@ -198,15 +190,13 @@ impl From<&Zip_Compression> for i64 {
             Zip_Compression::Wavpack => 97,
             Zip_Compression::Ppmd => 98,
             Zip_Compression::AexEncryptionMarker => 99,
-            Zip_Compression::Unknown(v) => v,
+            Zip_Compression::Unknown(v) => v
         }
     }
 }
 
 impl Default for Zip_Compression {
-    fn default() -> Self {
-        Zip_Compression::Unknown(0)
-    }
+    fn default() -> Self { Zip_Compression::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -304,16 +294,15 @@ impl From<&Zip_ExtraCodes> for i64 {
             Zip_ExtraCodes::ApacheCommonsCompress => 41246,
             Zip_ExtraCodes::MicrosoftOpenPackagingGrowthHint => 41504,
             Zip_ExtraCodes::SmsQdos => 64842,
-            Zip_ExtraCodes::Unknown(v) => v,
+            Zip_ExtraCodes::Unknown(v) => v
         }
     }
 }
 
 impl Default for Zip_ExtraCodes {
-    fn default() -> Self {
-        Zip_ExtraCodes::Unknown(0)
-    }
+    fn default() -> Self { Zip_ExtraCodes::Unknown(0) }
 }
+
 
 /**
  * \sa https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT - 4.3.12
@@ -386,11 +375,7 @@ impl KStruct for Zip_CentralDirEntry {
     type Root = Zip;
     type Parent = Zip_PkSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -408,18 +393,12 @@ impl KStruct for Zip_CentralDirEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression_method.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_file_mod_time = _io.read_bytes(4_usize)?;
         *self_rc.file_mod_time_raw.borrow_mut() = _raw_file_mod_time.clone();
         let _io_file_mod_time = BytesReader::from(_raw_file_mod_time);
-        let t = Self::read_into::<BytesReader, DosDatetime>(
-            &_io_file_mod_time,
-            None,
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_mod_time, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
@@ -442,50 +421,32 @@ impl KStruct for Zip_CentralDirEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_local_header.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file_name.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_file_name()))?,
-            "UTF-8",
-        )?;
+        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_extra = _io.read_bytes(usize::from(*self_rc.len_extra()))?;
         *self_rc.extra_raw.borrow_mut() = _raw_extra.clone();
         let _io_extra = BytesReader::from(_raw_extra);
-        let t = Self::read_into::<BytesReader, Zip_Extras>(
-            &_io_extra,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Zip_Extras>(&_io_extra, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.comment.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_comment()))?,
-            "UTF-8",
-        )?;
+        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Zip_CentralDirEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn local_header(&self) -> KResult<Ref<'_, OptRc<Zip_PkSection>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn local_header(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Zip_PkSection>>> {
         let _io = self._io.borrow();
         if self.f_local_header.get() {
             return Ok(self.local_header.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_local_header())?)?;
-        let t = Self::read_into::<_, Zip_PkSection>(
-            &*_io,
-            Some(self._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Zip_PkSection>(&*_io, Some(self._root.clone()), None)?.into();
         *self.local_header.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.local_header.borrow())
@@ -659,11 +620,7 @@ impl KStruct for Zip_DataDescriptor {
     type Root = Zip;
     type Parent = Zip_PkSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -685,7 +642,8 @@ impl KStruct for Zip_DataDescriptor {
         Ok(())
     }
 }
-impl Zip_DataDescriptor {}
+impl Zip_DataDescriptor {
+}
 impl Zip_DataDescriptor {
     pub fn crc32(&self) -> Ref<'_, u32> {
         self.crc32.borrow()
@@ -765,11 +723,7 @@ impl KStruct for Zip_EndOfCentralDir {
     type Root = Zip;
     type Parent = Zip_PkSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -785,11 +739,9 @@ impl KStruct for Zip_EndOfCentralDir {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disk_of_central_dir.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_central_dir_entries_on_disk.borrow_mut() =
-            _io.read_u2le()?;
+        *self_rc.num_central_dir_entries_on_disk.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_central_dir_entries_total.borrow_mut() =
-            _io.read_u2le()?;
+        *self_rc.num_central_dir_entries_total.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_central_dir.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -797,16 +749,14 @@ impl KStruct for Zip_EndOfCentralDir {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_comment.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.comment.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_comment()))?,
-            "UTF-8",
-        )?;
+        *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Zip_EndOfCentralDir {}
+impl Zip_EndOfCentralDir {
+}
 impl Zip_EndOfCentralDir {
     pub fn disk_of_end_of_central_dir(&self) -> Ref<'_, u16> {
         self.disk_of_end_of_central_dir.borrow()
@@ -891,25 +841,19 @@ impl TryFrom<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Zip_ExtraField_Body>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp>
-{
+impl TryFrom<&&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
     type Error = KError;
     fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for Zip_ExtraField_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         OptRc::<Zip_ExtraField_ExtendedTimestamp>::try_from(self)
     }
 }
 impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &Zip_ExtraField_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -918,9 +862,7 @@ impl From<OptRc<Zip_ExtraField_ExtendedTimestamp>> for Zip_ExtraField_Body {
         Self::Zip_ExtraField_ExtendedTimestamp(v)
     }
 }
-impl TryFrom<&Zip_ExtraField_Body>
-    for OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
+impl TryFrom<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
     type Error = KError;
     fn try_from(v: &Zip_ExtraField_Body) -> Result<Self, Self::Error> {
         if let Zip_ExtraField_Body::Zip_ExtraField_InfozipUnixVarSize(x) = v {
@@ -929,25 +871,19 @@ impl TryFrom<&Zip_ExtraField_Body>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Zip_ExtraField_Body>
-    for OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
+impl TryFrom<&&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
     type Error = KError;
     fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for Zip_ExtraField_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         OptRc::<Zip_ExtraField_InfozipUnixVarSize>::try_from(self)
     }
 }
 impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &Zip_ExtraField_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1042,11 +978,7 @@ impl KStruct for Zip_ExtraField {
     type Root = Zip;
     type Parent = Zip_Extras;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1064,54 +996,28 @@ impl KStruct for Zip_ExtraField {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             Zip_ExtraCodes::ExtendedTimestamp => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Zip_ExtraField_ExtendedTimestamp,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Zip_ExtraField_ExtendedTimestamp>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Zip_ExtraCodes::InfozipUnixVarSize => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Zip_ExtraField_InfozipUnixVarSize,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Zip_ExtraField_InfozipUnixVarSize>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Zip_ExtraCodes::Ntfs => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Zip_ExtraField_Ntfs>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Zip_ExtraField_Ntfs>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len_body()))?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1119,7 +1025,8 @@ impl KStruct for Zip_ExtraField {
         Ok(())
     }
 }
-impl Zip_ExtraField {}
+impl Zip_ExtraField {
+}
 impl Zip_ExtraField {
     pub fn code(&self) -> Ref<'_, Zip_ExtraCodes> {
         self.code.borrow()
@@ -1168,59 +1075,35 @@ pub struct Zip_ExtraField_ExtendedTimestamp {
     _io: RefCell<BytesReader>,
     flags_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Zip_ExtraField_ExtendedTimestamp>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp>
-{
+impl TryFrom<&Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_ExtendedTimestamp,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_ExtendedTimestamp) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp>
-{
+impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_ExtendedTimestamp,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_ExtendedTimestamp) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp>
-    for Zip_ExtraField_ExtendedTimestamp
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for Zip_ExtraField_ExtendedTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp>
-    for &Zip_ExtraField_ExtendedTimestamp
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &Zip_ExtraField_ExtendedTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp>
-    for &OptRc<Zip_ExtraField_ExtendedTimestamp>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1228,11 +1111,7 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp {
     type Root = Zip;
     type Parent = Zip_ExtraField;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1247,15 +1126,7 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp {
         let _raw_flags = _io.read_bytes(1_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
-        let t = Self::read_into::<
-            BytesReader,
-            Zip_ExtraField_ExtendedTimestamp_InfoFlags,
-        >(
-            &_io_flags,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Zip_ExtraField_ExtendedTimestamp_InfoFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1277,11 +1148,10 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp {
         Ok(())
     }
 }
-impl Zip_ExtraField_ExtendedTimestamp {}
 impl Zip_ExtraField_ExtendedTimestamp {
-    pub fn flags(
-        &self,
-    ) -> Ref<'_, OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>> {
+}
+impl Zip_ExtraField_ExtendedTimestamp {
+    pub fn flags(&self) -> Ref<'_, OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>> {
         self.flags.borrow()
     }
 }
@@ -1340,59 +1210,35 @@ pub struct Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-{
+impl TryFrom<&Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_ExtendedTimestamp_InfoFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_ExtendedTimestamp_InfoFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-{
+impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_ExtendedTimestamp_InfoFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_ExtendedTimestamp_InfoFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for Zip_ExtraField_ExtendedTimestamp_InfoFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for &Zip_ExtraField_ExtendedTimestamp_InfoFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for &Zip_ExtraField_ExtendedTimestamp_InfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-    for &OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for &OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1400,11 +1246,7 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     type Root = Zip;
     type Parent = Zip_ExtraField_ExtendedTimestamp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1428,7 +1270,8 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
         Ok(())
     }
 }
-impl Zip_ExtraField_ExtendedTimestamp_InfoFlags {}
+impl Zip_ExtraField_ExtendedTimestamp_InfoFlags {
+}
 impl Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     pub fn has_mod_time(&self) -> Ref<'_, bool> {
         self.has_mod_time.borrow()
@@ -1479,59 +1322,35 @@ pub struct Zip_ExtraField_InfozipUnixVarSize {
     uid_raw: RefCell<Vec<u8>>,
     gid_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Zip_ExtraField_InfozipUnixVarSize>
-    for OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
+impl TryFrom<&Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_InfozipUnixVarSize,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_InfozipUnixVarSize) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_ExtraField_InfozipUnixVarSize>
-    for OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
+impl TryFrom<&&Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_InfozipUnixVarSize,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_InfozipUnixVarSize) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize>
-    for Zip_ExtraField_InfozipUnixVarSize
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for Zip_ExtraField_InfozipUnixVarSize {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize>
-    for &Zip_ExtraField_InfozipUnixVarSize
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &Zip_ExtraField_InfozipUnixVarSize {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize>
-    for OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize>
-    for &OptRc<Zip_ExtraField_InfozipUnixVarSize>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1539,11 +1358,7 @@ impl KStruct for Zip_ExtraField_InfozipUnixVarSize {
     type Root = Zip;
     type Parent = Zip_ExtraField;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1559,19 +1374,18 @@ impl KStruct for Zip_ExtraField_InfozipUnixVarSize {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_uid.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.uid.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_uid()))?;
+        *self_rc.uid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_uid()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_gid.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.gid.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_gid()))?;
+        *self_rc.gid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_gid()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Zip_ExtraField_InfozipUnixVarSize {}
+impl Zip_ExtraField_InfozipUnixVarSize {
+}
 
 /**
  * Version of this extra field, currently 1
@@ -1688,11 +1502,7 @@ impl KStruct for Zip_ExtraField_Ntfs {
     type Root = Zip;
     type Parent = Zip_ExtraField;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1710,12 +1520,7 @@ impl KStruct for Zip_ExtraField_Ntfs {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Zip_ExtraField_Ntfs_Attribute>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_ExtraField_Ntfs_Attribute>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.attributes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1725,16 +1530,15 @@ impl KStruct for Zip_ExtraField_Ntfs {
         Ok(())
     }
 }
-impl Zip_ExtraField_Ntfs {}
+impl Zip_ExtraField_Ntfs {
+}
 impl Zip_ExtraField_Ntfs {
     pub fn reserved(&self) -> Ref<'_, u32> {
         self.reserved.borrow()
     }
 }
 impl Zip_ExtraField_Ntfs {
-    pub fn attributes(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Zip_ExtraField_Ntfs_Attribute>>> {
+    pub fn attributes(&self) -> Ref<'_, Vec<OptRc<Zip_ExtraField_Ntfs_Attribute>>> {
         self.attributes.borrow()
     }
 }
@@ -1766,59 +1570,39 @@ pub enum Zip_ExtraField_Ntfs_Attribute_Body {
     Zip_ExtraField_Ntfs_Attribute1(OptRc<Zip_ExtraField_Ntfs_Attribute1>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
+impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_Ntfs_Attribute_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
         if let Zip_ExtraField_Ntfs_Attribute_Body::Zip_ExtraField_Ntfs_Attribute1(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute_Body>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute_Body> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_Ntfs_Attribute_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for Zip_ExtraField_Ntfs_Attribute_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for Zip_ExtraField_Ntfs_Attribute_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         OptRc::<Zip_ExtraField_Ntfs_Attribute1>::try_from(self)
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for &Zip_ExtraField_Ntfs_Attribute_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &Zip_ExtraField_Ntfs_Attribute_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Zip_ExtraField_Ntfs_Attribute1>>
-    for Zip_ExtraField_Ntfs_Attribute_Body
-{
+impl From<OptRc<Zip_ExtraField_Ntfs_Attribute1>> for Zip_ExtraField_Ntfs_Attribute_Body {
     fn from(v: OptRc<Zip_ExtraField_Ntfs_Attribute1>) -> Self {
         Self::Zip_ExtraField_Ntfs_Attribute1(v)
     }
 }
 impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_Ntfs_Attribute_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
         if let Zip_ExtraField_Ntfs_Attribute_Body::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -1827,9 +1611,7 @@ impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
 }
 impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_Ntfs_Attribute_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -1838,59 +1620,35 @@ impl From<Vec<u8>> for Zip_ExtraField_Ntfs_Attribute_Body {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&Zip_ExtraField_Ntfs_Attribute>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute>
-{
+impl TryFrom<&Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_Ntfs_Attribute,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute>
-{
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_Ntfs_Attribute,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute>
-    for Zip_ExtraField_Ntfs_Attribute
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for Zip_ExtraField_Ntfs_Attribute {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute>
-    for &Zip_ExtraField_Ntfs_Attribute
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for &Zip_ExtraField_Ntfs_Attribute {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute>
-    for &OptRc<Zip_ExtraField_Ntfs_Attribute>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for &OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1898,11 +1656,7 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute {
     type Root = Zip;
     type Parent = Zip_ExtraField_Ntfs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1920,25 +1674,14 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag() {
             1 => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Zip_ExtraField_Ntfs_Attribute1,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Zip_ExtraField_Ntfs_Attribute1>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::from(*self_rc.len_body()))?.into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len_body()))?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1946,7 +1689,8 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute {
         Ok(())
     }
 }
-impl Zip_ExtraField_Ntfs_Attribute {}
+impl Zip_ExtraField_Ntfs_Attribute {
+}
 impl Zip_ExtraField_Ntfs_Attribute {
     pub fn tag(&self) -> Ref<'_, u16> {
         self.tag.borrow()
@@ -1989,59 +1733,35 @@ pub struct Zip_ExtraField_Ntfs_Attribute1 {
     creation_time: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Zip_ExtraField_Ntfs_Attribute1>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
+impl TryFrom<&Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
     type Error = KError;
-    fn try_from(
-        v: &Zip_ExtraField_Ntfs_Attribute1,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute1) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute1>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
     type Error = KError;
-    fn try_from(
-        v: &&Zip_ExtraField_Ntfs_Attribute1,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute1) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for Zip_ExtraField_Ntfs_Attribute1
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for Zip_ExtraField_Ntfs_Attribute1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for &Zip_ExtraField_Ntfs_Attribute1
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &Zip_ExtraField_Ntfs_Attribute1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1>
-    for &OptRc<Zip_ExtraField_Ntfs_Attribute1>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2049,11 +1769,7 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute1 {
     type Root = Zip;
     type Parent = Zip_ExtraField_Ntfs_Attribute;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2075,7 +1791,8 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute1 {
         Ok(())
     }
 }
-impl Zip_ExtraField_Ntfs_Attribute1 {}
+impl Zip_ExtraField_Ntfs_Attribute1 {
+}
 impl Zip_ExtraField_Ntfs_Attribute1 {
     pub fn last_mod_time(&self) -> Ref<'_, u64> {
         self.last_mod_time.borrow()
@@ -2147,11 +1864,7 @@ impl KStruct for Zip_Extras {
     type Root = Zip;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2167,12 +1880,7 @@ impl KStruct for Zip_Extras {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Zip_ExtraField>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_ExtraField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -2182,7 +1890,8 @@ impl KStruct for Zip_Extras {
         Ok(())
     }
 }
-impl Zip_Extras {}
+impl Zip_Extras {
+}
 impl Zip_Extras {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Zip_ExtraField>>> {
         self.entries.borrow()
@@ -2246,11 +1955,7 @@ impl KStruct for Zip_LocalFile {
     type Root = Zip;
     type Parent = Zip_PkSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2262,23 +1967,17 @@ impl KStruct for Zip_LocalFile {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Zip_LocalFileHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Zip_LocalFileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            *self_rc.header().len_body_compressed(),
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_body_compressed())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Zip_LocalFile {}
+impl Zip_LocalFile {
+}
 impl Zip_LocalFile {
     pub fn header(&self) -> Ref<'_, OptRc<Zip_LocalFileHeader>> {
         self.header.borrow()
@@ -2364,11 +2063,7 @@ impl KStruct for Zip_LocalFileHeader {
     type Root = Zip;
     type Parent = Zip_LocalFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2385,26 +2080,15 @@ impl KStruct for Zip_LocalFileHeader {
         let _raw_flags = _io.read_bytes(2_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
-        let t = Self::read_into::<BytesReader, Zip_LocalFileHeader_GpFlags>(
-            &_io_flags,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Zip_LocalFileHeader_GpFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression_method.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_file_mod_time = _io.read_bytes(4_usize)?;
         *self_rc.file_mod_time_raw.borrow_mut() = _raw_file_mod_time.clone();
         let _io_file_mod_time = BytesReader::from(_raw_file_mod_time);
-        let t = Self::read_into::<BytesReader, DosDatetime>(
-            &_io_file_mod_time,
-            None,
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_mod_time, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
@@ -2417,27 +2101,20 @@ impl KStruct for Zip_LocalFileHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_extra.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file_name.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_file_name()))?,
-            "UTF-8",
-        )?;
+        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_extra = _io.read_bytes(usize::from(*self_rc.len_extra()))?;
         *self_rc.extra_raw.borrow_mut() = _raw_extra.clone();
         let _io_extra = BytesReader::from(_raw_extra);
-        let t = Self::read_into::<BytesReader, Zip_Extras>(
-            &_io_extra,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Zip_Extras>(&_io_extra, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Zip_LocalFileHeader {}
+impl Zip_LocalFileHeader {
+}
 impl Zip_LocalFileHeader {
     pub fn version(&self) -> Ref<'_, u16> {
         self.version.borrow()
@@ -2556,55 +2233,35 @@ pub struct Zip_LocalFileHeader_GpFlags {
     f_lzma_has_eos_marker: Cell<bool>,
     lzma_has_eos_marker: RefCell<bool>,
 }
-impl TryFrom<&Zip_LocalFileHeader_GpFlags>
-    for OptRc<Zip_LocalFileHeader_GpFlags>
-{
+impl TryFrom<&Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
     type Error = KError;
     fn try_from(v: &Zip_LocalFileHeader_GpFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Zip_LocalFileHeader_GpFlags>
-    for OptRc<Zip_LocalFileHeader_GpFlags>
-{
+impl TryFrom<&&Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
     type Error = KError;
     fn try_from(v: &&Zip_LocalFileHeader_GpFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Zip_LocalFileHeader_GpFlags>
-    for Zip_LocalFileHeader_GpFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for Zip_LocalFileHeader_GpFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Zip_LocalFileHeader_GpFlags>
-    for &Zip_LocalFileHeader_GpFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for &Zip_LocalFileHeader_GpFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Zip_LocalFileHeader_GpFlags>
-    for OptRc<Zip_LocalFileHeader_GpFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Zip_LocalFileHeader_GpFlags>
-    for &OptRc<Zip_LocalFileHeader_GpFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for &OptRc<Zip_LocalFileHeader_GpFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2612,11 +2269,7 @@ impl KStruct for Zip_LocalFileHeader_GpFlags {
     type Root = Zip;
     type Parent = Zip_LocalFileHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2632,8 +2285,7 @@ impl KStruct for Zip_LocalFileHeader_GpFlags {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comp_options_raw.borrow_mut() = _io.read_bits_int_le(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_data_descriptor.borrow_mut() =
-            _io.read_bits_int_le(1)? != 0;
+        *self_rc.has_data_descriptor.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_1.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2647,8 +2299,7 @@ impl KStruct for Zip_LocalFileHeader_GpFlags {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_3.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.mask_header_values.borrow_mut() =
-            _io.read_bits_int_le(1)? != 0;
+        *self_rc.mask_header_values.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_4.borrow_mut() = _io.read_bits_int_le(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2657,41 +2308,17 @@ impl KStruct for Zip_LocalFileHeader_GpFlags {
     }
 }
 impl Zip_LocalFileHeader_GpFlags {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn deflated_mode(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Zip_LocalFileHeader_GpFlags_DeflateMode>> {
         let _io = self._io.borrow();
         if self.f_deflated_mode.get() {
             return Ok(self.deflated_mode.borrow());
         }
         self.f_deflated_mode.set(true);
-        if ((*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .compression_method()
-            == Zip_Compression::Deflated)
-            || (*self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .compression_method()
-                == Zip_Compression::EnhancedDeflated))
-        {
-            *self.deflated_mode.borrow_mut() =
-                i64::from_le_bytes((*self.comp_options_raw()).to_le_bytes())
-                    .try_into()?;
+        if  (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Deflated) || (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::EnhancedDeflated)  {
+            *self.deflated_mode.borrow_mut() = i64::from_le_bytes((*self.comp_options_raw()).to_le_bytes()).try_into()?;
         }
         Ok(self.deflated_mode.borrow())
     }
@@ -2699,98 +2326,45 @@ impl Zip_LocalFileHeader_GpFlags {
     /**
      * 8KiB or 4KiB in bytes
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn imploded_dict_byte_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn imploded_dict_byte_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_imploded_dict_byte_size.get() {
             return Ok(self.imploded_dict_byte_size.borrow());
         }
         self.f_imploded_dict_byte_size.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .compression_method()
-            == Zip_Compression::Imploded
-        {
-            *self.imploded_dict_byte_size.borrow_mut() =
-                ((if ((to_i128(((*self.comp_options_raw()) & (1_u64))))
-                    != (to_i128(0)))
-                {
-                    8_i32
-                } else {
-                    4_i32
-                })
-                .saturating_mul(1024_i32))
-                .try_into()?;
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
+            *self.imploded_dict_byte_size.borrow_mut() = ((if (to_i128((*self.comp_options_raw()) & (1_u64))) != (to_i128(0)) { 8_i32 } else { 4_i32 }).saturating_mul(1024_i32)).try_into()?;
         }
         Ok(self.imploded_dict_byte_size.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn imploded_num_sf_trees(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn imploded_num_sf_trees(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_imploded_num_sf_trees.get() {
             return Ok(self.imploded_num_sf_trees.borrow());
         }
         self.f_imploded_num_sf_trees.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .compression_method()
-            == Zip_Compression::Imploded
-        {
-            *self.imploded_num_sf_trees.borrow_mut() =
-                (if ((to_i128(((*self.comp_options_raw()) & (2_u64))))
-                    != (to_i128(0)))
-                {
-                    3_i32
-                } else {
-                    2_i32
-                })
-                .try_into()?;
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Imploded {
+            *self.imploded_num_sf_trees.borrow_mut() = (if (to_i128((*self.comp_options_raw()) & (2_u64))) != (to_i128(0)) { 3_i32 } else { 2_i32 }).try_into()?;
         }
         Ok(self.imploded_num_sf_trees.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn lzma_has_eos_marker(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn lzma_has_eos_marker(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_lzma_has_eos_marker.get() {
             return Ok(self.lzma_has_eos_marker.borrow());
         }
         self.f_lzma_has_eos_marker.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .compression_method()
-            == Zip_Compression::Lzma
-        {
-            *self.lzma_has_eos_marker.borrow_mut() =
-                ((to_i128(((*self.comp_options_raw()) & (1_u64))))
-                    != (to_i128(0)))
-                .try_into()?;
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Lzma {
+            *self.lzma_has_eos_marker.borrow_mut() = (((to_i128((*self.comp_options_raw()) & (1_u64))) != (to_i128(0)))).try_into()?;
         }
         Ok(self.lzma_has_eos_marker.borrow())
     }
@@ -2894,16 +2468,15 @@ impl From<&Zip_LocalFileHeader_GpFlags_DeflateMode> for i64 {
             Zip_LocalFileHeader_GpFlags_DeflateMode::Maximum => 1,
             Zip_LocalFileHeader_GpFlags_DeflateMode::Fast => 2,
             Zip_LocalFileHeader_GpFlags_DeflateMode::SuperFast => 3,
-            Zip_LocalFileHeader_GpFlags_DeflateMode::Unknown(v) => v,
+            Zip_LocalFileHeader_GpFlags_DeflateMode::Unknown(v) => v
         }
     }
 }
 
 impl Default for Zip_LocalFileHeader_GpFlags_DeflateMode {
-    fn default() -> Self {
-        Zip_LocalFileHeader_GpFlags_DeflateMode::Unknown(0)
-    }
+    fn default() -> Self { Zip_LocalFileHeader_GpFlags_DeflateMode::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Zip_PkSection {
@@ -3078,11 +2651,7 @@ impl KStruct for Zip_PkSection {
     type Root = Zip;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3096,49 +2665,26 @@ impl KStruct for Zip_PkSection {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x4bu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/pk_section/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/pk_section/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.section_type.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.section_type() {
             1027 => {
-                let t = Self::read_into::<_, Zip_LocalFile>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_LocalFile>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             1541 => {
-                let t = Self::read_into::<_, Zip_EndOfCentralDir>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_EndOfCentralDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             2055 => {
-                let t = Self::read_into::<_, Zip_DataDescriptor>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_DataDescriptor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             513 => {
-                let t = Self::read_into::<_, Zip_CentralDirEntry>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Zip_CentralDirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -3148,7 +2694,8 @@ impl KStruct for Zip_PkSection {
         Ok(())
     }
 }
-impl Zip_PkSection {}
+impl Zip_PkSection {
+}
 impl Zip_PkSection {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

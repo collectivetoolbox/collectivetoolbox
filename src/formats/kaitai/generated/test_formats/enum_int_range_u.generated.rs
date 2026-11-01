@@ -101,11 +101,7 @@ impl KStruct for EnumIntRangeU {
     type Root = EnumIntRangeU;
     type Parent = EnumIntRangeU;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for EnumIntRangeU {
         Ok(())
     }
 }
-impl EnumIntRangeU {}
+impl EnumIntRangeU {
+}
 impl EnumIntRangeU {
     pub fn f1(&self) -> Ref<'_, EnumIntRangeU_Constants> {
         self.f1.borrow()
@@ -170,13 +167,12 @@ impl From<&EnumIntRangeU_Constants> for i64 {
         match *v {
             EnumIntRangeU_Constants::Zero => 0,
             EnumIntRangeU_Constants::IntMax => 4294967295,
-            EnumIntRangeU_Constants::Unknown(v) => v,
+            EnumIntRangeU_Constants::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumIntRangeU_Constants {
-    fn default() -> Self {
-        EnumIntRangeU_Constants::Unknown(0)
-    }
+    fn default() -> Self { EnumIntRangeU_Constants::Unknown(0) }
 }
+

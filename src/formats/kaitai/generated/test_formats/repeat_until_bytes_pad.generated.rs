@@ -101,11 +101,7 @@ impl KStruct for RepeatUntilBytesPad {
     type Root = RepeatUntilBytesPad;
     type Parent = RepeatUntilBytesPad;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,20 +117,11 @@ impl KStruct for RepeatUntilBytesPad {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records.borrow_mut().push(bytes_terminate_pad(
-                    &_io.read_bytes(5_usize)?,
-                    None,
-                    false,
-                    Some(170),
-                ));
+                self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, None, false, Some(170)));
                 let _t_records = self_rc.records.borrow();
-                let Some(_tmpa) = _t_records.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_records.last() else { break; };
                 _i = _i.saturating_add(1);
-                if _tmpa.len() == 5 {
-                    break;
-                }
+                if _tmpa.len() == 5 { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -142,7 +129,8 @@ impl KStruct for RepeatUntilBytesPad {
         Ok(())
     }
 }
-impl RepeatUntilBytesPad {}
+impl RepeatUntilBytesPad {
+}
 impl RepeatUntilBytesPad {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

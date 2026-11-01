@@ -261,11 +261,7 @@ impl TryFrom<FormatId> for SupportedDecompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Format {id:?} is not a supported decompression format"
-            )
-        })
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported decompression format"))
     }
 }
 
@@ -538,11 +534,7 @@ impl TryFrom<FormatId> for SupportedCompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Format {id:?} is not a supported compression format"
-            )
-        })
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported compression format"))
     }
 }
 
@@ -798,9 +790,7 @@ impl TryFrom<FormatId> for SupportedHashFormat {
     type Error = anyhow::Error;
 
     fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!("Format {id:?} is not a supported hash algorithm")
-        })
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported hash algorithm"))
     }
 }
 
@@ -839,103 +829,43 @@ impl std::str::FromStr for SupportedHashFormat {
     non_camel_case_types,
     reason = "Variant names align with canonical FormatId identifier naming"
 )]
-#[derive(
-    clap::ValueEnum,
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Default,
-)]
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcInputFormat {
     /// DCE 3.01a
-    #[value(
-        name = "3_01a",
-        alias = "dce_3_01a",
-        alias = "Dce_3_01a",
-        alias = "f105"
-    )]
+    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
     Dce_3_01a,
     /// DCE 3.01a (raw)
-    #[value(
-        name = "3_01a_raw",
-        alias = "dce_3_01a_raw",
-        alias = "Dce_3_01a_raw",
-        alias = "f106"
-    )]
+    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
     Dce_3_01a_raw,
     /// DCE 3.02a
-    #[value(
-        name = "3_02a",
-        alias = "dce_3_02a",
-        alias = "Dce_3_02a",
-        alias = "f652"
-    )]
+    #[value(name = "3_02a", alias = "dce_3_02a", alias = "Dce_3_02a", alias = "f652")]
     Dce_3_02a,
     /// DCE 3.0a
-    #[value(
-        name = "3_0a",
-        alias = "dce_3_0a",
-        alias = "Dce_3_0a",
-        alias = "f97"
-    )]
+    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
     Dce_3_0a,
     /// DCE 3.0a (raw)
-    #[value(
-        name = "3_0a_raw",
-        alias = "dce_3_0a_raw",
-        alias = "Dce_3_0a_raw",
-        alias = "f98"
-    )]
+    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
     Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
     /// AlphaSmart Neo, control low bytes, Ukraine (Mac)
-    #[value(
-        name = "alphasmartneolowctluamac",
-        alias = "AlphaSmartNeoLowCtlUaMac",
-        alias = "f331"
-    )]
+    #[value(name = "alphasmartneolowctluamac", alias = "AlphaSmartNeoLowCtlUaMac", alias = "f331")]
     AlphaSmartNeoLowCtlUaMac,
     /// AlphaSmart Neo, control low bytes, Ukraine (PC)
-    #[value(
-        name = "alphasmartneolowctluapc",
-        alias = "AlphaSmartNeoLowCtlUaPc",
-        alias = "f332"
-    )]
+    #[value(name = "alphasmartneolowctluapc", alias = "AlphaSmartNeoLowCtlUaPc", alias = "f332")]
     AlphaSmartNeoLowCtlUaPc,
     /// AlphaSmart Neo, control low bytes, USA
-    #[value(
-        name = "alphasmartneolowctlus",
-        alias = "AlphaSmartNeoLowCtlUs",
-        alias = "f330"
-    )]
+    #[value(name = "alphasmartneolowctlus", alias = "AlphaSmartNeoLowCtlUs", alias = "f330")]
     AlphaSmartNeoLowCtlUs,
     /// AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
-    #[value(
-        name = "alphasmartneolowgruamac",
-        alias = "AlphaSmartNeoLowGrUaMac",
-        alias = "f328"
-    )]
+    #[value(name = "alphasmartneolowgruamac", alias = "AlphaSmartNeoLowGrUaMac", alias = "f328")]
     AlphaSmartNeoLowGrUaMac,
     /// AlphaSmart Neo, graphical low bytes, Ukraine (PC)
-    #[value(
-        name = "alphasmartneolowgruapc",
-        alias = "AlphaSmartNeoLowGrUaPc",
-        alias = "f329"
-    )]
+    #[value(name = "alphasmartneolowgruapc", alias = "AlphaSmartNeoLowGrUaPc", alias = "f329")]
     AlphaSmartNeoLowGrUaPc,
     /// AlphaSmart Neo, graphical low bytes, USA
-    #[value(
-        name = "alphasmartneolowgrus",
-        alias = "AlphaSmartNeoLowGrUs",
-        alias = "f327"
-    )]
+    #[value(name = "alphasmartneolowgrus", alias = "AlphaSmartNeoLowGrUs", alias = "f327")]
     AlphaSmartNeoLowGrUs,
     /// ASCII
     #[value(name = "ascii", alias = "Ascii", alias = "f4")]
@@ -944,12 +874,7 @@ pub enum SupportedDcInputFormat {
     #[value(name = "asciisafesubset", alias = "AsciiSafeSubset", alias = "f3")]
     AsciiSafeSubset,
     /// CDCE (legacy, strict)
-    #[value(
-        name = "cdce_lstrict",
-        alias = "cdcelegacystrict",
-        alias = "CdceLegacyStrict",
-        alias = "f94"
-    )]
+    #[value(name = "cdce_lstrict", alias = "cdcelegacystrict", alias = "CdceLegacyStrict", alias = "f94")]
     CdceLegacyStrict,
     /// Code page 437 (CCSID 437)
     #[value(name = "cp437", alias = "Cp437", alias = "f86")]
@@ -964,67 +889,28 @@ pub enum SupportedDcInputFormat {
     #[value(name = "cscarchive2", alias = "CscArchive2", alias = "f648")]
     CscArchive2,
     /// Collective Toolbox csc journal
-    #[value(
-        name = "cscjournal",
-        alias = "CscJournal",
-        alias = "f410",
-        alias = "cscjournal1meta1",
-        alias = "CscJournal1Meta1",
-        alias = "cscjournal1meta2",
-        alias = "CscJournal1Meta2",
-        alias = "cscjournal1meta3",
-        alias = "CscJournal1Meta3",
-        alias = "cscjournal4",
-        alias = "CscJournal4",
-        alias = "cscjournal5",
-        alias = "CscJournal5"
-    )]
+    #[value(name = "cscjournal", alias = "CscJournal", alias = "f410", alias = "cscjournal1meta1", alias = "CscJournal1Meta1", alias = "cscjournal1meta2", alias = "CscJournal1Meta2", alias = "cscjournal1meta3", alias = "CscJournal1Meta3", alias = "cscjournal4", alias = "CscJournal4", alias = "cscjournal5", alias = "CscJournal5")]
     CscJournal,
     /// Comma-separated Dc list (long Dcs)
     #[value(name = "csdl", alias = "Csdl", alias = "f344")]
     Csdl,
     /// Collective Toolbox Node Bundle
-    #[value(
-        name = "ctbnbdl",
-        alias = "ctbnodebundle",
-        alias = "CtbNodeBundle",
-        alias = "f640"
-    )]
+    #[value(name = "ctbnbdl", alias = "ctbnodebundle", alias = "CtbNodeBundle", alias = "f640")]
     CtbNodeBundle,
     /// Collective Toolbox Node Bundle, version 1
-    #[value(
-        name = "ctbnbdl1",
-        alias = "ctbnodebundle1",
-        alias = "CtbNodeBundle1",
-        alias = "f644"
-    )]
+    #[value(name = "ctbnbdl1", alias = "ctbnodebundle1", alias = "CtbNodeBundle1", alias = "f644")]
     CtbNodeBundle1,
     /// Collective Toolbox Node Bundle, version 2
-    #[value(
-        name = "ctbnbdl2",
-        alias = "ctbnodebundle2",
-        alias = "CtbNodeBundle2",
-        alias = "f645"
-    )]
+    #[value(name = "ctbnbdl2", alias = "ctbnodebundle2", alias = "CtbNodeBundle2", alias = "f645")]
     CtbNodeBundle2,
     /// Collective Toolbox incoming graph node (shorthand text)
-    #[value(
-        name = "ctbnode-incoming",
-        alias = "ctbnodeincoming",
-        alias = "CtbNodeIncoming",
-        alias = "f651"
-    )]
+    #[value(name = "ctbnode-incoming", alias = "ctbnodeincoming", alias = "CtbNodeIncoming", alias = "f651")]
     CtbNodeIncoming,
     /// Collective Toolbox graph nodes (shorthand text)
     #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
     CtbNodes,
     /// Dc ID list (ASCII)
-    #[value(
-        name = "dc_id_list",
-        alias = "dcidlist",
-        alias = "DcIdList",
-        alias = "f109"
-    )]
+    #[value(name = "dc_id_list", alias = "dcidlist", alias = "DcIdList", alias = "f109")]
     DcIdList,
     /// Dc ASCII List (long Dcs)
     #[value(name = "dcal", alias = "Dcal", alias = "f340")]
@@ -1033,37 +919,16 @@ pub enum SupportedDcInputFormat {
     #[value(name = "dce", alias = "Dce", alias = "f95")]
     Dce,
     /// Dc Integer List (short Dcs)
-    #[value(
-        name = "dcil",
-        alias = "dcintegerlist",
-        alias = "DcIntegerList",
-        alias = "f2"
-    )]
+    #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
     /// Dc mixed mode
-    #[value(
-        name = "dcmm",
-        alias = "dcmstr",
-        alias = "dcmixed",
-        alias = "DcMixed",
-        alias = "f484"
-    )]
+    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed", alias = "DcMixed", alias = "f484")]
     DcMixed,
     /// Dc mixed mode, version 1 (DcUtf)
-    #[value(
-        name = "dcmm1",
-        alias = "dcmixed1",
-        alias = "DcMixed1",
-        alias = "f642"
-    )]
+    #[value(name = "dcmm1", alias = "dcmixed1", alias = "DcMixed1", alias = "f642")]
     DcMixed1,
     /// Dc mixed mode, version 2 (DcTF)
-    #[value(
-        name = "dcmm2",
-        alias = "dcmixed2",
-        alias = "DcMixed2",
-        alias = "f643"
-    )]
+    #[value(name = "dcmm2", alias = "dcmixed2", alias = "DcMixed2", alias = "f643")]
     DcMixed2,
     /// Dc shorthand ASCII list
     #[value(name = "dcsh", alias = "Dcsh", alias = "f635")]
@@ -1081,60 +946,25 @@ pub enum SupportedDcInputFormat {
     #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
     DcUtf,
     /// DCE 3.01a (hex-encoded)
-    #[value(
-        name = "hex_3_01a",
-        alias = "dce_3_01a_hex",
-        alias = "Dce_3_01a_hex",
-        alias = "f107"
-    )]
+    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
     Dce_3_01a_hex,
     /// DCE 3.01a (raw hex-encoded)
-    #[value(
-        name = "hex_3_01a_raw",
-        alias = "dce_3_01a_raw_hex",
-        alias = "Dce_3_01a_raw_hex",
-        alias = "f108"
-    )]
+    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
     Dce_3_01a_raw_hex,
     /// DCE 3.0a (hex-encoded)
-    #[value(
-        name = "hex_3_0a",
-        alias = "dce_3_0a_hex",
-        alias = "Dce_3_0a_hex",
-        alias = "f99"
-    )]
+    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
     Dce_3_0a_hex,
     /// DCE 3.0a (raw hex-encoded)
-    #[value(
-        name = "hex_3_0a_raw",
-        alias = "dce_3_0a_raw_hex",
-        alias = "Dce_3_0a_raw_hex",
-        alias = "f100"
-    )]
+    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
     Dce_3_0a_raw_hex,
     /// DCE (hex-encoded)
-    #[value(
-        name = "hex_dce",
-        alias = "dcehex",
-        alias = "DceHex",
-        alias = "f96"
-    )]
+    #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
     DceHex,
     /// ISO 8859-1
-    #[value(
-        name = "iso88591",
-        alias = "latin1",
-        alias = "Iso88591",
-        alias = "f542"
-    )]
+    #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
     Iso88591,
     /// CDCE (legacy)
-    #[value(
-        name = "legacy_cdce",
-        alias = "cdcelegacy",
-        alias = "CdceLegacy",
-        alias = "f93"
-    )]
+    #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
     CdceLegacy,
     /// MacRoman
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
@@ -1144,13 +974,7 @@ pub enum SupportedDcInputFormat {
     Sems,
     /// UTF-8
     #[default]
-    #[value(
-        name = "utf8",
-        alias = "txt",
-        alias = "utf-8",
-        alias = "Utf8",
-        alias = "f0"
-    )]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
     /// UTF-8 (Base64-encoded, ASCII Dc ID list)
     #[value(name = "utf8_dc64", alias = "Utf8_Dc64", alias = "f111")]
@@ -1159,36 +983,19 @@ pub enum SupportedDcInputFormat {
     #[value(name = "utf8_dc64_bin", alias = "Utf8_Dc64_bin", alias = "f113")]
     Utf8_Dc64_bin,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
-    #[value(
-        name = "utf8_dc64_bin_enc",
-        alias = "Utf8_Dc64_bin_enc",
-        alias = "f115"
-    )]
+    #[value(name = "utf8_dc64_bin_enc", alias = "Utf8_Dc64_bin_enc", alias = "f115")]
     Utf8_Dc64_bin_enc,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
-    #[value(
-        name = "utf8_dc64_bin_enc_hex",
-        alias = "Utf8_Dc64_bin_enc_hex",
-        alias = "f116"
-    )]
+    #[value(name = "utf8_dc64_bin_enc_hex", alias = "Utf8_Dc64_bin_enc_hex", alias = "f116")]
     Utf8_Dc64_bin_enc_hex,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
-    #[value(
-        name = "utf8_dc64_bin_hex",
-        alias = "Utf8_Dc64_bin_hex",
-        alias = "f114"
-    )]
+    #[value(name = "utf8_dc64_bin_hex", alias = "Utf8_Dc64_bin_hex", alias = "f114")]
     Utf8_Dc64_bin_hex,
     /// UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
     #[value(name = "utf8_dc64_enc", alias = "Utf8_Dc64_enc", alias = "f112")]
     Utf8_Dc64_enc,
     /// Windows-1252 ("ANSI")
-    #[value(
-        name = "win1252",
-        alias = "ansi",
-        alias = "Win1252",
-        alias = "f325"
-    )]
+    #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
     Win1252,
 }
 
@@ -1386,9 +1193,7 @@ impl SupportedDcInputFormat {
             Self::Dce_3_0a => FormatId::Dce_3_0a,
             Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
-            Self::AlphaSmartNeoLowCtlUaMac => {
-                FormatId::AlphaSmartNeoLowCtlUaMac
-            }
+            Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
             Self::AlphaSmartNeoLowCtlUs => FormatId::AlphaSmartNeoLowCtlUs,
             Self::AlphaSmartNeoLowGrUaMac => FormatId::AlphaSmartNeoLowGrUaMac,
@@ -1450,21 +1255,11 @@ impl SupportedDcInputFormat {
             FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
             FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
-            FormatId::AlphaSmartNeoLowCtlUaMac => {
-                Some(Self::AlphaSmartNeoLowCtlUaMac)
-            }
-            FormatId::AlphaSmartNeoLowCtlUaPc => {
-                Some(Self::AlphaSmartNeoLowCtlUaPc)
-            }
-            FormatId::AlphaSmartNeoLowCtlUs => {
-                Some(Self::AlphaSmartNeoLowCtlUs)
-            }
-            FormatId::AlphaSmartNeoLowGrUaMac => {
-                Some(Self::AlphaSmartNeoLowGrUaMac)
-            }
-            FormatId::AlphaSmartNeoLowGrUaPc => {
-                Some(Self::AlphaSmartNeoLowGrUaPc)
-            }
+            FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
+            FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
+            FormatId::AlphaSmartNeoLowCtlUs => Some(Self::AlphaSmartNeoLowCtlUs),
+            FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::AlphaSmartNeoLowGrUaMac),
+            FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::AlphaSmartNeoLowGrUaPc),
             FormatId::AlphaSmartNeoLowGrUs => Some(Self::AlphaSmartNeoLowGrUs),
             FormatId::Ascii => Some(Self::Ascii),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
@@ -1505,9 +1300,7 @@ impl SupportedDcInputFormat {
             FormatId::Utf8_Dc64 => Some(Self::Utf8_Dc64),
             FormatId::Utf8_Dc64_bin => Some(Self::Utf8_Dc64_bin),
             FormatId::Utf8_Dc64_bin_enc => Some(Self::Utf8_Dc64_bin_enc),
-            FormatId::Utf8_Dc64_bin_enc_hex => {
-                Some(Self::Utf8_Dc64_bin_enc_hex)
-            }
+            FormatId::Utf8_Dc64_bin_enc_hex => Some(Self::Utf8_Dc64_bin_enc_hex),
             FormatId::Utf8_Dc64_bin_hex => Some(Self::Utf8_Dc64_bin_hex),
             FormatId::Utf8_Dc64_enc => Some(Self::Utf8_Dc64_enc),
             FormatId::Win1252 => Some(Self::Win1252),
@@ -1537,9 +1330,7 @@ impl TryFrom<FormatId> for SupportedDcInputFormat {
     type Error = anyhow::Error;
 
     fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!("Format {id:?} is not a supported Dc input format")
-        })
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported Dc input format"))
     }
 }
 
@@ -1581,103 +1372,43 @@ impl std::str::FromStr for SupportedDcInputFormat {
     non_camel_case_types,
     reason = "Variant names align with canonical FormatId identifier naming"
 )]
-#[derive(
-    clap::ValueEnum,
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Default,
-)]
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcOutputFormat {
     /// DCE 3.01a
-    #[value(
-        name = "3_01a",
-        alias = "dce_3_01a",
-        alias = "Dce_3_01a",
-        alias = "f105"
-    )]
+    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
     Dce_3_01a,
     /// DCE 3.01a (raw)
-    #[value(
-        name = "3_01a_raw",
-        alias = "dce_3_01a_raw",
-        alias = "Dce_3_01a_raw",
-        alias = "f106"
-    )]
+    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
     Dce_3_01a_raw,
     /// DCE 3.02a
-    #[value(
-        name = "3_02a",
-        alias = "dce_3_02a",
-        alias = "Dce_3_02a",
-        alias = "f652"
-    )]
+    #[value(name = "3_02a", alias = "dce_3_02a", alias = "Dce_3_02a", alias = "f652")]
     Dce_3_02a,
     /// DCE 3.0a
-    #[value(
-        name = "3_0a",
-        alias = "dce_3_0a",
-        alias = "Dce_3_0a",
-        alias = "f97"
-    )]
+    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
     Dce_3_0a,
     /// DCE 3.0a (raw)
-    #[value(
-        name = "3_0a_raw",
-        alias = "dce_3_0a_raw",
-        alias = "Dce_3_0a_raw",
-        alias = "f98"
-    )]
+    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
     Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
     /// AlphaSmart Neo, control low bytes, Ukraine (Mac)
-    #[value(
-        name = "alphasmartneolowctluamac",
-        alias = "AlphaSmartNeoLowCtlUaMac",
-        alias = "f331"
-    )]
+    #[value(name = "alphasmartneolowctluamac", alias = "AlphaSmartNeoLowCtlUaMac", alias = "f331")]
     AlphaSmartNeoLowCtlUaMac,
     /// AlphaSmart Neo, control low bytes, Ukraine (PC)
-    #[value(
-        name = "alphasmartneolowctluapc",
-        alias = "AlphaSmartNeoLowCtlUaPc",
-        alias = "f332"
-    )]
+    #[value(name = "alphasmartneolowctluapc", alias = "AlphaSmartNeoLowCtlUaPc", alias = "f332")]
     AlphaSmartNeoLowCtlUaPc,
     /// AlphaSmart Neo, control low bytes, USA
-    #[value(
-        name = "alphasmartneolowctlus",
-        alias = "AlphaSmartNeoLowCtlUs",
-        alias = "f330"
-    )]
+    #[value(name = "alphasmartneolowctlus", alias = "AlphaSmartNeoLowCtlUs", alias = "f330")]
     AlphaSmartNeoLowCtlUs,
     /// AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
-    #[value(
-        name = "alphasmartneolowgruamac",
-        alias = "AlphaSmartNeoLowGrUaMac",
-        alias = "f328"
-    )]
+    #[value(name = "alphasmartneolowgruamac", alias = "AlphaSmartNeoLowGrUaMac", alias = "f328")]
     AlphaSmartNeoLowGrUaMac,
     /// AlphaSmart Neo, graphical low bytes, Ukraine (PC)
-    #[value(
-        name = "alphasmartneolowgruapc",
-        alias = "AlphaSmartNeoLowGrUaPc",
-        alias = "f329"
-    )]
+    #[value(name = "alphasmartneolowgruapc", alias = "AlphaSmartNeoLowGrUaPc", alias = "f329")]
     AlphaSmartNeoLowGrUaPc,
     /// AlphaSmart Neo, graphical low bytes, USA
-    #[value(
-        name = "alphasmartneolowgrus",
-        alias = "AlphaSmartNeoLowGrUs",
-        alias = "f327"
-    )]
+    #[value(name = "alphasmartneolowgrus", alias = "AlphaSmartNeoLowGrUs", alias = "f327")]
     AlphaSmartNeoLowGrUs,
     /// ASCII
     #[value(name = "ascii", alias = "Ascii", alias = "f4")]
@@ -1698,59 +1429,25 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "cscarchive2", alias = "CscArchive2", alias = "f648")]
     CscArchive2,
     /// Collective Toolbox csc journal
-    #[value(
-        name = "cscjournal",
-        alias = "CscJournal",
-        alias = "f410",
-        alias = "cscjournal1meta1",
-        alias = "CscJournal1Meta1",
-        alias = "cscjournal1meta2",
-        alias = "CscJournal1Meta2",
-        alias = "cscjournal1meta3",
-        alias = "CscJournal1Meta3",
-        alias = "cscjournal4",
-        alias = "CscJournal4",
-        alias = "cscjournal5",
-        alias = "CscJournal5"
-    )]
+    #[value(name = "cscjournal", alias = "CscJournal", alias = "f410", alias = "cscjournal1meta1", alias = "CscJournal1Meta1", alias = "cscjournal1meta2", alias = "CscJournal1Meta2", alias = "cscjournal1meta3", alias = "CscJournal1Meta3", alias = "cscjournal4", alias = "CscJournal4", alias = "cscjournal5", alias = "CscJournal5")]
     CscJournal,
     /// Comma-separated Dc list (long Dcs)
     #[value(name = "csdl", alias = "Csdl", alias = "f344")]
     Csdl,
     /// Collective Toolbox Node Bundle
-    #[value(
-        name = "ctbnbdl",
-        alias = "ctbnodebundle",
-        alias = "CtbNodeBundle",
-        alias = "f640"
-    )]
+    #[value(name = "ctbnbdl", alias = "ctbnodebundle", alias = "CtbNodeBundle", alias = "f640")]
     CtbNodeBundle,
     /// Collective Toolbox Node Bundle, version 1
-    #[value(
-        name = "ctbnbdl1",
-        alias = "ctbnodebundle1",
-        alias = "CtbNodeBundle1",
-        alias = "f644"
-    )]
+    #[value(name = "ctbnbdl1", alias = "ctbnodebundle1", alias = "CtbNodeBundle1", alias = "f644")]
     CtbNodeBundle1,
     /// Collective Toolbox Node Bundle, version 2
-    #[value(
-        name = "ctbnbdl2",
-        alias = "ctbnodebundle2",
-        alias = "CtbNodeBundle2",
-        alias = "f645"
-    )]
+    #[value(name = "ctbnbdl2", alias = "ctbnodebundle2", alias = "CtbNodeBundle2", alias = "f645")]
     CtbNodeBundle2,
     /// Collective Toolbox graph nodes (shorthand text)
     #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
     CtbNodes,
     /// Dc ID list (ASCII)
-    #[value(
-        name = "dc_id_list",
-        alias = "dcidlist",
-        alias = "DcIdList",
-        alias = "f109"
-    )]
+    #[value(name = "dc_id_list", alias = "dcidlist", alias = "DcIdList", alias = "f109")]
     DcIdList,
     /// Dc ASCII List (long Dcs)
     #[value(name = "dcal", alias = "Dcal", alias = "f340")]
@@ -1759,37 +1456,16 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "dce", alias = "Dce", alias = "f95")]
     Dce,
     /// Dc Integer List (short Dcs)
-    #[value(
-        name = "dcil",
-        alias = "dcintegerlist",
-        alias = "DcIntegerList",
-        alias = "f2"
-    )]
+    #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
     /// Dc mixed mode
-    #[value(
-        name = "dcmm",
-        alias = "dcmstr",
-        alias = "dcmixed",
-        alias = "DcMixed",
-        alias = "f484"
-    )]
+    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed", alias = "DcMixed", alias = "f484")]
     DcMixed,
     /// Dc mixed mode, version 1 (DcUtf)
-    #[value(
-        name = "dcmm1",
-        alias = "dcmixed1",
-        alias = "DcMixed1",
-        alias = "f642"
-    )]
+    #[value(name = "dcmm1", alias = "dcmixed1", alias = "DcMixed1", alias = "f642")]
     DcMixed1,
     /// Dc mixed mode, version 2 (DcTF)
-    #[value(
-        name = "dcmm2",
-        alias = "dcmixed2",
-        alias = "DcMixed2",
-        alias = "f643"
-    )]
+    #[value(name = "dcmm2", alias = "dcmixed2", alias = "DcMixed2", alias = "f643")]
     DcMixed2,
     /// Dc shorthand ASCII list
     #[value(name = "dcsh", alias = "Dcsh", alias = "f635")]
@@ -1807,98 +1483,43 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
     DcUtf,
     /// Color-coded HTML integer list
-    #[value(
-        name = "eitecolorcoded",
-        alias = "EiteColorCoded",
-        alias = "f21",
-        alias = "htm"
-    )]
+    #[value(name = "eitecolorcoded", alias = "EiteColorCoded", alias = "f21", alias = "htm")]
     EiteColorCoded,
     /// EITE Language in ASCII documents (ELAD)
     #[value(name = "elad", alias = "Elad", alias = "f17")]
     Elad,
     /// DCE 3.01a (hex-encoded)
-    #[value(
-        name = "hex_3_01a",
-        alias = "dce_3_01a_hex",
-        alias = "Dce_3_01a_hex",
-        alias = "f107"
-    )]
+    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
     Dce_3_01a_hex,
     /// DCE 3.01a (raw hex-encoded)
-    #[value(
-        name = "hex_3_01a_raw",
-        alias = "dce_3_01a_raw_hex",
-        alias = "Dce_3_01a_raw_hex",
-        alias = "f108"
-    )]
+    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
     Dce_3_01a_raw_hex,
     /// DCE 3.0a (hex-encoded)
-    #[value(
-        name = "hex_3_0a",
-        alias = "dce_3_0a_hex",
-        alias = "Dce_3_0a_hex",
-        alias = "f99"
-    )]
+    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
     Dce_3_0a_hex,
     /// DCE 3.0a (raw hex-encoded)
-    #[value(
-        name = "hex_3_0a_raw",
-        alias = "dce_3_0a_raw_hex",
-        alias = "Dce_3_0a_raw_hex",
-        alias = "f100"
-    )]
+    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
     Dce_3_0a_raw_hex,
     /// DCE (hex-encoded)
-    #[value(
-        name = "hex_dce",
-        alias = "dcehex",
-        alias = "DceHex",
-        alias = "f96"
-    )]
+    #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
     DceHex,
     /// HTML
     #[value(name = "html", alias = "Html", alias = "f5")]
     Html,
     /// HTML (legacy CDCE output)
-    #[value(
-        name = "html_l",
-        alias = "htmllegacycdce",
-        alias = "HtmlLegacyCdce",
-        alias = "f117"
-    )]
+    #[value(name = "html_l", alias = "htmllegacycdce", alias = "HtmlLegacyCdce", alias = "f117")]
     HtmlLegacyCdce,
     /// HTML (snippet) (legacy CDCE output)
-    #[value(
-        name = "html_snippet_l",
-        alias = "htmllegacycdcesnippet",
-        alias = "HtmlLegacyCdceSnippet",
-        alias = "f118"
-    )]
+    #[value(name = "html_snippet_l", alias = "htmllegacycdcesnippet", alias = "HtmlLegacyCdceSnippet", alias = "f118")]
     HtmlLegacyCdceSnippet,
     /// HTML fragment
-    #[value(
-        name = "htmlfragment",
-        alias = "HtmlFragment",
-        alias = "f13",
-        alias = "htmfrag"
-    )]
+    #[value(name = "htmlfragment", alias = "HtmlFragment", alias = "f13", alias = "htmfrag")]
     HtmlFragment,
     /// ISO 8859-1
-    #[value(
-        name = "iso88591",
-        alias = "latin1",
-        alias = "Iso88591",
-        alias = "f542"
-    )]
+    #[value(name = "iso88591", alias = "latin1", alias = "Iso88591", alias = "f542")]
     Iso88591,
     /// CDCE (legacy)
-    #[value(
-        name = "legacy_cdce",
-        alias = "cdcelegacy",
-        alias = "CdceLegacy",
-        alias = "f93"
-    )]
+    #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
     CdceLegacy,
     /// MacRoman
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
@@ -1908,13 +1529,7 @@ pub enum SupportedDcOutputFormat {
     Sems,
     /// UTF-8
     #[default]
-    #[value(
-        name = "utf8",
-        alias = "txt",
-        alias = "utf-8",
-        alias = "Utf8",
-        alias = "f0"
-    )]
+    #[value(name = "utf8", alias = "txt", alias = "utf-8", alias = "Utf8", alias = "f0")]
     Utf8,
     /// UTF-8 (Base64-encoded, ASCII Dc ID list)
     #[value(name = "utf8_dc64", alias = "Utf8_Dc64", alias = "f111")]
@@ -1923,36 +1538,19 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "utf8_dc64_bin", alias = "Utf8_Dc64_bin", alias = "f113")]
     Utf8_Dc64_bin,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
-    #[value(
-        name = "utf8_dc64_bin_enc",
-        alias = "Utf8_Dc64_bin_enc",
-        alias = "f115"
-    )]
+    #[value(name = "utf8_dc64_bin_enc", alias = "Utf8_Dc64_bin_enc", alias = "f115")]
     Utf8_Dc64_bin_enc,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
-    #[value(
-        name = "utf8_dc64_bin_enc_hex",
-        alias = "Utf8_Dc64_bin_enc_hex",
-        alias = "f116"
-    )]
+    #[value(name = "utf8_dc64_bin_enc_hex", alias = "Utf8_Dc64_bin_enc_hex", alias = "f116")]
     Utf8_Dc64_bin_enc_hex,
     /// UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
-    #[value(
-        name = "utf8_dc64_bin_hex",
-        alias = "Utf8_Dc64_bin_hex",
-        alias = "f114"
-    )]
+    #[value(name = "utf8_dc64_bin_hex", alias = "Utf8_Dc64_bin_hex", alias = "f114")]
     Utf8_Dc64_bin_hex,
     /// UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
     #[value(name = "utf8_dc64_enc", alias = "Utf8_Dc64_enc", alias = "f112")]
     Utf8_Dc64_enc,
     /// Windows-1252 ("ANSI")
-    #[value(
-        name = "win1252",
-        alias = "ansi",
-        alias = "Win1252",
-        alias = "f325"
-    )]
+    #[value(name = "win1252", alias = "ansi", alias = "Win1252", alias = "f325")]
     Win1252,
 }
 
@@ -2159,9 +1757,7 @@ impl SupportedDcOutputFormat {
             Self::Dce_3_0a => FormatId::Dce_3_0a,
             Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
-            Self::AlphaSmartNeoLowCtlUaMac => {
-                FormatId::AlphaSmartNeoLowCtlUaMac
-            }
+            Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
             Self::AlphaSmartNeoLowCtlUs => FormatId::AlphaSmartNeoLowCtlUs,
             Self::AlphaSmartNeoLowGrUaMac => FormatId::AlphaSmartNeoLowGrUaMac,
@@ -2227,21 +1823,11 @@ impl SupportedDcOutputFormat {
             FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
             FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
-            FormatId::AlphaSmartNeoLowCtlUaMac => {
-                Some(Self::AlphaSmartNeoLowCtlUaMac)
-            }
-            FormatId::AlphaSmartNeoLowCtlUaPc => {
-                Some(Self::AlphaSmartNeoLowCtlUaPc)
-            }
-            FormatId::AlphaSmartNeoLowCtlUs => {
-                Some(Self::AlphaSmartNeoLowCtlUs)
-            }
-            FormatId::AlphaSmartNeoLowGrUaMac => {
-                Some(Self::AlphaSmartNeoLowGrUaMac)
-            }
-            FormatId::AlphaSmartNeoLowGrUaPc => {
-                Some(Self::AlphaSmartNeoLowGrUaPc)
-            }
+            FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
+            FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
+            FormatId::AlphaSmartNeoLowCtlUs => Some(Self::AlphaSmartNeoLowCtlUs),
+            FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::AlphaSmartNeoLowGrUaMac),
+            FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::AlphaSmartNeoLowGrUaPc),
             FormatId::AlphaSmartNeoLowGrUs => Some(Self::AlphaSmartNeoLowGrUs),
             FormatId::Ascii => Some(Self::Ascii),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
@@ -2276,9 +1862,7 @@ impl SupportedDcOutputFormat {
             FormatId::DceHex => Some(Self::DceHex),
             FormatId::Html => Some(Self::Html),
             FormatId::HtmlLegacyCdce => Some(Self::HtmlLegacyCdce),
-            FormatId::HtmlLegacyCdceSnippet => {
-                Some(Self::HtmlLegacyCdceSnippet)
-            }
+            FormatId::HtmlLegacyCdceSnippet => Some(Self::HtmlLegacyCdceSnippet),
             FormatId::HtmlFragment => Some(Self::HtmlFragment),
             FormatId::Iso88591 => Some(Self::Iso88591),
             FormatId::CdceLegacy => Some(Self::CdceLegacy),
@@ -2288,9 +1872,7 @@ impl SupportedDcOutputFormat {
             FormatId::Utf8_Dc64 => Some(Self::Utf8_Dc64),
             FormatId::Utf8_Dc64_bin => Some(Self::Utf8_Dc64_bin),
             FormatId::Utf8_Dc64_bin_enc => Some(Self::Utf8_Dc64_bin_enc),
-            FormatId::Utf8_Dc64_bin_enc_hex => {
-                Some(Self::Utf8_Dc64_bin_enc_hex)
-            }
+            FormatId::Utf8_Dc64_bin_enc_hex => Some(Self::Utf8_Dc64_bin_enc_hex),
             FormatId::Utf8_Dc64_bin_hex => Some(Self::Utf8_Dc64_bin_hex),
             FormatId::Utf8_Dc64_enc => Some(Self::Utf8_Dc64_enc),
             FormatId::Win1252 => Some(Self::Win1252),
@@ -2320,9 +1902,7 @@ impl TryFrom<FormatId> for SupportedDcOutputFormat {
     type Error = anyhow::Error;
 
     fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!("Format {id:?} is not a supported Dc output format")
-        })
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported Dc output format"))
     }
 }
 
@@ -2364,9 +1944,7 @@ impl FormatId {
     ///
     /// # Errors
     /// Returns an error if this format is not supported for decompression.
-    pub fn to_supported_decompression_format(
-        self,
-    ) -> Result<SupportedDecompressionFormat> {
+    pub fn to_supported_decompression_format(self) -> Result<SupportedDecompressionFormat> {
         SupportedDecompressionFormat::try_from(self)
     }
 
@@ -2374,9 +1952,7 @@ impl FormatId {
     ///
     /// # Errors
     /// Returns an error if this format is not supported for compression.
-    pub fn to_supported_compression_format(
-        self,
-    ) -> Result<SupportedCompressionFormat> {
+    pub fn to_supported_compression_format(self) -> Result<SupportedCompressionFormat> {
         SupportedCompressionFormat::try_from(self)
     }
 
@@ -2392,9 +1968,7 @@ impl FormatId {
     ///
     /// # Errors
     /// Returns an error if this format is not a supported Dc input format.
-    pub fn to_supported_dc_input_format(
-        self,
-    ) -> Result<SupportedDcInputFormat> {
+    pub fn to_supported_dc_input_format(self) -> Result<SupportedDcInputFormat> {
         SupportedDcInputFormat::try_from(self)
     }
 
@@ -2402,9 +1976,7 @@ impl FormatId {
     ///
     /// # Errors
     /// Returns an error if this format is not a supported Dc output format.
-    pub fn to_supported_dc_output_format(
-        self,
-    ) -> Result<SupportedDcOutputFormat> {
+    pub fn to_supported_dc_output_format(self) -> Result<SupportedDcOutputFormat> {
         SupportedDcOutputFormat::try_from(self)
     }
 }

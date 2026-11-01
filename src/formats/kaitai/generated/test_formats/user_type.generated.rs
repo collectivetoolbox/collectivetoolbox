@@ -100,11 +100,7 @@ impl KStruct for UserType {
     type Root = UserType;
     type Parent = UserType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,19 +112,15 @@ impl KStruct for UserType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, UserType_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, UserType_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl UserType {}
+impl UserType {
+}
 impl UserType {
     pub fn one(&self) -> Ref<'_, OptRc<UserType_Header>> {
         self.one.borrow()
@@ -191,11 +183,7 @@ impl KStruct for UserType_Header {
     type Root = UserType;
     type Parent = UserType;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,7 +203,8 @@ impl KStruct for UserType_Header {
         Ok(())
     }
 }
-impl UserType_Header {}
+impl UserType_Header {
+}
 impl UserType_Header {
     pub fn width(&self) -> Ref<'_, u32> {
         self.width.borrow()

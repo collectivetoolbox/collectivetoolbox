@@ -109,11 +109,7 @@ impl KStruct for TermStrzUtf16V4 {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,12 +124,7 @@ impl KStruct for TermStrzUtf16V4 {
         let _raw_s1 = _io.read_bytes(6_usize)?;
         *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
         let _io_s1 = BytesReader::from(_raw_s1);
-        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S1Type>(
-            &_io_s1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S1Type>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skip_term1.borrow_mut() = _io.read_bytes(2_usize)?;
@@ -141,12 +132,7 @@ impl KStruct for TermStrzUtf16V4 {
         let _raw_s2 = _io.read_bytes(6_usize)?;
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _io_s2 = BytesReader::from(_raw_s2);
-        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S2Type>(
-            &_io_s2,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S2Type>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skip_term2.borrow_mut() = _io.read_bytes(2_usize)?;
@@ -154,19 +140,15 @@ impl KStruct for TermStrzUtf16V4 {
         let _raw_s3 = _io.read_bytes(6_usize)?;
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _io_s3 = BytesReader::from(_raw_s3);
-        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S3Type>(
-            &_io_s3,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStrzUtf16V4_S3Type>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStrzUtf16V4 {}
+impl TermStrzUtf16V4 {
+}
 impl TermStrzUtf16V4 {
     pub fn s1(&self) -> Ref<'_, OptRc<TermStrzUtf16V4_S1Type>> {
         self.s1.borrow()
@@ -273,11 +255,7 @@ impl KStruct for TermStrzUtf16V4_S1Type {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -289,16 +267,14 @@ impl KStruct for TermStrzUtf16V4_S1Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term_multi(&[0, 0], false, true, false)?,
-            "UTF-16LE",
-        )?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], false, true, false)?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStrzUtf16V4_S1Type {}
+impl TermStrzUtf16V4_S1Type {
+}
 impl TermStrzUtf16V4_S1Type {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()
@@ -360,11 +336,7 @@ impl KStruct for TermStrzUtf16V4_S2Type {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -376,16 +348,14 @@ impl KStruct for TermStrzUtf16V4_S2Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term_multi(&[0, 0], false, false, false)?,
-            "UTF-16LE",
-        )?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], false, false, false)?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStrzUtf16V4_S2Type {}
+impl TermStrzUtf16V4_S2Type {
+}
 impl TermStrzUtf16V4_S2Type {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()
@@ -447,11 +417,7 @@ impl KStruct for TermStrzUtf16V4_S3Type {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -463,16 +429,14 @@ impl KStruct for TermStrzUtf16V4_S3Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term_multi(&[0, 0], true, true, false)?,
-            "UTF-16LE",
-        )?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], true, true, false)?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStrzUtf16V4_S3Type {}
+impl TermStrzUtf16V4_S3Type {
+}
 impl TermStrzUtf16V4_S3Type {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

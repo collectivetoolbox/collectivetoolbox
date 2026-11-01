@@ -72,43 +72,28 @@ pub enum SwitchRepeatExprInvalid_Body {
     SwitchRepeatExprInvalid_Two(OptRc<SwitchRepeatExprInvalid_Two>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&SwitchRepeatExprInvalid_Body>
-    for OptRc<SwitchRepeatExprInvalid_One>
-{
+impl TryFrom<&SwitchRepeatExprInvalid_Body> for OptRc<SwitchRepeatExprInvalid_One> {
     type Error = KError;
     fn try_from(v: &SwitchRepeatExprInvalid_Body) -> Result<Self, Self::Error> {
-        if let SwitchRepeatExprInvalid_Body::SwitchRepeatExprInvalid_One(x) = v
-        {
+        if let SwitchRepeatExprInvalid_Body::SwitchRepeatExprInvalid_One(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchRepeatExprInvalid_Body>
-    for OptRc<SwitchRepeatExprInvalid_One>
-{
+impl TryFrom<&&SwitchRepeatExprInvalid_Body> for OptRc<SwitchRepeatExprInvalid_One> {
     type Error = KError;
-    fn try_from(
-        v: &&SwitchRepeatExprInvalid_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&SwitchRepeatExprInvalid_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for SwitchRepeatExprInvalid_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for SwitchRepeatExprInvalid_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         OptRc::<SwitchRepeatExprInvalid_One>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for &SwitchRepeatExprInvalid_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for &SwitchRepeatExprInvalid_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -117,43 +102,28 @@ impl From<OptRc<SwitchRepeatExprInvalid_One>> for SwitchRepeatExprInvalid_Body {
         Self::SwitchRepeatExprInvalid_One(v)
     }
 }
-impl TryFrom<&SwitchRepeatExprInvalid_Body>
-    for OptRc<SwitchRepeatExprInvalid_Two>
-{
+impl TryFrom<&SwitchRepeatExprInvalid_Body> for OptRc<SwitchRepeatExprInvalid_Two> {
     type Error = KError;
     fn try_from(v: &SwitchRepeatExprInvalid_Body) -> Result<Self, Self::Error> {
-        if let SwitchRepeatExprInvalid_Body::SwitchRepeatExprInvalid_Two(x) = v
-        {
+        if let SwitchRepeatExprInvalid_Body::SwitchRepeatExprInvalid_Two(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&SwitchRepeatExprInvalid_Body>
-    for OptRc<SwitchRepeatExprInvalid_Two>
-{
+impl TryFrom<&&SwitchRepeatExprInvalid_Body> for OptRc<SwitchRepeatExprInvalid_Two> {
     type Error = KError;
-    fn try_from(
-        v: &&SwitchRepeatExprInvalid_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&SwitchRepeatExprInvalid_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for SwitchRepeatExprInvalid_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for SwitchRepeatExprInvalid_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         OptRc::<SwitchRepeatExprInvalid_Two>::try_from(self)
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for &SwitchRepeatExprInvalid_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for &SwitchRepeatExprInvalid_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -173,9 +143,7 @@ impl TryFrom<&SwitchRepeatExprInvalid_Body> for Vec<u8> {
 }
 impl TryFrom<&&SwitchRepeatExprInvalid_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&SwitchRepeatExprInvalid_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&SwitchRepeatExprInvalid_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -211,9 +179,7 @@ impl DowncastOptRc<SwitchRepeatExprInvalid> for OptRc<SwitchRepeatExprInvalid> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid>
-    for &OptRc<SwitchRepeatExprInvalid>
-{
+impl DowncastOptRc<SwitchRepeatExprInvalid> for &OptRc<SwitchRepeatExprInvalid> {
     fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid>, KError> {
         Ok((*self).clone())
     }
@@ -222,11 +188,7 @@ impl KStruct for SwitchRepeatExprInvalid {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -251,34 +213,15 @@ impl KStruct for SwitchRepeatExprInvalid {
             let _io_body = BytesReader::from(_raw_body);
             match *(self_rc.codes().get(_i).ok_or(KError::CastError)?) {
                 1 => {
-                    let t = Self::read_into::<
-                        BytesReader,
-                        SwitchRepeatExprInvalid_One,
-                    >(
-                        &_io_body,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                    let t = Self::read_into::<BytesReader, SwitchRepeatExprInvalid_One>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 2 => {
-                    let t = Self::read_into::<
-                        BytesReader,
-                        SwitchRepeatExprInvalid_Two,
-                    >(
-                        &_io_body,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                    let t = Self::read_into::<BytesReader, SwitchRepeatExprInvalid_Two>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 _ => {
-                    self_rc
-                        .body
-                        .borrow_mut()
-                        .push(_io_body.read_bytes(4_usize)?.into());
+                    self_rc.body.borrow_mut().push(_io_body.read_bytes(4_usize)?.into());
                 }
             }
         }
@@ -287,7 +230,8 @@ impl KStruct for SwitchRepeatExprInvalid {
         Ok(())
     }
 }
-impl SwitchRepeatExprInvalid {}
+impl SwitchRepeatExprInvalid {
+}
 impl SwitchRepeatExprInvalid {
     pub fn codes(&self) -> Ref<'_, Vec<u8>> {
         self.codes.borrow()
@@ -323,55 +267,35 @@ pub struct SwitchRepeatExprInvalid_One {
     first: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchRepeatExprInvalid_One>
-    for OptRc<SwitchRepeatExprInvalid_One>
-{
+impl TryFrom<&SwitchRepeatExprInvalid_One> for OptRc<SwitchRepeatExprInvalid_One> {
     type Error = KError;
     fn try_from(v: &SwitchRepeatExprInvalid_One) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchRepeatExprInvalid_One>
-    for OptRc<SwitchRepeatExprInvalid_One>
-{
+impl TryFrom<&&SwitchRepeatExprInvalid_One> for OptRc<SwitchRepeatExprInvalid_One> {
     type Error = KError;
     fn try_from(v: &&SwitchRepeatExprInvalid_One) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for SwitchRepeatExprInvalid_One
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for SwitchRepeatExprInvalid_One {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for &SwitchRepeatExprInvalid_One
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for &SwitchRepeatExprInvalid_One {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for OptRc<SwitchRepeatExprInvalid_One>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for OptRc<SwitchRepeatExprInvalid_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_One>
-    for &OptRc<SwitchRepeatExprInvalid_One>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_One> for &OptRc<SwitchRepeatExprInvalid_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_One>, KError> {
         Ok((*self).clone())
     }
 }
@@ -379,11 +303,7 @@ impl KStruct for SwitchRepeatExprInvalid_One {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -401,7 +321,8 @@ impl KStruct for SwitchRepeatExprInvalid_One {
         Ok(())
     }
 }
-impl SwitchRepeatExprInvalid_One {}
+impl SwitchRepeatExprInvalid_One {
+}
 impl SwitchRepeatExprInvalid_One {
     pub fn first(&self) -> Ref<'_, Vec<u8>> {
         self.first.borrow()
@@ -427,55 +348,35 @@ pub struct SwitchRepeatExprInvalid_Two {
     second: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&SwitchRepeatExprInvalid_Two>
-    for OptRc<SwitchRepeatExprInvalid_Two>
-{
+impl TryFrom<&SwitchRepeatExprInvalid_Two> for OptRc<SwitchRepeatExprInvalid_Two> {
     type Error = KError;
     fn try_from(v: &SwitchRepeatExprInvalid_Two) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&SwitchRepeatExprInvalid_Two>
-    for OptRc<SwitchRepeatExprInvalid_Two>
-{
+impl TryFrom<&&SwitchRepeatExprInvalid_Two> for OptRc<SwitchRepeatExprInvalid_Two> {
     type Error = KError;
     fn try_from(v: &&SwitchRepeatExprInvalid_Two) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for SwitchRepeatExprInvalid_Two
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for SwitchRepeatExprInvalid_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for &SwitchRepeatExprInvalid_Two
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for &SwitchRepeatExprInvalid_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for OptRc<SwitchRepeatExprInvalid_Two>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for OptRc<SwitchRepeatExprInvalid_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<SwitchRepeatExprInvalid_Two>
-    for &OptRc<SwitchRepeatExprInvalid_Two>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
+impl DowncastOptRc<SwitchRepeatExprInvalid_Two> for &OptRc<SwitchRepeatExprInvalid_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExprInvalid_Two>, KError> {
         Ok((*self).clone())
     }
 }
@@ -483,11 +384,7 @@ impl KStruct for SwitchRepeatExprInvalid_Two {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -505,7 +402,8 @@ impl KStruct for SwitchRepeatExprInvalid_Two {
         Ok(())
     }
 }
-impl SwitchRepeatExprInvalid_Two {}
+impl SwitchRepeatExprInvalid_Two {
+}
 impl SwitchRepeatExprInvalid_Two {
     pub fn second(&self) -> Ref<'_, Vec<u8>> {
         self.second.borrow()

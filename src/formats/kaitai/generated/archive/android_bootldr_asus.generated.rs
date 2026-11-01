@@ -63,11 +63,7 @@ impl KStruct for AndroidBootldrAsus {
     type Root = AndroidBootldrAsus;
     type Parent = AndroidBootldrAsus;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -80,24 +76,14 @@ impl KStruct for AndroidBootldrAsus {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.magic()
-            == vec![
-                0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+        if !(*self_rc.magic() == vec![0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.revision.borrow_mut() = _io.read_u2le()?;
         let min_val: u16 = (2).try_into()?;
         if !(*self_rc.revision() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
@@ -107,12 +93,7 @@ impl KStruct for AndroidBootldrAsus {
         *self_rc.images.borrow_mut() = Vec::new();
         let l_images = 3_usize;
         for _i in 0_usize..l_images {
-            let t = Self::read_into::<_, AndroidBootldrAsus_Image>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, AndroidBootldrAsus_Image>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -120,7 +101,8 @@ impl KStruct for AndroidBootldrAsus {
         Ok(())
     }
 }
-impl AndroidBootldrAsus {}
+impl AndroidBootldrAsus {
+}
 impl AndroidBootldrAsus {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -194,34 +176,22 @@ impl TryFrom<&&AndroidBootldrAsus_Image> for OptRc<AndroidBootldrAsus_Image> {
     }
 }
 impl DowncastOptRc<AndroidBootldrAsus_Image> for AndroidBootldrAsus_Image {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<AndroidBootldrAsus_Image> for &AndroidBootldrAsus_Image {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AndroidBootldrAsus_Image>
-    for OptRc<AndroidBootldrAsus_Image>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+impl DowncastOptRc<AndroidBootldrAsus_Image> for OptRc<AndroidBootldrAsus_Image> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndroidBootldrAsus_Image>
-    for &OptRc<AndroidBootldrAsus_Image>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+impl DowncastOptRc<AndroidBootldrAsus_Image> for &OptRc<AndroidBootldrAsus_Image> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
         Ok((*self).clone())
     }
 }
@@ -229,11 +199,7 @@ impl KStruct for AndroidBootldrAsus_Image {
     type Root = AndroidBootldrAsus;
     type Parent = AndroidBootldrAsus;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -245,17 +211,10 @@ impl KStruct for AndroidBootldrAsus_Image {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.chunk_id.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         let _item = &*self_rc.chunk_id();
-        if !(*_item == "IFWI!!!!"
-            || *_item == "DROIDBT!"
-            || *_item == "SPLASHS!")
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotAnyOf,
-                src_path: "/types/image/seq/0".to_string(),
-            }));
+        if !(*_item == "IFWI!!!!" || *_item == "DROIDBT!" || *_item == "SPLASHS!") {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/image/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
@@ -263,11 +222,8 @@ impl KStruct for AndroidBootldrAsus_Image {
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
         let _borrowed = self_rc.flags();
         let _tmpa = *_borrowed;
-        if !((_tmpa & 1_u8) != 0_u8) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/image/seq/2".to_string(),
-            }));
+        if !(((_tmpa & 1_u8) != 0_u8)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/image/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_u1()?;
@@ -276,42 +232,23 @@ impl KStruct for AndroidBootldrAsus_Image {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len_body())?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidBootldrAsus_Image {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn file_name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn file_name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_file_name.get() {
             return Ok(self.file_name.borrow());
         }
         self.f_file_name.set(true);
-        *self.file_name.borrow_mut() =
-            if (self.chunk_id().as_str() == "IFWI!!!!") {
-                "ifwi.bin".to_string()
-            } else {
-                if (self.chunk_id().as_str() == "DROIDBT!") {
-                    "droidboot.img".to_string()
-                } else {
-                    if (self.chunk_id().as_str() == "SPLASHS!") {
-                        "splashscreen.img".to_string()
-                    } else {
-                        "".to_string()
-                    }
-                    .to_string()
-                }
-                .to_string()
-            }
-            .to_string();
+        *self.file_name.borrow_mut() = if self.chunk_id().as_str() == "IFWI!!!!" { "ifwi.bin".to_string() } else { if self.chunk_id().as_str() == "DROIDBT!" { "droidboot.img".to_string() } else { if self.chunk_id().as_str() == "SPLASHS!" { "splashscreen.img".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string();
         Ok(self.file_name.borrow())
     }
 }

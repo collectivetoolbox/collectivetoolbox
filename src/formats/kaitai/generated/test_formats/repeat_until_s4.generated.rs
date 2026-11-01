@@ -101,11 +101,7 @@ impl KStruct for RepeatUntilS4 {
     type Root = RepeatUntilS4;
     type Parent = RepeatUntilS4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,27 +119,21 @@ impl KStruct for RepeatUntilS4 {
             loop {
                 self_rc.entries.borrow_mut().push(_io.read_s4le()?);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_entries.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa))
-                    == (to_i128((0_i32).saturating_sub(to_i32(1)))))
-                {
-                    break;
-                }
+                if (to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.afterall.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.afterall.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl RepeatUntilS4 {}
+impl RepeatUntilS4 {
+}
 impl RepeatUntilS4 {
     pub fn entries(&self) -> Ref<'_, Vec<i32>> {
         self.entries.borrow()

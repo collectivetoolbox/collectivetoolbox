@@ -70,11 +70,7 @@ impl KStruct for Utf8String {
     type Root = Utf8String;
     type Parent = Utf8String;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -90,21 +86,8 @@ impl KStruct for Utf8String {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t: &mut Utf8String_Utf8Codepoint| {
-                    Ok(t.set_params(
-                        (_io.pos())
-                            .try_into()
-                            .map_err(|_| KError::CastError)?,
-                    ))
-                };
-                let t =
-                    Self::read_into_with_init::<_, Utf8String_Utf8Codepoint>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                let f = |t : &mut Utf8String_Utf8Codepoint| Ok(t.set_params((_io.pos()).try_into().map_err(|_| KError::CastError)?));
+                let t = Self::read_into_with_init::<_, Utf8String_Utf8Codepoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.codepoints.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -114,7 +97,8 @@ impl KStruct for Utf8String {
         Ok(())
     }
 }
-impl Utf8String {}
+impl Utf8String {
+}
 impl Utf8String {
     pub fn codepoints(&self) -> Ref<'_, Vec<OptRc<Utf8String_Utf8Codepoint>>> {
         self.codepoints.borrow()
@@ -169,34 +153,22 @@ impl TryFrom<&&Utf8String_Utf8Codepoint> for OptRc<Utf8String_Utf8Codepoint> {
     }
 }
 impl DowncastOptRc<Utf8String_Utf8Codepoint> for Utf8String_Utf8Codepoint {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Utf8String_Utf8Codepoint> for &Utf8String_Utf8Codepoint {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Utf8String_Utf8Codepoint>
-    for OptRc<Utf8String_Utf8Codepoint>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for OptRc<Utf8String_Utf8Codepoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Utf8String_Utf8Codepoint>
-    for &OptRc<Utf8String_Utf8Codepoint>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for &OptRc<Utf8String_Utf8Codepoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
         Ok((*self).clone())
     }
 }
@@ -204,11 +176,7 @@ impl KStruct for Utf8String_Utf8Codepoint {
     type Root = Utf8String;
     type Parent = Utf8String;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,8 +188,7 @@ impl KStruct for Utf8String_Utf8Codepoint {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.bytes.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len_bytes()?)?)?;
+        *self_rc.bytes.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_bytes()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -238,12 +205,10 @@ impl Utf8String_Utf8Codepoint {
     }
 }
 impl Utf8String_Utf8Codepoint {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn byte0(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn byte0(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_byte0.get() {
             return Ok(self.byte0.borrow());
@@ -255,162 +220,82 @@ impl Utf8String_Utf8Codepoint {
         _io.seek(_pos)?;
         Ok(self.byte0.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_bytes(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_bytes(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_bytes.get() {
             return Ok(self.len_bytes.borrow());
         }
         self.f_len_bytes.set(true);
-        *self.len_bytes.borrow_mut() =
-            (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 {
-                1_i32
-            } else {
-                if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 {
-                    2_i32
-                } else {
-                    if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 {
-                        3_i32
-                    } else {
-                        if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 {
-                            4_i32
-                        } else {
-                            (0_i32).saturating_sub(to_i32(1))
-                        }
-                    }
-                }
-            })
-            .try_into()?;
+        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
         Ok(self.len_bytes.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn raw0(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn raw0(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_raw0.get() {
             return Ok(self.raw0.borrow());
         }
         self.f_raw0.set(true);
-        *self.raw0.borrow_mut() = ((i32::from(
-            *(self.bytes().get(0_usize).ok_or(KError::CastError)?),
-        )) & (if *self.len_bytes()? == 1 {
-            127_i32
-        } else {
-            if *self.len_bytes()? == 2 {
-                31_i32
-            } else {
-                if *self.len_bytes()? == 3 {
-                    15_i32
-                } else {
-                    if *self.len_bytes()? == 4 {
-                        7_i32
-                    } else {
-                        0_i32
-                    }
-                }
-            }
-        }))
-        .try_into()?;
+        *self.raw0.borrow_mut() = (((i32::from(*(self.bytes().get(0_usize).ok_or(KError::CastError)?))) & (if *self.len_bytes()? == 1 { 127_i32 } else { if *self.len_bytes()? == 2 { 31_i32 } else { if *self.len_bytes()? == 3 { 15_i32 } else { if *self.len_bytes()? == 4 { 7_i32 } else { 0_i32 } } } }))).try_into()?;
         Ok(self.raw0.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn raw1(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn raw1(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_raw1.get() {
             return Ok(self.raw1.borrow());
         }
         self.f_raw1.set(true);
         if *self.len_bytes()? >= 2 {
-            *self.raw1.borrow_mut() = ((i32::from(
-                *(self.bytes().get(1_usize).ok_or(KError::CastError)?),
-            )) & (63_i32))
-                .try_into()?;
+            *self.raw1.borrow_mut() = (((i32::from(*(self.bytes().get(1_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn raw2(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn raw2(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_raw2.get() {
             return Ok(self.raw2.borrow());
         }
         self.f_raw2.set(true);
         if *self.len_bytes()? >= 3 {
-            *self.raw2.borrow_mut() = ((i32::from(
-                *(self.bytes().get(2_usize).ok_or(KError::CastError)?),
-            )) & (63_i32))
-                .try_into()?;
+            *self.raw2.borrow_mut() = (((i32::from(*(self.bytes().get(2_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw2.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn raw3(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn raw3(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_raw3.get() {
             return Ok(self.raw3.borrow());
         }
         self.f_raw3.set(true);
         if *self.len_bytes()? >= 4 {
-            *self.raw3.borrow_mut() = ((i32::from(
-                *(self.bytes().get(3_usize).ok_or(KError::CastError)?),
-            )) & (63_i32))
-                .try_into()?;
+            *self.raw3.borrow_mut() = (((i32::from(*(self.bytes().get(3_usize).ok_or(KError::CastError)?))) & (63_i32))).try_into()?;
         }
         Ok(self.raw3.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value_as_int(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value_as_int(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value_as_int.get() {
             return Ok(self.value_as_int.borrow());
         }
         self.f_value_as_int.set(true);
-        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 {
-            *self.raw0()?
-        } else {
-            if *self.len_bytes()? == 2 {
-                (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?))
-            } else {
-                if *self.len_bytes()? == 3 {
-                    ((((*self.raw0()?).wrapping_shl(12_u32))
-                        | ((*self.raw1()?).wrapping_shl(6_u32)))
-                        | (*self.raw2()?))
-                } else {
-                    if *self.len_bytes()? == 4 {
-                        (((((*self.raw0()?).wrapping_shl(18_u32))
-                            | ((*self.raw1()?).wrapping_shl(12_u32)))
-                            | ((*self.raw2()?).wrapping_shl(6_u32)))
-                            | (*self.raw3()?))
-                    } else {
-                        (0_i32).saturating_sub(to_i32(1))
-                    }
-                }
-            }
-        })
-        .try_into()?;
+        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { ((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?) } else { if *self.len_bytes()? == 3 { ((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?) } else { if *self.len_bytes()? == 4 { ((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?) } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
         Ok(self.value_as_int.borrow())
     }
 }

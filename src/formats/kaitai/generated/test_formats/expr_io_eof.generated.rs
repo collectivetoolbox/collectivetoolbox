@@ -103,11 +103,7 @@ impl KStruct for ExprIoEof {
     type Root = ExprIoEof;
     type Parent = ExprIoEof;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,30 +118,21 @@ impl KStruct for ExprIoEof {
         let _raw_substream1 = _io.read_bytes(4_usize)?;
         *self_rc.substream1_raw.borrow_mut() = _raw_substream1.clone();
         let _io_substream1 = BytesReader::from(_raw_substream1);
-        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(
-            &_io_substream1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_substream2 = _io.read_bytes(8_usize)?;
         *self_rc.substream2_raw.borrow_mut() = _raw_substream2.clone();
         let _io_substream2 = BytesReader::from(_raw_substream2);
-        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(
-            &_io_substream2,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ExprIoEof {}
+impl ExprIoEof {
+}
 impl ExprIoEof {
     pub fn substream1(&self) -> Ref<'_, OptRc<ExprIoEof_OneOrTwo>> {
         self.substream1.borrow()
@@ -225,11 +212,7 @@ impl KStruct for ExprIoEof_OneOrTwo {
     type Root = ExprIoEof;
     type Parent = ExprIoEof;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -253,12 +236,10 @@ impl KStruct for ExprIoEof_OneOrTwo {
     }
 }
 impl ExprIoEof_OneOrTwo {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn reflect_eof(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn reflect_eof(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_reflect_eof.get() {
             return Ok(self.reflect_eof.borrow());

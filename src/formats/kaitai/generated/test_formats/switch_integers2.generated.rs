@@ -99,10 +99,7 @@ impl From<u64> for SwitchIntegers2_Len {
 }
 impl TryFrom<&SwitchIntegers2_Len> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(i64::try_from(*v)?),
@@ -114,10 +111,7 @@ impl TryFrom<&SwitchIntegers2_Len> for i64 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u16 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u16::try_from(*v)?),
@@ -129,10 +123,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u16 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u32::try_from(*v)?),
@@ -144,10 +135,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u32 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u64::try_from(*v)?),
@@ -159,10 +147,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u64 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u8 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u8::try_from(*v)?),
@@ -220,11 +205,7 @@ impl KStruct for SwitchIntegers2 {
     type Root = SwitchIntegers2;
     type Parent = SwitchIntegers2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -254,11 +235,10 @@ impl KStruct for SwitchIntegers2 {
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ham.borrow_mut() =
-            _io.read_bytes(usize::try_from(self_rc.len())?)?;
+        *self_rc.ham.borrow_mut() = _io.read_bytes(usize::try_from(self_rc.len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(self_rc.len())) > (to_i128(3))) {
+        if (to_i128(self_rc.len())) > (to_i128(3)) {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -267,21 +247,16 @@ impl KStruct for SwitchIntegers2 {
     }
 }
 impl SwitchIntegers2 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_mod_str(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_mod_str(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_len_mod_str.get() {
             return Ok(self.len_mod_str.borrow());
         }
         self.f_len_mod_str.set(true);
-        *self.len_mod_str.borrow_mut() = ((self.len()).saturating_mul(2_u64))
-            .saturating_sub(1_u64)
-            .to_string()
-            .to_string();
+        *self.len_mod_str.borrow_mut() = ((self.len()).saturating_mul(2_u64)).saturating_sub(1_u64).to_string().to_string();
         Ok(self.len_mod_str.borrow())
     }
 }
@@ -293,11 +268,7 @@ impl SwitchIntegers2 {
 impl SwitchIntegers2 {
     pub fn len(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.len
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.len.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn len_enum(&self) -> Ref<'_, Option<SwitchIntegers2_Len>> {
         self.len.borrow()

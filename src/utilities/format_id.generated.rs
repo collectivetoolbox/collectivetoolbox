@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::dc_char::DcChar;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
 /// High-level category of file formats for domain filtering and score boosting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1454,14 +1454,14 @@ impl FormatId {
             | Self::AlphabetBase36Lowercase
             | Self::AlphabetArabicIndicNumeral
             | Self::AlphabetDevanagariNumeral => FormatCategory::BaseAlphabet,
-            Self::Gregorian | Self::Julian => FormatCategory::Calendar,
+            Self::Gregorian
+            | Self::Julian => FormatCategory::Calendar,
             Self::CaseInsensitive
             | Self::CaseSensitive
             | Self::CaseUppercase
             | Self::CaseLowercase => FormatCategory::Case,
-            Self::ColorDepth1bit | Self::ColorDepth24bit => {
-                FormatCategory::ColorDepth
-            }
+            Self::ColorDepth1bit
+            | Self::ColorDepth24bit => FormatCategory::ColorDepth,
             Self::Brotli
             | Self::Gzip
             | Self::Deflate
@@ -1670,7 +1670,8 @@ impl FormatId {
             | Self::CtbNodeV3
             | Self::CtbNodeIncoming
             | Self::Dce_3_02a => FormatCategory::Document,
-            Self::Second | Self::Nanosecond => FormatCategory::Duration,
+            Self::Second
+            | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
             | Self::AsciiSafeSubset
             | Self::Ascii
@@ -1689,9 +1690,10 @@ impl FormatId {
             | Self::AlphaSmartNeoLowCtlUaMac
             | Self::AlphaSmartNeoLowCtlUaPc
             | Self::Iso88591 => FormatCategory::Encoding,
-            Self::Elf | Self::Pe | Self::MachO | Self::DebianPackage => {
-                FormatCategory::Executable
-            }
+            Self::Elf
+            | Self::Pe
+            | Self::MachO
+            | Self::DebianPackage => FormatCategory::Executable,
             Self::MinixFs
             | Self::Ext
             | Self::Ext2
@@ -1987,12 +1989,13 @@ impl FormatId {
             | Self::OpenSuse
             | Self::Gentoo
             | Self::NixOs => FormatCategory::Os,
-            Self::Guix | Self::Homebrew | Self::MacPorts | Self::Nix => {
-                FormatCategory::Packagemgr
-            }
-            Self::PaddingNone | Self::PaddingZero | Self::PaddingFit => {
-                FormatCategory::Padding
-            }
+            Self::Guix
+            | Self::Homebrew
+            | Self::MacPorts
+            | Self::Nix => FormatCategory::Packagemgr,
+            Self::PaddingNone
+            | Self::PaddingZero
+            | Self::PaddingFit => FormatCategory::Padding,
             Self::JavaScript
             | Self::AppleScript
             | Self::TypeScript
@@ -2034,9 +2037,8 @@ impl FormatId {
             | Self::Wine
             | Self::CollectiveToolbox => FormatCategory::Userspace,
             Self::Win32Subsystem => FormatCategory::UserspaceLibraries,
-            Self::BusyBoxUtilities | Self::GnuUtilities => {
-                FormatCategory::UserspaceUtilities
-            }
+            Self::BusyBoxUtilities
+            | Self::GnuUtilities => FormatCategory::UserspaceUtilities,
             Self::Vt100 => FormatCategory::Videoterminal,
             Self::Tmpfs
             | Self::Ramfs
@@ -2056,12 +2058,8 @@ impl FormatId {
         match trimmed.to_ascii_lowercase().as_str() {
             "utf8" | "txt" | "utf-8" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
-            "dcintegerlist" | "dc_integer_list" | "dcil" => {
-                Some(Self::DcIntegerList)
-            }
-            "asciisafesubset" | "ascii_safe_subset" => {
-                Some(Self::AsciiSafeSubset)
-            }
+            "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
+            "asciisafesubset" | "ascii_safe_subset" => Some(Self::AsciiSafeSubset),
             "ascii" => Some(Self::Ascii),
             "html" => Some(Self::Html),
             "sems" => Some(Self::Sems),
@@ -2082,32 +2080,16 @@ impl FormatId {
             "eitecolorcoded" | "eite_color_coded" => Some(Self::EiteColorCoded),
             "lineendinglf" | "line_ending_lf" => Some(Self::LineEndingLf),
             "lineendingcr" | "line_ending_cr" => Some(Self::LineEndingCr),
-            "lineendingcrlf" | "line_ending_cr_lf" => {
-                Some(Self::LineEndingCrLf)
-            }
-            "lineendinglfcr" | "line_ending_lf_cr" => {
-                Some(Self::LineEndingLfCr)
-            }
+            "lineendingcrlf" | "line_ending_cr_lf" => Some(Self::LineEndingCrLf),
+            "lineendinglfcr" | "line_ending_lf_cr" => Some(Self::LineEndingLfCr),
             "lineendingrs" | "line_ending_rs" => Some(Self::LineEndingRs),
             "lineendingnl" | "line_ending_nl" => Some(Self::LineEndingNl),
-            "lineseparatorlf" | "line_separator_lf" => {
-                Some(Self::LineSeparatorLf)
-            }
-            "lineseparatorcr" | "line_separator_cr" => {
-                Some(Self::LineSeparatorCr)
-            }
-            "lineseparatorcrlf" | "line_separator_cr_lf" => {
-                Some(Self::LineSeparatorCrLf)
-            }
-            "lineseparatorlfcr" | "line_separator_lf_cr" => {
-                Some(Self::LineSeparatorLfCr)
-            }
-            "lineseparatorrs" | "line_separator_rs" => {
-                Some(Self::LineSeparatorRs)
-            }
-            "lineseparatornl" | "line_separator_nl" => {
-                Some(Self::LineSeparatorNl)
-            }
+            "lineseparatorlf" | "line_separator_lf" => Some(Self::LineSeparatorLf),
+            "lineseparatorcr" | "line_separator_cr" => Some(Self::LineSeparatorCr),
+            "lineseparatorcrlf" | "line_separator_cr_lf" => Some(Self::LineSeparatorCrLf),
+            "lineseparatorlfcr" | "line_separator_lf_cr" => Some(Self::LineSeparatorLfCr),
+            "lineseparatorrs" | "line_separator_rs" => Some(Self::LineSeparatorRs),
+            "lineseparatornl" | "line_separator_nl" => Some(Self::LineSeparatorNl),
             "brotli" | "br" => Some(Self::Brotli),
             "gzip" | "gz" => Some(Self::Gzip),
             "deflate" | "raw-deflate" => Some(Self::Deflate),
@@ -2117,34 +2099,20 @@ impl FormatId {
             "zstd" | "zst" => Some(Self::Zstd),
             "lzip" | "lz" => Some(Self::Lzip),
             "xz" => Some(Self::Xz),
-            "scocompress" | "sco_compress" | "sco-compress" | "compress-h"
-            | "compress-sco" => Some(Self::ScoCompress),
-            "compresslzw" | "compress_lzw" | "compress" => {
-                Some(Self::CompressLzw)
-            }
-            "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1" => {
-                Some(Self::CompressLzw1)
-            }
-            "compresslzw16" | "compress_lzw16" | "compress16"
-            | "compress-1.6" | "compress1.6" => Some(Self::CompressLzw16),
-            "compresslzw2" | "compress_lzw2" | "compress2" | "compress-2" => {
-                Some(Self::CompressLzw2)
-            }
+            "scocompress" | "sco_compress" | "sco-compress" | "compress-h" | "compress-sco" => Some(Self::ScoCompress),
+            "compresslzw" | "compress_lzw" | "compress" => Some(Self::CompressLzw),
+            "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1" => Some(Self::CompressLzw1),
+            "compresslzw16" | "compress_lzw16" | "compress16" | "compress-1.6" | "compress1.6" => Some(Self::CompressLzw16),
+            "compresslzw2" | "compress_lzw2" | "compress2" | "compress-2" => Some(Self::CompressLzw2),
             "pack" => Some(Self::Pack),
-            "oldpack" | "old_pack" | "old-pack" | "early-pack" => {
-                Some(Self::OldPack)
-            }
+            "oldpack" | "old_pack" | "old-pack" | "early-pack" => Some(Self::OldPack),
             "compact" => Some(Self::Compact),
             "basestring" | "base_string" => Some(Self::BaseString),
             "base64standard" | "base64_standard" => Some(Self::Base64Standard),
             "hexbytestring" | "hex_byte_string" => Some(Self::HexByteString),
-            "hexbytestrings0xprefix" | "hex_byte_strings0x_prefix" => {
-                Some(Self::HexByteStrings0xPrefix)
-            }
+            "hexbytestrings0xprefix" | "hex_byte_strings0x_prefix" => Some(Self::HexByteStrings0xPrefix),
             "hexdumpplain" | "hexdump_plain" => Some(Self::HexdumpPlain),
-            "hexdumpfancy437" | "hexdump_fancy437" => {
-                Some(Self::HexdumpFancy437)
-            }
+            "hexdumpfancy437" | "hexdump_fancy437" => Some(Self::HexdumpFancy437),
             "base16b" => Some(Self::Base16b),
             "base16b_7" => Some(Self::Base16b_7),
             "base16b_8" => Some(Self::Base16b_8),
@@ -2179,16 +2147,10 @@ impl FormatId {
             "dctext" | "dc_text" => Some(Self::DcText),
             "dcutf" | "dc_utf" => Some(Self::DcUtf),
             "dclist" | "dc_list" => Some(Self::DcList),
-            "dcbasenbfragment" | "dc_basenb_fragment" => {
-                Some(Self::DcBasenbFragment)
-            }
+            "dcbasenbfragment" | "dc_basenb_fragment" => Some(Self::DcBasenbFragment),
             "cdce" => Some(Self::Cdce),
-            "cdcelegacy" | "cdce_legacy" | "legacy_cdce" => {
-                Some(Self::CdceLegacy)
-            }
-            "cdcelegacystrict" | "cdce_legacy_strict" | "cdce_lstrict" => {
-                Some(Self::CdceLegacyStrict)
-            }
+            "cdcelegacy" | "cdce_legacy" | "legacy_cdce" => Some(Self::CdceLegacy),
+            "cdcelegacystrict" | "cdce_legacy_strict" | "cdce_lstrict" => Some(Self::CdceLegacyStrict),
             "dce" => Some(Self::Dce),
             "dcehex" | "dce_hex" | "hex_dce" => Some(Self::DceHex),
             "dce_3_0a" | "3_0a" => Some(Self::Dce_3_0a),
@@ -2202,29 +2164,17 @@ impl FormatId {
             "dce_3_01a" | "3_01a" => Some(Self::Dce_3_01a),
             "dce_3_01a_raw" | "3_01a_raw" => Some(Self::Dce_3_01a_raw),
             "dce_3_01a_hex" | "hex_3_01a" => Some(Self::Dce_3_01a_hex),
-            "dce_3_01a_raw_hex" | "hex_3_01a_raw" => {
-                Some(Self::Dce_3_01a_raw_hex)
-            }
+            "dce_3_01a_raw_hex" | "hex_3_01a_raw" => Some(Self::Dce_3_01a_raw_hex),
             "dcidlist" | "dc_id_list" => Some(Self::DcIdList),
             "utf8_base64" | "utf8__base64" => Some(Self::Utf8_Base64),
             "utf8_dc64" | "utf8__dc64" => Some(Self::Utf8_Dc64),
             "utf8_dc64_enc" | "utf8__dc64_enc" => Some(Self::Utf8_Dc64_enc),
             "utf8_dc64_bin" | "utf8__dc64_bin" => Some(Self::Utf8_Dc64_bin),
-            "utf8_dc64_bin_hex" | "utf8__dc64_bin_hex" => {
-                Some(Self::Utf8_Dc64_bin_hex)
-            }
-            "utf8_dc64_bin_enc" | "utf8__dc64_bin_enc" => {
-                Some(Self::Utf8_Dc64_bin_enc)
-            }
-            "utf8_dc64_bin_enc_hex" | "utf8__dc64_bin_enc_hex" => {
-                Some(Self::Utf8_Dc64_bin_enc_hex)
-            }
-            "htmllegacycdce" | "html_legacy_cdce" | "html_l" => {
-                Some(Self::HtmlLegacyCdce)
-            }
-            "htmllegacycdcesnippet"
-            | "html_legacy_cdce_snippet"
-            | "html_snippet_l" => Some(Self::HtmlLegacyCdceSnippet),
+            "utf8_dc64_bin_hex" | "utf8__dc64_bin_hex" => Some(Self::Utf8_Dc64_bin_hex),
+            "utf8_dc64_bin_enc" | "utf8__dc64_bin_enc" => Some(Self::Utf8_Dc64_bin_enc),
+            "utf8_dc64_bin_enc_hex" | "utf8__dc64_bin_enc_hex" => Some(Self::Utf8_Dc64_bin_enc_hex),
+            "htmllegacycdce" | "html_legacy_cdce" | "html_l" => Some(Self::HtmlLegacyCdce),
+            "htmllegacycdcesnippet" | "html_legacy_cdce_snippet" | "html_snippet_l" => Some(Self::HtmlLegacyCdceSnippet),
             "applescript" | "apple_script" => Some(Self::AppleScript),
             "typescript" | "type_script" => Some(Self::TypeScript),
             "perl" => Some(Self::Perl),
@@ -2240,9 +2190,7 @@ impl FormatId {
             "php" => Some(Self::Php),
             "sh" => Some(Self::Sh),
             "stagel" | "stage_l" => Some(Self::StageL),
-            "stagelparseresult" | "stage_lparse_result" => {
-                Some(Self::StageLParseResult)
-            }
+            "stagelparseresult" | "stage_lparse_result" => Some(Self::StageLParseResult),
             "elf" => Some(Self::Elf),
             "pe" => Some(Self::Pe),
             "macho" | "mach_o" => Some(Self::MachO),
@@ -2281,12 +2229,8 @@ impl FormatId {
             "rss091userland" | "rss091_user_land" => Some(Self::Rss091UserLand),
             "rss092" => Some(Self::Rss092),
             "rss1" => Some(Self::Rss1),
-            "scriptingnews10" | "scripting_news10" => {
-                Some(Self::ScriptingNews10)
-            }
-            "scriptingnews20" | "scripting_news20" => {
-                Some(Self::ScriptingNews20)
-            }
+            "scriptingnews10" | "scripting_news10" => Some(Self::ScriptingNews10),
+            "scriptingnews20" | "scripting_news20" => Some(Self::ScriptingNews20),
             "atom" => Some(Self::Atom),
             "hatom" => Some(Self::HAtom),
             "jsonfeed11" | "json_feed11" => Some(Self::JsonFeed11),
@@ -2308,15 +2252,9 @@ impl FormatId {
             "iametasqlite" | "ia_meta_sqlite" => Some(Self::IaMetaSqlite),
             "clubcard" => Some(Self::Clubcard),
             "crlitefilter" | "crlite_filter" => Some(Self::CrliteFilter),
-            "crlitefilterdelta" | "crlite_filter_delta" => {
-                Some(Self::CrliteFilterDelta)
-            }
-            "commonlogformat" | "common_log_format" => {
-                Some(Self::CommonLogFormat)
-            }
-            "extendedlogformat" | "extended_log_format" => {
-                Some(Self::ExtendedLogFormat)
-            }
+            "crlitefilterdelta" | "crlite_filter_delta" => Some(Self::CrliteFilterDelta),
+            "commonlogformat" | "common_log_format" => Some(Self::CommonLogFormat),
+            "extendedlogformat" | "extended_log_format" => Some(Self::ExtendedLogFormat),
             "integer" => Some(Self::Integer),
             "natural0" => Some(Self::Natural0),
             "positive" => Some(Self::Positive),
@@ -2355,22 +2293,15 @@ impl FormatId {
             "btih" => Some(Self::Btih),
             "magnet" => Some(Self::Magnet),
             "iaidentifier" | "ia_identifier" => Some(Self::IaIdentifier),
-            "iaarchivetorrent" | "ia_archive_torrent" => {
-                Some(Self::IaArchiveTorrent)
-            }
+            "iaarchivetorrent" | "ia_archive_torrent" => Some(Self::IaArchiveTorrent),
             "xxhash32" | "xx_hash32" | "xxh32" => Some(Self::XxHash32),
             "xxhash64" | "xx_hash64" | "xxh64" => Some(Self::XxHash64),
-            "xxhash3_64" | "xx_hash3_64" | "xxh3" | "xxhash3-64" => {
-                Some(Self::XxHash3_64)
-            }
-            "xxhash3_128" | "xx_hash3_128" | "xxh128" | "xxhash128"
-            | "xxhash3-128" => Some(Self::XxHash3_128),
+            "xxhash3_64" | "xx_hash3_64" | "xxh3" | "xxhash3-64" => Some(Self::XxHash3_64),
+            "xxhash3_128" | "xx_hash3_128" | "xxh128" | "xxhash128" | "xxhash3-128" => Some(Self::XxHash3_128),
             "md5" => Some(Self::Md5),
             "md6" => Some(Self::Md6),
             "sha1" => Some(Self::Sha1),
-            "sha256" | "sha-256" | "sha2-256" | "sha2_256" => {
-                Some(Self::Sha256)
-            }
+            "sha256" | "sha-256" | "sha2-256" | "sha2_256" => Some(Self::Sha256),
             "sha512" => Some(Self::Sha512),
             "sha3" => Some(Self::Sha3),
             "tiger" => Some(Self::Tiger),
@@ -2392,33 +2323,19 @@ impl FormatId {
             "fileextension" | "file_extension" => Some(Self::FileExtension),
             "uriprotocol" | "uri_protocol" => Some(Self::UriProtocol),
             "terminalmouse" | "terminal_mouse" => Some(Self::TerminalMouse),
-            "terminalgraphics" | "terminal_graphics" => {
-                Some(Self::TerminalGraphics)
-            }
-            "terminalsixelgraphics" | "terminal_sixel_graphics" => {
-                Some(Self::TerminalSixelGraphics)
-            }
-            "terminaliterm2graphics" | "terminal_iterm2_graphics" => {
-                Some(Self::TerminalIterm2Graphics)
-            }
-            "terminalkittygraphics" | "terminal_kitty_graphics" => {
-                Some(Self::TerminalKittyGraphics)
-            }
+            "terminalgraphics" | "terminal_graphics" => Some(Self::TerminalGraphics),
+            "terminalsixelgraphics" | "terminal_sixel_graphics" => Some(Self::TerminalSixelGraphics),
+            "terminaliterm2graphics" | "terminal_iterm2_graphics" => Some(Self::TerminalIterm2Graphics),
+            "terminalkittygraphics" | "terminal_kitty_graphics" => Some(Self::TerminalKittyGraphics),
             "rasterdisplay" | "raster_display" => Some(Self::RasterDisplay),
             "vectordisplay" | "vector_display" => Some(Self::VectorDisplay),
-            "rendermodeimmediate" | "render_mode_immediate" => {
-                Some(Self::RenderModeImmediate)
-            }
-            "rendermodeinteractive" | "render_mode_interactive" => {
-                Some(Self::RenderModeInteractive)
-            }
+            "rendermodeimmediate" | "render_mode_immediate" => Some(Self::RenderModeImmediate),
+            "rendermodeinteractive" | "render_mode_interactive" => Some(Self::RenderModeInteractive),
             "unknown" => Some(Self::Unknown),
             "csur" => Some(Self::Csur),
             "ucsur" => Some(Self::Ucsur),
             "mime" => Some(Self::Mime),
-            "quotedprintable" | "quoted_printable" => {
-                Some(Self::QuotedPrintable)
-            }
+            "quotedprintable" | "quoted_printable" => Some(Self::QuotedPrintable),
             "uuencode" => Some(Self::Uuencode),
             "yenc" => Some(Self::YEnc),
             "binhex" | "bin_hex" => Some(Self::BinHex),
@@ -2434,17 +2351,9 @@ impl FormatId {
             "tarz" | "tar_z" => Some(Self::TarZ),
             "tarbz2" | "tar_bz2" => Some(Self::TarBz2),
             "outlookmsg" | "outlook_msg" => Some(Self::OutlookMsg),
-            "percentencoding" | "percent_encoding" => {
-                Some(Self::PercentEncoding)
-            }
-            "numericcharacterreferencedec"
-            | "numeric_character_reference_dec" => {
-                Some(Self::NumericCharacterReferenceDec)
-            }
-            "numericcharacterreferencehex"
-            | "numeric_character_reference_hex" => {
-                Some(Self::NumericCharacterReferenceHex)
-            }
+            "percentencoding" | "percent_encoding" => Some(Self::PercentEncoding),
+            "numericcharacterreferencedec" | "numeric_character_reference_dec" => Some(Self::NumericCharacterReferenceDec),
+            "numericcharacterreferencehex" | "numeric_character_reference_hex" => Some(Self::NumericCharacterReferenceHex),
             "mimebase64" | "mime_base64" => Some(Self::MimeBase64),
             "xxencode" => Some(Self::Xxencode),
             "rzip" | "rz" => Some(Self::Rzip),
@@ -2456,9 +2365,7 @@ impl FormatId {
             "orz" => Some(Self::Orz),
             "lzfse" => Some(Self::Lzfse),
             "hexdump" => Some(Self::Hexdump),
-            "pkcs8privatekey" | "pkcs8_private_key" => {
-                Some(Self::Pkcs8PrivateKey)
-            }
+            "pkcs8privatekey" | "pkcs8_private_key" => Some(Self::Pkcs8PrivateKey),
             "pkcs10csr" | "pkcs10_csr" => Some(Self::Pkcs10Csr),
             "pkixcert" | "pkix_cert" => Some(Self::PkixCert),
             "pkixcrl" | "pkix_crl" => Some(Self::PkixCrl),
@@ -2472,53 +2379,27 @@ impl FormatId {
             "lzma" => Some(Self::Lzma),
             "lzma2" => Some(Self::Lzma2),
             "tarlzo" | "tar_lzo" => Some(Self::TarLzo),
-            "alturamactowin" | "altura_mac_to_win" => {
-                Some(Self::AlturaMacToWin)
-            }
-            "alturawintomac" | "altura_win_to_mac" => {
-                Some(Self::AlturaWinToMac)
-            }
+            "alturamactowin" | "altura_mac_to_win" => Some(Self::AlturaMacToWin),
+            "alturawintomac" | "altura_win_to_mac" => Some(Self::AlturaWinToMac),
             "win1252" | "ansi" => Some(Self::Win1252),
             "alphasmartneo" | "alpha_smart_neo" => Some(Self::AlphaSmartNeo),
-            "alphasmartneolowgrus" | "alpha_smart_neo_low_gr_us" => {
-                Some(Self::AlphaSmartNeoLowGrUs)
-            }
-            "alphasmartneolowgruamac" | "alpha_smart_neo_low_gr_ua_mac" => {
-                Some(Self::AlphaSmartNeoLowGrUaMac)
-            }
-            "alphasmartneolowgruapc" | "alpha_smart_neo_low_gr_ua_pc" => {
-                Some(Self::AlphaSmartNeoLowGrUaPc)
-            }
-            "alphasmartneolowctlus" | "alpha_smart_neo_low_ctl_us" => {
-                Some(Self::AlphaSmartNeoLowCtlUs)
-            }
-            "alphasmartneolowctluamac" | "alpha_smart_neo_low_ctl_ua_mac" => {
-                Some(Self::AlphaSmartNeoLowCtlUaMac)
-            }
-            "alphasmartneolowctluapc" | "alpha_smart_neo_low_ctl_ua_pc" => {
-                Some(Self::AlphaSmartNeoLowCtlUaPc)
-            }
+            "alphasmartneolowgrus" | "alpha_smart_neo_low_gr_us" => Some(Self::AlphaSmartNeoLowGrUs),
+            "alphasmartneolowgruamac" | "alpha_smart_neo_low_gr_ua_mac" => Some(Self::AlphaSmartNeoLowGrUaMac),
+            "alphasmartneolowgruapc" | "alpha_smart_neo_low_gr_ua_pc" => Some(Self::AlphaSmartNeoLowGrUaPc),
+            "alphasmartneolowctlus" | "alpha_smart_neo_low_ctl_us" => Some(Self::AlphaSmartNeoLowCtlUs),
+            "alphasmartneolowctluamac" | "alpha_smart_neo_low_ctl_ua_mac" => Some(Self::AlphaSmartNeoLowCtlUaMac),
+            "alphasmartneolowctluapc" | "alpha_smart_neo_low_ctl_ua_pc" => Some(Self::AlphaSmartNeoLowCtlUaPc),
             "alphaword" | "alpha_word" => Some(Self::AlphaWord),
-            "ctbassetbundlev1" | "ctb_asset_bundle_v1" => {
-                Some(Self::CtbAssetBundleV1)
-            }
-            "ctbassetbundlev2" | "ctb_asset_bundle_v2" => {
-                Some(Self::CtbAssetBundleV2)
-            }
-            "ctbassetbundlev3" | "ctb_asset_bundle_v3" => {
-                Some(Self::CtbAssetBundleV3)
-            }
-            "ctbassetbundlev4" | "ctb_asset_bundle_v4" => {
-                Some(Self::CtbAssetBundleV4)
-            }
+            "ctbassetbundlev1" | "ctb_asset_bundle_v1" => Some(Self::CtbAssetBundleV1),
+            "ctbassetbundlev2" | "ctb_asset_bundle_v2" => Some(Self::CtbAssetBundleV2),
+            "ctbassetbundlev3" | "ctb_asset_bundle_v3" => Some(Self::CtbAssetBundleV3),
+            "ctbassetbundlev4" | "ctb_asset_bundle_v4" => Some(Self::CtbAssetBundleV4),
             "jq" => Some(Self::Jq),
             "jqjaq" | "jq_jaq" => Some(Self::JqJaq),
             "dcal" => Some(Self::Dcal),
             "hexdumpxxd" | "hexdump_xxd" => Some(Self::HexdumpXxd),
             "stagel2" | "stage_l2" => Some(Self::StageL2),
-            "stagel2intermediate" | "stage_l2_intermediate" => {
-                Some(Self::StageL2Intermediate)
-            }
+            "stagel2intermediate" | "stage_l2_intermediate" => Some(Self::StageL2Intermediate),
             "csdl" => Some(Self::Csdl),
             "rational" => Some(Self::Rational),
             "real" => Some(Self::Real),
@@ -2528,33 +2409,19 @@ impl FormatId {
             "basennumeral" | "base_nnumeral" => Some(Self::BaseNNumeral),
             "natural1" => Some(Self::Natural1),
             "dcidentifier" | "dc_identifier" => Some(Self::DcIdentifier),
-            "dcshortidentifier" | "dc_short_identifier" => {
-                Some(Self::DcShortIdentifier)
-            }
+            "dcshortidentifier" | "dc_short_identifier" => Some(Self::DcShortIdentifier),
             "base" => Some(Self::Base),
             "abstractnumber" | "abstract_number" => Some(Self::AbstractNumber),
             "basennumber" | "base_nnumber" => Some(Self::BaseNNumber),
             "dcnumber" | "dc_number" => Some(Self::DcNumber),
-            "dcnumberb64int" | "dc_number_b64_int" => {
-                Some(Self::DcNumberB64Int)
-            }
+            "dcnumberb64int" | "dc_number_b64_int" => Some(Self::DcNumberB64Int),
             "basealphabet" | "base_alphabet" => Some(Self::BaseAlphabet),
-            "alphabetbase64rfc4648" | "alphabet_base64_rfc4648" => {
-                Some(Self::AlphabetBase64Rfc4648)
-            }
+            "alphabetbase64rfc4648" | "alphabet_base64_rfc4648" => Some(Self::AlphabetBase64Rfc4648),
             "alphabetbase36" | "alphabet_base36" => Some(Self::AlphabetBase36),
-            "alphabetbase36uppercase" | "alphabet_base36_uppercase" => {
-                Some(Self::AlphabetBase36Uppercase)
-            }
-            "alphabetbase36lowercase" | "alphabet_base36_lowercase" => {
-                Some(Self::AlphabetBase36Lowercase)
-            }
-            "arithmeticexpression" | "arithmetic_expression" => {
-                Some(Self::ArithmeticExpression)
-            }
-            "symbolicexpression" | "symbolic_expression" => {
-                Some(Self::SymbolicExpression)
-            }
+            "alphabetbase36uppercase" | "alphabet_base36_uppercase" => Some(Self::AlphabetBase36Uppercase),
+            "alphabetbase36lowercase" | "alphabet_base36_lowercase" => Some(Self::AlphabetBase36Lowercase),
+            "arithmeticexpression" | "arithmetic_expression" => Some(Self::ArithmeticExpression),
+            "symbolicexpression" | "symbolic_expression" => Some(Self::SymbolicExpression),
             "mathrelation" | "math_relation" => Some(Self::MathRelation),
             "equation" => Some(Self::Equation),
             "inequality" => Some(Self::Inequality),
@@ -2564,24 +2431,14 @@ impl FormatId {
             "binarynumeral" | "binary_numeral" => Some(Self::BinaryNumeral),
             "octalnumeral" | "octal_numeral" => Some(Self::OctalNumeral),
             "decimalnumeral" | "decimal_numeral" => Some(Self::DecimalNumeral),
-            "hexadecimalnumeral" | "hexadecimal_numeral" => {
-                Some(Self::HexadecimalNumeral)
-            }
-            "alphabetarabicindicnumeral" | "alphabet_arabic_indic_numeral" => {
-                Some(Self::AlphabetArabicIndicNumeral)
-            }
-            "alphabetdevanagarinumeral" | "alphabet_devanagari_numeral" => {
-                Some(Self::AlphabetDevanagariNumeral)
-            }
+            "hexadecimalnumeral" | "hexadecimal_numeral" => Some(Self::HexadecimalNumeral),
+            "alphabetarabicindicnumeral" | "alphabet_arabic_indic_numeral" => Some(Self::AlphabetArabicIndicNumeral),
+            "alphabetdevanagarinumeral" | "alphabet_devanagari_numeral" => Some(Self::AlphabetDevanagariNumeral),
             "romannumeral" | "roman_numeral" => Some(Self::RomanNumeral),
             "tallynumeral" | "tally_numeral" => Some(Self::TallyNumeral),
             "chinesenumeral" | "chinese_numeral" => Some(Self::ChineseNumeral),
-            "chinesenumeralsmall" | "chinese_numeral_small" => {
-                Some(Self::ChineseNumeralSmall)
-            }
-            "chinesenumeralbig" | "chinese_numeral_big" => {
-                Some(Self::ChineseNumeralBig)
-            }
+            "chinesenumeralsmall" | "chinese_numeral_small" => Some(Self::ChineseNumeralSmall),
+            "chinesenumeralbig" | "chinese_numeral_big" => Some(Self::ChineseNumeralBig),
             "suzhounumeral" | "suzhou_numeral" => Some(Self::SuzhouNumeral),
             "x86" => Some(Self::x86),
             "amd64" => Some(Self::amd64),
@@ -2684,12 +2541,8 @@ impl FormatId {
             "fnv1a_512" => Some(Self::Fnv1a_512),
             "fnv1a_1024" => Some(Self::Fnv1a_1024),
             "dcmixed" | "dc_mixed" | "dcmm" | "dcmstr" => Some(Self::DcMixed),
-            "ctbfilemetadatajson" | "ctb_file_metadata_json" => {
-                Some(Self::CtbFileMetadataJson)
-            }
-            "secondssinceepoch" | "seconds_since_epoch" => {
-                Some(Self::SecondsSinceEpoch)
-            }
+            "ctbfilemetadatajson" | "ctb_file_metadata_json" => Some(Self::CtbFileMetadataJson),
+            "secondssinceepoch" | "seconds_since_epoch" => Some(Self::SecondsSinceEpoch),
             "nssinceepoch" | "ns_since_epoch" => Some(Self::NsSinceEpoch),
             "second" => Some(Self::Second),
             "nanosecond" => Some(Self::Nanosecond),
@@ -2722,29 +2575,17 @@ impl FormatId {
             "index2d" | "index2_d" => Some(Self::Index2D),
             "size2d" | "size2_d" => Some(Self::Size2D),
             "size3d" | "size3_d" => Some(Self::Size3D),
-            "cartesianpoint2d" | "cartesian_point2_d" => {
-                Some(Self::CartesianPoint2D)
-            }
-            "cartesianpoint3d" | "cartesian_point3_d" => {
-                Some(Self::CartesianPoint3D)
-            }
+            "cartesianpoint2d" | "cartesian_point2_d" => Some(Self::CartesianPoint2D),
+            "cartesianpoint3d" | "cartesian_point3_d" => Some(Self::CartesianPoint3D),
             "screenpoint2d" | "screen_point2_d" => Some(Self::ScreenPoint2D),
             "screenrect" | "screen_rect" => Some(Self::ScreenRect),
             "quickdrawpoint" | "quick_draw_point" => Some(Self::QuickDrawPoint),
             "quickdrawrect" | "quick_draw_rect" => Some(Self::QuickDrawRect),
-            "originscreentopleft" | "origin_screen_top_left" => {
-                Some(Self::OriginScreenTopLeft)
-            }
-            "originwindowtopleft" | "origin_window_top_left" => {
-                Some(Self::OriginWindowTopLeft)
-            }
-            "originbottomleft" | "origin_bottom_left" => {
-                Some(Self::OriginBottomLeft)
-            }
+            "originscreentopleft" | "origin_screen_top_left" => Some(Self::OriginScreenTopLeft),
+            "originwindowtopleft" | "origin_window_top_left" => Some(Self::OriginWindowTopLeft),
+            "originbottomleft" | "origin_bottom_left" => Some(Self::OriginBottomLeft),
             "origincenter" | "origin_center" => Some(Self::OriginCenter),
-            "originsequencestart" | "origin_sequence_start" => {
-                Some(Self::OriginSequenceStart)
-            }
+            "originsequencestart" | "origin_sequence_start" => Some(Self::OriginSequenceStart),
             "axishorizright" | "axis_horiz_right" => Some(Self::AxisHorizRight),
             "axisvertdown" | "axis_vert_down" => Some(Self::AxisVertDown),
             "axisvertup" | "axis_vert_up" => Some(Self::AxisVertUp),
@@ -2763,31 +2604,15 @@ impl FormatId {
             "waylanddisplay" | "wayland_display" => Some(Self::WaylandDisplay),
             "quartzdisplay" | "quartz_display" => Some(Self::QuartzDisplay),
             "win32display" | "win32_display" => Some(Self::Win32Display),
-            "headlessdisplay" | "headless_display" => {
-                Some(Self::HeadlessDisplay)
-            }
-            "rastercolors1bit" | "raster_colors1bit" => {
-                Some(Self::RasterColors1bit)
-            }
-            "rastercolors24bit" | "raster_colors24bit" => {
-                Some(Self::RasterColors24bit)
-            }
-            "terminalcolors1bit" | "terminal_colors1bit" => {
-                Some(Self::TerminalColors1bit)
-            }
-            "terminalcolors4bit" | "terminal_colors4bit" => {
-                Some(Self::TerminalColors4bit)
-            }
-            "terminalcolors8bit" | "terminal_colors8bit" => {
-                Some(Self::TerminalColors8bit)
-            }
-            "terminalcolors24bit" | "terminal_colors24bit" => {
-                Some(Self::TerminalColors24bit)
-            }
+            "headlessdisplay" | "headless_display" => Some(Self::HeadlessDisplay),
+            "rastercolors1bit" | "raster_colors1bit" => Some(Self::RasterColors1bit),
+            "rastercolors24bit" | "raster_colors24bit" => Some(Self::RasterColors24bit),
+            "terminalcolors1bit" | "terminal_colors1bit" => Some(Self::TerminalColors1bit),
+            "terminalcolors4bit" | "terminal_colors4bit" => Some(Self::TerminalColors4bit),
+            "terminalcolors8bit" | "terminal_colors8bit" => Some(Self::TerminalColors8bit),
+            "terminalcolors24bit" | "terminal_colors24bit" => Some(Self::TerminalColors24bit),
             "colordepth1bit" | "color_depth1bit" => Some(Self::ColorDepth1bit),
-            "colordepth24bit" | "color_depth24bit" => {
-                Some(Self::ColorDepth24bit)
-            }
+            "colordepth24bit" | "color_depth24bit" => Some(Self::ColorDepth24bit),
             "replicant" => Some(Self::Replicant),
             "dragora" => Some(Self::Dragora),
             "dynebolic" => Some(Self::Dynebolic),
@@ -2815,46 +2640,22 @@ impl FormatId {
             "wsl" => Some(Self::Wsl),
             "wsl2" => Some(Self::Wsl2),
             "musllibc" | "musl_libc" => Some(Self::MuslLibc),
-            "busyboxutilities" | "busy_box_utilities" => {
-                Some(Self::BusyBoxUtilities)
-            }
+            "busyboxutilities" | "busy_box_utilities" => Some(Self::BusyBoxUtilities),
             "bioniclibc" | "bionic_libc" => Some(Self::BionicLibc),
             "win32subsystem" | "win32_subsystem" => Some(Self::Win32Subsystem),
             "gnuutilities" | "gnu_utilities" => Some(Self::GnuUtilities),
-            "bionicuserspace" | "bionic_userspace" => {
-                Some(Self::BionicUserspace)
-            }
-            "isstdinterminal" | "is_stdin_terminal" => {
-                Some(Self::IsStdinTerminal)
-            }
-            "isstdoutterminal" | "is_stdout_terminal" => {
-                Some(Self::IsStdoutTerminal)
-            }
-            "isstderrterminal" | "is_stderr_terminal" => {
-                Some(Self::IsStderrTerminal)
-            }
-            "terminalcanedit" | "terminal_can_edit" => {
-                Some(Self::TerminalCanEdit)
-            }
-            "terminalcaneditpastlines" | "terminal_can_edit_past_lines" => {
-                Some(Self::TerminalCanEditPastLines)
-            }
-            "linemodeterminal" | "line_mode_terminal" => {
-                Some(Self::LineModeTerminal)
-            }
-            "blockmodeterminal" | "block_mode_terminal" => {
-                Some(Self::BlockModeTerminal)
-            }
+            "bionicuserspace" | "bionic_userspace" => Some(Self::BionicUserspace),
+            "isstdinterminal" | "is_stdin_terminal" => Some(Self::IsStdinTerminal),
+            "isstdoutterminal" | "is_stdout_terminal" => Some(Self::IsStdoutTerminal),
+            "isstderrterminal" | "is_stderr_terminal" => Some(Self::IsStderrTerminal),
+            "terminalcanedit" | "terminal_can_edit" => Some(Self::TerminalCanEdit),
+            "terminalcaneditpastlines" | "terminal_can_edit_past_lines" => Some(Self::TerminalCanEditPastLines),
+            "linemodeterminal" | "line_mode_terminal" => Some(Self::LineModeTerminal),
+            "blockmodeterminal" | "block_mode_terminal" => Some(Self::BlockModeTerminal),
             "pwamobile" | "pwa_mobile" => Some(Self::PwaMobile),
-            "browservmfullscreen" | "browser_vm_fullscreen" => {
-                Some(Self::BrowserVmFullscreen)
-            }
-            "browservmmobile" | "browser_vm_mobile" => {
-                Some(Self::BrowserVmMobile)
-            }
-            "webuisystembrowser" | "web_ui_system_browser" => {
-                Some(Self::WebUiSystemBrowser)
-            }
+            "browservmfullscreen" | "browser_vm_fullscreen" => Some(Self::BrowserVmFullscreen),
+            "browservmmobile" | "browser_vm_mobile" => Some(Self::BrowserVmMobile),
+            "webuisystembrowser" | "web_ui_system_browser" => Some(Self::WebUiSystemBrowser),
             "uuid" => Some(Self::Uuid),
             "uuidcanonical" | "uuid_canonical" => Some(Self::UuidCanonical),
             "uuidhex32" | "uuid_hex32" => Some(Self::UuidHex32),
@@ -2864,20 +2665,12 @@ impl FormatId {
             "uuidoid" | "uuid_oid" => Some(Self::UuidOid),
             "ipv4string" | "ip_v4_string" => Some(Self::IpV4String),
             "ipv6string" | "ip_v6_string" => Some(Self::IpV6String),
-            "lineendingsvariant" | "line_endings_variant" => {
-                Some(Self::LineEndingsVariant)
-            }
-            "unicodepuavariant" | "unicode_pua_variant" => {
-                Some(Self::UnicodePuaVariant)
-            }
+            "lineendingsvariant" | "line_endings_variant" => Some(Self::LineEndingsVariant),
+            "unicodepuavariant" | "unicode_pua_variant" => Some(Self::UnicodePuaVariant),
             "casevariant" | "case_variant" => Some(Self::CaseVariant),
             "paddingvariant" | "padding_variant" => Some(Self::PaddingVariant),
-            "basealphabetvariant" | "base_alphabet_variant" => {
-                Some(Self::BaseAlphabetVariant)
-            }
-            "caseinsensitive" | "case_insensitive" => {
-                Some(Self::CaseInsensitive)
-            }
+            "basealphabetvariant" | "base_alphabet_variant" => Some(Self::BaseAlphabetVariant),
+            "caseinsensitive" | "case_insensitive" => Some(Self::CaseInsensitive),
             "casesensitive" | "case_sensitive" => Some(Self::CaseSensitive),
             "caseuppercase" | "case_uppercase" => Some(Self::CaseUppercase),
             "caselowercase" | "case_lowercase" => Some(Self::CaseLowercase),
@@ -2892,49 +2685,29 @@ impl FormatId {
             "szip110" => Some(Self::Szip110),
             "szip111" | "szip-1.11" => Some(Self::Szip111),
             "wine" => Some(Self::Wine),
-            "cscjournal1meta1" | "csc_journal1_meta1" => {
-                Some(Self::CscJournal1Meta1)
-            }
-            "cscjournal1meta2" | "csc_journal1_meta2" => {
-                Some(Self::CscJournal1Meta2)
-            }
-            "cscjournal1meta3" | "csc_journal1_meta3" => {
-                Some(Self::CscJournal1Meta3)
-            }
+            "cscjournal1meta1" | "csc_journal1_meta1" => Some(Self::CscJournal1Meta1),
+            "cscjournal1meta2" | "csc_journal1_meta2" => Some(Self::CscJournal1Meta2),
+            "cscjournal1meta3" | "csc_journal1_meta3" => Some(Self::CscJournal1Meta3),
             "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
             "cscarchive" | "csc_archive" => Some(Self::CscArchive),
             "cscarchive1" | "csc_archive1" => Some(Self::CscArchive1),
             "dcsh" => Some(Self::Dcsh),
             "mediatype" | "media_type" => Some(Self::MediaType),
-            "uniformtypeidentifier" | "uniform_type_identifier" => {
-                Some(Self::UniformTypeIdentifier)
-            }
+            "uniformtypeidentifier" | "uniform_type_identifier" => Some(Self::UniformTypeIdentifier),
             "appleostype" | "apple_os_type" => Some(Self::AppleOsType),
             "ctbnodes" | "ctb_nodes" => Some(Self::CtbNodes),
-            "ctbnodebundle" | "ctb_node_bundle" | "ctbnbdl" => {
-                Some(Self::CtbNodeBundle)
-            }
+            "ctbnodebundle" | "ctb_node_bundle" | "ctbnbdl" => Some(Self::CtbNodeBundle),
             "dctf" | "dc_tf" => Some(Self::DcTf),
             "dcmixed1" | "dc_mixed1" | "dcmm1" => Some(Self::DcMixed1),
             "dcmixed2" | "dc_mixed2" | "dcmm2" => Some(Self::DcMixed2),
-            "ctbnodebundle1" | "ctb_node_bundle1" | "ctbnbdl1" => {
-                Some(Self::CtbNodeBundle1)
-            }
-            "ctbnodebundle2" | "ctb_node_bundle2" | "ctbnbdl2" => {
-                Some(Self::CtbNodeBundle2)
-            }
+            "ctbnodebundle1" | "ctb_node_bundle1" | "ctbnbdl1" => Some(Self::CtbNodeBundle1),
+            "ctbnodebundle2" | "ctb_node_bundle2" | "ctbnbdl2" => Some(Self::CtbNodeBundle2),
             "ctbnodev3" | "ctb_node_v3" => Some(Self::CtbNodeV3),
             "cscjournal5" | "csc_journal5" => Some(Self::CscJournal5),
             "cscarchive2" | "csc_archive2" => Some(Self::CscArchive2),
-            "collectivetoolbox" | "collective_toolbox" => {
-                Some(Self::CollectiveToolbox)
-            }
-            "encodingvariant" | "encoding_variant" => {
-                Some(Self::EncodingVariant)
-            }
-            "ctbnodeincoming" | "ctb_node_incoming" | "ctbnode-incoming" => {
-                Some(Self::CtbNodeIncoming)
-            }
+            "collectivetoolbox" | "collective_toolbox" => Some(Self::CollectiveToolbox),
+            "encodingvariant" | "encoding_variant" => Some(Self::EncodingVariant),
+            "ctbnodeincoming" | "ctb_node_incoming" | "ctbnode-incoming" => Some(Self::CtbNodeIncoming),
             "dce_3_02a" | "3_02a" => Some(Self::Dce_3_02a),
             _ => None,
         }
@@ -3240,12 +3013,8 @@ impl FormatId {
             Self::TarBz2 => "TarBz2",
             Self::OutlookMsg => "OutlookMsg",
             Self::PercentEncoding => "PercentEncoding",
-            Self::NumericCharacterReferenceDec => {
-                "NumericCharacterReferenceDec"
-            }
-            Self::NumericCharacterReferenceHex => {
-                "NumericCharacterReferenceHex"
-            }
+            Self::NumericCharacterReferenceDec => "NumericCharacterReferenceDec",
+            Self::NumericCharacterReferenceHex => "NumericCharacterReferenceHex",
             Self::MimeBase64 => "MimeBase64",
             Self::Xxencode => "Xxencode",
             Self::Rzip => "Rzip",
@@ -3657,9 +3426,7 @@ impl FormatId {
             Self::I32 => &[Self::AbstractNumber, Self::Integer],
             Self::U64 => &[Self::AbstractNumber, Self::Integer, Self::Natural0],
             Self::I64 => &[Self::AbstractNumber, Self::Integer],
-            Self::U128 => {
-                &[Self::AbstractNumber, Self::Integer, Self::Natural0]
-            }
+            Self::U128 => &[Self::AbstractNumber, Self::Integer, Self::Natural0],
             Self::I128 => &[Self::AbstractNumber, Self::Integer],
             Self::MathExpression => &[Self::Text],
             Self::Uri => &[Self::Text],
@@ -3692,23 +3459,12 @@ impl FormatId {
             Self::Xnu => &[Self::Mach],
             Self::Darwin => &[Self::Unix],
             Self::BsdLibc => &[Self::Unix],
-            Self::GnuLinux => {
-                &[Self::Gnu, Self::GnuUtilities, Self::Linux, Self::Unix]
-            }
-            Self::Android => &[
-                Self::BionicLibc,
-                Self::BionicUserspace,
-                Self::Linux,
-                Self::Unix,
-            ],
+            Self::GnuLinux => &[Self::Gnu, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Android => &[Self::BionicLibc, Self::BionicUserspace, Self::Linux, Self::Unix],
             Self::WinClassic => &[Self::MsDosKernel, Self::Windows],
-            Self::WinNt => {
-                &[Self::Win32Subsystem, Self::WinNtKernel, Self::Windows]
-            }
+            Self::WinNt => &[Self::Win32Subsystem, Self::WinNtKernel, Self::Windows],
             Self::MacOs => &[Self::Unix],
-            Self::MacOsDarwin => {
-                &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu]
-            }
+            Self::MacOsDarwin => &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu],
             Self::FreeBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::OpenBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::NetBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
@@ -3738,18 +3494,10 @@ impl FormatId {
             Self::CtbFileMetadataJson => &[Self::Json],
             Self::IpV4 => &[Self::IpAddr],
             Self::IpV6 => &[Self::IpAddr],
-            Self::AppleIos => {
-                &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu]
-            }
-            Self::WatchOs => {
-                &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu]
-            }
-            Self::TvOs => {
-                &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu]
-            }
-            Self::VisionOs => {
-                &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu]
-            }
+            Self::AppleIos => &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu],
+            Self::WatchOs => &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu],
+            Self::TvOs => &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu],
+            Self::VisionOs => &[Self::Darwin, Self::MacOs, Self::Mach, Self::Unix, Self::Xnu],
             Self::NextStep => &[Self::Mach, Self::Unix],
             Self::WebUi => &[Self::RasterDisplay],
             Self::WebView => &[Self::RasterDisplay, Self::WebUi],
@@ -3779,148 +3527,26 @@ impl FormatId {
             Self::RasterColors24bit => &[Self::ColorDepth24bit],
             Self::TerminalColors1bit => &[Self::ColorDepth1bit],
             Self::TerminalColors24bit => &[Self::ColorDepth24bit],
-            Self::Replicant => &[
-                Self::Android,
-                Self::BionicLibc,
-                Self::BionicUserspace,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Dragora => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Dynebolic => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::GuixSystem => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Guix,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Hyperbola => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::ParabolaGll => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::PureOs => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Trisquel => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::UtutoS => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::LibreCmc => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::ProteanOs => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Debian => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Ubuntu => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Fedora => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Rhel => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::ArchLinux => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Alpine => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::OpenSuse => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::Gentoo => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Unix,
-            ],
-            Self::NixOs => &[
-                Self::Gnu,
-                Self::GnuLinux,
-                Self::GnuUtilities,
-                Self::Linux,
-                Self::Nix,
-                Self::Unix,
-            ],
+            Self::Replicant => &[Self::Android, Self::BionicLibc, Self::BionicUserspace, Self::Linux, Self::Unix],
+            Self::Dragora => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Dynebolic => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::GuixSystem => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Guix, Self::Linux, Self::Unix],
+            Self::Hyperbola => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::ParabolaGll => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::PureOs => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Trisquel => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::UtutoS => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::LibreCmc => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::ProteanOs => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Debian => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Ubuntu => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Fedora => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Rhel => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::ArchLinux => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Alpine => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::OpenSuse => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::Gentoo => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Unix],
+            Self::NixOs => &[Self::Gnu, Self::GnuLinux, Self::GnuUtilities, Self::Linux, Self::Nix, Self::Unix],
             Self::BionicUserspace => &[Self::BionicLibc],
             Self::PwaMobile => &[Self::Pwa, Self::RasterDisplay, Self::WebUi],
             Self::BrowserVmFullscreen => &[Self::BrowserVm],
@@ -5941,12 +5567,10 @@ impl FormatId {
     pub const fn dc_char(&self) -> Option<DcChar> {
         match self {
             Self::Unknown => None,
-            _ => {
-                if let Some(dc) = self.dc_id() {
-                    Some(DcChar::from_u128(dc))
-                } else {
-                    None
-                }
+            _ => if let Some(dc) = self.dc_id() {
+                Some(DcChar::from_u128(dc))
+            } else {
+                None
             }
         }
     }

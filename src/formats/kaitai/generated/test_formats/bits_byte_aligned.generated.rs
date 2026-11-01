@@ -113,11 +113,7 @@ impl KStruct for BitsByteAligned {
     type Root = BitsByteAligned;
     type Parent = BitsByteAligned;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -147,12 +143,7 @@ impl KStruct for BitsByteAligned {
         let _raw_byte_3 = _io.read_bytes(3_usize)?;
         *self_rc.byte_3_raw.borrow_mut() = _raw_byte_3.clone();
         let _io_byte_3 = BytesReader::from(_raw_byte_3);
-        let t = Self::read_into::<BytesReader, BitsByteAligned_Foo>(
-            &_io_byte_3,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, BitsByteAligned_Foo>(&_io_byte_3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.byte_3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.full_byte.borrow_mut() = _io.read_bits_int_be(8)?;
@@ -163,8 +154,7 @@ impl KStruct for BitsByteAligned {
         *self_rc.five.borrow_mut() = _io.read_bits_int_be(22)?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
-        *self_rc.bytes_term.borrow_mut() =
-            _io.read_bytes_term(69, true, true, true)?;
+        *self_rc.bytes_term.borrow_mut() = _io.read_bytes_term(69, true, true, true)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.six.borrow_mut() = _io.read_bits_int_be(8)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -172,7 +162,8 @@ impl KStruct for BitsByteAligned {
         Ok(())
     }
 }
-impl BitsByteAligned {}
+impl BitsByteAligned {
+}
 impl BitsByteAligned {
     pub fn one(&self) -> Ref<'_, u64> {
         self.one.borrow()
@@ -299,11 +290,7 @@ impl KStruct for BitsByteAligned_Foo {
     type Root = BitsByteAligned;
     type Parent = BitsByteAligned;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,7 +308,8 @@ impl KStruct for BitsByteAligned_Foo {
         Ok(())
     }
 }
-impl BitsByteAligned_Foo {}
+impl BitsByteAligned_Foo {
+}
 impl BitsByteAligned_Foo {
     pub fn inner(&self) -> Ref<'_, u64> {
         self.inner.borrow()

@@ -70,11 +70,7 @@ impl KStruct for VlqBase128Be {
     type Root = VlqBase128Be;
     type Parent = VlqBase128Be;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -90,21 +86,12 @@ impl KStruct for VlqBase128Be {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, VlqBase128Be_Group>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, VlqBase128Be_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
-                let Some(_tmpa) = _t_groups.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_groups.last() else { break; };
                 _i = _i.saturating_add(1);
-                if !(*_tmpa.has_next()) {
-                    break;
-                }
+                if !(*_tmpa.has_next()) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -113,140 +100,32 @@ impl KStruct for VlqBase128Be {
     }
 }
 impl VlqBase128Be {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn last(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn last(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_last.get() {
             return Ok(self.last.borrow());
         }
         self.f_last.set(true);
-        *self.last.borrow_mut() =
-            ((self.groups().len()).saturating_sub(1_usize)).try_into()?;
+        *self.last.borrow_mut() = ((self.groups().len()).saturating_sub(1_usize)).try_into()?;
         Ok(self.last.borrow())
     }
 
     /**
      * Resulting value as normal integer
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((((((*self
-            .groups()
-            .get(usize::try_from(*self.last()?)?)
-            .ok_or(KError::CastError)?
-            .value())
-        .saturating_add(u64::try_from(if *self.last()? >= 1 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(1_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(7_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 2 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(2_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(14_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 3 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(3_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(21_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 4 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(4_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(28_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 5 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(5_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(35_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 6 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(6_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(42_u32)
-        } else {
-            0_i32
-        })?))
-        .saturating_add(u64::try_from(if *self.last()? >= 7 {
-            (i32::try_from(
-                *self
-                    .groups()
-                    .get(usize::try_from(
-                        (*self.last()?).saturating_sub(7_i32),
-                    )?)
-                    .ok_or(KError::CastError)?
-                    .value(),
-            )?)
-            .wrapping_shl(49_u32)
-        } else {
-            0_i32
-        })?))
-        .try_into()?;
+        *self.value.borrow_mut() = ((((((((*self.groups().get(usize::try_from(*self.last()?)?).ok_or(KError::CastError)?.value()).saturating_add(u64::try_from(if *self.last()? >= 1 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(1_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(7_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 2 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(2_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(14_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 3 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(3_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(21_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 4 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(4_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(28_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 5 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(5_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(35_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 6 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(6_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(42_u32) } else { 0_i32 })?)).saturating_add(u64::try_from(if *self.last()? >= 7 { (i32::try_from(*self.groups().get(usize::try_from((*self.last()?).saturating_sub(7_i32))?).ok_or(KError::CastError)?.value())?).wrapping_shl(49_u32) } else { 0_i32 })?)).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -316,11 +195,7 @@ impl KStruct for VlqBase128Be_Group {
     type Root = VlqBase128Be;
     type Parent = VlqBase128Be;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -340,7 +215,8 @@ impl KStruct for VlqBase128Be_Group {
         Ok(())
     }
 }
-impl VlqBase128Be_Group {}
+impl VlqBase128Be_Group {
+}
 
 /**
  * If true, then we have more bytes to read

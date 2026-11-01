@@ -100,11 +100,7 @@ impl KStruct for ValidFailRangeInt {
     type Root = ValidFailRangeInt;
     type Parent = ValidFailRangeInt;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,23 +116,18 @@ impl KStruct for ValidFailRangeInt {
         let min_val: u8 = (5).try_into()?;
         let max_val: u8 = (10).try_into()?;
         if !(*self_rc.foo() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
         }
         if !(*self_rc.foo() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::GreaterThan,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRangeInt {}
+impl ValidFailRangeInt {
+}
 impl ValidFailRangeInt {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

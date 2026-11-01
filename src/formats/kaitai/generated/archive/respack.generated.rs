@@ -56,11 +56,7 @@ impl KStruct for Respack {
     type Root = Respack;
     type Parent = Respack;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -72,24 +68,17 @@ impl KStruct for Respack {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Respack_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Respack_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.json.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.header().len_json())?)?,
-            "UTF-8",
-        )?;
+        *self_rc.json.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_json())?)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Respack {}
+impl Respack {
+}
 impl Respack {
     pub fn header(&self) -> Ref<'_, OptRc<Respack_Header>> {
         self.header.borrow()
@@ -166,11 +155,7 @@ impl KStruct for Respack_Header {
     type Root = Respack;
     type Parent = Respack;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -184,24 +169,21 @@ impl KStruct for Respack_Header {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x52u8, 0x53u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_json.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.md5.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.md5.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Respack_Header {}
+impl Respack_Header {
+}
 impl Respack_Header {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

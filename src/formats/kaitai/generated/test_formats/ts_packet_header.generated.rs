@@ -71,8 +71,7 @@ pub struct TsPacketHeader {
     transport_priority: RefCell<bool>,
     pid: RefCell<u64>,
     transport_scrambling_control: RefCell<u64>,
-    adaptation_field_control:
-        RefCell<TsPacketHeader_AdaptationFieldControlEnum>,
+    adaptation_field_control: RefCell<TsPacketHeader_AdaptationFieldControlEnum>,
     continuity_counter: RefCell<u64>,
     ts_packet_remain: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
@@ -114,11 +113,7 @@ impl KStruct for TsPacketHeader {
     type Root = TsPacketHeader;
     type Parent = TsPacketHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -132,23 +127,17 @@ impl KStruct for TsPacketHeader {
         let _io = io;
         *self_rc.sync_byte.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.transport_error_indicator.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.transport_error_indicator.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.payload_unit_start_indicator.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.payload_unit_start_indicator.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.transport_priority.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.transport_priority.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_bits_int_be(13)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.transport_scrambling_control.borrow_mut() =
-            _io.read_bits_int_be(2)?;
+        *self_rc.transport_scrambling_control.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.adaptation_field_control.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.adaptation_field_control.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.continuity_counter.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -159,7 +148,8 @@ impl KStruct for TsPacketHeader {
         Ok(())
     }
 }
-impl TsPacketHeader {}
+impl TsPacketHeader {
+}
 impl TsPacketHeader {
     pub fn sync_byte(&self) -> Ref<'_, u8> {
         self.sync_byte.borrow()
@@ -191,9 +181,7 @@ impl TsPacketHeader {
     }
 }
 impl TsPacketHeader {
-    pub fn adaptation_field_control(
-        &self,
-    ) -> Ref<'_, TsPacketHeader_AdaptationFieldControlEnum> {
+    pub fn adaptation_field_control(&self) -> Ref<'_, TsPacketHeader_AdaptationFieldControlEnum> {
         self.adaptation_field_control.borrow()
     }
 }
@@ -234,9 +222,7 @@ pub enum TsPacketHeader_AdaptationFieldControlEnum {
 
 impl TryFrom<i64> for TsPacketHeader_AdaptationFieldControlEnum {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<TsPacketHeader_AdaptationFieldControlEnum> {
+    fn try_from(flag: i64) -> KResult<TsPacketHeader_AdaptationFieldControlEnum> {
         match flag {
             0 => Ok(TsPacketHeader_AdaptationFieldControlEnum::Reserved),
             1 => Ok(TsPacketHeader_AdaptationFieldControlEnum::PayloadOnly),
@@ -260,7 +246,6 @@ impl From<&TsPacketHeader_AdaptationFieldControlEnum> for i64 {
 }
 
 impl Default for TsPacketHeader_AdaptationFieldControlEnum {
-    fn default() -> Self {
-        TsPacketHeader_AdaptationFieldControlEnum::Unknown(0)
-    }
+    fn default() -> Self { TsPacketHeader_AdaptationFieldControlEnum::Unknown(0) }
 }
+

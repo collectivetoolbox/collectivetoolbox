@@ -101,11 +101,7 @@ impl KStruct for PositionToEnd {
     type Root = PositionToEnd;
     type Parent = PositionToEnd;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,26 +118,17 @@ impl KStruct for PositionToEnd {
     }
 }
 impl PositionToEnd {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn index(&self) -> KResult<Ref<'_, OptRc<PositionToEnd_IndexObj>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn index(
+        &self
+    ) -> KResult<Ref<'_, OptRc<PositionToEnd_IndexObj>>> {
         let _io = self._io.borrow();
         if self.f_index.get() {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (i64::try_from(_io.size())?).saturating_sub(8_i64),
-        )?)?;
-        let t = Self::read_into::<_, PositionToEnd_IndexObj>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))?)?;
+        let t = Self::read_into::<_, PositionToEnd_IndexObj>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.index.borrow())
@@ -204,11 +191,7 @@ impl KStruct for PositionToEnd_IndexObj {
     type Root = PositionToEnd;
     type Parent = PositionToEnd;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -228,7 +211,8 @@ impl KStruct for PositionToEnd_IndexObj {
         Ok(())
     }
 }
-impl PositionToEnd_IndexObj {}
+impl PositionToEnd_IndexObj {
+}
 impl PositionToEnd_IndexObj {
     pub fn foo(&self) -> Ref<'_, u32> {
         self.foo.borrow()

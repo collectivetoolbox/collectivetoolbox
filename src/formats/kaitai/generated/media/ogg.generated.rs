@@ -61,11 +61,7 @@ impl KStruct for Ogg {
     type Root = Ogg;
     type Parent = Ogg;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,12 +77,7 @@ impl KStruct for Ogg {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Ogg_Page>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Ogg_Page>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.pages.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -96,7 +87,8 @@ impl KStruct for Ogg {
         Ok(())
     }
 }
-impl Ogg {}
+impl Ogg {
+}
 impl Ogg {
     pub fn pages(&self) -> Ref<'_, Vec<OptRc<Ogg_Page>>> {
         self.pages.borrow()
@@ -176,11 +168,7 @@ impl KStruct for Ogg_Page {
     type Root = Ogg;
     type Parent = Ogg;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,26 +182,19 @@ impl KStruct for Ogg_Page {
         let _io = io;
         *self_rc.sync_code.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.sync_code() == vec![0x4fu8, 0x67u8, 0x67u8, 0x53u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/page/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.version() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/page/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(5)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_end_of_stream.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.is_beginning_of_stream.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.is_beginning_of_stream.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_continuation.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -237,24 +218,15 @@ impl KStruct for Ogg_Page {
         *self_rc.segments.borrow_mut() = Vec::new();
         let l_segments = usize::from(*self_rc.num_segments());
         for _i in 0_usize..l_segments {
-            self_rc
-                .segments
-                .borrow_mut()
-                .push(
-                    _io.read_bytes(usize::from(
-                        *(self_rc
-                            .len_segments()
-                            .get(_i)
-                            .ok_or(KError::CastError)?),
-                    ))?,
-                );
+            self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(_i).ok_or(KError::CastError)?)))?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Ogg_Page {}
+impl Ogg_Page {
+}
 impl Ogg_Page {
     pub fn sync_code(&self) -> Ref<'_, Vec<u8>> {
         self.sync_code.borrow()

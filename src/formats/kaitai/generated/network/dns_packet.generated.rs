@@ -62,11 +62,7 @@ impl KStruct for DnsPacket {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -80,12 +76,7 @@ impl KStruct for DnsPacket {
         let _io = io;
         *self_rc.transaction_id.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DnsPacket_PacketFlags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_PacketFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
@@ -113,12 +104,7 @@ impl KStruct for DnsPacket {
             *self_rc.queries.borrow_mut() = Vec::new();
             let l_queries = usize::from(*self_rc.qdcount());
             for _i in 0_usize..l_queries {
-                let t = Self::read_into::<_, DnsPacket_Query>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Query>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.queries.borrow_mut().push(t);
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -128,12 +114,7 @@ impl KStruct for DnsPacket {
             *self_rc.answers.borrow_mut() = Vec::new();
             let l_answers = usize::from(*self_rc.ancount());
             for _i in 0_usize..l_answers {
-                let t = Self::read_into::<_, DnsPacket_Answer>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.answers.borrow_mut().push(t);
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -143,12 +124,7 @@ impl KStruct for DnsPacket {
             *self_rc.authorities.borrow_mut() = Vec::new();
             let l_authorities = usize::from(*self_rc.nscount());
             for _i in 0_usize..l_authorities {
-                let t = Self::read_into::<_, DnsPacket_Answer>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.authorities.borrow_mut().push(t);
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -158,12 +134,7 @@ impl KStruct for DnsPacket {
             *self_rc.additionals.borrow_mut() = Vec::new();
             let l_additionals = usize::from(*self_rc.arcount());
             for _i in 0_usize..l_additionals {
-                let t = Self::read_into::<_, DnsPacket_Answer>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.additionals.borrow_mut().push(t);
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -172,7 +143,8 @@ impl KStruct for DnsPacket {
         Ok(())
     }
 }
-impl DnsPacket {}
+impl DnsPacket {
+}
 
 /**
  * ID to keep track of request/responses
@@ -283,15 +255,13 @@ impl From<&DnsPacket_ClassType> for i64 {
             DnsPacket_ClassType::Cs => 2,
             DnsPacket_ClassType::Ch => 3,
             DnsPacket_ClassType::Hs => 4,
-            DnsPacket_ClassType::Unknown(v) => v,
+            DnsPacket_ClassType::Unknown(v) => v
         }
     }
 }
 
 impl Default for DnsPacket_ClassType {
-    fn default() -> Self {
-        DnsPacket_ClassType::Unknown(0)
-    }
+    fn default() -> Self { DnsPacket_ClassType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -365,16 +335,15 @@ impl From<&DnsPacket_TypeType> for i64 {
             DnsPacket_TypeType::Txt => 16,
             DnsPacket_TypeType::Aaaa => 28,
             DnsPacket_TypeType::Srv => 33,
-            DnsPacket_TypeType::Unknown(v) => v,
+            DnsPacket_TypeType::Unknown(v) => v
         }
     }
 }
 
 impl Default for DnsPacket_TypeType {
-    fn default() -> Self {
-        DnsPacket_TypeType::Unknown(0)
-    }
+    fn default() -> Self { DnsPacket_TypeType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct DnsPacket_Address {
@@ -421,11 +390,7 @@ impl KStruct for DnsPacket_Address {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -443,7 +408,8 @@ impl KStruct for DnsPacket_Address {
         Ok(())
     }
 }
-impl DnsPacket_Address {}
+impl DnsPacket_Address {
+}
 impl DnsPacket_Address {
     pub fn ip(&self) -> Ref<'_, Vec<u8>> {
         self.ip.borrow()
@@ -511,11 +477,7 @@ impl KStruct for DnsPacket_AddressV6 {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -533,7 +495,8 @@ impl KStruct for DnsPacket_AddressV6 {
         Ok(())
     }
 }
-impl DnsPacket_AddressV6 {}
+impl DnsPacket_AddressV6 {
+}
 impl DnsPacket_AddressV6 {
     pub fn ip_v6(&self) -> Ref<'_, Vec<u8>> {
         self.ip_v6.borrow()
@@ -847,11 +810,7 @@ impl KStruct for DnsPacket_Answer {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -863,19 +822,12 @@ impl KStruct for DnsPacket_Answer {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.answer_class.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.answer_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ttl.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -883,127 +835,70 @@ impl KStruct for DnsPacket_Answer {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             DnsPacket_TypeType::A => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_Address>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_Address>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Aaaa => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_AddressV6>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_AddressV6>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Cname => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Mx => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_MxInfo>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_MxInfo>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Ns => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Ptr => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Soa => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, DnsPacket_AuthorityInfo>(
-                        &_t_payload_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_AuthorityInfo>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Srv => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_Service>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_Service>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Txt => {
-                *self_rc.payload_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
-                let t = Self::read_into::<BytesReader, DnsPacket_TxtBody>(
-                    &_t_payload_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, DnsPacket_TxtBody>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(
-                    _io.read_bytes(usize::from(*self_rc.rdlength()))?.into(),
-                );
+                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.rdlength()))?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1011,7 +906,8 @@ impl KStruct for DnsPacket_Answer {
         Ok(())
     }
 }
-impl DnsPacket_Answer {}
+impl DnsPacket_Answer {
+}
 impl DnsPacket_Answer {
     pub fn name(&self) -> Ref<'_, OptRc<DnsPacket_DomainName>> {
         self.name.borrow()
@@ -1108,9 +1004,7 @@ impl DowncastOptRc<DnsPacket_AuthorityInfo> for OptRc<DnsPacket_AuthorityInfo> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DnsPacket_AuthorityInfo>
-    for &OptRc<DnsPacket_AuthorityInfo>
-{
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for &OptRc<DnsPacket_AuthorityInfo> {
     fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
         Ok((*self).clone())
     }
@@ -1119,11 +1013,7 @@ impl KStruct for DnsPacket_AuthorityInfo {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1135,20 +1025,10 @@ impl KStruct for DnsPacket_AuthorityInfo {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.primary_ns.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.responsible_mailbox.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.serial.borrow_mut() = _io.read_u4be()?;
@@ -1165,7 +1045,8 @@ impl KStruct for DnsPacket_AuthorityInfo {
         Ok(())
     }
 }
-impl DnsPacket_AuthorityInfo {}
+impl DnsPacket_AuthorityInfo {
+}
 impl DnsPacket_AuthorityInfo {
     pub fn primary_ns(&self) -> Ref<'_, OptRc<DnsPacket_DomainName>> {
         self.primary_ns.borrow()
@@ -1257,11 +1138,7 @@ impl KStruct for DnsPacket_DomainName {
     type Root = DnsPacket;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1277,23 +1154,12 @@ impl KStruct for DnsPacket_DomainName {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, DnsPacket_Label>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Label>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.name.borrow_mut().push(t);
                 let _t_name = self_rc.name.borrow();
-                let Some(_tmpa) = _t_name.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_name.last() else { break; };
                 _i = _i.saturating_add(1);
-                if (((to_i128(*_tmpa.length())) == (to_i128(0)))
-                    || ((to_i128(*_tmpa.length())) >= (to_i128(192))))
-                {
-                    break;
-                }
+                if  (((to_i128(*_tmpa.length())) == (to_i128(0)))) || (((to_i128(*_tmpa.length())) >= (to_i128(192))))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1301,7 +1167,8 @@ impl KStruct for DnsPacket_DomainName {
         Ok(())
     }
 }
-impl DnsPacket_DomainName {}
+impl DnsPacket_DomainName {
+}
 
 /**
  * Repeat until the length is 0 or it is a pointer (bit-hack to get around lack of OR operator)
@@ -1372,11 +1239,7 @@ impl KStruct for DnsPacket_Label {
     type Root = DnsPacket;
     type Parent = DnsPacket_DomainName;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1392,21 +1255,13 @@ impl KStruct for DnsPacket_Label {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_pointer()? {
-            let t = Self::read_into::<_, DnsPacket_PointerStruct>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, DnsPacket_PointerStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.pointer.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_pointer()?) {
-            *self_rc.name.borrow_mut() = bytes_to_str(
-                &_io.read_bytes(usize::from(*self_rc.length()))?,
-                "utf-8",
-            )?;
+            *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -1414,19 +1269,16 @@ impl KStruct for DnsPacket_Label {
     }
 }
 impl DnsPacket_Label {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_pointer(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_pointer(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_pointer.get() {
             return Ok(self.is_pointer.borrow());
         }
         self.f_is_pointer.set(true);
-        *self.is_pointer.borrow_mut() =
-            ((to_i128(*self.length())) >= (to_i128(192))).try_into()?;
+        *self.is_pointer.borrow_mut() = (((to_i128(*self.length())) >= (to_i128(192)))).try_into()?;
         Ok(self.is_pointer.borrow())
     }
 }
@@ -1515,11 +1367,7 @@ impl KStruct for DnsPacket_MxInfo {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1533,19 +1381,15 @@ impl KStruct for DnsPacket_MxInfo {
         let _io = io;
         *self_rc.preference.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.mx.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DnsPacket_MxInfo {}
+impl DnsPacket_MxInfo {
+}
 impl DnsPacket_MxInfo {
     pub fn preference(&self) -> Ref<'_, u16> {
         self.preference.borrow()
@@ -1634,11 +1478,7 @@ impl KStruct for DnsPacket_PacketFlags {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1657,181 +1497,136 @@ impl KStruct for DnsPacket_PacketFlags {
     }
 }
 impl DnsPacket_PacketFlags {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn aa(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn aa(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_aa.get() {
             return Ok(self.aa.borrow());
         }
         self.f_aa.set(true);
-        *self.aa.borrow_mut() = (((i32::from(*self.flag())) & (1024_i32))
-            .wrapping_shr(10_u32))
-        .try_into()?;
+        *self.aa.borrow_mut() = ((((i32::from(*self.flag())) & (1024_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.aa.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ad(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ad(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ad.get() {
             return Ok(self.ad.borrow());
         }
         self.f_ad.set(true);
-        *self.ad.borrow_mut() = (((i32::from(*self.flag())) & (32_i32))
-            .wrapping_shr(5_u32))
-        .try_into()?;
+        *self.ad.borrow_mut() = ((((i32::from(*self.flag())) & (32_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.ad.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn cd(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn cd(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_cd.get() {
             return Ok(self.cd.borrow());
         }
         self.f_cd.set(true);
-        *self.cd.borrow_mut() = (((i32::from(*self.flag())) & (16_i32))
-            .wrapping_shr(4_u32))
-        .try_into()?;
+        *self.cd.borrow_mut() = ((((i32::from(*self.flag())) & (16_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.cd.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_opcode_valid(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_opcode_valid(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_opcode_valid.get() {
             return Ok(self.is_opcode_valid.borrow());
         }
         self.f_is_opcode_valid.set(true);
-        *self.is_opcode_valid.borrow_mut() = ((*self.opcode()? == 0)
-            || (*self.opcode()? == 1)
-            || (*self.opcode()? == 2))
-            .try_into()?;
+        *self.is_opcode_valid.borrow_mut() = ( ((*self.opcode()? == 0) || (*self.opcode()? == 1) || (*self.opcode()? == 2)) ).try_into()?;
         Ok(self.is_opcode_valid.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn opcode(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn opcode(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_opcode.get() {
             return Ok(self.opcode.borrow());
         }
         self.f_opcode.set(true);
-        *self.opcode.borrow_mut() = (((i32::from(*self.flag())) & (30720_i32))
-            .wrapping_shr(11_u32))
-        .try_into()?;
+        *self.opcode.borrow_mut() = ((((i32::from(*self.flag())) & (30720_i32))).wrapping_shr(11_u32)).try_into()?;
         Ok(self.opcode.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn qr(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn qr(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_qr.get() {
             return Ok(self.qr.borrow());
         }
         self.f_qr.set(true);
-        *self.qr.borrow_mut() = (((i32::from(*self.flag())) & (32768_i32))
-            .wrapping_shr(15_u32))
-        .try_into()?;
+        *self.qr.borrow_mut() = ((((i32::from(*self.flag())) & (32768_i32))).wrapping_shr(15_u32)).try_into()?;
         Ok(self.qr.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ra(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ra(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ra.get() {
             return Ok(self.ra.borrow());
         }
         self.f_ra.set(true);
-        *self.ra.borrow_mut() = (((i32::from(*self.flag())) & (128_i32))
-            .wrapping_shr(7_u32))
-        .try_into()?;
+        *self.ra.borrow_mut() = ((((i32::from(*self.flag())) & (128_i32))).wrapping_shr(7_u32)).try_into()?;
         Ok(self.ra.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn rcode(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn rcode(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_rcode.get() {
             return Ok(self.rcode.borrow());
         }
         self.f_rcode.set(true);
-        *self.rcode.borrow_mut() = (((i32::from(*self.flag())) & (15_i32))
-            .wrapping_shr(0_u32))
-        .try_into()?;
+        *self.rcode.borrow_mut() = ((((i32::from(*self.flag())) & (15_i32))).wrapping_shr(0_u32)).try_into()?;
         Ok(self.rcode.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn rd(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn rd(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_rd.get() {
             return Ok(self.rd.borrow());
         }
         self.f_rd.set(true);
-        *self.rd.borrow_mut() = (((i32::from(*self.flag())) & (256_i32))
-            .wrapping_shr(8_u32))
-        .try_into()?;
+        *self.rd.borrow_mut() = ((((i32::from(*self.flag())) & (256_i32))).wrapping_shr(8_u32)).try_into()?;
         Ok(self.rd.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn tc(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn tc(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_tc.get() {
             return Ok(self.tc.borrow());
         }
         self.f_tc.set(true);
-        *self.tc.borrow_mut() = (((i32::from(*self.flag())) & (512_i32))
-            .wrapping_shr(9_u32))
-        .try_into()?;
+        *self.tc.borrow_mut() = ((((i32::from(*self.flag())) & (512_i32))).wrapping_shr(9_u32)).try_into()?;
         Ok(self.tc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn z(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn z(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_z.get() {
             return Ok(self.z.borrow());
         }
         self.f_z.set(true);
-        *self.z.borrow_mut() = (((i32::from(*self.flag())) & (64_i32))
-            .wrapping_shr(6_u32))
-        .try_into()?;
+        *self.z.borrow_mut() = ((((i32::from(*self.flag())) & (64_i32))).wrapping_shr(6_u32)).try_into()?;
         Ok(self.z.borrow())
     }
 }
@@ -1889,9 +1684,7 @@ impl DowncastOptRc<DnsPacket_PointerStruct> for OptRc<DnsPacket_PointerStruct> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DnsPacket_PointerStruct>
-    for &OptRc<DnsPacket_PointerStruct>
-{
+impl DowncastOptRc<DnsPacket_PointerStruct> for &OptRc<DnsPacket_PointerStruct> {
     fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PointerStruct>, KError> {
         Ok((*self).clone())
     }
@@ -1900,11 +1693,7 @@ impl KStruct for DnsPacket_PointerStruct {
     type Root = DnsPacket;
     type Parent = DnsPacket_Label;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1923,49 +1712,18 @@ impl KStruct for DnsPacket_PointerStruct {
     }
 }
 impl DnsPacket_PointerStruct {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn contents(&self) -> KResult<Ref<'_, OptRc<DnsPacket_DomainName>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn contents(
+        &self
+    ) -> KResult<Ref<'_, OptRc<DnsPacket_DomainName>>> {
         let _io = self._io.borrow();
         if self.f_contents.get() {
             return Ok(self.contents.borrow());
         }
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(
-            (i32::from(*self.value())).saturating_add(
-                ((i32::from(
-                    *self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .length(),
-                ))
-                .saturating_sub(192_i32))
-                .wrapping_shl(8_u32),
-            ),
-        )?)?;
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &io,
-            Some(self._root.clone()),
-            None,
-        )?
-        .into();
+        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.length())).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&io, Some(self._root.clone()), None)?.into();
         *self.contents.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.contents.borrow())
@@ -2038,11 +1796,7 @@ impl KStruct for DnsPacket_Query {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2054,25 +1808,19 @@ impl KStruct for DnsPacket_Query {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.query_class.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.query_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DnsPacket_Query {}
+impl DnsPacket_Query {
+}
 impl DnsPacket_Query {
     pub fn name(&self) -> Ref<'_, OptRc<DnsPacket_DomainName>> {
         self.name.borrow()
@@ -2147,11 +1895,7 @@ impl KStruct for DnsPacket_Service {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2169,19 +1913,15 @@ impl KStruct for DnsPacket_Service {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DnsPacket_DomainName>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.target.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DnsPacket_Service {}
+impl DnsPacket_Service {
+}
 impl DnsPacket_Service {
     pub fn priority(&self) -> Ref<'_, u16> {
         self.priority.borrow()
@@ -2260,11 +2000,7 @@ impl KStruct for DnsPacket_Txt {
     type Root = DnsPacket;
     type Parent = DnsPacket_TxtBody;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2278,16 +2014,14 @@ impl KStruct for DnsPacket_Txt {
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.text.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.length()))?,
-            "utf-8",
-        )?;
+        *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DnsPacket_Txt {}
+impl DnsPacket_Txt {
+}
 impl DnsPacket_Txt {
     pub fn length(&self) -> Ref<'_, u8> {
         self.length.borrow()
@@ -2359,11 +2093,7 @@ impl KStruct for DnsPacket_TxtBody {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2379,12 +2109,7 @@ impl KStruct for DnsPacket_TxtBody {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DnsPacket_Txt>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DnsPacket_Txt>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.data.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -2394,7 +2119,8 @@ impl KStruct for DnsPacket_TxtBody {
         Ok(())
     }
 }
-impl DnsPacket_TxtBody {}
+impl DnsPacket_TxtBody {
+}
 impl DnsPacket_TxtBody {
     pub fn data(&self) -> Ref<'_, Vec<OptRc<DnsPacket_Txt>>> {
         self.data.borrow()

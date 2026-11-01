@@ -101,11 +101,7 @@ impl KStruct for EnumInvalid {
     type Root = EnumInvalid;
     type Parent = EnumInvalid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for EnumInvalid {
         Ok(())
     }
 }
-impl EnumInvalid {}
+impl EnumInvalid {
+}
 impl EnumInvalid {
     pub fn pet_1(&self) -> Ref<'_, EnumInvalid_Animal> {
         self.pet_1.borrow()
@@ -170,13 +167,12 @@ impl From<&EnumInvalid_Animal> for i64 {
         match *v {
             EnumInvalid_Animal::Dog => 102,
             EnumInvalid_Animal::Cat => 124,
-            EnumInvalid_Animal::Unknown(v) => v,
+            EnumInvalid_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumInvalid_Animal {
-    fn default() -> Self {
-        EnumInvalid_Animal::Unknown(0)
-    }
+    fn default() -> Self { EnumInvalid_Animal::Unknown(0) }
 }
+

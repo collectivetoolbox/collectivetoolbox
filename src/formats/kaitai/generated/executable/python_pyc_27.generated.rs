@@ -62,11 +62,7 @@ impl KStruct for PythonPyc27 {
     type Root = PythonPyc27;
     type Parent = PythonPyc27;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,26 +74,21 @@ impl KStruct for PythonPyc27 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.version_magic.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.version_magic.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crlf.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.modification_timestamp.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27 {}
+impl PythonPyc27 {
+}
 impl PythonPyc27 {
     pub fn version_magic(&self) -> Ref<'_, PythonPyc27_Version> {
         self.version_magic.borrow()
@@ -221,16 +212,15 @@ impl From<&PythonPyc27_Version> for i64 {
             PythonPyc27_Version::V27A0c => 62191,
             PythonPyc27_Version::V27A0d => 62201,
             PythonPyc27_Version::V27A0e => 62211,
-            PythonPyc27_Version::Unknown(v) => v,
+            PythonPyc27_Version::Unknown(v) => v
         }
     }
 }
 
 impl Default for PythonPyc27_Version {
-    fn default() -> Self {
-        PythonPyc27_Version::Unknown(0)
-    }
+    fn default() -> Self { PythonPyc27_Version::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct PythonPyc27_Assembly {
@@ -279,11 +269,7 @@ impl KStruct for PythonPyc27_Assembly {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_CodeObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -297,10 +283,7 @@ impl KStruct for PythonPyc27_Assembly {
         let _io = io;
         *self_rc.string_magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.string_magic() == vec![0x73u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/assembly/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/assembly/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
@@ -308,19 +291,15 @@ impl KStruct for PythonPyc27_Assembly {
         let _raw_items = _io.read_bytes(usize::try_from(*self_rc.length())?)?;
         *self_rc.items_raw.borrow_mut() = _raw_items.clone();
         let _io_items = BytesReader::from(_raw_items);
-        let t = Self::read_into::<BytesReader, PythonPyc27_OpArgs>(
-            &_io_items,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, PythonPyc27_OpArgs>(&_io_items, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.items.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27_Assembly {}
+impl PythonPyc27_Assembly {
+}
 impl PythonPyc27_Assembly {
     pub fn string_magic(&self) -> Ref<'_, Vec<u8>> {
         self.string_magic.borrow()
@@ -410,11 +389,7 @@ impl KStruct for PythonPyc27_CodeObject {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -434,85 +409,41 @@ impl KStruct for PythonPyc27_CodeObject {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_Assembly>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_Assembly>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.code.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.consts.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.names.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.var_names.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.free_vars.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.cell_vars.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.filename.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_line_no.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, PythonPyc27_PyObject>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.lnotab.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27_CodeObject {}
+impl PythonPyc27_CodeObject {
+}
 impl PythonPyc27_CodeObject {
     pub fn arg_count(&self) -> Ref<'_, u32> {
         self.arg_count.borrow()
@@ -620,16 +551,15 @@ impl From<&PythonPyc27_CodeObject_FlagsEnum> for i64 {
             PythonPyc27_CodeObject_FlagsEnum::HasArgs => 4,
             PythonPyc27_CodeObject_FlagsEnum::HasKwargs => 8,
             PythonPyc27_CodeObject_FlagsEnum::Generator => 32,
-            PythonPyc27_CodeObject_FlagsEnum::Unknown(v) => v,
+            PythonPyc27_CodeObject_FlagsEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for PythonPyc27_CodeObject_FlagsEnum {
-    fn default() -> Self {
-        PythonPyc27_CodeObject_FlagsEnum::Unknown(0)
-    }
+    fn default() -> Self { PythonPyc27_CodeObject_FlagsEnum::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct PythonPyc27_OpArg {
@@ -676,11 +606,7 @@ impl KStruct for PythonPyc27_OpArg {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_OpArgs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -695,9 +621,7 @@ impl KStruct for PythonPyc27_OpArg {
         *self_rc.op_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if i64::from(&*self_rc.op_code())
-            >= i64::from(&PythonPyc27_OpArg_OpCodeEnum::StoreName)
-        {
+        if i64::from(&*self_rc.op_code()) >= i64::from(&PythonPyc27_OpArg_OpCodeEnum::StoreName) {
             *self_rc.arg.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -705,7 +629,8 @@ impl KStruct for PythonPyc27_OpArg {
         Ok(())
     }
 }
-impl PythonPyc27_OpArg {}
+impl PythonPyc27_OpArg {
+}
 impl PythonPyc27_OpArg {
     pub fn op_code(&self) -> Ref<'_, PythonPyc27_OpArg_OpCodeEnum> {
         self.op_code.borrow()
@@ -1101,16 +1026,15 @@ impl From<&PythonPyc27_OpArg_OpCodeEnum> for i64 {
             PythonPyc27_OpArg_OpCodeEnum::ExtendedArg => 145,
             PythonPyc27_OpArg_OpCodeEnum::SetAdd => 146,
             PythonPyc27_OpArg_OpCodeEnum::MapAdd => 147,
-            PythonPyc27_OpArg_OpCodeEnum::Unknown(v) => v,
+            PythonPyc27_OpArg_OpCodeEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for PythonPyc27_OpArg_OpCodeEnum {
-    fn default() -> Self {
-        PythonPyc27_OpArg_OpCodeEnum::Unknown(0)
-    }
+    fn default() -> Self { PythonPyc27_OpArg_OpCodeEnum::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct PythonPyc27_OpArgs {
@@ -1156,11 +1080,7 @@ impl KStruct for PythonPyc27_OpArgs {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_Assembly;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1176,12 +1096,7 @@ impl KStruct for PythonPyc27_OpArgs {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, PythonPyc27_OpArg>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_OpArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1191,7 +1106,8 @@ impl KStruct for PythonPyc27_OpArgs {
         Ok(())
     }
 }
-impl PythonPyc27_OpArgs {}
+impl PythonPyc27_OpArgs {
+}
 impl PythonPyc27_OpArgs {
     pub fn items(&self) -> Ref<'_, Vec<OptRc<PythonPyc27_OpArg>>> {
         self.items.borrow()
@@ -1222,9 +1138,7 @@ pub struct PythonPyc27_PyObject {
 pub enum PythonPyc27_PyObject_Value {
     PythonPyc27_CodeObject(OptRc<PythonPyc27_CodeObject>),
     U4(u32),
-    PythonPyc27_PyObject_InternedString(
-        OptRc<PythonPyc27_PyObject_InternedString>,
-    ),
+    PythonPyc27_PyObject_InternedString(OptRc<PythonPyc27_PyObject_InternedString>),
     PythonPyc27_PyObject_PyNone(OptRc<PythonPyc27_PyObject_PyNone>),
     PythonPyc27_PyObject_PyFalse(OptRc<PythonPyc27_PyObject_PyFalse>),
     PythonPyc27_PyObject_PyTrue(OptRc<PythonPyc27_PyObject_PyTrue>),
@@ -1282,56 +1196,37 @@ impl From<u32> for PythonPyc27_PyObject_Value {
         Self::U4(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_InternedString>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_InternedString> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
-        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_InternedString(
-            x,
-        ) = v
-        {
+        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_InternedString(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_InternedString>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_InternedString> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         OptRc::<PythonPyc27_PyObject_InternedString>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<PythonPyc27_PyObject_InternedString>>
-    for PythonPyc27_PyObject_Value
-{
+impl From<OptRc<PythonPyc27_PyObject_InternedString>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_InternedString>) -> Self {
         Self::PythonPyc27_PyObject_InternedString(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyNone>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyNone> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyNone(x) = v {
@@ -1340,27 +1235,19 @@ impl TryFrom<&PythonPyc27_PyObject_Value>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyNone>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyNone> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for PythonPyc27_PyObject_Value {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         OptRc::<PythonPyc27_PyObject_PyNone>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyNone>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1369,9 +1256,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyNone>> for PythonPyc27_PyObject_Value {
         Self::PythonPyc27_PyObject_PyNone(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyFalse>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyFalse> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyFalse(x) = v {
@@ -1380,29 +1265,19 @@ impl TryFrom<&PythonPyc27_PyObject_Value>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyFalse>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyFalse> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         OptRc::<PythonPyc27_PyObject_PyFalse>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1411,9 +1286,7 @@ impl From<OptRc<PythonPyc27_PyObject_PyFalse>> for PythonPyc27_PyObject_Value {
         Self::PythonPyc27_PyObject_PyFalse(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyTrue>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyTrue> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyTrue(x) = v {
@@ -1422,27 +1295,19 @@ impl TryFrom<&PythonPyc27_PyObject_Value>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyTrue>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyTrue> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for PythonPyc27_PyObject_Value {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         OptRc::<PythonPyc27_PyObject_PyTrue>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyTrue>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1451,41 +1316,28 @@ impl From<OptRc<PythonPyc27_PyObject_PyTrue>> for PythonPyc27_PyObject_Value {
         Self::PythonPyc27_PyObject_PyTrue(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyString>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyString> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
-        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyString(x) = v
-        {
+        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_PyString(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_PyString>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyString> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         OptRc::<PythonPyc27_PyObject_PyString>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1494,54 +1346,37 @@ impl From<OptRc<PythonPyc27_PyObject_PyString>> for PythonPyc27_PyObject_Value {
         Self::PythonPyc27_PyObject_PyString(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_StringRef>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_StringRef> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
-        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_StringRef(x) = v
-        {
+        if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_StringRef(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_StringRef>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_StringRef> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         OptRc::<PythonPyc27_PyObject_StringRef>::try_from(self)
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for &PythonPyc27_PyObject_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<PythonPyc27_PyObject_StringRef>>
-    for PythonPyc27_PyObject_Value
-{
+impl From<OptRc<PythonPyc27_PyObject_StringRef>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_StringRef>) -> Self {
         Self::PythonPyc27_PyObject_StringRef(v)
     }
 }
-impl TryFrom<&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_Tuple>
-{
+impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Tuple> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         if let PythonPyc27_PyObject_Value::PythonPyc27_PyObject_Tuple(x) = v {
@@ -1550,25 +1385,19 @@ impl TryFrom<&PythonPyc27_PyObject_Value>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Value>
-    for OptRc<PythonPyc27_PyObject_Tuple>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Tuple> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for PythonPyc27_PyObject_Value {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         OptRc::<PythonPyc27_PyObject_Tuple>::try_from(self)
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &PythonPyc27_PyObject_Value {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1613,11 +1442,7 @@ impl KStruct for PythonPyc27_PyObject {
     type Root = PythonPyc27;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1633,79 +1458,38 @@ impl KStruct for PythonPyc27_PyObject {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             PythonPyc27_PyObject_ObjectType::CodeObject => {
-                let t = Self::read_into::<_, PythonPyc27_CodeObject>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_CodeObject>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::Int => {
                 *self_rc.value.borrow_mut() = Some(_io.read_u4le()?.into());
             }
             PythonPyc27_PyObject_ObjectType::Interned => {
-                let t =
-                    Self::read_into::<_, PythonPyc27_PyObject_InternedString>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_InternedString>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::None => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_PyNone>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_PyNone>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::PyFalse => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_PyFalse>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_PyFalse>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::PyTrue => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_PyTrue>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_PyTrue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::String => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_PyString>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_PyString>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::StringRef => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_StringRef>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_StringRef>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             PythonPyc27_PyObject_ObjectType::Tuple => {
-                let t = Self::read_into::<_, PythonPyc27_PyObject_Tuple>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PythonPyc27_PyObject_Tuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             _ => {}
@@ -1715,7 +1499,8 @@ impl KStruct for PythonPyc27_PyObject {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject {}
+impl PythonPyc27_PyObject {
+}
 impl PythonPyc27_PyObject {
     pub fn r#type(&self) -> Ref<'_, PythonPyc27_PyObject_ObjectType> {
         self.r#type.borrow()
@@ -1784,16 +1569,15 @@ impl From<&PythonPyc27_PyObject_ObjectType> for i64 {
             PythonPyc27_PyObject_ObjectType::String => 115,
             PythonPyc27_PyObject_ObjectType::Interned => 116,
             PythonPyc27_PyObject_ObjectType::UnicodeString => 117,
-            PythonPyc27_PyObject_ObjectType::Unknown(v) => v,
+            PythonPyc27_PyObject_ObjectType::Unknown(v) => v
         }
     }
 }
 
 impl Default for PythonPyc27_PyObject_ObjectType {
-    fn default() -> Self {
-        PythonPyc27_PyObject_ObjectType::Unknown(0)
-    }
+    fn default() -> Self { PythonPyc27_PyObject_ObjectType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct PythonPyc27_PyObject_InternedString {
@@ -1805,59 +1589,35 @@ pub struct PythonPyc27_PyObject_InternedString {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&PythonPyc27_PyObject_InternedString>
-    for OptRc<PythonPyc27_PyObject_InternedString>
-{
+impl TryFrom<&PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
     type Error = KError;
-    fn try_from(
-        v: &PythonPyc27_PyObject_InternedString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &PythonPyc27_PyObject_InternedString) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_InternedString>
-    for OptRc<PythonPyc27_PyObject_InternedString>
-{
+impl TryFrom<&&PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
     type Error = KError;
-    fn try_from(
-        v: &&PythonPyc27_PyObject_InternedString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&PythonPyc27_PyObject_InternedString) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for PythonPyc27_PyObject_InternedString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for PythonPyc27_PyObject_InternedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for &PythonPyc27_PyObject_InternedString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &PythonPyc27_PyObject_InternedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for OptRc<PythonPyc27_PyObject_InternedString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_InternedString>
-    for &OptRc<PythonPyc27_PyObject_InternedString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &OptRc<PythonPyc27_PyObject_InternedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1865,11 +1625,7 @@ impl KStruct for PythonPyc27_PyObject_InternedString {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1883,16 +1639,14 @@ impl KStruct for PythonPyc27_PyObject_InternedString {
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.length())?)?,
-            "utf-8",
-        )?;
+        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "utf-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_InternedString {}
+impl PythonPyc27_PyObject_InternedString {
+}
 impl PythonPyc27_PyObject_InternedString {
     pub fn length(&self) -> Ref<'_, u32> {
         self.length.borrow()
@@ -1927,57 +1681,35 @@ pub struct PythonPyc27_PyObject_PyFalse {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&PythonPyc27_PyObject_PyFalse>
-    for OptRc<PythonPyc27_PyObject_PyFalse>
-{
+impl TryFrom<&PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_PyFalse) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_PyFalse>
-    for OptRc<PythonPyc27_PyObject_PyFalse>
-{
+impl TryFrom<&&PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
     type Error = KError;
-    fn try_from(
-        v: &&PythonPyc27_PyObject_PyFalse,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&PythonPyc27_PyObject_PyFalse) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for PythonPyc27_PyObject_PyFalse
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for PythonPyc27_PyObject_PyFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for &PythonPyc27_PyObject_PyFalse
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &PythonPyc27_PyObject_PyFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for OptRc<PythonPyc27_PyObject_PyFalse>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyFalse>
-    for &OptRc<PythonPyc27_PyObject_PyFalse>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &OptRc<PythonPyc27_PyObject_PyFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1985,11 +1717,7 @@ impl KStruct for PythonPyc27_PyObject_PyFalse {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2005,7 +1733,8 @@ impl KStruct for PythonPyc27_PyObject_PyFalse {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_PyFalse {}
+impl PythonPyc27_PyObject_PyFalse {
+}
 impl PythonPyc27_PyObject_PyFalse {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -2025,55 +1754,35 @@ pub struct PythonPyc27_PyObject_PyNone {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&PythonPyc27_PyObject_PyNone>
-    for OptRc<PythonPyc27_PyObject_PyNone>
-{
+impl TryFrom<&PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_PyNone) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_PyNone>
-    for OptRc<PythonPyc27_PyObject_PyNone>
-{
+impl TryFrom<&&PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_PyNone) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyNone>
-    for PythonPyc27_PyObject_PyNone
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for PythonPyc27_PyObject_PyNone {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyNone>
-    for &PythonPyc27_PyObject_PyNone
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &PythonPyc27_PyObject_PyNone {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyNone>
-    for OptRc<PythonPyc27_PyObject_PyNone>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyNone>
-    for &OptRc<PythonPyc27_PyObject_PyNone>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &OptRc<PythonPyc27_PyObject_PyNone> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2081,11 +1790,7 @@ impl KStruct for PythonPyc27_PyObject_PyNone {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2101,7 +1806,8 @@ impl KStruct for PythonPyc27_PyObject_PyNone {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_PyNone {}
+impl PythonPyc27_PyObject_PyNone {
+}
 impl PythonPyc27_PyObject_PyNone {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -2124,59 +1830,35 @@ pub struct PythonPyc27_PyObject_PyString {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&PythonPyc27_PyObject_PyString>
-    for OptRc<PythonPyc27_PyObject_PyString>
-{
+impl TryFrom<&PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
     type Error = KError;
-    fn try_from(
-        v: &PythonPyc27_PyObject_PyString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &PythonPyc27_PyObject_PyString) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_PyString>
-    for OptRc<PythonPyc27_PyObject_PyString>
-{
+impl TryFrom<&&PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
     type Error = KError;
-    fn try_from(
-        v: &&PythonPyc27_PyObject_PyString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&PythonPyc27_PyObject_PyString) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for PythonPyc27_PyObject_PyString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for PythonPyc27_PyObject_PyString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for &PythonPyc27_PyObject_PyString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &PythonPyc27_PyObject_PyString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for OptRc<PythonPyc27_PyObject_PyString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyString>
-    for &OptRc<PythonPyc27_PyObject_PyString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &OptRc<PythonPyc27_PyObject_PyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2184,11 +1866,7 @@ impl KStruct for PythonPyc27_PyObject_PyString {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2202,14 +1880,14 @@ impl KStruct for PythonPyc27_PyObject_PyString {
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.length())?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.length())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_PyString {}
+impl PythonPyc27_PyObject_PyString {
+}
 impl PythonPyc27_PyObject_PyString {
     pub fn length(&self) -> Ref<'_, u32> {
         self.length.borrow()
@@ -2244,55 +1922,35 @@ pub struct PythonPyc27_PyObject_PyTrue {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&PythonPyc27_PyObject_PyTrue>
-    for OptRc<PythonPyc27_PyObject_PyTrue>
-{
+impl TryFrom<&PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_PyTrue) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_PyTrue>
-    for OptRc<PythonPyc27_PyObject_PyTrue>
-{
+impl TryFrom<&&PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_PyTrue) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyTrue>
-    for PythonPyc27_PyObject_PyTrue
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for PythonPyc27_PyObject_PyTrue {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyTrue>
-    for &PythonPyc27_PyObject_PyTrue
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &PythonPyc27_PyObject_PyTrue {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyTrue>
-    for OptRc<PythonPyc27_PyObject_PyTrue>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_PyTrue>
-    for &OptRc<PythonPyc27_PyObject_PyTrue>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &OptRc<PythonPyc27_PyObject_PyTrue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2300,11 +1958,7 @@ impl KStruct for PythonPyc27_PyObject_PyTrue {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2320,7 +1974,8 @@ impl KStruct for PythonPyc27_PyObject_PyTrue {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_PyTrue {}
+impl PythonPyc27_PyObject_PyTrue {
+}
 impl PythonPyc27_PyObject_PyTrue {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -2341,59 +1996,35 @@ pub struct PythonPyc27_PyObject_StringRef {
     interned_list_index: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&PythonPyc27_PyObject_StringRef>
-    for OptRc<PythonPyc27_PyObject_StringRef>
-{
+impl TryFrom<&PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
     type Error = KError;
-    fn try_from(
-        v: &PythonPyc27_PyObject_StringRef,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &PythonPyc27_PyObject_StringRef) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_StringRef>
-    for OptRc<PythonPyc27_PyObject_StringRef>
-{
+impl TryFrom<&&PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
     type Error = KError;
-    fn try_from(
-        v: &&PythonPyc27_PyObject_StringRef,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&PythonPyc27_PyObject_StringRef) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for PythonPyc27_PyObject_StringRef
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for PythonPyc27_PyObject_StringRef {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for &PythonPyc27_PyObject_StringRef
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &PythonPyc27_PyObject_StringRef {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for OptRc<PythonPyc27_PyObject_StringRef>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_StringRef>
-    for &OptRc<PythonPyc27_PyObject_StringRef>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &OptRc<PythonPyc27_PyObject_StringRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2401,11 +2032,7 @@ impl KStruct for PythonPyc27_PyObject_StringRef {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2423,7 +2050,8 @@ impl KStruct for PythonPyc27_PyObject_StringRef {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_StringRef {}
+impl PythonPyc27_PyObject_StringRef {
+}
 impl PythonPyc27_PyObject_StringRef {
     pub fn interned_list_index(&self) -> Ref<'_, u32> {
         self.interned_list_index.borrow()
@@ -2450,51 +2078,35 @@ pub struct PythonPyc27_PyObject_Tuple {
     items: RefCell<Vec<OptRc<PythonPyc27_PyObject>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&PythonPyc27_PyObject_Tuple>
-    for OptRc<PythonPyc27_PyObject_Tuple>
-{
+impl TryFrom<&PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
     type Error = KError;
     fn try_from(v: &PythonPyc27_PyObject_Tuple) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_Tuple>
-    for OptRc<PythonPyc27_PyObject_Tuple>
-{
+impl TryFrom<&&PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
     type Error = KError;
     fn try_from(v: &&PythonPyc27_PyObject_Tuple) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for PythonPyc27_PyObject_Tuple {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &PythonPyc27_PyObject_Tuple {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_Tuple>
-    for OptRc<PythonPyc27_PyObject_Tuple>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_Tuple>
-    for &OptRc<PythonPyc27_PyObject_Tuple>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &OptRc<PythonPyc27_PyObject_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2502,11 +2114,7 @@ impl KStruct for PythonPyc27_PyObject_Tuple {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2523,12 +2131,7 @@ impl KStruct for PythonPyc27_PyObject_Tuple {
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_items {
-            let t = Self::read_into::<_, PythonPyc27_PyObject>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.items.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2536,7 +2139,8 @@ impl KStruct for PythonPyc27_PyObject_Tuple {
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_Tuple {}
+impl PythonPyc27_PyObject_Tuple {
+}
 impl PythonPyc27_PyObject_Tuple {
     pub fn count(&self) -> Ref<'_, u32> {
         self.count.borrow()
@@ -2569,59 +2173,35 @@ pub struct PythonPyc27_PyObject_UnicodeString {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&PythonPyc27_PyObject_UnicodeString>
-    for OptRc<PythonPyc27_PyObject_UnicodeString>
-{
+impl TryFrom<&PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
     type Error = KError;
-    fn try_from(
-        v: &PythonPyc27_PyObject_UnicodeString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &PythonPyc27_PyObject_UnicodeString) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&PythonPyc27_PyObject_UnicodeString>
-    for OptRc<PythonPyc27_PyObject_UnicodeString>
-{
+impl TryFrom<&&PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
     type Error = KError;
-    fn try_from(
-        v: &&PythonPyc27_PyObject_UnicodeString,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&PythonPyc27_PyObject_UnicodeString) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString>
-    for PythonPyc27_PyObject_UnicodeString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for PythonPyc27_PyObject_UnicodeString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString>
-    for &PythonPyc27_PyObject_UnicodeString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for &PythonPyc27_PyObject_UnicodeString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString>
-    for OptRc<PythonPyc27_PyObject_UnicodeString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString>
-    for &OptRc<PythonPyc27_PyObject_UnicodeString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for &OptRc<PythonPyc27_PyObject_UnicodeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2629,11 +2209,7 @@ impl KStruct for PythonPyc27_PyObject_UnicodeString {
     type Root = PythonPyc27;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2647,16 +2223,14 @@ impl KStruct for PythonPyc27_PyObject_UnicodeString {
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.length())?)?,
-            "utf-8",
-        )?;
+        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "utf-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PythonPyc27_PyObject_UnicodeString {}
+impl PythonPyc27_PyObject_UnicodeString {
+}
 impl PythonPyc27_PyObject_UnicodeString {
     pub fn length(&self) -> Ref<'_, u32> {
         self.length.borrow()

@@ -58,11 +58,7 @@ impl KStruct for QuakePak {
     type Root = QuakePak;
     type Parent = QuakePak;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -76,10 +72,7 @@ impl KStruct for QuakePak {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_index.borrow_mut() = _io.read_u4le()?;
@@ -91,28 +84,20 @@ impl KStruct for QuakePak {
     }
 }
 impl QuakePak {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn index(&self) -> KResult<Ref<'_, OptRc<QuakePak_IndexStruct>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn index(
+        &self
+    ) -> KResult<Ref<'_, OptRc<QuakePak_IndexStruct>>> {
         let _io = self._io.borrow();
         if self.f_index.get() {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_index())?)?;
-        *self.index_raw.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self.len_index())?)?.into();
+        *self.index_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_index())?)?.into();
         let index_raw = self.index_raw.borrow();
         let _t_index_raw_io = BytesReader::from(index_raw.clone());
-        let t = Self::read_into::<BytesReader, QuakePak_IndexStruct>(
-            &_t_index_raw_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, QuakePak_IndexStruct>(&_t_index_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.index.borrow())
@@ -199,11 +184,7 @@ impl KStruct for QuakePak_IndexEntry {
     type Root = QuakePak;
     type Parent = QuakePak_IndexStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,15 +196,7 @@ impl KStruct for QuakePak_IndexEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(56_usize)?,
-                Some(0),
-                false,
-                Some(0),
-            ),
-            "UTF-8",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(56_usize)?, Some(0), false, Some(0)), "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -234,31 +207,19 @@ impl KStruct for QuakePak_IndexEntry {
     }
 }
 impl QuakePak_IndexEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs())?)?;
-        *self.body.borrow_mut() =
-            io.read_bytes(usize::try_from(*self.size())?)?;
+        *self.body.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?;
         io.seek(_pos)?;
         Ok(self.body.borrow())
     }
@@ -339,11 +300,7 @@ impl KStruct for QuakePak_IndexStruct {
     type Root = QuakePak;
     type Parent = QuakePak;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -359,12 +316,7 @@ impl KStruct for QuakePak_IndexStruct {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, QuakePak_IndexEntry>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, QuakePak_IndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -374,7 +326,8 @@ impl KStruct for QuakePak_IndexStruct {
         Ok(())
     }
 }
-impl QuakePak_IndexStruct {}
+impl QuakePak_IndexStruct {
+}
 impl QuakePak_IndexStruct {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<QuakePak_IndexEntry>>> {
         self.entries.borrow()

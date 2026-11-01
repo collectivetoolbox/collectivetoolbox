@@ -112,11 +112,7 @@ impl KStruct for ExprSizeofValueSized {
     type Root = ExprSizeofValueSized;
     type Parent = ExprSizeofValueSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,12 +127,7 @@ impl KStruct for ExprSizeofValueSized {
         let _raw_block1 = _io.read_bytes(12_usize)?;
         *self_rc.block1_raw.borrow_mut() = _raw_block1.clone();
         let _io_block1 = BytesReader::from(_raw_block1);
-        let t = Self::read_into::<BytesReader, ExprSizeofValueSized_Block>(
-            &_io_block1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ExprSizeofValueSized_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.more.borrow_mut() = _io.read_u2le()?;
@@ -146,12 +137,10 @@ impl KStruct for ExprSizeofValueSized {
     }
 }
 impl ExprSizeofValueSized {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn self_sizeof(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn self_sizeof(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_self_sizeof.get() {
             return Ok(self.self_sizeof.borrow());
@@ -160,12 +149,10 @@ impl ExprSizeofValueSized {
         *self.self_sizeof.borrow_mut() = (14_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block.get() {
             return Ok(self.sizeof_block.borrow());
@@ -174,12 +161,10 @@ impl ExprSizeofValueSized {
         *self.sizeof_block.borrow_mut() = (12_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_a(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_a(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_a.get() {
             return Ok(self.sizeof_block_a.borrow());
@@ -188,12 +173,10 @@ impl ExprSizeofValueSized {
         *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_b(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_b(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_b.get() {
             return Ok(self.sizeof_block_b.borrow());
@@ -202,12 +185,10 @@ impl ExprSizeofValueSized {
         *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sizeof_block_c(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sizeof_block_c(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sizeof_block_c.get() {
             return Ok(self.sizeof_block_c.borrow());
@@ -255,51 +236,35 @@ pub struct ExprSizeofValueSized_Block {
     _io: RefCell<BytesReader>,
     c_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ExprSizeofValueSized_Block>
-    for OptRc<ExprSizeofValueSized_Block>
-{
+impl TryFrom<&ExprSizeofValueSized_Block> for OptRc<ExprSizeofValueSized_Block> {
     type Error = KError;
     fn try_from(v: &ExprSizeofValueSized_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ExprSizeofValueSized_Block>
-    for OptRc<ExprSizeofValueSized_Block>
-{
+impl TryFrom<&&ExprSizeofValueSized_Block> for OptRc<ExprSizeofValueSized_Block> {
     type Error = KError;
     fn try_from(v: &&ExprSizeofValueSized_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<ExprSizeofValueSized_Block> for ExprSizeofValueSized_Block {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ExprSizeofValueSized_Block> for &ExprSizeofValueSized_Block {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ExprSizeofValueSized_Block>
-    for OptRc<ExprSizeofValueSized_Block>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
+impl DowncastOptRc<ExprSizeofValueSized_Block> for OptRc<ExprSizeofValueSized_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ExprSizeofValueSized_Block>
-    for &OptRc<ExprSizeofValueSized_Block>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
+impl DowncastOptRc<ExprSizeofValueSized_Block> for &OptRc<ExprSizeofValueSized_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValueSized_Block>, KError> {
         Ok((*self).clone())
     }
 }
@@ -307,11 +272,7 @@ impl KStruct for ExprSizeofValueSized_Block {
     type Root = ExprSizeofValueSized;
     type Parent = ExprSizeofValueSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -333,7 +294,8 @@ impl KStruct for ExprSizeofValueSized_Block {
         Ok(())
     }
 }
-impl ExprSizeofValueSized_Block {}
+impl ExprSizeofValueSized_Block {
+}
 impl ExprSizeofValueSized_Block {
     pub fn a(&self) -> Ref<'_, u8> {
         self.a.borrow()

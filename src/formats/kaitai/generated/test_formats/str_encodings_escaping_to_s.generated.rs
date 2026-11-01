@@ -110,9 +110,7 @@ impl DowncastOptRc<StrEncodingsEscapingToS> for OptRc<StrEncodingsEscapingToS> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingToS>
-    for &OptRc<StrEncodingsEscapingToS>
-{
+impl DowncastOptRc<StrEncodingsEscapingToS> for &OptRc<StrEncodingsEscapingToS> {
     fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingToS>, KError> {
         Ok((*self).clone())
     }
@@ -121,11 +119,7 @@ impl KStruct for StrEncodingsEscapingToS {
     type Root = StrEncodingsEscapingToS;
     type Parent = StrEncodingsEscapingToS;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -139,87 +133,71 @@ impl KStruct for StrEncodingsEscapingToS {
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str1_raw.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_of_1()))?;
+        *self_rc.str1_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_1()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str2_raw.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_of_2()))?;
+        *self_rc.str2_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_2()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str3_raw.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
+        *self_rc.str3_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str4_raw.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
+        *self_rc.str4_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl StrEncodingsEscapingToS {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn str1(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn str1(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str1.get() {
             return Ok(self.str1.borrow());
         }
         self.f_str1.set(true);
-        *self.str1.borrow_mut() =
-            bytes_to_str(&self.str1_raw(), "ASCII\\x")?.to_string();
+        *self.str1.borrow_mut() = bytes_to_str(&self.str1_raw(), "ASCII\\x")?.to_string();
         Ok(self.str1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn str2(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn str2(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str2.get() {
             return Ok(self.str2.borrow());
         }
         self.f_str2.set(true);
-        *self.str2.borrow_mut() =
-            bytes_to_str(&self.str2_raw(), "UTF-8\\'x")?.to_string();
+        *self.str2.borrow_mut() = bytes_to_str(&self.str2_raw(), "UTF-8\\'x")?.to_string();
         Ok(self.str2.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn str3(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn str3(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str3.get() {
             return Ok(self.str3.borrow());
         }
         self.f_str3.set(true);
-        *self.str3.borrow_mut() =
-            bytes_to_str(&self.str3_raw(), "SJIS\"x")?.to_string();
+        *self.str3.borrow_mut() = bytes_to_str(&self.str3_raw(), "SJIS\"x")?.to_string();
         Ok(self.str3.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn str4(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn str4(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str4.get() {
             return Ok(self.str4.borrow());
         }
         self.f_str4.set(true);
-        *self.str4.borrow_mut() =
-            bytes_to_str(&self.str4_raw(), "IBM437\nx")?.to_string();
+        *self.str4.borrow_mut() = bytes_to_str(&self.str4_raw(), "IBM437\nx")?.to_string();
         Ok(self.str4.borrow())
     }
 }

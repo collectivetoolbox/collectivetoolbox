@@ -133,7 +133,7 @@ impl<'a> BinaryPayloadRef<'a> {
     /// Materializes the payload bytes, reading from `reader` if this is a `FileSpan`.
     pub fn materialize<R: Read + Seek>(
         &self,
-        mut reader: Option<&mut R>,
+        reader: Option<&mut R>,
     ) -> Result<Cow<'a, [u8]>> {
         match self {
             Self::Source { .. } => {

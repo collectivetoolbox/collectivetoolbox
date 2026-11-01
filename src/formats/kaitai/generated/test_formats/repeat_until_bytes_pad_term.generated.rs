@@ -92,9 +92,7 @@ impl DowncastOptRc<RepeatUntilBytesPadTerm> for OptRc<RepeatUntilBytesPadTerm> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilBytesPadTerm>
-    for &OptRc<RepeatUntilBytesPadTerm>
-{
+impl DowncastOptRc<RepeatUntilBytesPadTerm> for &OptRc<RepeatUntilBytesPadTerm> {
     fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilBytesPadTerm>, KError> {
         Ok((*self).clone())
     }
@@ -103,11 +101,7 @@ impl KStruct for RepeatUntilBytesPadTerm {
     type Root = RepeatUntilBytesPadTerm;
     type Parent = RepeatUntilBytesPadTerm;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,20 +117,11 @@ impl KStruct for RepeatUntilBytesPadTerm {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records.borrow_mut().push(bytes_terminate_pad(
-                    &_io.read_bytes(5_usize)?,
-                    Some(85),
-                    true,
-                    Some(170),
-                ));
+                self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, Some(85), true, Some(170)));
                 let _t_records = self_rc.records.borrow();
-                let Some(_tmpa) = _t_records.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_records.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa == vec![0xaau8, 0x55u8] {
-                    break;
-                }
+                if *_tmpa == vec![0xaau8, 0x55u8] { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -144,7 +129,8 @@ impl KStruct for RepeatUntilBytesPadTerm {
         Ok(())
     }
 }
-impl RepeatUntilBytesPadTerm {}
+impl RepeatUntilBytesPadTerm {
+}
 impl RepeatUntilBytesPadTerm {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

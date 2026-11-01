@@ -101,11 +101,7 @@ impl KStruct for RepeatNBytes {
     type Root = RepeatNBytes;
     type Parent = RepeatNBytes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,7 +123,8 @@ impl KStruct for RepeatNBytes {
         Ok(())
     }
 }
-impl RepeatNBytes {}
+impl RepeatNBytes {
+}
 impl RepeatNBytes {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

@@ -2,12 +2,12 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::ethernet_frame::EthernetFrame;
-use super::ethernet_frame::*;
-use super::windows_systemtime::WindowsSystemtime;
-use super::windows_systemtime::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::windows_systemtime::WindowsSystemtime;
+use super::windows_systemtime::*;
+use super::ethernet_frame::EthernetFrame;
+use super::ethernet_frame::*;
 
 /**
  * Microsoft Network Monitor (AKA Netmon) is a proprietary Microsoft's
@@ -61,34 +61,22 @@ impl TryFrom<&&MicrosoftNetworkMonitorV2> for OptRc<MicrosoftNetworkMonitorV2> {
     }
 }
 impl DowncastOptRc<MicrosoftNetworkMonitorV2> for MicrosoftNetworkMonitorV2 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<MicrosoftNetworkMonitorV2> for &MicrosoftNetworkMonitorV2 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2>
-    for OptRc<MicrosoftNetworkMonitorV2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2> for OptRc<MicrosoftNetworkMonitorV2> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2>
-    for &OptRc<MicrosoftNetworkMonitorV2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2> for &OptRc<MicrosoftNetworkMonitorV2> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2>, KError> {
         Ok((*self).clone())
     }
 }
@@ -96,11 +84,7 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,21 +98,16 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
         let _io = io;
         *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x47u8, 0x4du8, 0x42u8, 0x55u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_minor.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.mac_type.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.mac_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t =
-            Self::read_into::<_, WindowsSystemtime>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, WindowsSystemtime>(&*_io, None, None)?.into();
         *self_rc.time_capture_start.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_table_ofs.borrow_mut() = _io.read_u4le()?;
@@ -160,16 +139,13 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
     }
 }
 impl MicrosoftNetworkMonitorV2 {
+
     /**
      * Index that is used to access individual captured frames
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn frame_table(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftNetworkMonitorV2_FrameIndex>>> {
         let _io = self._io.borrow();
         if self.f_frame_table.get() {
@@ -177,20 +153,10 @@ impl MicrosoftNetworkMonitorV2 {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.frame_table_ofs())?)?;
-        *self.frame_table_raw.borrow_mut() = _io
-            .read_bytes(usize::try_from(*self.frame_table_len())?)?
-            .into();
+        *self.frame_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.frame_table_len())?)?.into();
         let frame_table_raw = self.frame_table_raw.borrow();
         let _t_frame_table_raw_io = BytesReader::from(frame_table_raw.clone());
-        let t = Self::read_into::<
-            BytesReader,
-            MicrosoftNetworkMonitorV2_FrameIndex,
-        >(
-            &_t_frame_table_raw_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, MicrosoftNetworkMonitorV2_FrameIndex>(&_t_frame_table_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.frame_table.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.frame_table.borrow())
@@ -486,9 +452,7 @@ impl TryFrom<i64> for MicrosoftNetworkMonitorV2_Linktype {
             195 => Ok(MicrosoftNetworkMonitorV2_Linktype::Ieee802154),
             196 => Ok(MicrosoftNetworkMonitorV2_Linktype::Sita),
             197 => Ok(MicrosoftNetworkMonitorV2_Linktype::Erf),
-            201 => {
-                Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothHciH4WithPhdr)
-            }
+            201 => Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothHciH4WithPhdr),
             202 => Ok(MicrosoftNetworkMonitorV2_Linktype::Ax25Kiss),
             203 => Ok(MicrosoftNetworkMonitorV2_Linktype::Lapd),
             204 => Ok(MicrosoftNetworkMonitorV2_Linktype::PppWithDir),
@@ -510,9 +474,7 @@ impl TryFrom<i64> for MicrosoftNetworkMonitorV2_Linktype {
             237 => Ok(MicrosoftNetworkMonitorV2_Linktype::Stanag5066DPdu),
             239 => Ok(MicrosoftNetworkMonitorV2_Linktype::Nflog),
             240 => Ok(MicrosoftNetworkMonitorV2_Linktype::Netanalyzer),
-            241 => {
-                Ok(MicrosoftNetworkMonitorV2_Linktype::NetanalyzerTransparent)
-            }
+            241 => Ok(MicrosoftNetworkMonitorV2_Linktype::NetanalyzerTransparent),
             242 => Ok(MicrosoftNetworkMonitorV2_Linktype::Ipoib),
             243 => Ok(MicrosoftNetworkMonitorV2_Linktype::Mpeg2Ts),
             244 => Ok(MicrosoftNetworkMonitorV2_Linktype::Ng40),
@@ -523,13 +485,9 @@ impl TryFrom<i64> for MicrosoftNetworkMonitorV2_Linktype {
             250 => Ok(MicrosoftNetworkMonitorV2_Linktype::RtacSerial),
             251 => Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothLeLl),
             253 => Ok(MicrosoftNetworkMonitorV2_Linktype::Netlink),
-            254 => {
-                Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothLinuxMonitor)
-            }
+            254 => Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothLinuxMonitor),
             255 => Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothBredrBb),
-            256 => {
-                Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothLeLlWithPhdr)
-            }
+            256 => Ok(MicrosoftNetworkMonitorV2_Linktype::BluetoothLeLlWithPhdr),
             257 => Ok(MicrosoftNetworkMonitorV2_Linktype::ProfibusDl),
             258 => Ok(MicrosoftNetworkMonitorV2_Linktype::Pktap),
             259 => Ok(MicrosoftNetworkMonitorV2_Linktype::Epon),
@@ -650,16 +608,15 @@ impl From<&MicrosoftNetworkMonitorV2_Linktype> for i64 {
             MicrosoftNetworkMonitorV2_Linktype::ZwaveR3 => 262,
             MicrosoftNetworkMonitorV2_Linktype::WattstopperDlm => 263,
             MicrosoftNetworkMonitorV2_Linktype::Iso14443 => 264,
-            MicrosoftNetworkMonitorV2_Linktype::Unknown(v) => v,
+            MicrosoftNetworkMonitorV2_Linktype::Unknown(v) => v
         }
     }
 }
 
 impl Default for MicrosoftNetworkMonitorV2_Linktype {
-    fn default() -> Self {
-        MicrosoftNetworkMonitorV2_Linktype::Unknown(0)
-    }
+    fn default() -> Self { MicrosoftNetworkMonitorV2_Linktype::Unknown(0) }
 }
+
 
 /**
  * A container for actually captured network data. Allow to
@@ -687,9 +644,7 @@ pub enum MicrosoftNetworkMonitorV2_Frame_Body {
 }
 impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
     type Error = KError;
-    fn try_from(
-        v: &MicrosoftNetworkMonitorV2_Frame_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         if let MicrosoftNetworkMonitorV2_Frame_Body::EthernetFrame(x) = v {
             return Ok(x.clone());
         }
@@ -698,9 +653,7 @@ impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
 }
 impl TryFrom<&&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
     type Error = KError;
-    fn try_from(
-        v: &&MicrosoftNetworkMonitorV2_Frame_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -721,9 +674,7 @@ impl From<OptRc<EthernetFrame>> for MicrosoftNetworkMonitorV2_Frame_Body {
 }
 impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &MicrosoftNetworkMonitorV2_Frame_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         if let MicrosoftNetworkMonitorV2_Frame_Body::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -732,9 +683,7 @@ impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
 }
 impl TryFrom<&&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&MicrosoftNetworkMonitorV2_Frame_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -743,59 +692,35 @@ impl From<Vec<u8>> for MicrosoftNetworkMonitorV2_Frame_Body {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&MicrosoftNetworkMonitorV2_Frame>
-    for OptRc<MicrosoftNetworkMonitorV2_Frame>
-{
+impl TryFrom<&MicrosoftNetworkMonitorV2_Frame> for OptRc<MicrosoftNetworkMonitorV2_Frame> {
     type Error = KError;
-    fn try_from(
-        v: &MicrosoftNetworkMonitorV2_Frame,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &MicrosoftNetworkMonitorV2_Frame) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MicrosoftNetworkMonitorV2_Frame>
-    for OptRc<MicrosoftNetworkMonitorV2_Frame>
-{
+impl TryFrom<&&MicrosoftNetworkMonitorV2_Frame> for OptRc<MicrosoftNetworkMonitorV2_Frame> {
     type Error = KError;
-    fn try_from(
-        v: &&MicrosoftNetworkMonitorV2_Frame,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&MicrosoftNetworkMonitorV2_Frame) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame>
-    for MicrosoftNetworkMonitorV2_Frame
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame> for MicrosoftNetworkMonitorV2_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame>
-    for &MicrosoftNetworkMonitorV2_Frame
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame> for &MicrosoftNetworkMonitorV2_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame>
-    for OptRc<MicrosoftNetworkMonitorV2_Frame>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame> for OptRc<MicrosoftNetworkMonitorV2_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame>
-    for &OptRc<MicrosoftNetworkMonitorV2_Frame>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_Frame> for &OptRc<MicrosoftNetworkMonitorV2_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_Frame>, KError> {
         Ok((*self).clone())
     }
 }
@@ -803,11 +728,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -825,34 +746,16 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inc_len.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .mac_type()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.mac_type() {
             MicrosoftNetworkMonitorV2_Linktype::Ethernet => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.inc_len())?)?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.inc_len())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, EthernetFrame>(
-                    &_t_body_raw_io,
-                    None,
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, EthernetFrame>(&_t_body_raw_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.inc_len())?)?
-                        .into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.inc_len())?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -860,7 +763,8 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
         Ok(())
     }
 }
-impl MicrosoftNetworkMonitorV2_Frame {}
+impl MicrosoftNetworkMonitorV2_Frame {
+}
 
 /**
  * Time stamp - usecs since start of capture
@@ -893,9 +797,7 @@ impl MicrosoftNetworkMonitorV2_Frame {
  * Actual packet captured from the network
  */
 impl MicrosoftNetworkMonitorV2_Frame {
-    pub fn body(
-        &self,
-    ) -> Ref<'_, Option<MicrosoftNetworkMonitorV2_Frame_Body>> {
+    pub fn body(&self) -> Ref<'_, Option<MicrosoftNetworkMonitorV2_Frame_Body>> {
         self.body.borrow()
     }
 }
@@ -924,59 +826,35 @@ pub struct MicrosoftNetworkMonitorV2_FrameIndex {
     entries: RefCell<Vec<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&MicrosoftNetworkMonitorV2_FrameIndex>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-{
+impl TryFrom<&MicrosoftNetworkMonitorV2_FrameIndex> for OptRc<MicrosoftNetworkMonitorV2_FrameIndex> {
     type Error = KError;
-    fn try_from(
-        v: &MicrosoftNetworkMonitorV2_FrameIndex,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &MicrosoftNetworkMonitorV2_FrameIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MicrosoftNetworkMonitorV2_FrameIndex>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-{
+impl TryFrom<&&MicrosoftNetworkMonitorV2_FrameIndex> for OptRc<MicrosoftNetworkMonitorV2_FrameIndex> {
     type Error = KError;
-    fn try_from(
-        v: &&MicrosoftNetworkMonitorV2_FrameIndex,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&MicrosoftNetworkMonitorV2_FrameIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-    for MicrosoftNetworkMonitorV2_FrameIndex
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex> for MicrosoftNetworkMonitorV2_FrameIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-    for &MicrosoftNetworkMonitorV2_FrameIndex
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex> for &MicrosoftNetworkMonitorV2_FrameIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex> for OptRc<MicrosoftNetworkMonitorV2_FrameIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-    for &OptRc<MicrosoftNetworkMonitorV2_FrameIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndex> for &OptRc<MicrosoftNetworkMonitorV2_FrameIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndex>, KError> {
         Ok((*self).clone())
     }
 }
@@ -984,11 +862,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1004,15 +878,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<
-                    _,
-                    MicrosoftNetworkMonitorV2_FrameIndexEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, MicrosoftNetworkMonitorV2_FrameIndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1022,11 +888,10 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
         Ok(())
     }
 }
-impl MicrosoftNetworkMonitorV2_FrameIndex {}
 impl MicrosoftNetworkMonitorV2_FrameIndex {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>>> {
+}
+impl MicrosoftNetworkMonitorV2_FrameIndex {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>>> {
         self.entries.borrow()
     }
 }
@@ -1057,59 +922,35 @@ pub struct MicrosoftNetworkMonitorV2_FrameIndexEntry {
     f_body: Cell<bool>,
     body: RefCell<OptRc<MicrosoftNetworkMonitorV2_Frame>>,
 }
-impl TryFrom<&MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-{
+impl TryFrom<&MicrosoftNetworkMonitorV2_FrameIndexEntry> for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> {
     type Error = KError;
-    fn try_from(
-        v: &MicrosoftNetworkMonitorV2_FrameIndexEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &MicrosoftNetworkMonitorV2_FrameIndexEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-{
+impl TryFrom<&&MicrosoftNetworkMonitorV2_FrameIndexEntry> for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&MicrosoftNetworkMonitorV2_FrameIndexEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&MicrosoftNetworkMonitorV2_FrameIndexEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for MicrosoftNetworkMonitorV2_FrameIndexEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> for MicrosoftNetworkMonitorV2_FrameIndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for &MicrosoftNetworkMonitorV2_FrameIndexEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> for &MicrosoftNetworkMonitorV2_FrameIndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> for OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-    for &OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
+impl DowncastOptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> for &OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftNetworkMonitorV2_FrameIndexEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1117,11 +958,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndexEntry {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1140,39 +977,22 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndexEntry {
     }
 }
 impl MicrosoftNetworkMonitorV2_FrameIndexEntry {
+
     /**
      * Frame body itself
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftNetworkMonitorV2_Frame>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs())?)?;
-        let t = Self::read_into::<_, MicrosoftNetworkMonitorV2_Frame>(
-            &io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, MicrosoftNetworkMonitorV2_Frame>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.body.borrow())

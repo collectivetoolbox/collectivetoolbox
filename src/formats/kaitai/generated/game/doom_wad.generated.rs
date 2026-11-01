@@ -54,11 +54,7 @@ impl KStruct for DoomWad {
     type Root = DoomWad;
     type Parent = DoomWad;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -70,8 +66,7 @@ impl KStruct for DoomWad {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_index_entries.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -82,12 +77,10 @@ impl KStruct for DoomWad {
     }
 }
 impl DoomWad {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn index(&self) -> KResult<Ref<'_, Vec<OptRc<DoomWad_IndexEntry>>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn index(
+        &self
+    ) -> KResult<Ref<'_, Vec<OptRc<DoomWad_IndexEntry>>>> {
         let _io = self._io.borrow();
         if self.f_index.get() {
             return Ok(self.index.borrow());
@@ -98,12 +91,7 @@ impl DoomWad {
         *self.index.borrow_mut() = Vec::new();
         let l_index = usize::try_from(*self.num_index_entries())?;
         for _i in 0_usize..l_index {
-            let t = Self::read_into::<_, DoomWad_IndexEntry>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, DoomWad_IndexEntry>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.index.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -198,11 +186,7 @@ impl KStruct for DoomWad_Blockmap {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -223,16 +207,9 @@ impl KStruct for DoomWad_Blockmap {
         *self_rc.num_rows.borrow_mut() = _io.read_s2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.linedefs_in_block.borrow_mut() = Vec::new();
-        let l_linedefs_in_block = usize::try_from(
-            (*self_rc.num_cols()).saturating_mul(*self_rc.num_rows()),
-        )?;
+        let l_linedefs_in_block = usize::try_from((*self_rc.num_cols()).saturating_mul(*self_rc.num_rows()))?;
         for _i in 0_usize..l_linedefs_in_block {
-            let t = Self::read_into::<_, DoomWad_Blockmap_Blocklist>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, DoomWad_Blockmap_Blocklist>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.linedefs_in_block.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -240,7 +217,8 @@ impl KStruct for DoomWad_Blockmap {
         Ok(())
     }
 }
-impl DoomWad_Blockmap {}
+impl DoomWad_Blockmap {
+}
 
 /**
  * Grid origin, X coord
@@ -282,9 +260,7 @@ impl DoomWad_Blockmap {
  * Lists of linedefs for every block
  */
 impl DoomWad_Blockmap {
-    pub fn linedefs_in_block(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<DoomWad_Blockmap_Blocklist>>> {
+    pub fn linedefs_in_block(&self) -> Ref<'_, Vec<OptRc<DoomWad_Blockmap_Blocklist>>> {
         self.linedefs_in_block.borrow()
     }
 }
@@ -310,51 +286,35 @@ pub struct DoomWad_Blockmap_Blocklist {
     f_linedefs: Cell<bool>,
     linedefs: RefCell<Vec<i16>>,
 }
-impl TryFrom<&DoomWad_Blockmap_Blocklist>
-    for OptRc<DoomWad_Blockmap_Blocklist>
-{
+impl TryFrom<&DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
     type Error = KError;
     fn try_from(v: &DoomWad_Blockmap_Blocklist) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DoomWad_Blockmap_Blocklist>
-    for OptRc<DoomWad_Blockmap_Blocklist>
-{
+impl TryFrom<&&DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
     type Error = KError;
     fn try_from(v: &&DoomWad_Blockmap_Blocklist) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for DoomWad_Blockmap_Blocklist {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for &DoomWad_Blockmap_Blocklist {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Blockmap_Blocklist>
-    for OptRc<DoomWad_Blockmap_Blocklist>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DoomWad_Blockmap_Blocklist>
-    for &OptRc<DoomWad_Blockmap_Blocklist>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for &OptRc<DoomWad_Blockmap_Blocklist> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
         Ok((*self).clone())
     }
 }
@@ -362,11 +322,7 @@ impl KStruct for DoomWad_Blockmap_Blocklist {
     type Root = DoomWad;
     type Parent = DoomWad_Blockmap;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -385,40 +341,31 @@ impl KStruct for DoomWad_Blockmap_Blocklist {
     }
 }
 impl DoomWad_Blockmap_Blocklist {
+
     /**
      * List of linedefs found in this block
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn linedefs(&self) -> KResult<Ref<'_, Vec<i16>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn linedefs(
+        &self
+    ) -> KResult<Ref<'_, Vec<i16>>> {
         let _io = self._io.borrow();
         if self.f_linedefs.get() {
             return Ok(self.linedefs.borrow());
         }
         self.f_linedefs.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (i32::from(*self.offset())).saturating_mul(2_i32),
-        )?)?;
+        _io.seek(usize::try_from((i32::from(*self.offset())).saturating_mul(2_i32))?)?;
         *self.linedefs.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             loop {
                 self.linedefs.borrow_mut().push(_io.read_s2le()?);
                 let _t_linedefs = self.linedefs.borrow();
-                let Some(_tmpa) = _t_linedefs.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_linedefs.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa))
-                    == (to_i128((0_i32).saturating_sub(to_i32(1)))))
-                {
-                    break;
-                }
+                if (to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))) { break; }
             }
         }
         _io.seek(_pos)?;
@@ -768,11 +715,7 @@ impl KStruct for DoomWad_IndexEntry {
     type Root = DoomWad;
     type Parent = DoomWad;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -788,176 +731,91 @@ impl KStruct for DoomWad_IndexEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(8_usize)?,
-                None,
-                false,
-                Some(0),
-            ),
-            "ASCII",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DoomWad_IndexEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<DoomWad_IndexEntry_Contents>>> {
         let _io = self._io.borrow();
         if self.f_contents.get() {
             return Ok(self.contents.borrow());
         }
         self.f_contents.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.offset())?)?;
         match self.name().as_str() {
             "BLOCKMAP" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Blockmap>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Blockmap>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "LINEDEFS" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Linedefs>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Linedefs>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "PNAMES" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Pnames>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Pnames>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "SECTORS" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Sectors>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Sectors>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "SIDEDEFS" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Sidedefs>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Sidedefs>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "TEXTURE1" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Texture12>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Texture12>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "TEXTURE2" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Texture12>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Texture12>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "THINGS" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Things>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Things>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             "VERTEXES" => {
-                *self.contents_raw.borrow_mut() =
-                    io.read_bytes(usize::try_from(*self.size())?)?.into();
+                *self.contents_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size())?)?.into();
                 let contents_raw = self.contents_raw.borrow();
-                let _t_contents_raw_io =
-                    BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, DoomWad_Vertexes>(
-                    &_t_contents_raw_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                )?
-                .into();
+                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
+                let t = Self::read_into::<BytesReader, DoomWad_Vertexes>(&_t_contents_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
                 *self.contents.borrow_mut() = Some(t);
             }
             _ => {
-                *self.contents.borrow_mut() =
-                    Some(io.read_bytes(usize::try_from(*self.size())?)?.into());
+                *self.contents.borrow_mut() = Some(io.read_bytes(usize::try_from(*self.size())?)?.into());
             }
         }
         io.seek(_pos)?;
@@ -1051,11 +909,7 @@ impl KStruct for DoomWad_Linedef {
     type Root = DoomWad;
     type Parent = DoomWad_Linedefs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1085,7 +939,8 @@ impl KStruct for DoomWad_Linedef {
         Ok(())
     }
 }
-impl DoomWad_Linedef {}
+impl DoomWad_Linedef {
+}
 impl DoomWad_Linedef {
     pub fn vertex_start_idx(&self) -> Ref<'_, u16> {
         self.vertex_start_idx.borrow()
@@ -1177,11 +1032,7 @@ impl KStruct for DoomWad_Linedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1197,12 +1048,7 @@ impl KStruct for DoomWad_Linedefs {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DoomWad_Linedef>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DoomWad_Linedef>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1212,7 +1058,8 @@ impl KStruct for DoomWad_Linedefs {
         Ok(())
     }
 }
-impl DoomWad_Linedefs {}
+impl DoomWad_Linedefs {
+}
 impl DoomWad_Linedefs {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<DoomWad_Linedef>>> {
         self.entries.borrow()
@@ -1280,11 +1127,7 @@ impl KStruct for DoomWad_Pnames {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1301,22 +1144,15 @@ impl KStruct for DoomWad_Pnames {
         *self_rc.names.borrow_mut() = Vec::new();
         let l_names = usize::try_from(*self_rc.num_patches())?;
         for _i in 0_usize..l_names {
-            self_rc.names.borrow_mut().push(bytes_to_str(
-                &bytes_terminate_pad(
-                    &_io.read_bytes(8_usize)?,
-                    None,
-                    false,
-                    Some(0),
-                ),
-                "ASCII",
-            )?);
+            self_rc.names.borrow_mut().push(bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DoomWad_Pnames {}
+impl DoomWad_Pnames {
+}
 
 /**
  * Number of patches registered in this global game directory
@@ -1400,11 +1236,7 @@ impl KStruct for DoomWad_Sector {
     type Root = DoomWad;
     type Parent = DoomWad_Sectors;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1420,16 +1252,13 @@ impl KStruct for DoomWad_Sector {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ceil_z.borrow_mut() = _io.read_s2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.floor_flat.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.floor_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ceil_flat.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.ceil_flat.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.light.borrow_mut() = _io.read_s2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.special_type.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.special_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1437,7 +1266,8 @@ impl KStruct for DoomWad_Sector {
         Ok(())
     }
 }
-impl DoomWad_Sector {}
+impl DoomWad_Sector {
+}
 impl DoomWad_Sector {
     pub fn floor_z(&self) -> Ref<'_, i16> {
         self.floor_z.borrow()
@@ -1594,16 +1424,15 @@ impl From<&DoomWad_Sector_SpecialSector> for i64 {
             DoomWad_Sector_SpecialSector::LightSequenceStart => 22,
             DoomWad_Sector_SpecialSector::LightSequenceSpecial1 => 23,
             DoomWad_Sector_SpecialSector::LightSequenceSpecial2 => 24,
-            DoomWad_Sector_SpecialSector::Unknown(v) => v,
+            DoomWad_Sector_SpecialSector::Unknown(v) => v
         }
     }
 }
 
 impl Default for DoomWad_Sector_SpecialSector {
-    fn default() -> Self {
-        DoomWad_Sector_SpecialSector::Unknown(0)
-    }
+    fn default() -> Self { DoomWad_Sector_SpecialSector::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct DoomWad_Sectors {
@@ -1649,11 +1478,7 @@ impl KStruct for DoomWad_Sectors {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1669,12 +1494,7 @@ impl KStruct for DoomWad_Sectors {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DoomWad_Sector>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DoomWad_Sector>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1684,7 +1504,8 @@ impl KStruct for DoomWad_Sectors {
         Ok(())
     }
 }
-impl DoomWad_Sectors {}
+impl DoomWad_Sectors {
+}
 impl DoomWad_Sectors {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<DoomWad_Sector>>> {
         self.entries.borrow()
@@ -1754,11 +1575,7 @@ impl KStruct for DoomWad_Sidedef {
     type Root = DoomWad;
     type Parent = DoomWad_Sidedefs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1774,14 +1591,11 @@ impl KStruct for DoomWad_Sidedef {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_y.borrow_mut() = _io.read_s2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.upper_texture_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.upper_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.lower_texture_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.lower_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.normal_texture_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc.normal_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sector_id.borrow_mut() = _io.read_s2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1789,7 +1603,8 @@ impl KStruct for DoomWad_Sidedef {
         Ok(())
     }
 }
-impl DoomWad_Sidedef {}
+impl DoomWad_Sidedef {
+}
 impl DoomWad_Sidedef {
     pub fn offset_x(&self) -> Ref<'_, i16> {
         self.offset_x.borrow()
@@ -1891,11 +1706,7 @@ impl KStruct for DoomWad_Sidedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1911,12 +1722,7 @@ impl KStruct for DoomWad_Sidedefs {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DoomWad_Sidedef>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DoomWad_Sidedef>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1926,7 +1732,8 @@ impl KStruct for DoomWad_Sidedefs {
         Ok(())
     }
 }
-impl DoomWad_Sidedefs {}
+impl DoomWad_Sidedefs {
+}
 impl DoomWad_Sidedefs {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<DoomWad_Sidedef>>> {
         self.entries.borrow()
@@ -1998,11 +1805,7 @@ impl KStruct for DoomWad_Texture12 {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2019,12 +1822,7 @@ impl KStruct for DoomWad_Texture12 {
         *self_rc.textures.borrow_mut() = Vec::new();
         let l_textures = usize::try_from(*self_rc.num_textures())?;
         for _i in 0_usize..l_textures {
-            let t = Self::read_into::<_, DoomWad_Texture12_TextureIndex>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, DoomWad_Texture12_TextureIndex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.textures.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2032,7 +1830,8 @@ impl KStruct for DoomWad_Texture12 {
         Ok(())
     }
 }
-impl DoomWad_Texture12 {}
+impl DoomWad_Texture12 {
+}
 
 /**
  * Number of wall textures
@@ -2043,9 +1842,7 @@ impl DoomWad_Texture12 {
     }
 }
 impl DoomWad_Texture12 {
-    pub fn textures(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<DoomWad_Texture12_TextureIndex>>> {
+    pub fn textures(&self) -> Ref<'_, Vec<OptRc<DoomWad_Texture12_TextureIndex>>> {
         self.textures.borrow()
     }
 }
@@ -2100,9 +1897,7 @@ impl DowncastOptRc<DoomWad_Texture12_Patch> for OptRc<DoomWad_Texture12_Patch> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_Patch>
-    for &OptRc<DoomWad_Texture12_Patch>
-{
+impl DowncastOptRc<DoomWad_Texture12_Patch> for &OptRc<DoomWad_Texture12_Patch> {
     fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_Patch>, KError> {
         Ok((*self).clone())
     }
@@ -2111,11 +1906,7 @@ impl KStruct for DoomWad_Texture12_Patch {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureBody;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2141,7 +1932,8 @@ impl KStruct for DoomWad_Texture12_Patch {
         Ok(())
     }
 }
-impl DoomWad_Texture12_Patch {}
+impl DoomWad_Texture12_Patch {
+}
 
 /**
  * X offset to draw a patch at (pixels from left boundary of a texture)
@@ -2206,59 +1998,35 @@ pub struct DoomWad_Texture12_TextureBody {
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&DoomWad_Texture12_TextureBody>
-    for OptRc<DoomWad_Texture12_TextureBody>
-{
+impl TryFrom<&DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
     type Error = KError;
-    fn try_from(
-        v: &DoomWad_Texture12_TextureBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &DoomWad_Texture12_TextureBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DoomWad_Texture12_TextureBody>
-    for OptRc<DoomWad_Texture12_TextureBody>
-{
+impl TryFrom<&&DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
     type Error = KError;
-    fn try_from(
-        v: &&DoomWad_Texture12_TextureBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&DoomWad_Texture12_TextureBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureBody>
-    for DoomWad_Texture12_TextureBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for DoomWad_Texture12_TextureBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureBody>
-    for &DoomWad_Texture12_TextureBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for &DoomWad_Texture12_TextureBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureBody>
-    for OptRc<DoomWad_Texture12_TextureBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureBody>
-    for &OptRc<DoomWad_Texture12_TextureBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for &OptRc<DoomWad_Texture12_TextureBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2266,11 +2034,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureIndex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2282,15 +2046,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(8_usize)?,
-                None,
-                false,
-                Some(0),
-            ),
-            "ASCII",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.masked.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2305,12 +2061,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         *self_rc.patches.borrow_mut() = Vec::new();
         let l_patches = usize::from(*self_rc.num_patches());
         for _i in 0_usize..l_patches {
-            let t = Self::read_into::<_, DoomWad_Texture12_Patch>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, DoomWad_Texture12_Patch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patches.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2318,7 +2069,8 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         Ok(())
     }
 }
-impl DoomWad_Texture12_TextureBody {}
+impl DoomWad_Texture12_TextureBody {
+}
 
 /**
  * Name of a texture, only `A-Z`, `0-9`, `[]_-` are valid
@@ -2393,59 +2145,35 @@ pub struct DoomWad_Texture12_TextureIndex {
     f_body: Cell<bool>,
     body: RefCell<OptRc<DoomWad_Texture12_TextureBody>>,
 }
-impl TryFrom<&DoomWad_Texture12_TextureIndex>
-    for OptRc<DoomWad_Texture12_TextureIndex>
-{
+impl TryFrom<&DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
     type Error = KError;
-    fn try_from(
-        v: &DoomWad_Texture12_TextureIndex,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &DoomWad_Texture12_TextureIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DoomWad_Texture12_TextureIndex>
-    for OptRc<DoomWad_Texture12_TextureIndex>
-{
+impl TryFrom<&&DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
     type Error = KError;
-    fn try_from(
-        v: &&DoomWad_Texture12_TextureIndex,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&DoomWad_Texture12_TextureIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureIndex>
-    for DoomWad_Texture12_TextureIndex
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for DoomWad_Texture12_TextureIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureIndex>
-    for &DoomWad_Texture12_TextureIndex
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for &DoomWad_Texture12_TextureIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureIndex>
-    for OptRc<DoomWad_Texture12_TextureIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DoomWad_Texture12_TextureIndex>
-    for &OptRc<DoomWad_Texture12_TextureIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for &OptRc<DoomWad_Texture12_TextureIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2453,11 +2181,7 @@ impl KStruct for DoomWad_Texture12_TextureIndex {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2476,13 +2200,9 @@ impl KStruct for DoomWad_Texture12_TextureIndex {
     }
 }
 impl DoomWad_Texture12_TextureIndex {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<DoomWad_Texture12_TextureBody>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
@@ -2490,12 +2210,7 @@ impl DoomWad_Texture12_TextureIndex {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.offset())?)?;
-        let t = Self::read_into::<_, DoomWad_Texture12_TextureBody>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DoomWad_Texture12_TextureBody>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -2566,11 +2281,7 @@ impl KStruct for DoomWad_Thing {
     type Root = DoomWad;
     type Parent = DoomWad_Things;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2596,7 +2307,8 @@ impl KStruct for DoomWad_Thing {
         Ok(())
     }
 }
-impl DoomWad_Thing {}
+impl DoomWad_Thing {
+}
 impl DoomWad_Thing {
     pub fn x(&self) -> Ref<'_, i16> {
         self.x.borrow()
@@ -2678,11 +2390,7 @@ impl KStruct for DoomWad_Things {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2698,12 +2406,7 @@ impl KStruct for DoomWad_Things {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DoomWad_Thing>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DoomWad_Thing>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -2713,7 +2416,8 @@ impl KStruct for DoomWad_Things {
         Ok(())
     }
 }
-impl DoomWad_Things {}
+impl DoomWad_Things {
+}
 impl DoomWad_Things {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<DoomWad_Thing>>> {
         self.entries.borrow()
@@ -2776,11 +2480,7 @@ impl KStruct for DoomWad_Vertex {
     type Root = DoomWad;
     type Parent = DoomWad_Vertexes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2800,7 +2500,8 @@ impl KStruct for DoomWad_Vertex {
         Ok(())
     }
 }
-impl DoomWad_Vertex {}
+impl DoomWad_Vertex {
+}
 impl DoomWad_Vertex {
     pub fn x(&self) -> Ref<'_, i16> {
         self.x.borrow()
@@ -2867,11 +2568,7 @@ impl KStruct for DoomWad_Vertexes {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2887,12 +2584,7 @@ impl KStruct for DoomWad_Vertexes {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, DoomWad_Vertex>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, DoomWad_Vertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -2902,7 +2594,8 @@ impl KStruct for DoomWad_Vertexes {
         Ok(())
     }
 }
-impl DoomWad_Vertexes {}
+impl DoomWad_Vertexes {
+}
 impl DoomWad_Vertexes {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<DoomWad_Vertex>>> {
         self.entries.borrow()

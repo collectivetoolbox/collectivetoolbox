@@ -106,11 +106,7 @@ impl KStruct for ExprEnum {
     type Root = ExprEnum;
     type Parent = ExprEnum;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,12 +125,10 @@ impl KStruct for ExprEnum {
     }
 }
 impl ExprEnum {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn const_dog(&self) -> KResult<Ref<'_, ExprEnum_Animal>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn const_dog(
+        &self
+    ) -> KResult<Ref<'_, ExprEnum_Animal>> {
         let _io = self._io.borrow();
         if self.f_const_dog.get() {
             return Ok(self.const_dog.borrow());
@@ -143,12 +137,10 @@ impl ExprEnum {
         *self.const_dog.borrow_mut() = i64::from(4).try_into()?;
         Ok(self.const_dog.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn derived_boom(&self) -> KResult<Ref<'_, ExprEnum_Animal>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn derived_boom(
+        &self
+    ) -> KResult<Ref<'_, ExprEnum_Animal>> {
         let _io = self._io.borrow();
         if self.f_derived_boom.get() {
             return Ok(self.derived_boom.borrow());
@@ -157,20 +149,16 @@ impl ExprEnum {
         *self.derived_boom.borrow_mut() = i64::from(*self.one()).try_into()?;
         Ok(self.derived_boom.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn derived_dog(&self) -> KResult<Ref<'_, ExprEnum_Animal>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn derived_dog(
+        &self
+    ) -> KResult<Ref<'_, ExprEnum_Animal>> {
         let _io = self._io.borrow();
         if self.f_derived_dog.get() {
             return Ok(self.derived_dog.borrow());
         }
         self.f_derived_dog.set(true);
-        *self.derived_dog.borrow_mut() =
-            i64::from((i32::from(*self.one())).saturating_sub(98_i32))
-                .try_into()?;
+        *self.derived_dog.borrow_mut() = i64::from((i32::from(*self.one())).saturating_sub(98_i32)).try_into()?;
         Ok(self.derived_dog.borrow())
     }
 }
@@ -219,13 +207,12 @@ impl From<&ExprEnum_Animal> for i64 {
             ExprEnum_Animal::Cat => 7,
             ExprEnum_Animal::Chicken => 12,
             ExprEnum_Animal::Boom => 102,
-            ExprEnum_Animal::Unknown(v) => v,
+            ExprEnum_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for ExprEnum_Animal {
-    fn default() -> Self {
-        ExprEnum_Animal::Unknown(0)
-    }
+    fn default() -> Self { ExprEnum_Animal::Unknown(0) }
 }
+

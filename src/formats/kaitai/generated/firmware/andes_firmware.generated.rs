@@ -58,11 +58,7 @@ impl KStruct for AndesFirmware {
     type Root = AndesFirmware;
     type Parent = AndesFirmware;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,25 +73,19 @@ impl KStruct for AndesFirmware {
         let _raw_image_header = _io.read_bytes(32_usize)?;
         *self_rc.image_header_raw.borrow_mut() = _raw_image_header.clone();
         let _io_image_header = BytesReader::from(_raw_image_header);
-        let t = Self::read_into::<BytesReader, AndesFirmware_ImageHeader>(
-            &_io_image_header,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, AndesFirmware_ImageHeader>(&_io_image_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ilm.borrow_mut() = _io
-            .read_bytes(usize::try_from(*self_rc.image_header().ilm_len())?)?;
+        *self_rc.ilm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().ilm_len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.dlm.borrow_mut() = _io
-            .read_bytes(usize::try_from(*self_rc.image_header().dlm_len())?)?;
+        *self_rc.dlm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().dlm_len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl AndesFirmware {}
+impl AndesFirmware {
+}
 impl AndesFirmware {
     pub fn image_header(&self) -> Ref<'_, OptRc<AndesFirmware_ImageHeader>> {
         self.image_header.borrow()
@@ -165,34 +155,22 @@ impl TryFrom<&&AndesFirmware_ImageHeader> for OptRc<AndesFirmware_ImageHeader> {
     }
 }
 impl DowncastOptRc<AndesFirmware_ImageHeader> for AndesFirmware_ImageHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<AndesFirmware_ImageHeader> for &AndesFirmware_ImageHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AndesFirmware_ImageHeader>
-    for OptRc<AndesFirmware_ImageHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+impl DowncastOptRc<AndesFirmware_ImageHeader> for OptRc<AndesFirmware_ImageHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AndesFirmware_ImageHeader>
-    for &OptRc<AndesFirmware_ImageHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+impl DowncastOptRc<AndesFirmware_ImageHeader> for &OptRc<AndesFirmware_ImageHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -200,11 +178,7 @@ impl KStruct for AndesFirmware_ImageHeader {
     type Root = AndesFirmware;
     type Parent = AndesFirmware;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -226,14 +200,14 @@ impl KStruct for AndesFirmware_ImageHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.extra.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.build_time.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(16_usize)?, "UTF-8")?;
+        *self_rc.build_time.borrow_mut() = bytes_to_str(&_io.read_bytes(16_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl AndesFirmware_ImageHeader {}
+impl AndesFirmware_ImageHeader {
+}
 impl AndesFirmware_ImageHeader {
     pub fn ilm_len(&self) -> Ref<'_, u32> {
         self.ilm_len.borrow()

@@ -383,26 +383,26 @@ pub enum DcRole {
     /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (`640`).
     TypeAtomDc,
     /// Format indicator for an integer in a number header (`FormatId::Integer`).
-    IntegerFormatIndicator,
-    /// Base64 encapsulation digit character (0..=63).
-    Base64Digit,
-    /// Built-in type token, format token, or type operator.
-    TypeToken,
-    /// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).
-    PrimitiveValueAtom,
-    /// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).
-    DomainValueAtom,
-    /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
-    EvaluableExpressionStarter,
-    /// Structural separator (newlines, paragraph separators, list element separators).
-    StructuralSeparator,
+IntegerFormatIndicator,
+/// Base64 encapsulation digit character (0..=63).
+Base64Digit,
+/// Built-in type token, format token, or type operator.
+TypeToken,
+/// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).
+PrimitiveValueAtom,
+/// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).
+DomainValueAtom,
+/// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
+EvaluableExpressionStarter,
+/// Structural separator (newlines, paragraph separators, list element separators).
+StructuralSeparator,
 }
 
 impl DcRole {
     /// Returns the defining short Dc ID for this role, if uniquely defined by a single Document Character.
-    #[must_use]
-    pub fn defining_short(self) -> Option<u32> {
-        match self {
+#[must_use]
+pub fn defining_short(self) -> Option<u32> {
+match self {
             Self::Range => Some(4),
             Self::BeginNumber => Some(6),
             Self::EndNumber => Some(7),
@@ -577,21 +577,21 @@ impl DcRole {
             Self::ThisElement => Some(639),
             Self::TypeAtomDc => Some(640),
             _ => None,
-        }
-    }
+}
+}
 
-    /// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.
-    #[must_use]
-    pub fn defining_dc(self) -> Option<DcChar> {
-        self.defining_short().map(DcChar::from_short)
-    }
+/// Returns the defining `DcChar` for this role, if uniquely defined by a single Document Character.
+#[must_use]
+pub fn defining_dc(self) -> Option<DcChar> {
+self.defining_short().map(DcChar::from_short)
+}
 
-    /// Returns true if the given canonical token (in global graph `u128` layout)
-    /// directly matches this role.
-    #[must_use]
-    pub fn matches_canonical(self, token: u128) -> bool {
-        let short = DcChar::from_u128(token).to_short().ok();
-        match self {
+/// Returns true if the given canonical token (in global graph `u128` layout)
+/// directly matches this role.
+#[must_use]
+pub fn matches_canonical(self, token: u128) -> bool {
+let short = DcChar::from_u128(token).to_short().ok();
+match self {
             Self::Range => short == Some(4),
             Self::BeginNumber => short == Some(6),
             Self::EndNumber => short == Some(7),
@@ -766,67 +766,37 @@ impl DcRole {
             Self::ThisElement => short == Some(639),
             Self::TypeAtomDc => short == Some(640),
             Self::IntegerFormatIndicator => {
-                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-                    && ctb_utilities::format_id::FormatId::from_dc_id(token)
-                        == Some(ctb_utilities::format_id::FormatId::Integer)
-            }
-            Self::Base64Digit => matches!(short, Some(127..=190)),
-            Self::TypeToken => {
-                (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-                    || matches!(
-                        short,
-                        Some(
-                            264 | 275
-                                | 278
-                                | 280
-                                | 300
-                                | 306
-                                | 513
-                                | 516
-                                | 535
-                                | 565..=568 | 640
-                        )
-                    )
-            }
-            Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
-            Self::DomainValueAtom => matches!(
-                short,
-                Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)
-            ),
-            Self::EvaluableExpressionStarter => {
-                matches!(
-                    short,
-                    Some(
-                        256 | 265
-                            | 266
-                            | 268
-                            | 276
-                            | 279
-                            | 307
-                            | 397
-                            | 511
-                            | 540
-                            | 561
-                    )
-                )
-            }
-            Self::StructuralSeparator => {
-                matches!(short, Some(119..=121 | 294 | 295 | 312))
-            }
-        }
-    }
+(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
+&& ctb_utilities::format_id::FormatId::from_dc_id(token)
+== Some(ctb_utilities::format_id::FormatId::Integer)
+}
+Self::Base64Digit => matches!(short, Some(127..=190)),
+Self::TypeToken => {
+(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640))
+}
+Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
+Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),
+Self::EvaluableExpressionStarter => {
+matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561))
+}
+Self::StructuralSeparator => {
+matches!(short, Some(119..=121 | 294 | 295 | 312))
+}
+}
+}
 
-    /// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel
-    /// (`64`) if `token` represents a Base64 encapsulation character.
-    #[must_use]
-    pub fn base64_digit_value(token: u128) -> Option<u8> {
-        let short = DcChar::from_u128(token).to_short().ok()?;
-        if short == 195 {
-            Some(64)
-        } else if (127..=190).contains(&short) {
-            u8::try_from(short.saturating_sub(127)).ok()
-        } else {
-            None
-        }
-    }
+/// Returns the Base64 numeral digit value (`0..=63`) or padding sentinel
+/// (`64`) if `token` represents a Base64 encapsulation character.
+#[must_use]
+pub fn base64_digit_value(token: u128) -> Option<u8> {
+let short = DcChar::from_u128(token).to_short().ok()?;
+if short == 195 {
+Some(64)
+} else if (127..=190).contains(&short) {
+u8::try_from(short.saturating_sub(127)).ok()
+} else {
+None
+}
+}
 }

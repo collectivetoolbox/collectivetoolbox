@@ -76,11 +76,7 @@ impl KStruct for WindowsResourceFile {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -96,12 +92,7 @@ impl KStruct for WindowsResourceFile {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, WindowsResourceFile_Resource>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, WindowsResourceFile_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.resources.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -111,11 +102,10 @@ impl KStruct for WindowsResourceFile {
         Ok(())
     }
 }
-impl WindowsResourceFile {}
 impl WindowsResourceFile {
-    pub fn resources(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<WindowsResourceFile_Resource>>> {
+}
+impl WindowsResourceFile {
+    pub fn resources(&self) -> Ref<'_, Vec<OptRc<WindowsResourceFile_Resource>>> {
         self.resources.borrow()
     }
 }
@@ -162,57 +152,35 @@ pub struct WindowsResourceFile_Resource {
     f_type_as_predef: Cell<bool>,
     type_as_predef: RefCell<WindowsResourceFile_Resource_PredefTypes>,
 }
-impl TryFrom<&WindowsResourceFile_Resource>
-    for OptRc<WindowsResourceFile_Resource>
-{
+impl TryFrom<&WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
     type Error = KError;
     fn try_from(v: &WindowsResourceFile_Resource) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsResourceFile_Resource>
-    for OptRc<WindowsResourceFile_Resource>
-{
+impl TryFrom<&&WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsResourceFile_Resource,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsResourceFile_Resource) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_Resource>
-    for WindowsResourceFile_Resource
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+impl DowncastOptRc<WindowsResourceFile_Resource> for WindowsResourceFile_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_Resource>
-    for &WindowsResourceFile_Resource
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+impl DowncastOptRc<WindowsResourceFile_Resource> for &WindowsResourceFile_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_Resource>
-    for OptRc<WindowsResourceFile_Resource>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+impl DowncastOptRc<WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsResourceFile_Resource>
-    for &OptRc<WindowsResourceFile_Resource>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+impl DowncastOptRc<WindowsResourceFile_Resource> for &OptRc<WindowsResourceFile_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
         Ok((*self).clone())
     }
 }
@@ -220,11 +188,7 @@ impl KStruct for WindowsResourceFile_Resource {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -240,27 +204,13 @@ impl KStruct for WindowsResourceFile_Resource {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.r#type.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((4_usize).saturating_sub(_io.pos()))
-                .checked_rem(4_usize)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.format_version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -272,44 +222,33 @@ impl KStruct for WindowsResourceFile_Resource {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.value.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
+        *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((4_usize).saturating_sub(_io.pos()))
-                .checked_rem(4_usize)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl WindowsResourceFile_Resource {
+
     /**
      * Numeric type IDs in range of [0..0xff] are reserved for
      * system usage in Windows, and there are some predefined,
      * well-known values in that range. This instance allows to get
      * it as enum value, if applicable.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn type_as_predef(
-        &self,
+        &self
     ) -> KResult<Ref<'_, WindowsResourceFile_Resource_PredefTypes>> {
         let _io = self._io.borrow();
         if self.f_type_as_predef.get() {
             return Ok(self.type_as_predef.borrow());
         }
         self.f_type_as_predef.set(true);
-        if ((!(*self.r#type().is_string()?))
-            && ((to_i128(*self.r#type().as_numeric())) <= (to_i128(255))))
-        {
-            *self.type_as_predef.borrow_mut() =
-                i64::from(*self.r#type().as_numeric()).try_into()?;
+        if  (!(*self.r#type().is_string()?)) && (((to_i128(*self.r#type().as_numeric())) <= (to_i128(255))))  {
+            *self.type_as_predef.borrow_mut() = i64::from(*self.r#type().as_numeric()).try_into()?;
         }
         Ok(self.type_as_predef.borrow())
     }
@@ -445,9 +384,7 @@ pub enum WindowsResourceFile_Resource_PredefTypes {
 
 impl TryFrom<i64> for WindowsResourceFile_Resource_PredefTypes {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<WindowsResourceFile_Resource_PredefTypes> {
+    fn try_from(flag: i64) -> KResult<WindowsResourceFile_Resource_PredefTypes> {
         match flag {
             1 => Ok(WindowsResourceFile_Resource_PredefTypes::Cursor),
             2 => Ok(WindowsResourceFile_Resource_PredefTypes::Bitmap),
@@ -499,16 +436,15 @@ impl From<&WindowsResourceFile_Resource_PredefTypes> for i64 {
             WindowsResourceFile_Resource_PredefTypes::Aniicon => 22,
             WindowsResourceFile_Resource_PredefTypes::Html => 23,
             WindowsResourceFile_Resource_PredefTypes::Manifest => 24,
-            WindowsResourceFile_Resource_PredefTypes::Unknown(v) => v,
+            WindowsResourceFile_Resource_PredefTypes::Unknown(v) => v
         }
     }
 }
 
 impl Default for WindowsResourceFile_Resource_PredefTypes {
-    fn default() -> Self {
-        WindowsResourceFile_Resource_PredefTypes::Unknown(0)
-    }
+    fn default() -> Self { WindowsResourceFile_Resource_PredefTypes::Unknown(0) }
 }
+
 
 /**
  * Resources use a special serialization of names and types: they
@@ -538,59 +474,35 @@ pub struct WindowsResourceFile_UnicodeOrId {
     f_save_pos2: Cell<bool>,
     save_pos2: RefCell<i32>,
 }
-impl TryFrom<&WindowsResourceFile_UnicodeOrId>
-    for OptRc<WindowsResourceFile_UnicodeOrId>
-{
+impl TryFrom<&WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsResourceFile_UnicodeOrId,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsResourceFile_UnicodeOrId) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsResourceFile_UnicodeOrId>
-    for OptRc<WindowsResourceFile_UnicodeOrId>
-{
+impl TryFrom<&&WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsResourceFile_UnicodeOrId,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsResourceFile_UnicodeOrId) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_UnicodeOrId>
-    for WindowsResourceFile_UnicodeOrId
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for WindowsResourceFile_UnicodeOrId {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_UnicodeOrId>
-    for &WindowsResourceFile_UnicodeOrId
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for &WindowsResourceFile_UnicodeOrId {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsResourceFile_UnicodeOrId>
-    for OptRc<WindowsResourceFile_UnicodeOrId>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsResourceFile_UnicodeOrId>
-    for &OptRc<WindowsResourceFile_UnicodeOrId>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for &OptRc<WindowsResourceFile_UnicodeOrId> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
         Ok((*self).clone())
     }
 }
@@ -598,11 +510,7 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile_Resource;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -632,20 +540,16 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
                 loop {
                     self_rc.rest.borrow_mut().push(_io.read_u2le()?);
                     let _t_rest = self_rc.rest.borrow();
-                    let Some(_tmpa) = _t_rest.last() else {
-                        break;
-                    };
+                    let Some(_tmpa) = _t_rest.last() else { break; };
                     let _tmpa = *_tmpa;
                     _i = _i.saturating_add(1);
-                    if ((to_i128(_tmpa)) == (to_i128(0))) {
-                        break;
-                    }
+                    if (to_i128(_tmpa)) == (to_i128(0)) { break; }
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0)) {
+        if  (*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0)  {
             *self_rc.noop.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -654,12 +558,10 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
     }
 }
 impl WindowsResourceFile_UnicodeOrId {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn as_string(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn as_string(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_as_string.get() {
             return Ok(self.as_string.borrow());
@@ -668,38 +570,27 @@ impl WindowsResourceFile_UnicodeOrId {
         if *self.is_string()? {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.save_pos1()?)?)?;
-            *self.as_string.borrow_mut() = bytes_to_str(
-                &_io.read_bytes(usize::try_from(
-                    ((*self.save_pos2()?).saturating_sub(*self.save_pos1()?))
-                        .saturating_sub(2_i32),
-                )?)?,
-                "UTF-16LE",
-            )?;
+            *self.as_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(((*self.save_pos2()?).saturating_sub(*self.save_pos1()?)).saturating_sub(2_i32))?)?, "UTF-16LE")?;
             _io.seek(_pos)?;
         }
         Ok(self.as_string.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_string(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_string(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string.get() {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() =
-            ((to_i128(*self.first())) != (to_i128(65535))).try_into()?;
+        *self.is_string.borrow_mut() = (((to_i128(*self.first())) != (to_i128(65535)))).try_into()?;
         Ok(self.is_string.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn save_pos1(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn save_pos1(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_save_pos1.get() {
             return Ok(self.save_pos1.borrow());
@@ -708,12 +599,10 @@ impl WindowsResourceFile_UnicodeOrId {
         *self.save_pos1.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.save_pos1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn save_pos2(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn save_pos2(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_save_pos2.get() {
             return Ok(self.save_pos2.borrow());

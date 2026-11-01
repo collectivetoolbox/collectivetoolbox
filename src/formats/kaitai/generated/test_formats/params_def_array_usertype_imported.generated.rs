@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::hello_world::HelloWorld;
-use super::hello_world::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsDefArrayUsertypeImported {
@@ -70,59 +70,35 @@ pub struct ParamsDefArrayUsertypeImported {
     f_hw1_one: Cell<bool>,
     hw1_one: RefCell<i32>,
 }
-impl TryFrom<&ParamsDefArrayUsertypeImported>
-    for OptRc<ParamsDefArrayUsertypeImported>
-{
+impl TryFrom<&ParamsDefArrayUsertypeImported> for OptRc<ParamsDefArrayUsertypeImported> {
     type Error = KError;
-    fn try_from(
-        v: &ParamsDefArrayUsertypeImported,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsDefArrayUsertypeImported>
-    for OptRc<ParamsDefArrayUsertypeImported>
-{
+impl TryFrom<&&ParamsDefArrayUsertypeImported> for OptRc<ParamsDefArrayUsertypeImported> {
     type Error = KError;
-    fn try_from(
-        v: &&ParamsDefArrayUsertypeImported,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsDefArrayUsertypeImported>
-    for ParamsDefArrayUsertypeImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefArrayUsertypeImported> for ParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsDefArrayUsertypeImported>
-    for &ParamsDefArrayUsertypeImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefArrayUsertypeImported> for &ParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsDefArrayUsertypeImported>
-    for OptRc<ParamsDefArrayUsertypeImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefArrayUsertypeImported> for OptRc<ParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsDefArrayUsertypeImported>
-    for &OptRc<ParamsDefArrayUsertypeImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefArrayUsertypeImported> for &OptRc<ParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefArrayUsertypeImported>, KError> {
         Ok((*self).clone())
     }
 }
@@ -130,11 +106,7 @@ impl KStruct for ParamsDefArrayUsertypeImported {
     type Root = ParamsDefArrayUsertypeImported;
     type Parent = ParamsDefArrayUsertypeImported;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -161,42 +133,28 @@ impl ParamsDefArrayUsertypeImported {
     }
 }
 impl ParamsDefArrayUsertypeImported {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn hw0_one(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn hw0_one(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_hw0_one.get() {
             return Ok(self.hw0_one.borrow());
         }
         self.f_hw0_one.set(true);
-        *self.hw0_one.borrow_mut() = (*self
-            .hws_param()
-            .get(0_usize)
-            .ok_or(KError::CastError)?
-            .one())
-        .try_into()?;
+        *self.hw0_one.borrow_mut() = (*self.hws_param().get(0_usize).ok_or(KError::CastError)?.one()).try_into()?;
         Ok(self.hw0_one.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn hw1_one(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn hw1_one(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_hw1_one.get() {
             return Ok(self.hw1_one.borrow());
         }
         self.f_hw1_one.set(true);
-        *self.hw1_one.borrow_mut() = (*self
-            .hws_param()
-            .get(1_usize)
-            .ok_or(KError::CastError)?
-            .one())
-        .try_into()?;
+        *self.hw1_one.borrow_mut() = (*self.hws_param().get(1_usize).ok_or(KError::CastError)?.one()).try_into()?;
         Ok(self.hw1_one.borrow())
     }
 }

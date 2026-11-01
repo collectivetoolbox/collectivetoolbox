@@ -63,11 +63,7 @@ impl KStruct for BtrfsStream {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -79,24 +75,14 @@ impl KStruct for BtrfsStream {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, BtrfsStream_SendStreamHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, BtrfsStream_SendStreamHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.commands.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, BtrfsStream_SendCommand>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, BtrfsStream_SendCommand>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.commands.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -106,7 +92,8 @@ impl KStruct for BtrfsStream {
         Ok(())
     }
 }
-impl BtrfsStream {}
+impl BtrfsStream {
+}
 impl BtrfsStream {
     pub fn header(&self) -> Ref<'_, OptRc<BtrfsStream_SendStreamHeader>> {
         self.header.borrow()
@@ -220,15 +207,13 @@ impl From<&BtrfsStream_Attribute> for i64 {
             BtrfsStream_Attribute::ClonePath => 22,
             BtrfsStream_Attribute::CloneOffset => 23,
             BtrfsStream_Attribute::CloneLen => 24,
-            BtrfsStream_Attribute::Unknown(v) => v,
+            BtrfsStream_Attribute::Unknown(v) => v
         }
     }
 }
 
 impl Default for BtrfsStream_Attribute {
-    fn default() -> Self {
-        BtrfsStream_Attribute::Unknown(0)
-    }
+    fn default() -> Self { BtrfsStream_Attribute::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -317,16 +302,15 @@ impl From<&BtrfsStream_Command> for i64 {
             BtrfsStream_Command::Utimes => 20,
             BtrfsStream_Command::End => 21,
             BtrfsStream_Command::UpdateExtent => 22,
-            BtrfsStream_Command::Unknown(v) => v,
+            BtrfsStream_Command::Unknown(v) => v
         }
     }
 }
 
 impl Default for BtrfsStream_Command {
-    fn default() -> Self {
-        BtrfsStream_Command::Unknown(0)
-    }
+    fn default() -> Self { BtrfsStream_Command::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct BtrfsStream_SendCommand {
@@ -368,9 +352,7 @@ impl DowncastOptRc<BtrfsStream_SendCommand> for OptRc<BtrfsStream_SendCommand> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand>
-    for &OptRc<BtrfsStream_SendCommand>
-{
+impl DowncastOptRc<BtrfsStream_SendCommand> for &OptRc<BtrfsStream_SendCommand> {
     fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand>, KError> {
         Ok((*self).clone())
     }
@@ -379,11 +361,7 @@ impl KStruct for BtrfsStream_SendCommand {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -397,28 +375,22 @@ impl KStruct for BtrfsStream_SendCommand {
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_data =
-            _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        let _raw_data = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
-        let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Tlvs>(
-            &_io_data,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Tlvs>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand {}
+impl BtrfsStream_SendCommand {
+}
 impl BtrfsStream_SendCommand {
     pub fn len_data(&self) -> Ref<'_, u32> {
         self.len_data.borrow()
@@ -473,59 +445,35 @@ pub struct BtrfsStream_SendCommand_String {
     string: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&BtrfsStream_SendCommand_String>
-    for OptRc<BtrfsStream_SendCommand_String>
-{
+impl TryFrom<&BtrfsStream_SendCommand_String> for OptRc<BtrfsStream_SendCommand_String> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_String,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_String) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_String>
-    for OptRc<BtrfsStream_SendCommand_String>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_String> for OptRc<BtrfsStream_SendCommand_String> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_String,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_String) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for BtrfsStream_SendCommand_String
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for BtrfsStream_SendCommand_String {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for &BtrfsStream_SendCommand_String
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for &BtrfsStream_SendCommand_String {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for OptRc<BtrfsStream_SendCommand_String>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for OptRc<BtrfsStream_SendCommand_String> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for &OptRc<BtrfsStream_SendCommand_String>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for &OptRc<BtrfsStream_SendCommand_String> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         Ok((*self).clone())
     }
 }
@@ -533,11 +481,7 @@ impl KStruct for BtrfsStream_SendCommand_String {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -549,14 +493,14 @@ impl KStruct for BtrfsStream_SendCommand_String {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.string.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.string.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand_String {}
+impl BtrfsStream_SendCommand_String {
+}
 impl BtrfsStream_SendCommand_String {
     pub fn string(&self) -> Ref<'_, String> {
         self.string.borrow()
@@ -583,59 +527,35 @@ pub struct BtrfsStream_SendCommand_Timespec {
     ts_nsec: RefCell<i32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&BtrfsStream_SendCommand_Timespec>
-    for OptRc<BtrfsStream_SendCommand_Timespec>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Timespec> for OptRc<BtrfsStream_SendCommand_Timespec> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Timespec,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_Timespec) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Timespec>
-    for OptRc<BtrfsStream_SendCommand_Timespec>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Timespec> for OptRc<BtrfsStream_SendCommand_Timespec> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Timespec,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Timespec) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for BtrfsStream_SendCommand_Timespec
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for BtrfsStream_SendCommand_Timespec {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for &BtrfsStream_SendCommand_Timespec
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for &BtrfsStream_SendCommand_Timespec {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for OptRc<BtrfsStream_SendCommand_Timespec>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for OptRc<BtrfsStream_SendCommand_Timespec> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for &OptRc<BtrfsStream_SendCommand_Timespec>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for &OptRc<BtrfsStream_SendCommand_Timespec> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         Ok((*self).clone())
     }
 }
@@ -643,11 +563,7 @@ impl KStruct for BtrfsStream_SendCommand_Timespec {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -667,7 +583,8 @@ impl KStruct for BtrfsStream_SendCommand_Timespec {
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand_Timespec {}
+impl BtrfsStream_SendCommand_Timespec {
+}
 impl BtrfsStream_SendCommand_Timespec {
     pub fn ts_sec(&self) -> Ref<'_, i64> {
         self.ts_sec.borrow()
@@ -709,59 +626,39 @@ pub enum BtrfsStream_SendCommand_Tlv_Value {
     BtrfsStream_SendCommand_Uuid(OptRc<BtrfsStream_SendCommand_Uuid>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_Timespec>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_Timespec> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         if let BtrfsStream_SendCommand_Tlv_Value::BtrfsStream_SendCommand_Timespec(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_Timespec>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_Timespec> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         OptRc::<BtrfsStream_SendCommand_Timespec>::try_from(self)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Timespec>
-    for &BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Timespec> for &BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Timespec>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<BtrfsStream_SendCommand_Timespec>>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
+impl From<OptRc<BtrfsStream_SendCommand_Timespec>> for BtrfsStream_SendCommand_Tlv_Value {
     fn from(v: OptRc<BtrfsStream_SendCommand_Timespec>) -> Self {
         Self::BtrfsStream_SendCommand_Timespec(v)
     }
 }
 impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for u64 {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         if let BtrfsStream_SendCommand_Tlv_Value::U8(x) = v {
             return Ok(x.clone());
         }
@@ -770,9 +667,7 @@ impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for u64 {
 }
 impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value> for u64 {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -781,110 +676,69 @@ impl From<u64> for BtrfsStream_SendCommand_Tlv_Value {
         Self::U8(v)
     }
 }
-impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_String>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_String> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         if let BtrfsStream_SendCommand_Tlv_Value::BtrfsStream_SendCommand_String(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_String>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_String> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         OptRc::<BtrfsStream_SendCommand_String>::try_from(self)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_String>
-    for &BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_String> for &BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_String>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<BtrfsStream_SendCommand_String>>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
+impl From<OptRc<BtrfsStream_SendCommand_String>> for BtrfsStream_SendCommand_Tlv_Value {
     fn from(v: OptRc<BtrfsStream_SendCommand_String>) -> Self {
         Self::BtrfsStream_SendCommand_String(v)
     }
 }
-impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_Uuid>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_Uuid> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
-        if let BtrfsStream_SendCommand_Tlv_Value::BtrfsStream_SendCommand_Uuid(
-            x,
-        ) = v
-        {
+    fn try_from(v: &BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
+        if let BtrfsStream_SendCommand_Tlv_Value::BtrfsStream_SendCommand_Uuid(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value>
-    for OptRc<BtrfsStream_SendCommand_Uuid>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value> for OptRc<BtrfsStream_SendCommand_Uuid> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         OptRc::<BtrfsStream_SendCommand_Uuid>::try_from(self)
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for &BtrfsStream_SendCommand_Tlv_Value
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for &BtrfsStream_SendCommand_Tlv_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<BtrfsStream_SendCommand_Uuid>>
-    for BtrfsStream_SendCommand_Tlv_Value
-{
+impl From<OptRc<BtrfsStream_SendCommand_Uuid>> for BtrfsStream_SendCommand_Tlv_Value {
     fn from(v: OptRc<BtrfsStream_SendCommand_Uuid>) -> Self {
         Self::BtrfsStream_SendCommand_Uuid(v)
     }
 }
 impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         if let BtrfsStream_SendCommand_Tlv_Value::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -893,9 +747,7 @@ impl TryFrom<&BtrfsStream_SendCommand_Tlv_Value> for Vec<u8> {
 }
 impl TryFrom<&&BtrfsStream_SendCommand_Tlv_Value> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlv_Value,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlv_Value) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -904,55 +756,35 @@ impl From<Vec<u8>> for BtrfsStream_SendCommand_Tlv_Value {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&BtrfsStream_SendCommand_Tlv>
-    for OptRc<BtrfsStream_SendCommand_Tlv>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Tlv> for OptRc<BtrfsStream_SendCommand_Tlv> {
     type Error = KError;
     fn try_from(v: &BtrfsStream_SendCommand_Tlv) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Tlv>
-    for OptRc<BtrfsStream_SendCommand_Tlv>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Tlv> for OptRc<BtrfsStream_SendCommand_Tlv> {
     type Error = KError;
     fn try_from(v: &&BtrfsStream_SendCommand_Tlv) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlv>
-    for BtrfsStream_SendCommand_Tlv
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlv> for BtrfsStream_SendCommand_Tlv {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlv>
-    for &BtrfsStream_SendCommand_Tlv
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlv> for &BtrfsStream_SendCommand_Tlv {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlv>
-    for OptRc<BtrfsStream_SendCommand_Tlv>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlv> for OptRc<BtrfsStream_SendCommand_Tlv> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlv>
-    for &OptRc<BtrfsStream_SendCommand_Tlv>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlv> for &OptRc<BtrfsStream_SendCommand_Tlv> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlv>, KError> {
         Ok((*self).clone())
     }
 }
@@ -960,11 +792,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlvs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -976,26 +804,16 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             BtrfsStream_Attribute::Atime => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Timespec,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Timespec>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::CloneCtransid => {
@@ -1008,51 +826,24 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
                 *self_rc.value.borrow_mut() = Some(_io.read_u8le()?.into());
             }
             BtrfsStream_Attribute::ClonePath => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_String,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_String>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::CloneUuid => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Uuid,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Uuid>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::Ctime => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Timespec,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Timespec>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::Ctransid => {
@@ -1068,83 +859,38 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
                 *self_rc.value.borrow_mut() = Some(_io.read_u8le()?.into());
             }
             BtrfsStream_Attribute::Mtime => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Timespec,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Timespec>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::Otime => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Timespec,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Timespec>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::Path => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_String,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_String>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::PathLink => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_String,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_String>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::PathTo => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_String,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_String>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::Rdev => {
@@ -1157,41 +903,21 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
                 *self_rc.value.borrow_mut() = Some(_io.read_u8le()?.into());
             }
             BtrfsStream_Attribute::Uuid => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_Uuid,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Uuid>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             BtrfsStream_Attribute::XattrName => {
-                *self_rc.value_raw.borrow_mut() =
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into();
+                *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
                 let value_raw = self_rc.value_raw.borrow();
                 let _t_value_raw_io = BytesReader::from(value_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    BtrfsStream_SendCommand_String,
-                >(
-                    &_t_value_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_String>(&_t_value_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.value.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.value.borrow_mut() = Some(
-                    _io.read_bytes(usize::from(*self_rc.length()))?.into(),
-                );
+                *self_rc.value.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.length()))?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1199,7 +925,8 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand_Tlv {}
+impl BtrfsStream_SendCommand_Tlv {
+}
 impl BtrfsStream_SendCommand_Tlv {
     pub fn r#type(&self) -> Ref<'_, BtrfsStream_Attribute> {
         self.r#type.borrow()
@@ -1240,57 +967,35 @@ pub struct BtrfsStream_SendCommand_Tlvs {
     tlv: RefCell<Vec<OptRc<BtrfsStream_SendCommand_Tlv>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&BtrfsStream_SendCommand_Tlvs>
-    for OptRc<BtrfsStream_SendCommand_Tlvs>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Tlvs> for OptRc<BtrfsStream_SendCommand_Tlvs> {
     type Error = KError;
     fn try_from(v: &BtrfsStream_SendCommand_Tlvs) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Tlvs>
-    for OptRc<BtrfsStream_SendCommand_Tlvs>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Tlvs> for OptRc<BtrfsStream_SendCommand_Tlvs> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Tlvs,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Tlvs) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs>
-    for BtrfsStream_SendCommand_Tlvs
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs> for BtrfsStream_SendCommand_Tlvs {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs>
-    for &BtrfsStream_SendCommand_Tlvs
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs> for &BtrfsStream_SendCommand_Tlvs {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs>
-    for OptRc<BtrfsStream_SendCommand_Tlvs>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs> for OptRc<BtrfsStream_SendCommand_Tlvs> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs>
-    for &OptRc<BtrfsStream_SendCommand_Tlvs>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Tlvs> for &OptRc<BtrfsStream_SendCommand_Tlvs> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Tlvs>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1298,11 +1003,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlvs {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1318,12 +1019,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlvs {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, BtrfsStream_SendCommand_Tlv>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, BtrfsStream_SendCommand_Tlv>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.tlv.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1333,7 +1029,8 @@ impl KStruct for BtrfsStream_SendCommand_Tlvs {
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand_Tlvs {}
+impl BtrfsStream_SendCommand_Tlvs {
+}
 impl BtrfsStream_SendCommand_Tlvs {
     pub fn tlv(&self) -> Ref<'_, Vec<OptRc<BtrfsStream_SendCommand_Tlv>>> {
         self.tlv.borrow()
@@ -1360,57 +1057,35 @@ pub struct BtrfsStream_SendCommand_Uuid {
     _io: RefCell<BytesReader>,
     uuid_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&BtrfsStream_SendCommand_Uuid>
-    for OptRc<BtrfsStream_SendCommand_Uuid>
-{
+impl TryFrom<&BtrfsStream_SendCommand_Uuid> for OptRc<BtrfsStream_SendCommand_Uuid> {
     type Error = KError;
     fn try_from(v: &BtrfsStream_SendCommand_Uuid) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendCommand_Uuid>
-    for OptRc<BtrfsStream_SendCommand_Uuid>
-{
+impl TryFrom<&&BtrfsStream_SendCommand_Uuid> for OptRc<BtrfsStream_SendCommand_Uuid> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendCommand_Uuid,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendCommand_Uuid) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for BtrfsStream_SendCommand_Uuid
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for BtrfsStream_SendCommand_Uuid {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for &BtrfsStream_SendCommand_Uuid
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for &BtrfsStream_SendCommand_Uuid {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for OptRc<BtrfsStream_SendCommand_Uuid>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for OptRc<BtrfsStream_SendCommand_Uuid> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendCommand_Uuid>
-    for &OptRc<BtrfsStream_SendCommand_Uuid>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
+impl DowncastOptRc<BtrfsStream_SendCommand_Uuid> for &OptRc<BtrfsStream_SendCommand_Uuid> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendCommand_Uuid>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1418,11 +1093,7 @@ impl KStruct for BtrfsStream_SendCommand_Uuid {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1440,7 +1111,8 @@ impl KStruct for BtrfsStream_SendCommand_Uuid {
         Ok(())
     }
 }
-impl BtrfsStream_SendCommand_Uuid {}
+impl BtrfsStream_SendCommand_Uuid {
+}
 impl BtrfsStream_SendCommand_Uuid {
     pub fn uuid(&self) -> Ref<'_, Vec<u8>> {
         self.uuid.borrow()
@@ -1472,57 +1144,35 @@ pub struct BtrfsStream_SendStreamHeader {
     version: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&BtrfsStream_SendStreamHeader>
-    for OptRc<BtrfsStream_SendStreamHeader>
-{
+impl TryFrom<&BtrfsStream_SendStreamHeader> for OptRc<BtrfsStream_SendStreamHeader> {
     type Error = KError;
     fn try_from(v: &BtrfsStream_SendStreamHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&BtrfsStream_SendStreamHeader>
-    for OptRc<BtrfsStream_SendStreamHeader>
-{
+impl TryFrom<&&BtrfsStream_SendStreamHeader> for OptRc<BtrfsStream_SendStreamHeader> {
     type Error = KError;
-    fn try_from(
-        v: &&BtrfsStream_SendStreamHeader,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&BtrfsStream_SendStreamHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendStreamHeader>
-    for BtrfsStream_SendStreamHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
+impl DowncastOptRc<BtrfsStream_SendStreamHeader> for BtrfsStream_SendStreamHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendStreamHeader>
-    for &BtrfsStream_SendStreamHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
+impl DowncastOptRc<BtrfsStream_SendStreamHeader> for &BtrfsStream_SendStreamHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<BtrfsStream_SendStreamHeader>
-    for OptRc<BtrfsStream_SendStreamHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
+impl DowncastOptRc<BtrfsStream_SendStreamHeader> for OptRc<BtrfsStream_SendStreamHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<BtrfsStream_SendStreamHeader>
-    for &OptRc<BtrfsStream_SendStreamHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
+impl DowncastOptRc<BtrfsStream_SendStreamHeader> for &OptRc<BtrfsStream_SendStreamHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<BtrfsStream_SendStreamHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1530,11 +1180,7 @@ impl KStruct for BtrfsStream_SendStreamHeader {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1547,16 +1193,8 @@ impl KStruct for BtrfsStream_SendStreamHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(13_usize)?;
-        if !(*self_rc.magic()
-            == vec![
-                0x62u8, 0x74u8, 0x72u8, 0x66u8, 0x73u8, 0x2du8, 0x73u8, 0x74u8,
-                0x72u8, 0x65u8, 0x61u8, 0x6du8, 0x0u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/send_stream_header/seq/0".to_string(),
-            }));
+        if !(*self_rc.magic() == vec![0x62u8, 0x74u8, 0x72u8, 0x66u8, 0x73u8, 0x2du8, 0x73u8, 0x74u8, 0x72u8, 0x65u8, 0x61u8, 0x6du8, 0x0u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/send_stream_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
@@ -1565,7 +1203,8 @@ impl KStruct for BtrfsStream_SendStreamHeader {
         Ok(())
     }
 }
-impl BtrfsStream_SendStreamHeader {}
+impl BtrfsStream_SendStreamHeader {
+}
 impl BtrfsStream_SendStreamHeader {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

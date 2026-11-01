@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::hello_world::HelloWorld;
-use super::hello_world::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct TypeTernaryOpaque {
@@ -109,11 +109,7 @@ impl KStruct for TypeTernaryOpaque {
     type Root = TypeTernaryOpaque;
     type Parent = TypeTernaryOpaque;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,29 +126,17 @@ impl KStruct for TypeTernaryOpaque {
             let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
             let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
-            let t = Self::read_into::<BytesReader, HelloWorld>(
-                &_io_dif_wo_hack,
-                None,
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_wo_hack, None, None)?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_hack()? {
             let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
-            *self_rc.dif_with_hack_raw.borrow_mut() =
-                _raw_dif_with_hack.clone();
-            let _processed_dif_with_hack =
-                process_xor_one(&_raw_dif_with_hack, 3_u8);
+            *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
+            let _processed_dif_with_hack = process_xor_one(&_raw_dif_with_hack, 3_u8);
             let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
-            let t = Self::read_into::<BytesReader, HelloWorld>(
-                &_io_dif_with_hack,
-                None,
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_with_hack, None, None)?.into();
             *self_rc.dif_with_hack.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -161,30 +145,21 @@ impl KStruct for TypeTernaryOpaque {
     }
 }
 impl TypeTernaryOpaque {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn dif(&self) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn dif(
+        &self
+    ) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
         let _io = self._io.borrow();
         if self.f_dif.get() {
             return Ok(self.dif.borrow());
         }
-        *self.dif.borrow_mut() = if !(*self.is_hack()?) {
-            self.dif_wo_hack().clone()
-        } else {
-            self.dif_with_hack().clone()
-        }
-        .clone();
+        *self.dif.borrow_mut() = if !(*self.is_hack()?) { self.dif_wo_hack().clone() } else { self.dif_with_hack().clone() }.clone();
         Ok(self.dif.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_hack(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_hack(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_hack.get() {
             return Ok(self.is_hack.borrow());

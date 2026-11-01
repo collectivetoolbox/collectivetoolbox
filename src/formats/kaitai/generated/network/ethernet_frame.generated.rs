@@ -2,12 +2,12 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::ipv4_packet::Ipv4Packet;
-use super::ipv4_packet::*;
-use super::ipv6_packet::Ipv6Packet;
-use super::ipv6_packet::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::ipv6_packet::Ipv6Packet;
+use super::ipv6_packet::*;
+use super::ipv4_packet::Ipv4Packet;
+use super::ipv4_packet::*;
 
 /**
  * Ethernet frame is a OSI data link layer (layer 2) protocol data unit
@@ -156,11 +156,7 @@ impl KStruct for EthernetFrame {
     type Root = EthernetFrame;
     type Parent = EthernetFrame;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -176,26 +172,17 @@ impl KStruct for EthernetFrame {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.src_mac.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ether_type_1.borrow_mut() =
-            i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc.ether_type_1.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid
-        {
-            let t = Self::read_into::<_, EthernetFrame_TagControlInfo>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
+            let t = Self::read_into::<_, EthernetFrame_TagControlInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.tci.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid
-        {
-            *self_rc.ether_type_2.borrow_mut() =
-                i64::from(_io.read_u2be()?).try_into()?;
+        if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
+            *self_rc.ether_type_2.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.ether_type()? {
@@ -203,29 +190,18 @@ impl KStruct for EthernetFrame {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Ipv4Packet>(
-                    &_t_body_raw_io,
-                    None,
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Ipv4Packet>(&_t_body_raw_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             EthernetFrame_EtherTypeEnum::Ipv6 => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Ipv6Packet>(
-                    &_t_body_raw_io,
-                    None,
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Ipv6Packet>(&_t_body_raw_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() =
-                    Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -234,30 +210,23 @@ impl KStruct for EthernetFrame {
     }
 }
 impl EthernetFrame {
+
     /**
      * Ether type can be specified in several places in the frame. If
      * first location bears special marker (0x8100), then it is not the
      * real ether frame yet, an additional payload (`tci`) is expected
      * and real ether type is upcoming next.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ether_type(&self) -> KResult<Ref<'_, EthernetFrame_EtherTypeEnum>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ether_type(
+        &self
+    ) -> KResult<Ref<'_, EthernetFrame_EtherTypeEnum>> {
         let _io = self._io.borrow();
         if self.f_ether_type.get() {
             return Ok(self.ether_type.borrow());
         }
         self.f_ether_type.set(true);
-        *self.ether_type.borrow_mut() = if *self.ether_type_1()
-            == EthernetFrame_EtherTypeEnum::Ieee8021qTpid
-        {
-            self.ether_type_2().clone()
-        } else {
-            self.ether_type_1().clone()
-        };
+        *self.ether_type.borrow_mut() = if *self.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid { self.ether_type_2().clone() } else { self.ether_type_1().clone() };
         Ok(self.ether_type.borrow())
     }
 }
@@ -373,16 +342,15 @@ impl From<&EthernetFrame_EtherTypeEnum> for i64 {
             EthernetFrame_EtherTypeEnum::Arp => 2054,
             EthernetFrame_EtherTypeEnum::Ieee8021qTpid => 33024,
             EthernetFrame_EtherTypeEnum::Ipv6 => 34525,
-            EthernetFrame_EtherTypeEnum::Unknown(v) => v,
+            EthernetFrame_EtherTypeEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for EthernetFrame_EtherTypeEnum {
-    fn default() -> Self {
-        EthernetFrame_EtherTypeEnum::Unknown(0)
-    }
+    fn default() -> Self { EthernetFrame_EtherTypeEnum::Unknown(0) }
 }
+
 
 /**
  * Tag Control Information (TCI) is an extension of IEEE 802.1Q to
@@ -399,57 +367,35 @@ pub struct EthernetFrame_TagControlInfo {
     vlan_id: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EthernetFrame_TagControlInfo>
-    for OptRc<EthernetFrame_TagControlInfo>
-{
+impl TryFrom<&EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
     type Error = KError;
     fn try_from(v: &EthernetFrame_TagControlInfo) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EthernetFrame_TagControlInfo>
-    for OptRc<EthernetFrame_TagControlInfo>
-{
+impl TryFrom<&&EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
     type Error = KError;
-    fn try_from(
-        v: &&EthernetFrame_TagControlInfo,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&EthernetFrame_TagControlInfo) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<EthernetFrame_TagControlInfo>
-    for EthernetFrame_TagControlInfo
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for EthernetFrame_TagControlInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<EthernetFrame_TagControlInfo>
-    for &EthernetFrame_TagControlInfo
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for &EthernetFrame_TagControlInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EthernetFrame_TagControlInfo>
-    for OptRc<EthernetFrame_TagControlInfo>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EthernetFrame_TagControlInfo>
-    for &OptRc<EthernetFrame_TagControlInfo>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for &OptRc<EthernetFrame_TagControlInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -457,11 +403,7 @@ impl KStruct for EthernetFrame_TagControlInfo {
     type Root = EthernetFrame;
     type Parent = EthernetFrame;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -483,7 +425,8 @@ impl KStruct for EthernetFrame_TagControlInfo {
         Ok(())
     }
 }
-impl EthernetFrame_TagControlInfo {}
+impl EthernetFrame_TagControlInfo {
+}
 
 /**
  * Priority Code Point (PCP) is used to specify priority for

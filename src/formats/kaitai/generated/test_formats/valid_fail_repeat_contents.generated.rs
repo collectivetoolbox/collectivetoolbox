@@ -91,9 +91,7 @@ impl DowncastOptRc<ValidFailRepeatContents> for OptRc<ValidFailRepeatContents> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ValidFailRepeatContents>
-    for &OptRc<ValidFailRepeatContents>
-{
+impl DowncastOptRc<ValidFailRepeatContents> for &OptRc<ValidFailRepeatContents> {
     fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatContents>, KError> {
         Ok((*self).clone())
     }
@@ -102,11 +100,7 @@ impl KStruct for ValidFailRepeatContents {
     type Root = ValidFailRepeatContents;
     type Parent = ValidFailRepeatContents;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,22 +120,16 @@ impl KStruct for ValidFailRepeatContents {
                 _i = _i.saturating_add(1);
             }
         }
-        if !self_rc
-            .foo()
-            .iter()
-            .all(|_x| *_x == vec![0x12u8, 0x34u8, 0x56u8, 0x78u8])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+        if !self_rc.foo().iter().all(|_x| *_x == vec![0x12u8, 0x34u8, 0x56u8, 0x78u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailRepeatContents {}
+impl ValidFailRepeatContents {
+}
 impl ValidFailRepeatContents {
     pub fn foo(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.foo.borrow()
