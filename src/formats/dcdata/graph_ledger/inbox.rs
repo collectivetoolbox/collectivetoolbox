@@ -1229,6 +1229,102 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_utf8_interrupted_writes_recover_without_hiding_corruption()
+    -> Result<()> {
+        for character in ["\u{e9}", "\u{20ac}", "\u{1f642}"] {
+            for partial_bytes in 1..character.len() {
+                let (temp_dir, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;
+                let root = temp_dir.path();
+                let graph_dir = root.join("assets/data/graph");
+                let inbox_dir = root.join("src/formats/dcdata/data-src/nodes/inbox");
+                let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
+                let baseline_journal = fs::read(&journal_path)?;
+                fs::write(
+                    inbox_dir.join("01_journal.dcsh"),
+                    format!("# @provenance: csv\n# @comment: \"{character}\"\nu61 u62\n"),
+                )?;
+                let err = process_inbox_nodes_with_fault(
+                    root,
+                    None,
+                    false,
+                    Some(FaultInjectionPoint::TornPendingRecord {
+                        bytes_to_keep: usize::MAX,
+                    }),
+                ).unwrap_err();
+                assert!(format!("{err:#}").contains("Simulated fault injection"));
+                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                let fragment = parsed.torn_trailing_fragment.unwrap();
+                let split_at = std::str::from_utf8(&fragment)?.find(character).unwrap()
+                    + partial_bytes;
+                let torn_fragment = &fragment[..split_at];
+                assert!(std::str::from_utf8(torn_fragment).is_err());
+                let mut torn_journal = baseline_journal.clone();
+                torn_journal.extend_from_slice(torn_fragment);
+                fs::write(&journal_path, &torn_journal)?;
+                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                assert_eq!(parsed.valid_prefix_len, baseline_journal.len());
+                assert_eq!(parsed.torn_trailing_fragment.as_deref(), Some(torn_fragment));
+                assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
+                recover_pending_ledger_journal(root, None, false)?;
+                assert_eq!(fs::read(&journal_path)?, baseline_journal);
+                assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 1);
+
+                fs::write(
+                    inbox_dir.join("02_chunk.dcsh"),
+                    format!("# @provenance: csv\n# @comment: \"{character}\"\nu63 u64\n"),
+                )?;
+                let err = process_inbox_nodes_with_fault(
+                    root,
+                    None,
+                    false,
+                    Some(FaultInjectionPoint::AfterItemAppendedAndMoved {
+                        item_index: 0,
+                    }),
+                ).unwrap_err();
+                assert!(format!("{err:#}").contains("Simulated fault injection"));
+                let pending = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?
+                    .open_pending.unwrap();
+                let item = &pending.items[0];
+                let chunk_path = graph_dir.join(&item.target_chunk);
+                let complete_chunk = fs::read(&chunk_path)?;
+                let line_start = complete_chunk.len() - item.raw_line.len() - 1;
+                let split_at = line_start + item.raw_line.find(character).unwrap()
+                    + partial_bytes;
+                let torn_chunk = &complete_chunk[..split_at];
+                assert!(std::str::from_utf8(torn_chunk).is_err());
+
+                let mut corrupt_complete_chunk = torn_chunk.to_vec();
+                corrupt_complete_chunk.push(b'\n');
+                fs::write(&chunk_path, &corrupt_complete_chunk)?;
+                let err = recover_pending_ledger_journal(root, None, false).unwrap_err();
+                assert!(format!("{err:#}").contains("Invalid UTF-8 in complete .ctbnodes lines"));
+                assert_eq!(fs::read(&chunk_path)?, corrupt_complete_chunk);
+
+                fs::write(&chunk_path, torn_chunk)?;
+                assert!(recover_pending_ledger_journal(root, None, false)?);
+                assert_eq!(fs::read(&chunk_path)?, complete_chunk);
+                let nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+                assert_eq!(&nodes[..baseline_nodes.len()], baseline_nodes.as_slice());
+                assert_eq!(nodes.len(), baseline_nodes.len() + 2);
+                assert!(nodes.last().unwrap().comment.contains(character));
+                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                assert!(parsed.open_pending.is_none());
+                assert!(parsed.torn_trailing_fragment.is_none());
+                verify_repo_committed_node_provenance(root)?;
+                assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 0);
+
+                let mut corrupt_journal = fs::read(&journal_path)?;
+                corrupt_journal.extend_from_slice(&[0xc3, b'\n']);
+                fs::write(&journal_path, &corrupt_journal)?;
+                let err = recover_pending_ledger_journal(root, None, false).unwrap_err();
+                assert!(format!("{err:#}").contains("Invalid UTF-8 in complete journal line"));
+                assert_eq!(fs::read(&journal_path)?, corrupt_journal);
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_inbox_and_manifest_resume_after_partial_append_and_move()
     -> Result<()> {
         let (temp_dir, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;

@@ -522,21 +522,22 @@ pub fn write_chunk_file_append_only(path: &Path, content: &str) -> Result<bool> 
     use std::io::Write;
 
     if path.exists() {
-        let existing = std::fs::read_to_string(path).with_context(|| {
+        let existing = std::fs::read(path).with_context(|| {
             format!("Failed to read existing .ctbnodes chunk {}", path.display())
         })?;
-        if existing == content {
+        if existing == content.as_bytes() {
             return Ok(false);
         }
         ensure!(
-            content.starts_with(&existing),
+            content.as_bytes().starts_with(&existing),
             "CRITICAL: Append-only invariant violated for {}: existing file content ({} bytes) \
              is not a strict byte prefix of new content ({} bytes). Existing .ctbnodes entries must never be modified or truncated!",
             path.display(),
             existing.len(),
             content.len()
         );
-        let tail = content.as_bytes().get(existing.len()..).unwrap_or_default();
+        let tail = content.as_bytes().get(existing.len()..)
+            .context("Existing chunk exceeds verified replacement byte length")?;
         let mut file = std::fs::OpenOptions::new()
             .append(true)
             .open(path)

@@ -10,9 +10,9 @@
 - An edit-by-edit history cannot be recovered from phase commits. The available
   records establish allocation contents and phase boundaries, not every transient
   source edit or filesystem operation.
-- The UTF-8 crash-recovery and hidden-operational-state findings remain open.
-  Candidate-order inference, asymmetric inbox ownership checks, and live
-  recovery-count assertions were corrected during the follow-up below.
+- The hidden-operational-state finding remains open. Candidate-order inference,
+  asymmetric inbox ownership checks, live recovery-count assertions, and UTF-8
+  interrupted-write recovery were corrected during the follow-ups below.
 
 ## Verdict
 
@@ -85,18 +85,24 @@ The committed recovery's explicit retractions remain in place. After removing
 the inference, the live CSV planner still proposes zero changes, and the
 independent active-statement multiset comparison still matches the incident.
 
-### High: A Torn UTF-8 Tail Can Block Crash Recovery
+### Resolved: Interrupted UTF-8 Writes Are Recovered As Bytes
 
-[journal.rs](../../src/build_support/ctbnbdl/journal.rs#L933) and
-[journal.rs](../../src/build_support/ctbnbdl/journal.rs#L1379) read the entire
-journal/chunk as a UTF-8 string before identifying its final unterminated line.
-A real interrupted byte write can split a multibyte comment character, causing
-decoding to fail before the supported torn-tail recovery logic runs.
+[journal.rs](../../src/build_support/ctbnbdl/journal.rs) now separates incomplete
+final records as raw bytes before decoding complete journal and chunk lines.
+Complete-line UTF-8 corruption remains a hard error. A torn chunk must still be
+an exact byte prefix of the item recorded in the pending transaction.
 
-Read bytes first, validate complete lines strictly, and preserve the incomplete
-suffix as bytes. Add multibyte torn-journal and torn-chunk tests. The existing
-ASCII fault-injection tests do not exercise this failure. No such corruption
-exists in the committed recovery.
+The append-only writer in [ctbnbdl.rs](../../src/build_support/ctbnbdl.rs) also
+compares raw bytes, allowing it to finish a split character without rewriting
+existing bytes. Its strict equality/prefix checks remain enforced.
+
+The general inbox regression test covers every internal byte cut in representative
+two-, three-, and four-byte UTF-8 characters. It exercises real pending journal
+and chunk recovery, rejects invalid UTF-8 in complete records without modifying
+the corrupt file, preserves the ledger prefix, verifies committed provenance,
+and checks that a second run allocates nothing. Neither the fix nor this test
+depends on the recovery audit scripts. No graph corruption was found or repaired
+in the live repository.
 
 ### Resolved: Inbox Ownership Protection Is Symmetric
 
@@ -154,8 +160,9 @@ the identities of historical nodes.
 
 Do not revert the Rust recovery commit wholesale: current readers require the
 journal, and the code supplies the mechanism for safely appending future changes.
-The one-off candidate-selection assumptions have been removed. Fix the remaining
-durability gaps without changing already-assigned IDs.
+The one-off candidate-selection assumptions and UTF-8 interrupted-write defect
+have been corrected. Address the remaining hidden operational state without
+changing already-assigned IDs.
 
 Blanket retraction would also cancel recovery revision statements, potentially
 reactivating the incident's ambiguous definitions. It would not recreate missing
@@ -163,11 +170,13 @@ Git edit history. No ledger correction is indicated by this audit.
 
 ## Validation And Changes
 
-- Follow-up musl graph/seed/inbox tests: 27 passed, zero failed or ignored.
+- Follow-up musl graph/seed/inbox tests: 28 passed, zero failed or ignored.
   These include live Dc/format CSV readback parity, syntax parity, symmetric
   ownership, ordering-independent ambiguity, and historical-prefix invariants.
 - Existing CSV edit tests additionally verify the resulting active property and
   relationship state, and zero-change second passes after those edits.
+- Multibyte interrupted-write tests verify byte-safe journal and chunk recovery,
+  strict complete-line corruption rejection, prefix preservation, and idempotency.
 - Standalone musl journal/bundle tests: 5 passed, zero failed or ignored.
 - Live filesystem CSV dry-run: 23,752 nodes, zero appends, zero supersessions,
   zero retractions, zero chunk writes, and no validation diagnostics.
@@ -180,8 +189,7 @@ Git edit history. No ledger correction is indicated by this audit.
   parser; they do not retroactively change the recovery artifacts or require
   rerunning allocation.
 - The independent audit command and this report were added. Graph data was not
-  changed. The remaining UTF-8 durability and hidden-state findings are not
-  implemented fixes.
+  changed. The hidden-state finding remains an unimplemented recommendation.
 - Follow-up production Clippy completed successfully with existing warnings.
 
 The Step 3 reconciliation was already committed in `7abf6f67c`, and its script

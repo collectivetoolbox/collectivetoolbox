@@ -542,7 +542,7 @@ pub struct ParsedJournal {
     /// Byte length of the validated `\n`-terminated prefix of `ledger-journal.jsonl`.
     pub valid_prefix_len: usize,
     /// Unterminated trailing line fragment (not ending in `\n`), if a crash interrupted the last write.
-    pub torn_trailing_fragment: Option<String>,
+    pub torn_trailing_fragment: Option<Vec<u8>>,
     /// All complete `\n`-terminated records, each verified with `verify_sha256()`.
     pub records: Vec<JournalRecord>,
     /// All completed `(BATCH_PENDING, BATCH_COMMITTED)` pairs in chronological order.
@@ -930,21 +930,25 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
 /// - Any complete (`\n`-terminated) line that fails JSON parsing or `verify_sha256()` is rejected as hard corruption.
 /// - Only an unterminated final line (not ending in `\n`) is reported in `torn_trailing_fragment`.
 pub fn inspect_ledger_journal(journal_path: &Path) -> Result<ParsedJournal> {
-    let raw = fs::read_to_string(journal_path).with_context(|| {
+    let raw = fs::read(journal_path).with_context(|| {
         format!("Failed to read ledger journal {}", journal_path.display())
     })?;
 
     let mut valid_prefix_len = 0usize;
-    let mut torn_trailing_fragment: Option<String> = None;
+    let mut torn_trailing_fragment: Option<Vec<u8>> = None;
     let mut records: Vec<JournalRecord> = Vec::new();
 
-    let mut offset = 0usize;
-    let bytes = raw.as_bytes();
-    while offset < bytes.len() {
-        let rem = raw.get(offset..).unwrap_or_default();
-        if let Some(nl_rel) = rem.find('\n') {
-            let line_end = offset.saturating_add(nl_rel).saturating_add(1);
-            let line_str = rem.get(..nl_rel).unwrap_or_default().trim_end_matches('\r');
+    for line_bytes in raw.split_inclusive(|&byte| byte == b'\n') {
+        let offset = valid_prefix_len;
+        if line_bytes.last() == Some(&b'\n') {
+            let line_str = std::str::from_utf8(line_bytes)
+                .with_context(|| {
+                    format!(
+                        "CRITICAL: Invalid UTF-8 in complete journal line in {} at byte offset {offset}",
+                        journal_path.display()
+                    )
+                })?
+                .trim_end_matches(['\r', '\n']);
             if !line_str.trim().is_empty() {
                 let rec: JournalRecord = serde_json::from_str(line_str)
                     .with_context(|| {
@@ -961,14 +965,11 @@ pub fn inspect_ledger_journal(journal_path: &Path) -> Result<ParsedJournal> {
                 })?;
                 records.push(rec);
             }
-            valid_prefix_len = line_end;
-            offset = line_end;
+            valid_prefix_len = valid_prefix_len.saturating_add(line_bytes.len());
         } else {
-            let frag = rem.to_string();
-            if !frag.trim().is_empty() {
-                torn_trailing_fragment = Some(frag);
+            if !line_bytes.iter().all(u8::is_ascii_whitespace) {
+                torn_trailing_fragment = Some(line_bytes.to_vec());
             }
-            break;
         }
     }
 
@@ -1368,34 +1369,41 @@ pub fn bootstrap_initial_ledger_journal_with_fault(
 /// of the final chunk file when recovering an interrupted `BATCH_PENDING` transaction.
 fn load_nodes_from_dir_allowing_torn_tail(
     dir: &Path,
-) -> Result<(Vec<LedgerNode>, Option<(PathBuf, String)>)> {
+) -> Result<(Vec<LedgerNode>, Option<(PathBuf, Vec<u8>)>)> {
     let files = list_chunk_files(dir)?;
     let mut all_nodes = Vec::new();
-    let mut torn_tail: Option<(PathBuf, String)> = None;
+    let mut torn_tail: Option<(PathBuf, Vec<u8>)> = None;
     let total_files = files.len();
 
     for (idx, path) in files.into_iter().enumerate() {
         let is_last_file = idx.saturating_add(1) == total_files;
-        let raw = fs::read_to_string(&path).with_context(|| {
+        let raw = fs::read(&path).with_context(|| {
             format!("Failed to read .ctbnodes chunk {}", path.display())
         })?;
-        let text_to_parse = if is_last_file && !raw.is_empty() && !raw.ends_with('\n') {
-            if let Some(last_nl) = raw.rfind('\n') {
-                let tail = raw.get(last_nl.saturating_add(1)..).unwrap_or_default();
-                torn_tail = Some((path.clone(), tail.to_string()));
-                raw.get(..=last_nl).unwrap_or_default()
-            } else {
-                torn_tail = Some((path.clone(), raw.clone()));
-                ""
-            }
+        let complete_len = if is_last_file && !raw.is_empty() && raw.last() != Some(&b'\n') {
+            let complete_len = raw.iter().rposition(|&byte| byte == b'\n')
+                .map_or(0, |last_nl| last_nl.saturating_add(1));
+            let tail = raw.get(complete_len..)
+                .context("Invalid complete prefix length in .ctbnodes chunk")?;
+            torn_tail = Some((path.clone(), tail.to_vec()));
+            complete_len
         } else {
             ensure!(
-                raw.is_empty() || raw.ends_with('\n'),
+                raw.is_empty() || raw.last() == Some(&b'\n'),
                 "CRITICAL: Non-final .ctbnodes chunk {} has an unterminated line!",
                 path.display()
             );
-            raw.as_str()
+            raw.len()
         };
+        let complete_bytes = raw.get(..complete_len)
+            .context("Invalid complete prefix length in .ctbnodes chunk")?;
+        let text_to_parse = std::str::from_utf8(complete_bytes)
+            .with_context(|| {
+                format!(
+                    "CRITICAL: Invalid UTF-8 in complete .ctbnodes lines in {}",
+                    path.display()
+                )
+            })?;
 
         let chunk_nodes =
             load_ledger_nodes_from_str(text_to_parse, &path.display().to_string())?;
@@ -1469,7 +1477,7 @@ fn verify_and_extract_baseline_for_pending(
         };
         let expected_full_line = format!("{}\n", next_item.raw_line);
         ensure!(
-            expected_full_line.starts_with(&frag),
+            expected_full_line.as_bytes().starts_with(&frag),
             "CRITICAL: {label} ({}) trailing fragment {:?} is not a strict byte prefix of expected item line {:?}",
             torn_path.display(),
             frag,
