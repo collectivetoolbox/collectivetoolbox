@@ -152,6 +152,9 @@ pub struct SeedGraphIndex {
     /// Active single-valued properties: `(subject, prop_token) -> (has_a_id, has_val_id, current_val_token)`.
     pub(crate) active_single_props:
         BTreeMap<(DcShorthand, DcShorthand), (u128, u128, DcShorthand)>,
+    /// All active single-valued property assignments per `(subject, prop_token)` in ascending `has_a_id` order.
+    pub(crate) single_props_by_subj_prop:
+        BTreeMap<(DcShorthand, DcShorthand), Vec<(u128, u128, DcShorthand)>>,
     /// Active multi-valued properties: `(subject, prop_token, val_token) -> (has_a_id, has_val_id)`.
     pub(crate) active_multi_props:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), (u128, u128)>,
@@ -166,17 +169,26 @@ pub struct SeedGraphIndex {
     /// Active `<prefer>` replacements: `(subject, val_token) -> (has_a_id, has_val_id, pref_qual_id)`.
     pub(crate) active_preferred:
         BTreeMap<(DcShorthand, DcShorthand), (u128, u128, u128)>,
+    /// All active `<prefer>` replacement triples per `(subject, val_token)` in ascending `has_a_id` order.
+    pub(crate) preferred_all_by_subj_val:
+        BTreeMap<(DcShorthand, DcShorthand), Vec<(u128, u128, u128)>>,
     /// Active `<prefer>` replacement values grouped by `subject` in ascending `has_a_id` order.
     pub(crate) preferred_by_subject: HashMap<DcShorthand, Vec<DcShorthand>>,
     /// Active direct binary statements: `(verb, subject, object) -> stmt_id`.
     pub(crate) active_direct_stmts:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
+    /// All active direct binary statement node IDs per `(verb, subject, object)` in ascending `stmt_id` order.
+    pub(crate) direct_stmts_all:
+        BTreeMap<(DcShorthand, DcShorthand, DcShorthand), Vec<u128>>,
     /// Active direct binary statement objects grouped by `(verb, subject)` in ascending `stmt_id` order.
     pub(crate) direct_objects_by_verb_subj:
         HashMap<(DcShorthand, DcShorthand), Vec<DcShorthand>>,
     /// Active direct binary statement subjects grouped by `(verb, object)` in ascending `stmt_id` order.
     pub(crate) direct_subjects_by_verb_obj:
         HashMap<(DcShorthand, DcShorthand), Vec<DcShorthand>>,
+    /// Active statement node IDs that are shadowed (e.g. an earlier active `610` on the same `584`
+    /// statement) or orphaned (e.g. an active `584` property statement with no active `610` value).
+    pub(crate) shadowed_or_orphaned_stmt_ids: Vec<u128>,
 }
 
 /// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
@@ -482,6 +494,7 @@ impl SeedGraphIndex {
         let mut active_has_val_by_stmt: HashMap<u128, (u128, DcShorthand)> =
             HashMap::new();
         let mut active_pref_qual_by_stmt: HashMap<u128, u128> = HashMap::new();
+        let mut shadowed_or_orphaned_stmt_ids: Vec<u128> = Vec::new();
 
         for node in &nodes {
             if let Some(decoded_str) = decode_string_value_tokens(&node.tokens)
@@ -507,18 +520,51 @@ impl SeedGraphIndex {
                 if verb == sh_has_value {
                     if let DcShorthand::Long(has_a_id) = subj {
                         if !inactive_ids.contains(&has_a_id) {
-                            active_has_val_by_stmt
-                                .insert(has_a_id, (node.id, obj));
+                            let is_prop_has_a = node_index_by_id
+                                .get(&has_a_id)
+                                .and_then(|&idx| nodes.get(idx))
+                                .is_some_and(|n| {
+                                    parse_statement_tokens(&n.tokens)
+                                        .is_some_and(|(v, _, _)| v == sh_has_a)
+                                });
+                            if is_prop_has_a {
+                                if let Some((old_val_stmt_id, _)) =
+                                    active_has_val_by_stmt
+                                        .insert(has_a_id, (node.id, obj))
+                                {
+                                    shadowed_or_orphaned_stmt_ids
+                                        .push(old_val_stmt_id);
+                                }
+                            } else {
+                                shadowed_or_orphaned_stmt_ids.push(node.id);
+                            }
                         } else {
                             inactive_ids.insert(node.id);
                         }
+                    } else {
+                        shadowed_or_orphaned_stmt_ids.push(node.id);
                     }
                 } else if verb == sh_has_a && obj == sh_preferred {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
-                            active_pref_qual_by_stmt.insert(has_a_id, node.id);
-                        } else {
-                            inactive_ids.insert(node.id);
+                        let targets_has_a = node_index_by_id
+                            .get(&has_a_id)
+                            .and_then(|&idx| nodes.get(idx))
+                            .is_some_and(|n| {
+                                parse_statement_tokens(&n.tokens)
+                                    .is_some_and(|(v, _, _)| v == sh_has_a)
+                            });
+                        if targets_has_a {
+                            if !inactive_ids.contains(&has_a_id) {
+                                if let Some(old_pref_id) =
+                                    active_pref_qual_by_stmt
+                                        .insert(has_a_id, node.id)
+                                {
+                                    shadowed_or_orphaned_stmt_ids
+                                        .push(old_pref_id);
+                                }
+                            } else {
+                                inactive_ids.insert(node.id);
+                            }
                         }
                     }
                 }
@@ -531,6 +577,10 @@ impl SeedGraphIndex {
         let mut seed_entity_ids = HashMap::new();
         let mut seed_entity_by_id = HashMap::new();
         let mut active_single_props = BTreeMap::new();
+        let mut single_props_by_subj_prop: BTreeMap<
+            (DcShorthand, DcShorthand),
+            Vec<(u128, u128, DcShorthand)>,
+        > = BTreeMap::new();
         let mut active_multi_props = BTreeMap::new();
         let mut active_multi_preferred = BTreeMap::new();
         let mut multi_props_by_subj_prop: HashMap<
@@ -538,9 +588,17 @@ impl SeedGraphIndex {
             Vec<ActivePropertyValue>,
         > = HashMap::new();
         let mut active_preferred = BTreeMap::new();
+        let mut preferred_all_by_subj_val: BTreeMap<
+            (DcShorthand, DcShorthand),
+            Vec<(u128, u128, u128)>,
+        > = BTreeMap::new();
         let mut preferred_by_subject: HashMap<DcShorthand, Vec<DcShorthand>> =
             HashMap::new();
         let mut active_direct_stmts = BTreeMap::new();
+        let mut direct_stmts_all: BTreeMap<
+            (DcShorthand, DcShorthand, DcShorthand),
+            Vec<u128>,
+        > = BTreeMap::new();
         let mut direct_objects_by_verb_subj: HashMap<
             (DcShorthand, DcShorthand),
             Vec<DcShorthand>,
@@ -549,6 +607,7 @@ impl SeedGraphIndex {
             (DcShorthand, DcShorthand),
             Vec<DcShorthand>,
         > = HashMap::new();
+        let mut consumed_pref_qual_has_a_ids: HashSet<u128> = HashSet::new();
 
         for node in &nodes {
             if inactive_ids.contains(&node.id) {
@@ -629,9 +688,23 @@ impl SeedGraphIndex {
                                 None
                             };
                             if let Some(seed_key) = key_opt {
-                                seed_entity_by_id
-                                    .insert(seed_id, seed_key.clone());
-                                seed_entity_ids.insert(seed_key, seed_id);
+                                if let Some(&existing_seed_id) =
+                                    seed_entity_ids.get(&seed_key)
+                                {
+                                    if existing_seed_id != seed_id {
+                                        shadowed_or_orphaned_stmt_ids
+                                            .push(has_val_id);
+                                        shadowed_or_orphaned_stmt_ids
+                                            .push(node.id);
+                                        shadowed_or_orphaned_stmt_ids
+                                            .push(seed_id);
+                                        continue;
+                                    }
+                                } else {
+                                    seed_entity_by_id
+                                        .insert(seed_id, seed_key.clone());
+                                    seed_entity_ids.insert(seed_key, seed_id);
+                                }
                             }
                         }
                     }
@@ -640,19 +713,31 @@ impl SeedGraphIndex {
                         if let Some(&pref_id) =
                             active_pref_qual_by_stmt.get(&node.id)
                         {
-                            active_preferred.insert(
-                                (subj, val_tok),
-                                (node.id, has_val_id, pref_id),
-                            );
-                            preferred_by_subject
-                                .entry(subj)
+                            consumed_pref_qual_has_a_ids.insert(node.id);
+                            preferred_all_by_subj_val
+                                .entry((subj, val_tok))
                                 .or_default()
-                                .push(val_tok);
+                                .push((node.id, has_val_id, pref_id));
+                            if !active_preferred.contains_key(&(subj, val_tok))
+                            {
+                                active_preferred.insert(
+                                    (subj, val_tok),
+                                    (node.id, has_val_id, pref_id),
+                                );
+                                preferred_by_subject
+                                    .entry(subj)
+                                    .or_default()
+                                    .push(val_tok);
+                            }
                             continue;
                         }
                     }
 
                     if single_valued_props.contains(&obj) {
+                        single_props_by_subj_prop
+                            .entry((subj, obj))
+                            .or_default()
+                            .push((node.id, has_val_id, val_tok));
                         active_single_props.insert(
                             (subj, obj),
                             (node.id, has_val_id, val_tok),
@@ -661,6 +746,7 @@ impl SeedGraphIndex {
                         let preferred_id =
                             active_pref_qual_by_stmt.get(&node.id).copied();
                         if let Some(pref_id) = preferred_id {
+                            consumed_pref_qual_has_a_ids.insert(node.id);
                             active_multi_preferred
                                 .insert((subj, obj, val_tok), pref_id);
                         }
@@ -678,19 +764,39 @@ impl SeedGraphIndex {
                                 preferred_id,
                             });
                     }
+                } else {
+                    shadowed_or_orphaned_stmt_ids.push(node.id);
                 }
             } else {
-                active_direct_stmts.insert((verb, subj, obj), node.id);
-                direct_objects_by_verb_subj
-                    .entry((verb, subj))
+                direct_stmts_all
+                    .entry((verb, subj, obj))
                     .or_default()
-                    .push(obj);
-                direct_subjects_by_verb_obj
-                    .entry((verb, obj))
-                    .or_default()
-                    .push(subj);
+                    .push(node.id);
+                if active_direct_stmts.insert((verb, subj, obj), node.id).is_none() {
+                    direct_objects_by_verb_subj
+                        .entry((verb, subj))
+                        .or_default()
+                        .push(obj);
+                    direct_subjects_by_verb_obj
+                        .entry((verb, obj))
+                        .or_default()
+                        .push(subj);
+                }
             }
         }
+
+        for (&has_a_id, &pref_id) in &active_pref_qual_by_stmt {
+            if !consumed_pref_qual_has_a_ids.contains(&has_a_id) {
+                shadowed_or_orphaned_stmt_ids.push(pref_id);
+            }
+        }
+        for &seed_id in seed_candidate_class.keys() {
+            if !seed_entity_by_id.contains_key(&seed_id) {
+                shadowed_or_orphaned_stmt_ids.push(seed_id);
+            }
+        }
+        shadowed_or_orphaned_stmt_ids.sort_unstable();
+        shadowed_or_orphaned_stmt_ids.dedup();
 
         for list in multi_props_by_subj_prop.values_mut() {
             if list.iter().any(|e| e.preferred_id.is_some()) {
@@ -710,14 +816,18 @@ impl SeedGraphIndex {
             seed_entity_ids,
             seed_entity_by_id,
             active_single_props,
+            single_props_by_subj_prop,
             active_multi_props,
             active_multi_preferred,
             multi_props_by_subj_prop,
             active_preferred,
+            preferred_all_by_subj_val,
             preferred_by_subject,
             active_direct_stmts,
+            direct_stmts_all,
             direct_objects_by_verb_subj,
             direct_subjects_by_verb_obj,
+            shadowed_or_orphaned_stmt_ids,
         }
     }
 

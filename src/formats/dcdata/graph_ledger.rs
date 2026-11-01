@@ -614,17 +614,33 @@ struct LedgerBuilder {
     /// Active single-valued properties: `(subject, prop_token) -> (has_a_id, has_val_id, current_val_token)`.
     active_single_props:
         BTreeMap<(DcShorthand, DcShorthand), (u128, u128, DcShorthand)>,
+    /// All active single-valued property assignments per `(subject, prop_token)` in ascending `has_a_id` order.
+    single_props_by_subj_prop:
+        BTreeMap<(DcShorthand, DcShorthand), Vec<(u128, u128, DcShorthand)>>,
     /// Active multi-valued properties: `(subject, prop_token, val_token) -> (has_a_id, has_val_id)`.
     active_multi_props:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), (u128, u128)>,
+    /// All active multi-valued property assignments per `(subject, prop_token, val_token)` in ascending `has_a_id` order.
+    multi_props_all_by_key: BTreeMap<
+        (DcShorthand, DcShorthand, DcShorthand),
+        Vec<crate::seed_graph::ActivePropertyValue>,
+    >,
     /// Active `584 l<has_a_id> 570` (`Preferred`) qualifiers on multi-valued properties:
     /// `(subject, prop_token, val_token) -> pref_qual_id`.
     active_multi_preferred:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
     /// Active `<prefer>` replacements: `(subject, val_token) -> (has_a_id, has_val_id, pref_qual_id)`.
     active_preferred: BTreeMap<(DcShorthand, DcShorthand), (u128, u128, u128)>,
+    /// All active `<prefer>` replacement triples per `(subject, val_token)` in ascending `has_a_id` order.
+    preferred_all_by_subj_val:
+        BTreeMap<(DcShorthand, DcShorthand), Vec<(u128, u128, u128)>>,
     /// Active direct binary statements: `(verb, subject, object) -> stmt_id`.
     active_direct_stmts: BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
+    /// All active direct binary statement node IDs per `(verb, subject, object)` in ascending `stmt_id` order.
+    direct_stmts_all:
+        BTreeMap<(DcShorthand, DcShorthand, DcShorthand), Vec<u128>>,
+    /// Active statement node IDs that are shadowed or orphaned in the loaded graph.
+    shadowed_or_orphaned_stmt_ids: Vec<u128>,
     /// Maps `@vary_as` nicknames to their `.Formats:format_variant` Dc shorthand.
     vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
@@ -701,14 +717,34 @@ impl LedgerBuilder {
 
         let mut vary_as_to_format_variant = default_vary_as_to_format_variant();
         let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
-        for (&(subj, prop), &(_, _, val_tok)) in &index.active_single_props {
+        for (&(subj, prop), cands) in &index.single_props_by_subj_prop {
             if prop == sh_var_nick {
-                if let DcShorthand::Long(str_id) = val_tok {
-                    if let Some(nick) = index.string_by_node_id.get(&str_id) {
-                        vary_as_to_format_variant.insert(nick.clone(), subj);
+                for &(_, _, val_tok) in cands {
+                    if let DcShorthand::Long(str_id) = val_tok {
+                        if let Some(nick) = index.string_by_node_id.get(&str_id)
+                        {
+                            vary_as_to_format_variant
+                                .insert(nick.clone(), subj);
+                        }
                     }
                 }
             }
+        }
+
+        let mut multi_props_all_by_key: BTreeMap<
+            (DcShorthand, DcShorthand, DcShorthand),
+            Vec<crate::seed_graph::ActivePropertyValue>,
+        > = BTreeMap::new();
+        for (&(subj, prop), entries) in &index.multi_props_by_subj_prop {
+            for &entry in entries {
+                multi_props_all_by_key
+                    .entry((subj, prop, entry.value))
+                    .or_default()
+                    .push(entry);
+            }
+        }
+        for cands in multi_props_all_by_key.values_mut() {
+            cands.sort_by_key(|c| c.has_val_id);
         }
 
         Self {
@@ -723,10 +759,15 @@ impl LedgerBuilder {
             value_node_by_tokens: index.value_node_by_tokens,
             seed_entity_ids: index.seed_entity_ids,
             active_single_props: index.active_single_props,
+            single_props_by_subj_prop: index.single_props_by_subj_prop,
             active_multi_props: index.active_multi_props,
+            multi_props_all_by_key,
             active_multi_preferred: index.active_multi_preferred,
             active_preferred: index.active_preferred,
+            preferred_all_by_subj_val: index.preferred_all_by_subj_val,
             active_direct_stmts: index.active_direct_stmts,
+            direct_stmts_all: index.direct_stmts_all,
+            shadowed_or_orphaned_stmt_ids: index.shadowed_or_orphaned_stmt_ids,
             vary_as_to_format_variant,
         }
     }
@@ -1211,6 +1252,14 @@ impl LedgerBuilder {
                 .insert(nick.clone(), *variant_sh);
         }
 
+        // 0. Collect any shadowed or orphaned CSV-owned structural statement nodes for retraction.
+        let mut retract_targets: BTreeSet<u128> = BTreeSet::new();
+        for stmt_id in std::mem::take(&mut self.shadowed_or_orphaned_stmt_ids) {
+            if !self.is_manual_node(stmt_id) {
+                retract_targets.insert(stmt_id);
+            }
+        }
+
         // 1. Ensure all seed classification entities exist and add their label/syntax properties.
         for seed_key in &desired.seed_entities {
             let entity_id = self.ensure_seed_entity(seed_key)?;
@@ -1281,52 +1330,80 @@ impl LedgerBuilder {
         // Retract removed single-valued properties on top-level/seed subjects (qualifiers on
         // multi-valued property statement nodes are reconciled in Step 3 / Step 3c).
         let existing_single_keys: Vec<(DcShorthand, DcShorthand)> =
-            self.active_single_props.keys().copied().collect();
+            self.single_props_by_subj_prop.keys().copied().collect();
         for key in existing_single_keys {
             if matches!(key.0, DcShorthand::Long(id) if !seed_entity_id_set.contains(&id))
             {
                 continue;
             }
             if !resolved_single.contains_key(&key) {
-                if let Some(&(has_a_id, has_val_id, _)) =
-                    self.active_single_props.get(&key)
+                self.active_single_props.remove(&key);
+                if let Some(cands) = self.single_props_by_subj_prop.remove(&key)
                 {
-                    if self.is_manual_node(has_a_id)
-                        || self.is_manual_node(has_val_id)
-                    {
-                        continue;
+                    for (has_a_id, has_val_id, val_tok) in cands {
+                        if self.is_manual_node(has_a_id)
+                            || self.is_manual_node(has_val_id)
+                        {
+                            self.active_single_props
+                                .insert(key, (has_a_id, has_val_id, val_tok));
+                            continue;
+                        }
+                        retract_targets.insert(has_val_id);
+                        retract_targets.insert(has_a_id);
                     }
-                }
-                if let Some((has_a_id, has_val_id, _)) =
-                    self.active_single_props.remove(&key)
-                {
-                    self.retract_node(has_val_id)?;
-                    self.retract_node(has_a_id)?;
                 }
             }
         }
 
-        // Insert or update (`591` `Supersedes`) single-valued properties
+        // Insert or update (`591` `Supersedes`) single-valued properties, retracting any duplicate
+        // active assignments for the same `(subj, prop)`.
         for ((subj, prop), (val_tok, _comment)) in resolved_single {
-            if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
-                self.active_single_props.get(&(subj, prop))
+            if let Some(mut cands) =
+                self.single_props_by_subj_prop.remove(&(subj, prop))
+                && !cands.is_empty()
             {
-                if old_val_tok != val_tok {
-                    ensure!(
-                        !self.is_manual_node(has_a_id)
-                            && !self.is_manual_node(old_has_val_id),
-                        "Cross-ownership conflict: CSV reconciliation for single-valued property ({subj}, {prop}) with value {val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
-                    );
-                    let new_has_val_id = self.append_statement_node(
-                        sh(DC_HAS_VALUE),
-                        DcShorthand::Long(has_a_id),
-                        val_tok,
-                    )?;
-                    self.supersede_node(new_has_val_id, old_has_val_id)?;
-                    self.active_single_props.insert(
-                        (subj, prop),
-                        (has_a_id, new_has_val_id, val_tok),
-                    );
+                cands.sort_by_key(|&(_, has_val_id, _)| has_val_id);
+                // Reason for fallback: if no candidate already has `val_tok`, supersede the earliest candidate.
+                let keep_idx = cands
+                    .iter()
+                    .position(|&(_, _, v)| v == val_tok)
+                    .unwrap_or(0);
+                for (idx, &(other_has_a_id, other_has_val_id, _)) in
+                    cands.iter().enumerate()
+                {
+                    if idx != keep_idx
+                        && !self.is_manual_node(other_has_a_id)
+                        && !self.is_manual_node(other_has_val_id)
+                    {
+                        retract_targets.insert(other_has_val_id);
+                        retract_targets.insert(other_has_a_id);
+                    }
+                }
+                if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
+                    cands.get(keep_idx)
+                {
+                    if old_val_tok != val_tok {
+                        ensure!(
+                            !self.is_manual_node(has_a_id)
+                                && !self.is_manual_node(old_has_val_id),
+                            "Cross-ownership conflict: CSV reconciliation for single-valued property ({subj}, {prop}) with value {val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
+                        );
+                        let new_has_val_id = self.append_statement_node(
+                            sh(DC_HAS_VALUE),
+                            DcShorthand::Long(has_a_id),
+                            val_tok,
+                        )?;
+                        self.supersede_node(new_has_val_id, old_has_val_id)?;
+                        self.active_single_props.insert(
+                            (subj, prop),
+                            (has_a_id, new_has_val_id, val_tok),
+                        );
+                    } else {
+                        self.active_single_props.insert(
+                            (subj, prop),
+                            (has_a_id, old_has_val_id, old_val_tok),
+                        );
+                    }
                 }
             } else {
                 let has_a_id =
@@ -1358,6 +1435,120 @@ impl LedgerBuilder {
                 (*subj, *prop, val_tok),
                 (raw_source, comment.clone()),
             );
+        }
+
+        let mut resolved_multi_pref: BTreeSet<(
+            DcShorthand,
+            DcShorthand,
+            DcShorthand,
+        )> = BTreeSet::new();
+        for (subj, prop, val_spec) in &desired.preferred_multi_properties {
+            let val_tok = self.resolve_value_spec(val_spec)?;
+            resolved_multi_pref.insert((*subj, *prop, val_tok));
+        }
+
+        let mut desired_multi_quals: BTreeMap<
+            ((DcShorthand, DcShorthand, DcShorthand), DcShorthand),
+            (DcShorthand, String),
+        > = BTreeMap::new();
+        for (((subj, prop, val_spec), qual_prop), (qual_val_spec, comment)) in
+            &desired.multi_property_single_qualifiers
+        {
+            let val_tok = self.resolve_value_spec(val_spec)?;
+            let qual_val_tok = self.resolve_value_spec(qual_val_spec)?;
+            desired_multi_quals.insert(
+                ((*subj, *prop, val_tok), *qual_prop),
+                (qual_val_tok, comment.clone()),
+            );
+        }
+
+        // Deduplicate any multiple active `(has_a_id, has_val_id)` pairs for the same `(subj, prop, val_tok)`.
+        for (key, cands) in std::mem::take(&mut self.multi_props_all_by_key) {
+            if cands.is_empty() {
+                continue;
+            }
+            let keep_idx = if cands.len() > 1 {
+                let mut best_idx = 0usize;
+                let mut best_score = 0usize;
+                for (idx, cand) in cands.iter().enumerate() {
+                    let mut score = usize::from(
+                        cand.preferred_id.is_some()
+                            == resolved_multi_pref.contains(&key),
+                    );
+                    for ((q_key, qual_prop), (desired_q_val, _)) in
+                        &desired_multi_quals
+                    {
+                        if q_key == &key
+                            && self
+                                .single_props_by_subj_prop
+                                .get(&(
+                                    DcShorthand::Long(cand.has_a_id),
+                                    *qual_prop,
+                                ))
+                                .is_some_and(|q_cands| {
+                                    q_cands
+                                        .iter()
+                                        .any(|&(_, _, v)| v == *desired_q_val)
+                                })
+                        {
+                            score = score.saturating_add(1);
+                        }
+                    }
+                    if idx == 0 || score > best_score {
+                        best_score = score;
+                        best_idx = idx;
+                    }
+                }
+                best_idx
+            } else {
+                0usize
+            };
+
+            for (idx, cand) in cands.iter().enumerate() {
+                if idx != keep_idx
+                    && !self.is_manual_node(cand.has_a_id)
+                    && !self.is_manual_node(cand.has_val_id)
+                {
+                    if let Some(pref_id) = cand.preferred_id
+                        && !self.is_manual_node(pref_id)
+                    {
+                        retract_targets.insert(pref_id);
+                    }
+                    let dup_qual_keys: Vec<(DcShorthand, DcShorthand)> = self
+                        .single_props_by_subj_prop
+                        .keys()
+                        .filter(|&&(s, _)| s == DcShorthand::Long(cand.has_a_id))
+                        .copied()
+                        .collect();
+                    for qk in dup_qual_keys {
+                        self.active_single_props.remove(&qk);
+                        if let Some(q_cands) =
+                            self.single_props_by_subj_prop.remove(&qk)
+                        {
+                            for (q_has_a_id, q_has_val_id, _) in q_cands {
+                                if !self.is_manual_node(q_has_a_id)
+                                    && !self.is_manual_node(q_has_val_id)
+                                {
+                                    retract_targets.insert(q_has_val_id);
+                                    retract_targets.insert(q_has_a_id);
+                                }
+                            }
+                        }
+                    }
+                    retract_targets.insert(cand.has_val_id);
+                    retract_targets.insert(cand.has_a_id);
+                }
+            }
+
+            if let Some(kept) = cands.get(keep_idx) {
+                self.active_multi_props
+                    .insert(key, (kept.has_a_id, kept.has_val_id));
+                if let Some(pref_id) = kept.preferred_id {
+                    self.active_multi_preferred.insert(key, pref_id);
+                } else {
+                    self.active_multi_preferred.remove(&key);
+                }
+            }
         }
 
         let mut removed_by_subj_prop: BTreeMap<
@@ -1494,24 +1685,31 @@ impl LedgerBuilder {
                 if let Some(pref_id) =
                     self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
                 {
-                    self.retract_node(pref_id)?;
+                    retract_targets.insert(pref_id);
                 }
                 let qual_keys: Vec<(DcShorthand, DcShorthand)> = self
-                    .active_single_props
+                    .single_props_by_subj_prop
                     .keys()
                     .filter(|&&(s, _)| s == DcShorthand::Long(has_a_id))
                     .copied()
                     .collect();
                 for qk in qual_keys {
-                    if let Some((q_has_a_id, q_has_val_id, _)) =
-                        self.active_single_props.remove(&qk)
+                    self.active_single_props.remove(&qk);
+                    if let Some(q_cands) =
+                        self.single_props_by_subj_prop.remove(&qk)
                     {
-                        self.retract_node(q_has_val_id)?;
-                        self.retract_node(q_has_a_id)?;
+                        for (q_has_a_id, q_has_val_id, _) in q_cands {
+                            if !self.is_manual_node(q_has_a_id)
+                                && !self.is_manual_node(q_has_val_id)
+                            {
+                                retract_targets.insert(q_has_val_id);
+                                retract_targets.insert(q_has_a_id);
+                            }
+                        }
                     }
                 }
-                self.retract_node(old_has_val_id)?;
-                self.retract_node(has_a_id)?;
+                retract_targets.insert(old_has_val_id);
+                retract_targets.insert(has_a_id);
             }
 
             // Append any leftover unpaired added values
@@ -1528,17 +1726,7 @@ impl LedgerBuilder {
             }
         }
 
-        // 3b. Resolve and diff `Dc 570` (`Preferred`) qualifiers on multi-valued properties.
-        let mut resolved_multi_pref: BTreeSet<(
-            DcShorthand,
-            DcShorthand,
-            DcShorthand,
-        )> = BTreeSet::new();
-        for (subj, prop, val_spec) in &desired.preferred_multi_properties {
-            let val_tok = self.resolve_value_spec(val_spec)?;
-            resolved_multi_pref.insert((*subj, *prop, val_tok));
-        }
-
+        // 3b. Diff `Dc 570` (`Preferred`) qualifiers on multi-valued properties.
         let existing_multi_pref_keys: Vec<(
             DcShorthand,
             DcShorthand,
@@ -1553,7 +1741,7 @@ impl LedgerBuilder {
                 }
                 if let Some(pref_id) = self.active_multi_preferred.remove(&key)
                 {
-                    self.retract_node(pref_id)?;
+                    retract_targets.insert(pref_id);
                 }
             }
         }
@@ -1582,23 +1770,20 @@ impl LedgerBuilder {
             (DcShorthand, DcShorthand),
             (DcShorthand, String),
         > = BTreeMap::new();
-        for (((subj, prop, val_spec), qual_prop), (qual_val_spec, comment)) in
-            &desired.multi_property_single_qualifiers
+        for ((multi_key, qual_prop), (qual_val_tok, comment)) in
+            desired_multi_quals
         {
-            let val_tok = self.resolve_value_spec(val_spec)?;
-            let qual_val_tok = self.resolve_value_spec(qual_val_spec)?;
-            if let Some(&(has_a_id, _)) =
-                self.active_multi_props.get(&(*subj, *prop, val_tok))
+            if let Some(&(has_a_id, _)) = self.active_multi_props.get(&multi_key)
             {
                 resolved_qual_single.insert(
-                    (DcShorthand::Long(has_a_id), *qual_prop),
-                    (qual_val_tok, comment.clone()),
+                    (DcShorthand::Long(has_a_id), qual_prop),
+                    (qual_val_tok, comment),
                 );
             }
         }
 
         let existing_qual_single_keys: Vec<(DcShorthand, DcShorthand)> = self
-            .active_single_props
+            .single_props_by_subj_prop
             .keys()
             .filter(|&&(s, _)| {
                 matches!(s, DcShorthand::Long(id) if !seed_entity_id_set.contains(&id))
@@ -1607,20 +1792,20 @@ impl LedgerBuilder {
             .collect();
         for key in existing_qual_single_keys {
             if !resolved_qual_single.contains_key(&key) {
-                if let Some(&(has_a_id, has_val_id, _)) =
-                    self.active_single_props.get(&key)
+                self.active_single_props.remove(&key);
+                if let Some(cands) = self.single_props_by_subj_prop.remove(&key)
                 {
-                    if self.is_manual_node(has_a_id)
-                        || self.is_manual_node(has_val_id)
-                    {
-                        continue;
+                    for (has_a_id, has_val_id, val_tok) in cands {
+                        if self.is_manual_node(has_a_id)
+                            || self.is_manual_node(has_val_id)
+                        {
+                            self.active_single_props
+                                .insert(key, (has_a_id, has_val_id, val_tok));
+                            continue;
+                        }
+                        retract_targets.insert(has_val_id);
+                        retract_targets.insert(has_a_id);
                     }
-                }
-                if let Some((has_a_id, has_val_id, _)) =
-                    self.active_single_props.remove(&key)
-                {
-                    self.retract_node(has_val_id)?;
-                    self.retract_node(has_a_id)?;
                 }
             }
         }
@@ -1628,25 +1813,53 @@ impl LedgerBuilder {
         for ((qual_subj, qual_prop), (qual_val_tok, _comment)) in
             resolved_qual_single
         {
-            if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
-                self.active_single_props.get(&(qual_subj, qual_prop))
+            if let Some(mut cands) = self
+                .single_props_by_subj_prop
+                .remove(&(qual_subj, qual_prop))
+                && !cands.is_empty()
             {
-                if old_val_tok != qual_val_tok {
-                    ensure!(
-                        !self.is_manual_node(has_a_id)
-                            && !self.is_manual_node(old_has_val_id),
-                        "Cross-ownership conflict: CSV reconciliation for qualifier ({qual_subj}, {qual_prop}) with value {qual_val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
-                    );
-                    let new_has_val_id = self.append_statement_node(
-                        sh(DC_HAS_VALUE),
-                        DcShorthand::Long(has_a_id),
-                        qual_val_tok,
-                    )?;
-                    self.supersede_node(new_has_val_id, old_has_val_id)?;
-                    self.active_single_props.insert(
-                        (qual_subj, qual_prop),
-                        (has_a_id, new_has_val_id, qual_val_tok),
-                    );
+                cands.sort_by_key(|&(_, has_val_id, _)| has_val_id);
+                // Reason for fallback: if no candidate already has `qual_val_tok`, supersede the earliest candidate.
+                let keep_idx = cands
+                    .iter()
+                    .position(|&(_, _, v)| v == qual_val_tok)
+                    .unwrap_or(0);
+                for (idx, &(other_has_a_id, other_has_val_id, _)) in
+                    cands.iter().enumerate()
+                {
+                    if idx != keep_idx
+                        && !self.is_manual_node(other_has_a_id)
+                        && !self.is_manual_node(other_has_val_id)
+                    {
+                        retract_targets.insert(other_has_val_id);
+                        retract_targets.insert(other_has_a_id);
+                    }
+                }
+                if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
+                    cands.get(keep_idx)
+                {
+                    if old_val_tok != qual_val_tok {
+                        ensure!(
+                            !self.is_manual_node(has_a_id)
+                                && !self.is_manual_node(old_has_val_id),
+                            "Cross-ownership conflict: CSV reconciliation for qualifier ({qual_subj}, {qual_prop}) with value {qual_val_tok} conflicts with active manual node l{has_a_id}/l{old_has_val_id} (value {old_val_tok})"
+                        );
+                        let new_has_val_id = self.append_statement_node(
+                            sh(DC_HAS_VALUE),
+                            DcShorthand::Long(has_a_id),
+                            qual_val_tok,
+                        )?;
+                        self.supersede_node(new_has_val_id, old_has_val_id)?;
+                        self.active_single_props.insert(
+                            (qual_subj, qual_prop),
+                            (has_a_id, new_has_val_id, qual_val_tok),
+                        );
+                    } else {
+                        self.active_single_props.insert(
+                            (qual_subj, qual_prop),
+                            (has_a_id, old_has_val_id, old_val_tok),
+                        );
+                    }
                 }
             } else {
                 let has_a_id = self.append_statement_node(
@@ -1667,6 +1880,25 @@ impl LedgerBuilder {
         }
 
         // 4. Resolve and diff `<prefer>` replacements (`569` + `570`).
+        for (key, triples) in std::mem::take(&mut self.preferred_all_by_subj_val)
+        {
+            if let Some(&first) = triples.first() {
+                self.active_preferred.insert(key, first);
+            }
+            for &(dup_has_a_id, dup_has_val_id, dup_pref_id) in
+                triples.iter().skip(1)
+            {
+                if !self.is_manual_node(dup_has_a_id)
+                    && !self.is_manual_node(dup_has_val_id)
+                    && !self.is_manual_node(dup_pref_id)
+                {
+                    retract_targets.insert(dup_pref_id);
+                    retract_targets.insert(dup_has_val_id);
+                    retract_targets.insert(dup_has_a_id);
+                }
+            }
+        }
+
         let mut resolved_preferred: BTreeMap<
             (DcShorthand, DcShorthand),
             String,
@@ -1693,9 +1925,9 @@ impl LedgerBuilder {
                 if let Some((has_a_id, has_val_id, pref_id)) =
                     self.active_preferred.remove(&key)
                 {
-                    self.retract_node(pref_id)?;
-                    self.retract_node(has_val_id)?;
-                    self.retract_node(has_a_id)?;
+                    retract_targets.insert(pref_id);
+                    retract_targets.insert(has_val_id);
+                    retract_targets.insert(has_a_id);
                 }
             }
         }
@@ -1723,6 +1955,19 @@ impl LedgerBuilder {
         }
 
         // 5. Resolve and diff direct 3-token statements (`586`, `587`, `588`, `589`, `590`, `598`).
+        for (key, stmt_ids) in std::mem::take(&mut self.direct_stmts_all) {
+            if let Some(&last_id) = stmt_ids.last() {
+                self.active_direct_stmts.insert(key, last_id);
+            }
+            for &dup_stmt_id in
+                stmt_ids.get(..stmt_ids.len().saturating_sub(1)).into_iter().flatten()
+            {
+                if !self.is_manual_node(dup_stmt_id) {
+                    retract_targets.insert(dup_stmt_id);
+                }
+            }
+        }
+
         let mut resolved_direct: BTreeMap<
             (DcShorthand, DcShorthand, DcShorthand),
             String,
@@ -1742,7 +1987,7 @@ impl LedgerBuilder {
                     }
                 }
                 if let Some(stmt_id) = self.active_direct_stmts.remove(&key) {
-                    self.retract_node(stmt_id)?;
+                    retract_targets.insert(stmt_id);
                 }
             }
         }
@@ -1757,6 +2002,10 @@ impl LedgerBuilder {
                 self.active_direct_stmts
                     .insert((verb, subj, obj_tok), stmt_id);
             }
+        }
+
+        for target_id in retract_targets {
+            self.retract_node(target_id)?;
         }
 
         Ok(())
@@ -3885,6 +4134,134 @@ mod tests {
             )
             .is_err()
         );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_idempotent_csv_reconciliation_retracts_duplicates_and_matches_pre_step3_ledger(
+    ) -> Result<()> {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest_dir
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .context("Failed to resolve repo_root from CARGO_MANIFEST_DIR")?;
+        let graph_dir = repo_root.join("assets/data/graph");
+        let full_nodes = load_ledger_nodes_from_dir(&graph_dir)?;
+        assert_eq!(full_nodes.len(), 23_752);
+
+        // 1. Re-running CSV reconciliation on the current 23,752-node ledger must be an idempotent 0-append no-op.
+        let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
+        let parsed_journal = inspect_ledger_journal(&journal_path)?;
+        let committed_pairs = parsed_journal.committed_pairs;
+        let (noop_items, _, noop_updated, noop_stats) =
+            plan_csv_reconciliation_items_for_repo(
+                repo_root,
+                &full_nodes,
+                &committed_pairs,
+            )?;
+        assert_eq!(noop_items.len(), 0);
+        assert_eq!(noop_stats.nodes_appended, 0);
+        assert_eq!(noop_stats.nodes_superseded, 0);
+        assert_eq!(noop_stats.nodes_retracted, 0);
+        assert_eq!(noop_updated.len(), 23_752);
+
+        // 2. Running general-purpose CSV reconciliation on the 23,136-node pre-Step-3 prefix
+        // (without any special-case logic for Dc 348 "Ambiguous values") must automatically
+        // retract the exact same 616 duplicate/shadowed/outdated statement nodes that were
+        // retracted in Step 3 (`l8589957728`..`l8589958343`), while leaving all Dc 348 nodes untouched.
+        let pre_step3_nodes = full_nodes[..23_136].to_vec();
+        let expected_retracted_targets: BTreeSet<u128> = full_nodes[23_136..]
+            .iter()
+            .map(|n| {
+                let Some((verb, subj, DcShorthand::Long(target_id))) =
+                    parse_statement_tokens(&n.tokens)
+                else {
+                    panic!(
+                        "Expected retraction statement in Step 3 suffix at l{}",
+                        n.id
+                    );
+                };
+                assert_eq!(verb, sh(DC_RETRACTS));
+                assert_eq!(subj, sh(DC_ENCLOSING_DOCUMENT));
+                target_id
+            })
+            .collect();
+        assert_eq!(expected_retracted_targets.len(), 616);
+
+        let pre_step3_pairs = &committed_pairs[..committed_pairs.len().saturating_sub(1)];
+        let (reconciled_items, _, reconciled_nodes, reconciled_stats) =
+            plan_csv_reconciliation_items_for_repo(
+                repo_root,
+                &pre_step3_nodes,
+                pre_step3_pairs,
+            )?;
+        assert_eq!(reconciled_items.len(), 616);
+        assert_eq!(reconciled_stats.nodes_appended, 616);
+        assert_eq!(reconciled_stats.nodes_superseded, 0);
+        assert_eq!(reconciled_stats.nodes_retracted, 616);
+        assert_eq!(reconciled_nodes.len(), 23_752);
+
+        let actual_retracted_targets: BTreeSet<u128> = reconciled_nodes[23_136..]
+            .iter()
+            .map(|n| {
+                let Some((verb, subj, DcShorthand::Long(target_id))) =
+                    parse_statement_tokens(&n.tokens)
+                else {
+                    panic!(
+                        "Expected retraction statement in reconciled suffix at l{}",
+                        n.id
+                    );
+                };
+                assert_eq!(verb, sh(DC_RETRACTS));
+                assert_eq!(subj, sh(DC_ENCLOSING_DOCUMENT));
+                target_id
+            })
+            .collect();
+        assert_eq!(actual_retracted_targets, expected_retracted_targets);
+        assert_eq!(reconciled_nodes, full_nodes);
+
+        // Verify all 602 active Dc 348 ("Ambiguous values") nodes remain active and untouched.
+        let index_before =
+            crate::seed_graph::SeedGraphIndex::from_nodes(pre_step3_nodes);
+        let index_after =
+            crate::seed_graph::SeedGraphIndex::from_nodes(reconciled_nodes.clone());
+        let active_ambiguous_before: BTreeSet<u128> = index_before
+            .nodes()
+            .iter()
+            .filter(|n| {
+                !index_before.inactive_ids.contains(&n.id)
+                    && crate::seed_graph::parse_ambiguous_values_tokens(&n.tokens)
+                        .is_some()
+            })
+            .map(|n| n.id)
+            .collect();
+        let active_ambiguous_after: BTreeSet<u128> = index_after
+            .nodes()
+            .iter()
+            .filter(|n| {
+                !index_after.inactive_ids.contains(&n.id)
+                    && crate::seed_graph::parse_ambiguous_values_tokens(&n.tokens)
+                        .is_some()
+            })
+            .map(|n| n.id)
+            .collect();
+        assert_eq!(active_ambiguous_before.len(), 602);
+        assert_eq!(active_ambiguous_after, active_ambiguous_before);
+
+        // 3. Re-running CSV reconciliation on `reconciled_nodes` must also be a 0-append no-op.
+        let (re_items, _, re_nodes, re_stats) =
+            plan_csv_reconciliation_items_for_repo(
+                repo_root,
+                &reconciled_nodes,
+                &committed_pairs,
+            )?;
+        assert_eq!(re_items.len(), 0);
+        assert_eq!(re_stats.nodes_appended, 0);
+        assert_eq!(re_stats.nodes_superseded, 0);
+        assert_eq!(re_stats.nodes_retracted, 0);
+        assert_eq!(re_nodes.len(), 23_752);
 
         Ok(())
     }
