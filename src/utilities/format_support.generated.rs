@@ -61,7 +61,7 @@ pub enum SupportedDecompressionFormat {
     Pack,
     /// pack format, early PDP-11 Unix binary tree
     OldPack,
-    /// compact (McMaster Adaptive Huffman)
+    /// compact (`McMaster` Adaptive Huffman)
     Compact,
     /// rzip: rzip format (long range chunk matching + bzip2)
     Rzip,
@@ -334,7 +334,7 @@ pub enum SupportedCompressionFormat {
     Pack,
     /// pack format, early PDP-11 Unix binary tree
     OldPack,
-    /// compact (McMaster Adaptive Huffman)
+    /// compact (`McMaster` Adaptive Huffman)
     Compact,
     /// rzip: rzip format (long range chunk matching + bzip2)
     Rzip,
@@ -824,7 +824,7 @@ impl std::str::FromStr for SupportedHashFormat {
     }
 }
 
-/// Document and text formats supported for conversion to Document Character String (DcMstring / DcString).
+/// Document and text formats supported for conversion to Document Character String (`DcMstring` / DcString).
 #[expect(
     non_camel_case_types,
     reason = "Variant names align with canonical FormatId identifier naming"
@@ -966,7 +966,7 @@ pub enum SupportedDcInputFormat {
     /// CDCE (legacy)
     #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
     CdceLegacy,
-    /// MacRoman
+    /// `MacRoman`
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
     /// SEMS (short Dcs)
@@ -1367,7 +1367,7 @@ impl std::str::FromStr for SupportedDcInputFormat {
     }
 }
 
-/// Document and text formats supported for conversion from Document Character String (DcMstring / DcString).
+/// Document and text formats supported for conversion from Document Character String (`DcMstring` / DcString).
 #[expect(
     non_camel_case_types,
     reason = "Variant names align with canonical FormatId identifier naming"
@@ -1521,7 +1521,7 @@ pub enum SupportedDcOutputFormat {
     /// CDCE (legacy)
     #[value(name = "legacy_cdce", alias = "cdcelegacy", alias = "CdceLegacy", alias = "f93")]
     CdceLegacy,
-    /// MacRoman
+    /// `MacRoman`
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
     /// SEMS (short Dcs)
