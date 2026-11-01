@@ -96,11 +96,7 @@ impl KStruct for S3m {
     type Root = S3m;
     type Parent = S3m;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,19 +108,11 @@ impl KStruct for S3m {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.song_name.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(28_usize)?,
-            Some(0),
-            false,
-            None,
-        );
+        *self_rc.song_name.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(28_usize)?, Some(0), false, None);
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic1() == vec![0x1au8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_type.borrow_mut() = _io.read_u1()?;
@@ -145,10 +133,7 @@ impl KStruct for S3m {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic2() == vec![0x53u8, 0x43u8, 0x52u8, 0x4du8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/10".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/10".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.global_volume.borrow_mut() = _io.read_u1()?;
@@ -173,53 +158,32 @@ impl KStruct for S3m {
         *self_rc.channels.borrow_mut() = Vec::new();
         let l_channels = 32_usize;
         for _i in 0_usize..l_channels {
-            let t = Self::read_into::<_, S3m_Channel>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, S3m_Channel>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.channels.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.orders.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.num_orders()))?;
+        *self_rc.orders.borrow_mut() = _io.read_bytes(usize::from(*self_rc.num_orders()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = usize::from(*self_rc.num_instruments());
         for _i in 0_usize..l_instruments {
-            let t = Self::read_into::<_, S3m_InstrumentPtr>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, S3m_InstrumentPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.patterns.borrow_mut() = Vec::new();
         let l_patterns = usize::from(*self_rc.num_patterns());
         for _i in 0_usize..l_patterns {
-            let t = Self::read_into::<_, S3m_PatternPtr>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, S3m_PatternPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patterns.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.has_custom_pan())) == (to_i128(252))) {
+        if (to_i128(*self_rc.has_custom_pan())) == (to_i128(252)) {
             *self_rc.channel_pans.borrow_mut() = Vec::new();
             let l_channel_pans = 32_usize;
             for _i in 0_usize..l_channel_pans {
-                let t = Self::read_into::<_, S3m_ChannelPan>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, S3m_ChannelPan>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.channel_pans.borrow_mut().push(t);
             }
             *self_rc._io.borrow_mut() = _io.clone();
@@ -228,7 +192,8 @@ impl KStruct for S3m {
         Ok(())
     }
 }
-impl S3m {}
+impl S3m {
+}
 impl S3m {
     pub fn song_name(&self) -> Ref<'_, Vec<u8>> {
         self.song_name.borrow()
@@ -455,11 +420,7 @@ impl KStruct for S3m_Channel {
     type Root = S3m;
     type Parent = S3m;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -479,7 +440,8 @@ impl KStruct for S3m_Channel {
         Ok(())
     }
 }
-impl S3m_Channel {}
+impl S3m_Channel {
+}
 impl S3m_Channel {
     pub fn is_disabled(&self) -> Ref<'_, bool> {
         self.is_disabled.borrow()
@@ -553,11 +515,7 @@ impl KStruct for S3m_ChannelPan {
     type Root = S3m;
     type Parent = S3m;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -581,7 +539,8 @@ impl KStruct for S3m_ChannelPan {
         Ok(())
     }
 }
-impl S3m_ChannelPan {}
+impl S3m_ChannelPan {
+}
 impl S3m_ChannelPan {
     pub fn reserved1(&self) -> Ref<'_, u64> {
         self.reserved1.borrow()
@@ -738,11 +697,7 @@ impl KStruct for S3m_Instrument {
     type Root = S3m;
     type Parent = S3m_InstrumentPtr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -756,30 +711,15 @@ impl KStruct for S3m_Instrument {
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.filename.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(12_usize)?,
-            Some(0),
-            false,
-            None,
-        );
+        *self_rc.filename.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(12_usize)?, Some(0), false, None);
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             S3m_Instrument_InstTypes::Sample => {
-                let t = Self::read_into::<_, S3m_Instrument_Sampled>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, S3m_Instrument_Sampled>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                let t = Self::read_into::<_, S3m_Instrument_Adlib>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, S3m_Instrument_Adlib>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
@@ -788,26 +728,19 @@ impl KStruct for S3m_Instrument {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(12_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.sample_name.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(28_usize)?,
-            Some(0),
-            false,
-            None,
-        );
+        *self_rc.sample_name.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(28_usize)?, Some(0), false, None);
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0x43u8, 0x52u8, 0x53u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/instrument/seq/6".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/instrument/seq/6".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl S3m_Instrument {}
+impl S3m_Instrument {
+}
 impl S3m_Instrument {
     pub fn r#type(&self) -> Ref<'_, S3m_Instrument_InstTypes> {
         self.r#type.borrow()
@@ -907,16 +840,15 @@ impl From<&S3m_Instrument_InstTypes> for i64 {
             S3m_Instrument_InstTypes::Tom => 5,
             S3m_Instrument_InstTypes::Cymbal => 6,
             S3m_Instrument_InstTypes::Hihat => 7,
-            S3m_Instrument_InstTypes::Unknown(v) => v,
+            S3m_Instrument_InstTypes::Unknown(v) => v
         }
     }
 }
 
 impl Default for S3m_Instrument_InstTypes {
-    fn default() -> Self {
-        S3m_Instrument_InstTypes::Unknown(0)
-    }
+    fn default() -> Self { S3m_Instrument_InstTypes::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct S3m_Instrument_Adlib {
@@ -964,11 +896,7 @@ impl KStruct for S3m_Instrument_Adlib {
     type Root = S3m;
     type Parent = S3m_Instrument;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -982,10 +910,7 @@ impl KStruct for S3m_Instrument_Adlib {
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/instrument/types/adlib/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/instrument/types/adlib/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed1.borrow_mut() = _io.read_bytes(16_usize)?;
@@ -994,7 +919,8 @@ impl KStruct for S3m_Instrument_Adlib {
         Ok(())
     }
 }
-impl S3m_Instrument_Adlib {}
+impl S3m_Instrument_Adlib {
+}
 impl S3m_Instrument_Adlib {
     pub fn reserved1(&self) -> Ref<'_, Vec<u8>> {
         self.reserved1.borrow()
@@ -1075,11 +1001,7 @@ impl KStruct for S3m_Instrument_Sampled {
     type Root = S3m;
     type Parent = S3m_Instrument;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1091,12 +1013,7 @@ impl KStruct for S3m_Instrument_Sampled {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, S3m_SwappedU3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, S3m_SwappedU3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.paraptr_sample.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_sample.borrow_mut() = _io.read_u4le()?;
@@ -1118,23 +1035,18 @@ impl KStruct for S3m_Instrument_Sampled {
     }
 }
 impl S3m_Instrument_Sampled {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sample(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sample(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_sample.get() {
             return Ok(self.sample.borrow());
         }
         self.f_sample.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (*self.paraptr_sample().value()?).saturating_mul(16_i32),
-        )?)?;
-        *self.sample.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self.len_sample())?)?;
+        _io.seek(usize::try_from((*self.paraptr_sample().value()?).saturating_mul(16_i32))?)?;
+        *self.sample.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_sample())?)?;
         _io.seek(_pos)?;
         Ok(self.sample.borrow())
     }
@@ -1245,11 +1157,7 @@ impl KStruct for S3m_InstrumentPtr {
     type Root = S3m;
     type Parent = S3m;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1268,26 +1176,17 @@ impl KStruct for S3m_InstrumentPtr {
     }
 }
 impl S3m_InstrumentPtr {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, OptRc<S3m_Instrument>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, OptRc<S3m_Instrument>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (i32::from(*self.paraptr())).saturating_mul(16_i32),
-        )?)?;
-        let t = Self::read_into::<_, S3m_Instrument>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        _io.seek(usize::try_from((i32::from(*self.paraptr())).saturating_mul(16_i32))?)?;
+        let t = Self::read_into::<_, S3m_Instrument>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -1356,11 +1255,7 @@ impl KStruct for S3m_Pattern {
     type Root = S3m;
     type Parent = S3m_PatternPtr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1374,24 +1269,18 @@ impl KStruct for S3m_Pattern {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_body = _io.read_bytes(usize::try_from(
-            (i32::from(*self_rc.size())).saturating_sub(2_i32),
-        )?)?;
+        let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.size())).saturating_sub(2_i32))?)?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
-        let t = Self::read_into::<BytesReader, S3m_PatternCells>(
-            &_io_body,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, S3m_PatternCells>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl S3m_Pattern {}
+impl S3m_Pattern {
+}
 impl S3m_Pattern {
     pub fn size(&self) -> Ref<'_, u16> {
         self.size.borrow()
@@ -1471,11 +1360,7 @@ impl KStruct for S3m_PatternCell {
     type Root = S3m;
     type Parent = S3m_PatternCells;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1491,8 +1376,7 @@ impl KStruct for S3m_PatternCell {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_volume.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_note_and_instrument.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.has_note_and_instrument.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.channel_num.borrow_mut() = _io.read_bits_int_be(5)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1526,7 +1410,8 @@ impl KStruct for S3m_PatternCell {
         Ok(())
     }
 }
-impl S3m_PatternCell {}
+impl S3m_PatternCell {
+}
 impl S3m_PatternCell {
     pub fn has_fx(&self) -> Ref<'_, bool> {
         self.has_fx.borrow()
@@ -1628,11 +1513,7 @@ impl KStruct for S3m_PatternCells {
     type Root = S3m;
     type Parent = S3m_Pattern;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1648,12 +1529,7 @@ impl KStruct for S3m_PatternCells {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, S3m_PatternCell>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, S3m_PatternCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.cells.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1663,7 +1539,8 @@ impl KStruct for S3m_PatternCells {
         Ok(())
     }
 }
-impl S3m_PatternCells {}
+impl S3m_PatternCells {
+}
 impl S3m_PatternCells {
     pub fn cells(&self) -> Ref<'_, Vec<OptRc<S3m_PatternCell>>> {
         self.cells.borrow()
@@ -1727,11 +1604,7 @@ impl KStruct for S3m_PatternPtr {
     type Root = S3m;
     type Parent = S3m;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1750,26 +1623,17 @@ impl KStruct for S3m_PatternPtr {
     }
 }
 impl S3m_PatternPtr {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, OptRc<S3m_Pattern>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, OptRc<S3m_Pattern>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (i32::from(*self.paraptr())).saturating_mul(16_i32),
-        )?)?;
-        let t = Self::read_into::<_, S3m_Pattern>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        _io.seek(usize::try_from((i32::from(*self.paraptr())).saturating_mul(16_i32))?)?;
+        let t = Self::read_into::<_, S3m_Pattern>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -1843,11 +1707,7 @@ impl KStruct for S3m_SwappedU3 {
     type Root = S3m;
     type Parent = S3m_Instrument_Sampled;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1868,20 +1728,16 @@ impl KStruct for S3m_SwappedU3 {
     }
 }
 impl S3m_SwappedU3 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((i32::from(*self.lo()))
-            | ((i32::from(*self.hi())).wrapping_shl(16_u32)))
-        .try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.lo())) | ((i32::from(*self.hi())).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

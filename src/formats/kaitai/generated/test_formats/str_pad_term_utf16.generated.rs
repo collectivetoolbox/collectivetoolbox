@@ -105,11 +105,7 @@ impl KStruct for StrPadTermUtf16 {
     type Root = StrPadTermUtf16;
     type Parent = StrPadTermUtf16;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,41 +117,18 @@ impl KStruct for StrPadTermUtf16 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str_term.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad_multi(
-                &_io.read_bytes(10_usize)?,
-                Some(&[0, 0][..]),
-                false,
-                None,
-            ),
-            "UTF-16LE",
-        )?;
+        *self_rc.str_term.borrow_mut() = bytes_to_str(&bytes_terminate_pad_multi(&_io.read_bytes(10_usize)?, Some(&[0, 0][..]), false, None), "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_term_include.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad_multi(
-                &_io.read_bytes(10_usize)?,
-                Some(&[0, 0][..]),
-                true,
-                None,
-            ),
-            "UTF-16LE",
-        )?;
+        *self_rc.str_term_include.borrow_mut() = bytes_to_str(&bytes_terminate_pad_multi(&_io.read_bytes(10_usize)?, Some(&[0, 0][..]), true, None), "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_term_and_pad.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad_multi(
-                &_io.read_bytes(9_usize)?,
-                Some(&[0, 0][..]),
-                false,
-                Some(43),
-            ),
-            "UTF-16LE",
-        )?;
+        *self_rc.str_term_and_pad.borrow_mut() = bytes_to_str(&bytes_terminate_pad_multi(&_io.read_bytes(9_usize)?, Some(&[0, 0][..]), false, Some(43)), "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrPadTermUtf16 {}
+impl StrPadTermUtf16 {
+}
 impl StrPadTermUtf16 {
     pub fn str_term(&self) -> Ref<'_, String> {
         self.str_term.borrow()

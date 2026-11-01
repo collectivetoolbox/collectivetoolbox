@@ -53,12 +53,12 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::enum_0::Enum0;
-use super::enum_0::*;
-use super::enum_deep::EnumDeep;
-use super::enum_deep::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
+use super::enum_0::Enum0;
+use super::enum_0::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumImportLiterals {
@@ -109,11 +109,7 @@ impl KStruct for EnumImportLiterals {
     type Root = EnumImportLiterals;
     type Parent = EnumImportLiterals;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,47 +126,33 @@ impl KStruct for EnumImportLiterals {
     }
 }
 impl EnumImportLiterals {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_1_eq(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_1_eq(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_pet_1_eq.get() {
             return Ok(self.pet_1_eq.borrow());
         }
         self.f_pet_1_eq.set(true);
-        *self.pet_1_eq.borrow_mut() = (if true {
-            Enum0_Animal::Chicken.clone()
-        } else {
-            Enum0_Animal::Dog.clone()
-        } == Enum0_Animal::Chicken)
-            .try_into()?;
+        *self.pet_1_eq.borrow_mut() = (if true { Enum0_Animal::Chicken.clone() } else { Enum0_Animal::Dog.clone() } == Enum0_Animal::Chicken).try_into()?;
         Ok(self.pet_1_eq.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_1_to_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_1_to_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_pet_1_to_i.get() {
             return Ok(self.pet_1_to_i.borrow());
         }
         self.f_pet_1_to_i.set(true);
-        *self.pet_1_to_i.borrow_mut() =
-            (i64::from(&Enum0_Animal::Cat)).try_into()?;
+        *self.pet_1_to_i.borrow_mut() = (i64::from(&Enum0_Animal::Cat)).try_into()?;
         Ok(self.pet_1_to_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_2(
-        &self,
+        &self
     ) -> KResult<Ref<'_, EnumDeep_Container1_Container2_Animal>> {
         let _io = self._io.borrow();
         if self.f_pet_2.get() {

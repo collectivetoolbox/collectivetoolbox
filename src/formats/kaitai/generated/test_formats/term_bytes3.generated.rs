@@ -102,11 +102,7 @@ impl KStruct for TermBytes3 {
     type Root = TermBytes3;
     type Parent = TermBytes3;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,20 +114,18 @@ impl KStruct for TermBytes3 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() =
-            _io.read_bytes_term(124, false, false, true)?;
+        *self_rc.s1.borrow_mut() = _io.read_bytes_term(124, false, false, true)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s2.borrow_mut() =
-            _io.read_bytes_term(64, false, false, true)?;
+        *self_rc.s2.borrow_mut() = _io.read_bytes_term(64, false, false, true)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.s3.borrow_mut() =
-            _io.read_bytes_term(64, false, true, true)?;
+        *self_rc.s3.borrow_mut() = _io.read_bytes_term(64, false, true, true)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermBytes3 {}
+impl TermBytes3 {
+}
 impl TermBytes3 {
     pub fn s1(&self) -> Ref<'_, Vec<u8>> {
         self.s1.borrow()

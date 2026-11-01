@@ -131,11 +131,7 @@ impl KStruct for FloatToI {
     type Root = FloatToI;
     type Parent = FloatToI;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -166,12 +162,10 @@ impl KStruct for FloatToI {
     }
 }
 impl FloatToI {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_float1(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_float1(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_calc_float1.get() {
             return Ok(self.calc_float1.borrow());
@@ -180,12 +174,10 @@ impl FloatToI {
         *self.calc_float1.borrow_mut() = (1.234).try_into()?;
         Ok(self.calc_float1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_float2(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_float2(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_calc_float2.get() {
             return Ok(self.calc_float2.borrow());
@@ -194,12 +186,10 @@ impl FloatToI {
         *self.calc_float2.borrow_mut() = (1.5).try_into()?;
         Ok(self.calc_float2.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_float3(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_float3(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_calc_float3.get() {
             return Ok(self.calc_float3.borrow());
@@ -208,12 +198,10 @@ impl FloatToI {
         *self.calc_float3.borrow_mut() = (1.9).try_into()?;
         Ok(self.calc_float3.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_float4(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_float4(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_calc_float4.get() {
             return Ok(self.calc_float4.borrow());
@@ -222,12 +210,10 @@ impl FloatToI {
         *self.calc_float4.borrow_mut() = (-2.7).try_into()?;
         Ok(self.calc_float4.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_if(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_if(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_calc_if.get() {
             return Ok(self.calc_if.borrow());
@@ -236,139 +222,112 @@ impl FloatToI {
         *self.calc_if.borrow_mut() = (13.9).try_into()?;
         Ok(self.calc_if.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_if_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_if_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_calc_if_i.get() {
             return Ok(self.calc_if_i.borrow());
         }
         self.f_calc_if_i.set(true);
-        *self.calc_if_i.borrow_mut() =
-            (float_to_int(*self.calc_if()?)?).try_into()?;
+        *self.calc_if_i.borrow_mut() = (float_to_int(*self.calc_if()?)?).try_into()?;
         Ok(self.calc_if_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn double_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn double_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_double_i.get() {
             return Ok(self.double_i.borrow());
         }
         self.f_double_i.set(true);
-        *self.double_i.borrow_mut() =
-            (float_to_int(*self.double_value())?).try_into()?;
+        *self.double_i.borrow_mut() = (float_to_int(*self.double_value())?).try_into()?;
         Ok(self.double_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn double_if_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn double_if_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_double_if_i.get() {
             return Ok(self.double_if_i.borrow());
         }
         self.f_double_if_i.set(true);
-        *self.double_if_i.borrow_mut() =
-            (float_to_int(*self.double_value_if())?).try_into()?;
+        *self.double_if_i.borrow_mut() = (float_to_int(*self.double_value_if())?).try_into()?;
         Ok(self.double_if_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn float1_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn float1_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_float1_i.get() {
             return Ok(self.float1_i.borrow());
         }
         self.f_float1_i.set(true);
-        *self.float1_i.borrow_mut() =
-            (float_to_int(*self.calc_float1()?)?).try_into()?;
+        *self.float1_i.borrow_mut() = (float_to_int(*self.calc_float1()?)?).try_into()?;
         Ok(self.float1_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn float2_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn float2_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_float2_i.get() {
             return Ok(self.float2_i.borrow());
         }
         self.f_float2_i.set(true);
-        *self.float2_i.borrow_mut() =
-            (float_to_int(*self.calc_float2()?)?).try_into()?;
+        *self.float2_i.borrow_mut() = (float_to_int(*self.calc_float2()?)?).try_into()?;
         Ok(self.float2_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn float3_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn float3_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_float3_i.get() {
             return Ok(self.float3_i.borrow());
         }
         self.f_float3_i.set(true);
-        *self.float3_i.borrow_mut() =
-            (float_to_int(*self.calc_float3()?)?).try_into()?;
+        *self.float3_i.borrow_mut() = (float_to_int(*self.calc_float3()?)?).try_into()?;
         Ok(self.float3_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn float4_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn float4_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_float4_i.get() {
             return Ok(self.float4_i.borrow());
         }
         self.f_float4_i.set(true);
-        *self.float4_i.borrow_mut() =
-            (float_to_int(*self.calc_float4()?)?).try_into()?;
+        *self.float4_i.borrow_mut() = (float_to_int(*self.calc_float4()?)?).try_into()?;
         Ok(self.float4_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn single_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn single_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_single_i.get() {
             return Ok(self.single_i.borrow());
         }
         self.f_single_i.set(true);
-        *self.single_i.borrow_mut() =
-            (float_to_int(*self.single_value())?).try_into()?;
+        *self.single_i.borrow_mut() = (float_to_int(*self.single_value())?).try_into()?;
         Ok(self.single_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn single_if_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn single_if_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_single_if_i.get() {
             return Ok(self.single_if_i.borrow());
         }
         self.f_single_if_i.set(true);
-        *self.single_if_i.borrow_mut() =
-            (float_to_int(*self.single_value_if())?).try_into()?;
+        *self.single_if_i.borrow_mut() = (float_to_int(*self.single_value_if())?).try_into()?;
         Ok(self.single_if_i.borrow())
     }
 }

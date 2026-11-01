@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::params_def::ParamsDef;
-use super::params_def::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::params_def::ParamsDef;
+use super::params_def::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct OpaqueWithParam {
@@ -102,11 +102,7 @@ impl KStruct for OpaqueWithParam {
     type Root = OpaqueWithParam;
     type Parent = OpaqueWithParam;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,22 +114,16 @@ impl KStruct for OpaqueWithParam {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t: &mut ParamsDef| {
-            Ok(t.set_params(
-                (5).try_into().map_err(|_| KError::CastError)?,
-                true,
-            ))
-        };
-        let t =
-            Self::read_into_with_init::<_, ParamsDef>(&*_io, None, None, &f)?
-                .into();
+        let f = |t : &mut ParamsDef| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?, true));
+        let t = Self::read_into_with_init::<_, ParamsDef>(&*_io, None, None, &f)?.into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl OpaqueWithParam {}
+impl OpaqueWithParam {
+}
 impl OpaqueWithParam {
     pub fn one(&self) -> Ref<'_, OptRc<ParamsDef>> {
         self.one.borrow()

@@ -101,11 +101,7 @@ impl KStruct for ParamsEnum {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,21 +115,16 @@ impl KStruct for ParamsEnum {
         let _io = io;
         *self_rc.one.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t: &mut ParamsEnum_WithParam| Ok(t.set_params(*self_rc.one()));
-        let t = Self::read_into_with_init::<_, ParamsEnum_WithParam>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-            &f,
-        )?
-        .into();
+        let f = |t : &mut ParamsEnum_WithParam| Ok(t.set_params(*self_rc.one()));
+        let t = Self::read_into_with_init::<_, ParamsEnum_WithParam>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.invoke_with_param.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsEnum {}
+impl ParamsEnum {
+}
 impl ParamsEnum {
     pub fn one(&self) -> Ref<'_, ParamsEnum_Animal> {
         self.one.borrow()
@@ -181,16 +172,15 @@ impl From<&ParamsEnum_Animal> for i64 {
             ParamsEnum_Animal::Dog => 4,
             ParamsEnum_Animal::Cat => 7,
             ParamsEnum_Animal::Chicken => 12,
-            ParamsEnum_Animal::Unknown(v) => v,
+            ParamsEnum_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for ParamsEnum_Animal {
-    fn default() -> Self {
-        ParamsEnum_Animal::Unknown(0)
-    }
+    fn default() -> Self { ParamsEnum_Animal::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsEnum_WithParam {
@@ -238,11 +228,7 @@ impl KStruct for ParamsEnum_WithParam {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -269,19 +255,16 @@ impl ParamsEnum_WithParam {
     }
 }
 impl ParamsEnum_WithParam {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_cat(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_cat(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_cat.get() {
             return Ok(self.is_cat.borrow());
         }
         self.f_is_cat.set(true);
-        *self.is_cat.borrow_mut() =
-            (*self.enumerated_one() == ParamsEnum_Animal::Cat).try_into()?;
+        *self.is_cat.borrow_mut() = (*self.enumerated_one() == ParamsEnum_Animal::Cat).try_into()?;
         Ok(self.is_cat.borrow())
     }
 }

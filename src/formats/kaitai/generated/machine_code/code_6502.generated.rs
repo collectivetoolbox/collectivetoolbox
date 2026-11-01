@@ -56,11 +56,7 @@ impl KStruct for Code6502 {
     type Root = Code6502;
     type Parent = Code6502;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -76,12 +72,7 @@ impl KStruct for Code6502 {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Code6502_Operation>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Code6502_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.operations.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -91,7 +82,8 @@ impl KStruct for Code6502 {
         Ok(())
     }
 }
-impl Code6502 {}
+impl Code6502 {
+}
 impl Code6502 {
     pub fn operations(&self) -> Ref<'_, Vec<OptRc<Code6502_Operation>>> {
         self.operations.borrow()
@@ -578,16 +570,15 @@ impl From<&Code6502_Opcode> for i64 {
             Code6502_Opcode::SbcAbsY => 249,
             Code6502_Opcode::SbcAbsX => 253,
             Code6502_Opcode::IncAbsX => 254,
-            Code6502_Opcode::Unknown(v) => v,
+            Code6502_Opcode::Unknown(v) => v
         }
     }
 }
 
 impl Default for Code6502_Opcode {
-    fn default() -> Self {
-        Code6502_Opcode::Unknown(0)
-    }
+    fn default() -> Self { Code6502_Opcode::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Code6502_Operation {
@@ -621,10 +612,7 @@ impl From<i8> for Code6502_Operation_Args {
 }
 impl TryFrom<&Code6502_Operation_Args> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
             Code6502_Operation_Args::U2(v) => Ok(i64::try_from(*v)?),
@@ -635,10 +623,7 @@ impl TryFrom<&Code6502_Operation_Args> for i64 {
 }
 impl TryFrom<&Code6502_Operation_Args> for i8 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
             Code6502_Operation_Args::U2(v) => Ok(i8::try_from(*v)?),
@@ -649,10 +634,7 @@ impl TryFrom<&Code6502_Operation_Args> for i8 {
 }
 impl TryFrom<&Code6502_Operation_Args> for u16 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
             Code6502_Operation_Args::U2(v) => Ok(u16::try_from(*v)?),
@@ -663,10 +645,7 @@ impl TryFrom<&Code6502_Operation_Args> for u16 {
 }
 impl TryFrom<&Code6502_Operation_Args> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
             Code6502_Operation_Args::U2(v) => Ok(u64::try_from(*v)?),
@@ -677,10 +656,7 @@ impl TryFrom<&Code6502_Operation_Args> for u64 {
 }
 impl TryFrom<&Code6502_Operation_Args> for u8 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
             Code6502_Operation_Args::U2(v) => Ok(u8::try_from(*v)?),
@@ -736,11 +712,7 @@ impl KStruct for Code6502_Operation {
     type Root = Code6502;
     type Parent = Code6502;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1128,7 +1100,8 @@ impl KStruct for Code6502_Operation {
         Ok(())
     }
 }
-impl Code6502_Operation {}
+impl Code6502_Operation {
+}
 impl Code6502_Operation {
     pub fn code(&self) -> Ref<'_, Code6502_Opcode> {
         self.code.borrow()
@@ -1137,11 +1110,7 @@ impl Code6502_Operation {
 impl Code6502_Operation {
     pub fn args(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.args
-            .borrow()
-            .as_ref()
-            .and_then(|v| u16::try_from(v).ok())
-            .unwrap_or(0)
+        self.args.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
     }
     pub fn args_enum(&self) -> Ref<'_, Option<Code6502_Operation_Args>> {
         self.args.borrow()

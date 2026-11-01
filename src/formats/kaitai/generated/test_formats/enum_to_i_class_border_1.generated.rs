@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::enum_to_i_class_border_2::EnumToIClassBorder2;
-use super::enum_to_i_class_border_2::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::enum_to_i_class_border_2::EnumToIClassBorder2;
+use super::enum_to_i_class_border_2::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumToIClassBorder1 {
@@ -107,11 +107,7 @@ impl KStruct for EnumToIClassBorder1 {
     type Root = EnumToIClassBorder1;
     type Parent = EnumToIClassBorder1;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -132,44 +128,26 @@ impl KStruct for EnumToIClassBorder1 {
     }
 }
 impl EnumToIClassBorder1 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn checker(&self) -> KResult<Ref<'_, OptRc<EnumToIClassBorder2>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn checker(
+        &self
+    ) -> KResult<Ref<'_, OptRc<EnumToIClassBorder2>>> {
         let _io = self._io.borrow();
         if self.f_checker.get() {
             return Ok(self.checker.borrow());
         }
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        let f = |t: &mut EnumToIClassBorder2| {
-            Ok(t.set_params(OptRc::from(
-                (self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?)
-                .clone(),
-            )))
-        };
-        let t = Self::read_into_with_init::<_, EnumToIClassBorder2>(
-            &*_io, None, None, &f,
-        )?
-        .into();
+        let f = |t : &mut EnumToIClassBorder2| Ok(t.set_params(OptRc::from((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?).clone())));
+        let t = Self::read_into_with_init::<_, EnumToIClassBorder2>(&*_io, None, None, &f)?.into();
         *self.checker.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.checker.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn some_dog(&self) -> KResult<Ref<'_, EnumToIClassBorder1_Animal>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn some_dog(
+        &self
+    ) -> KResult<Ref<'_, EnumToIClassBorder1_Animal>> {
         let _io = self._io.borrow();
         if self.f_some_dog.get() {
             return Ok(self.some_dog.borrow());
@@ -226,13 +204,12 @@ impl From<&EnumToIClassBorder1_Animal> for i64 {
             EnumToIClassBorder1_Animal::Dog => 4,
             EnumToIClassBorder1_Animal::Cat => 7,
             EnumToIClassBorder1_Animal::Chicken => 12,
-            EnumToIClassBorder1_Animal::Unknown(v) => v,
+            EnumToIClassBorder1_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumToIClassBorder1_Animal {
-    fn default() -> Self {
-        EnumToIClassBorder1_Animal::Unknown(0)
-    }
+    fn default() -> Self { EnumToIClassBorder1_Animal::Unknown(0) }
 }
+

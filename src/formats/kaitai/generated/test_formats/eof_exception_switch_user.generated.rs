@@ -70,9 +70,7 @@ pub enum EofExceptionSwitchUser_Data {
     EofExceptionSwitchUser_Two(OptRc<EofExceptionSwitchUser_Two>),
     EofExceptionSwitchUser_One(OptRc<EofExceptionSwitchUser_One>),
 }
-impl TryFrom<&EofExceptionSwitchUser_Data>
-    for OptRc<EofExceptionSwitchUser_Two>
-{
+impl TryFrom<&EofExceptionSwitchUser_Data> for OptRc<EofExceptionSwitchUser_Two> {
     type Error = KError;
     fn try_from(v: &EofExceptionSwitchUser_Data) -> Result<Self, Self::Error> {
         if let EofExceptionSwitchUser_Data::EofExceptionSwitchUser_Two(x) = v {
@@ -81,27 +79,19 @@ impl TryFrom<&EofExceptionSwitchUser_Data>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&EofExceptionSwitchUser_Data>
-    for OptRc<EofExceptionSwitchUser_Two>
-{
+impl TryFrom<&&EofExceptionSwitchUser_Data> for OptRc<EofExceptionSwitchUser_Two> {
     type Error = KError;
     fn try_from(v: &&EofExceptionSwitchUser_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_Two> for EofExceptionSwitchUser_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         OptRc::<EofExceptionSwitchUser_Two>::try_from(self)
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_Two>
-    for &EofExceptionSwitchUser_Data
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_Two> for &EofExceptionSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -110,9 +100,7 @@ impl From<OptRc<EofExceptionSwitchUser_Two>> for EofExceptionSwitchUser_Data {
         Self::EofExceptionSwitchUser_Two(v)
     }
 }
-impl TryFrom<&EofExceptionSwitchUser_Data>
-    for OptRc<EofExceptionSwitchUser_One>
-{
+impl TryFrom<&EofExceptionSwitchUser_Data> for OptRc<EofExceptionSwitchUser_One> {
     type Error = KError;
     fn try_from(v: &EofExceptionSwitchUser_Data) -> Result<Self, Self::Error> {
         if let EofExceptionSwitchUser_Data::EofExceptionSwitchUser_One(x) = v {
@@ -121,27 +109,19 @@ impl TryFrom<&EofExceptionSwitchUser_Data>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&EofExceptionSwitchUser_Data>
-    for OptRc<EofExceptionSwitchUser_One>
-{
+impl TryFrom<&&EofExceptionSwitchUser_Data> for OptRc<EofExceptionSwitchUser_One> {
     type Error = KError;
     fn try_from(v: &&EofExceptionSwitchUser_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_One> for EofExceptionSwitchUser_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         OptRc::<EofExceptionSwitchUser_One>::try_from(self)
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_One>
-    for &EofExceptionSwitchUser_Data
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_One> for &EofExceptionSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -186,11 +166,7 @@ impl KStruct for EofExceptionSwitchUser {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -206,21 +182,11 @@ impl KStruct for EofExceptionSwitchUser {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             2 => {
-                let t = Self::read_into::<_, EofExceptionSwitchUser_Two>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, EofExceptionSwitchUser_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             511 => {
-                let t = Self::read_into::<_, EofExceptionSwitchUser_One>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, EofExceptionSwitchUser_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -230,7 +196,8 @@ impl KStruct for EofExceptionSwitchUser {
         Ok(())
     }
 }
-impl EofExceptionSwitchUser {}
+impl EofExceptionSwitchUser {
+}
 impl EofExceptionSwitchUser {
     pub fn code(&self) -> Ref<'_, u16> {
         self.code.borrow()
@@ -261,51 +228,35 @@ pub struct EofExceptionSwitchUser_One {
     val: RefCell<i16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EofExceptionSwitchUser_One>
-    for OptRc<EofExceptionSwitchUser_One>
-{
+impl TryFrom<&EofExceptionSwitchUser_One> for OptRc<EofExceptionSwitchUser_One> {
     type Error = KError;
     fn try_from(v: &EofExceptionSwitchUser_One) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EofExceptionSwitchUser_One>
-    for OptRc<EofExceptionSwitchUser_One>
-{
+impl TryFrom<&&EofExceptionSwitchUser_One> for OptRc<EofExceptionSwitchUser_One> {
     type Error = KError;
     fn try_from(v: &&EofExceptionSwitchUser_One) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_One> for EofExceptionSwitchUser_One {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_One> for &EofExceptionSwitchUser_One {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_One>
-    for OptRc<EofExceptionSwitchUser_One>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_One> for OptRc<EofExceptionSwitchUser_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_One>
-    for &OptRc<EofExceptionSwitchUser_One>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_One> for &OptRc<EofExceptionSwitchUser_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_One>, KError> {
         Ok((*self).clone())
     }
 }
@@ -313,11 +264,7 @@ impl KStruct for EofExceptionSwitchUser_One {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -335,7 +282,8 @@ impl KStruct for EofExceptionSwitchUser_One {
         Ok(())
     }
 }
-impl EofExceptionSwitchUser_One {}
+impl EofExceptionSwitchUser_One {
+}
 impl EofExceptionSwitchUser_One {
     pub fn val(&self) -> Ref<'_, i16> {
         self.val.borrow()
@@ -361,51 +309,35 @@ pub struct EofExceptionSwitchUser_Two {
     val: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EofExceptionSwitchUser_Two>
-    for OptRc<EofExceptionSwitchUser_Two>
-{
+impl TryFrom<&EofExceptionSwitchUser_Two> for OptRc<EofExceptionSwitchUser_Two> {
     type Error = KError;
     fn try_from(v: &EofExceptionSwitchUser_Two) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EofExceptionSwitchUser_Two>
-    for OptRc<EofExceptionSwitchUser_Two>
-{
+impl TryFrom<&&EofExceptionSwitchUser_Two> for OptRc<EofExceptionSwitchUser_Two> {
     type Error = KError;
     fn try_from(v: &&EofExceptionSwitchUser_Two) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_Two> for EofExceptionSwitchUser_Two {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<EofExceptionSwitchUser_Two> for &EofExceptionSwitchUser_Two {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_Two>
-    for OptRc<EofExceptionSwitchUser_Two>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_Two> for OptRc<EofExceptionSwitchUser_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EofExceptionSwitchUser_Two>
-    for &OptRc<EofExceptionSwitchUser_Two>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
+impl DowncastOptRc<EofExceptionSwitchUser_Two> for &OptRc<EofExceptionSwitchUser_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionSwitchUser_Two>, KError> {
         Ok((*self).clone())
     }
 }
@@ -413,11 +345,7 @@ impl KStruct for EofExceptionSwitchUser_Two {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -435,7 +363,8 @@ impl KStruct for EofExceptionSwitchUser_Two {
         Ok(())
     }
 }
-impl EofExceptionSwitchUser_Two {}
+impl EofExceptionSwitchUser_Two {
+}
 impl EofExceptionSwitchUser_Two {
     pub fn val(&self) -> Ref<'_, u16> {
         self.val.borrow()

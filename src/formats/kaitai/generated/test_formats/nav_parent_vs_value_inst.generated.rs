@@ -101,11 +101,7 @@ impl KStruct for NavParentVsValueInst {
     type Root = NavParentVsValueInst;
     type Parent = NavParentVsValueInst;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,24 +113,17 @@ impl KStruct for NavParentVsValueInst {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term(124, false, true, true)?,
-            "UTF-8",
-        )?;
+        *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NavParentVsValueInst_ChildObj>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NavParentVsValueInst_ChildObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.child.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParentVsValueInst {}
+impl NavParentVsValueInst {
+}
 impl NavParentVsValueInst {
     pub fn s1(&self) -> Ref<'_, String> {
         self.s1.borrow()
@@ -166,59 +155,35 @@ pub struct NavParentVsValueInst_ChildObj {
     f_do_something: Cell<bool>,
     do_something: RefCell<bool>,
 }
-impl TryFrom<&NavParentVsValueInst_ChildObj>
-    for OptRc<NavParentVsValueInst_ChildObj>
-{
+impl TryFrom<&NavParentVsValueInst_ChildObj> for OptRc<NavParentVsValueInst_ChildObj> {
     type Error = KError;
-    fn try_from(
-        v: &NavParentVsValueInst_ChildObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &NavParentVsValueInst_ChildObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NavParentVsValueInst_ChildObj>
-    for OptRc<NavParentVsValueInst_ChildObj>
-{
+impl TryFrom<&&NavParentVsValueInst_ChildObj> for OptRc<NavParentVsValueInst_ChildObj> {
     type Error = KError;
-    fn try_from(
-        v: &&NavParentVsValueInst_ChildObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&NavParentVsValueInst_ChildObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NavParentVsValueInst_ChildObj>
-    for NavParentVsValueInst_ChildObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
+impl DowncastOptRc<NavParentVsValueInst_ChildObj> for NavParentVsValueInst_ChildObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NavParentVsValueInst_ChildObj>
-    for &NavParentVsValueInst_ChildObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
+impl DowncastOptRc<NavParentVsValueInst_ChildObj> for &NavParentVsValueInst_ChildObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NavParentVsValueInst_ChildObj>
-    for OptRc<NavParentVsValueInst_ChildObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
+impl DowncastOptRc<NavParentVsValueInst_ChildObj> for OptRc<NavParentVsValueInst_ChildObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NavParentVsValueInst_ChildObj>
-    for &OptRc<NavParentVsValueInst_ChildObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
+impl DowncastOptRc<NavParentVsValueInst_ChildObj> for &OptRc<NavParentVsValueInst_ChildObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentVsValueInst_ChildObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -226,11 +191,7 @@ impl KStruct for NavParentVsValueInst_ChildObj {
     type Root = NavParentVsValueInst;
     type Parent = NavParentVsValueInst;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -247,33 +208,16 @@ impl KStruct for NavParentVsValueInst_ChildObj {
     }
 }
 impl NavParentVsValueInst_ChildObj {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn do_something(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn do_something(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_do_something.get() {
             return Ok(self.do_something.borrow());
         }
         self.f_do_something.set(true);
-        *self.do_something.borrow_mut() = (if (self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .s1()
-            .as_str()
-            == "foo")
-        {
-            true
-        } else {
-            false
-        })
-        .try_into()?;
+        *self.do_something.borrow_mut() = (if self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.s1().as_str() == "foo" { true } else { false }).try_into()?;
         Ok(self.do_something.borrow())
     }
 }

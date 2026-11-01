@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::windows_shell_items::WindowsShellItems;
-use super::windows_shell_items::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::windows_shell_items::WindowsShellItems;
+use super::windows_shell_items::*;
 
 /**
  * Windows .lnk files (AKA "shell link" file) are most frequently used
@@ -66,11 +66,7 @@ impl KStruct for WindowsLnkFile {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -82,88 +78,48 @@ impl KStruct for WindowsLnkFile {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, WindowsLnkFile_FileHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, WindowsLnkFile_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_link_target_id_list() {
-            let t = Self::read_into::<_, WindowsLnkFile_LinkTargetIdList>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_LinkTargetIdList>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.target_id_list.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_link_info() {
-            let t = Self::read_into::<_, WindowsLnkFile_LinkInfo>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_LinkInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.info.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_name() {
-            let t = Self::read_into::<_, WindowsLnkFile_StringData>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.name.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_rel_path() {
-            let t = Self::read_into::<_, WindowsLnkFile_StringData>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.rel_path.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_work_dir() {
-            let t = Self::read_into::<_, WindowsLnkFile_StringData>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.work_dir.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_arguments() {
-            let t = Self::read_into::<_, WindowsLnkFile_StringData>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arguments.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_icon_location() {
-            let t = Self::read_into::<_, WindowsLnkFile_StringData>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.icon_location.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -171,16 +127,15 @@ impl KStruct for WindowsLnkFile {
         Ok(())
     }
 }
-impl WindowsLnkFile {}
+impl WindowsLnkFile {
+}
 impl WindowsLnkFile {
     pub fn header(&self) -> Ref<'_, OptRc<WindowsLnkFile_FileHeader>> {
         self.header.borrow()
     }
 }
 impl WindowsLnkFile {
-    pub fn target_id_list(
-        &self,
-    ) -> Ref<'_, OptRc<WindowsLnkFile_LinkTargetIdList>> {
+    pub fn target_id_list(&self) -> Ref<'_, OptRc<WindowsLnkFile_LinkTargetIdList>> {
         self.target_id_list.borrow()
     }
 }
@@ -263,15 +218,13 @@ impl From<&WindowsLnkFile_DriveTypes> for i64 {
             WindowsLnkFile_DriveTypes::Remote => 4,
             WindowsLnkFile_DriveTypes::Cdrom => 5,
             WindowsLnkFile_DriveTypes::Ramdisk => 6,
-            WindowsLnkFile_DriveTypes::UnknownVariant(v) => v,
+            WindowsLnkFile_DriveTypes::UnknownVariant(v) => v
         }
     }
 }
 
 impl Default for WindowsLnkFile_DriveTypes {
-    fn default() -> Self {
-        WindowsLnkFile_DriveTypes::UnknownVariant(0)
-    }
+    fn default() -> Self { WindowsLnkFile_DriveTypes::UnknownVariant(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -300,16 +253,15 @@ impl From<&WindowsLnkFile_WindowState> for i64 {
             WindowsLnkFile_WindowState::Normal => 1,
             WindowsLnkFile_WindowState::Maximized => 3,
             WindowsLnkFile_WindowState::MinNoActive => 7,
-            WindowsLnkFile_WindowState::Unknown(v) => v,
+            WindowsLnkFile_WindowState::Unknown(v) => v
         }
     }
 }
 
 impl Default for WindowsLnkFile_WindowState {
-    fn default() -> Self {
-        WindowsLnkFile_WindowState::Unknown(0)
-    }
+    fn default() -> Self { WindowsLnkFile_WindowState::Unknown(0) }
 }
+
 
 /**
  * \sa https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-SHLLINK/[MS-SHLLINK].pdf Section 2.1
@@ -348,34 +300,22 @@ impl TryFrom<&&WindowsLnkFile_FileHeader> for OptRc<WindowsLnkFile_FileHeader> {
     }
 }
 impl DowncastOptRc<WindowsLnkFile_FileHeader> for WindowsLnkFile_FileHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsLnkFile_FileHeader> for &WindowsLnkFile_FileHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_FileHeader>
-    for OptRc<WindowsLnkFile_FileHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for OptRc<WindowsLnkFile_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_FileHeader>
-    for &OptRc<WindowsLnkFile_FileHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for &OptRc<WindowsLnkFile_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -383,11 +323,7 @@ impl KStruct for WindowsLnkFile_FileHeader {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -401,34 +337,18 @@ impl KStruct for WindowsLnkFile_FileHeader {
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.len_header() == vec![0x4cu8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.link_clsid.borrow_mut() = _io.read_bytes(16_usize)?;
-        if !(*self_rc.link_clsid()
-            == vec![
-                0x1u8, 0x14u8, 0x2u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
-                0xc0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x46u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/1".to_string(),
-            }));
+        if !(*self_rc.link_clsid() == vec![0x1u8, 0x14u8, 0x2u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0xc0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x46u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_flags = _io.read_bytes(4_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
-        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkFlags>(
-            &_io_flags,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_attrs.borrow_mut() = _io.read_u4le()?;
@@ -443,29 +363,21 @@ impl KStruct for WindowsLnkFile_FileHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.icon_index.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.show_command.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.show_command.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hotkey.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(10_usize)?;
-        if !(*self_rc.reserved()
-            == vec![
-                0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8,
-                0x0u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/11".to_string(),
-            }));
+        if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/11".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_FileHeader {}
+impl WindowsLnkFile_FileHeader {
+}
 
 /**
  * Technically, a size of the header, but in reality, it's
@@ -601,34 +513,22 @@ impl TryFrom<&&WindowsLnkFile_LinkFlags> for OptRc<WindowsLnkFile_LinkFlags> {
     }
 }
 impl DowncastOptRc<WindowsLnkFile_LinkFlags> for WindowsLnkFile_LinkFlags {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsLnkFile_LinkFlags> for &WindowsLnkFile_LinkFlags {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkFlags>
-    for OptRc<WindowsLnkFile_LinkFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for OptRc<WindowsLnkFile_LinkFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkFlags>
-    for &OptRc<WindowsLnkFile_LinkFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for &OptRc<WindowsLnkFile_LinkFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -636,11 +536,7 @@ impl KStruct for WindowsLnkFile_LinkFlags {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_FileHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -666,15 +562,13 @@ impl KStruct for WindowsLnkFile_LinkFlags {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_link_info.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_link_target_id_list.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.has_link_target_id_list.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed8.borrow_mut() = _io.read_bits_int_be(16)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(5)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.keep_local_id_list_for_unc_target.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.keep_local_id_list_for_unc_target.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed11.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -682,7 +576,8 @@ impl KStruct for WindowsLnkFile_LinkFlags {
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkFlags {}
+impl WindowsLnkFile_LinkFlags {
+}
 impl WindowsLnkFile_LinkFlags {
     pub fn is_unicode(&self) -> Ref<'_, bool> {
         self.is_unicode.borrow()
@@ -796,9 +691,7 @@ impl DowncastOptRc<WindowsLnkFile_LinkInfo> for OptRc<WindowsLnkFile_LinkInfo> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo>
-    for &OptRc<WindowsLnkFile_LinkInfo>
-{
+impl DowncastOptRc<WindowsLnkFile_LinkInfo> for &OptRc<WindowsLnkFile_LinkInfo> {
     fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo>, KError> {
         Ok((*self).clone())
     }
@@ -807,11 +700,7 @@ impl KStruct for WindowsLnkFile_LinkInfo {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -825,24 +714,18 @@ impl KStruct for WindowsLnkFile_LinkInfo {
         let _io = io;
         *self_rc.len_all.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_all = _io.read_bytes(usize::try_from(
-            (*self_rc.len_all()).saturating_sub(4_u32),
-        )?)?;
+        let _raw_all = _io.read_bytes(usize::try_from((*self_rc.len_all()).saturating_sub(4_u32))?)?;
         *self_rc.all_raw.borrow_mut() = _raw_all.clone();
         let _io_all = BytesReader::from(_raw_all);
-        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_All>(
-            &_io_all,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_All>(&_io_all, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.all.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkInfo {}
+impl WindowsLnkFile_LinkInfo {
+}
 impl WindowsLnkFile_LinkInfo {
     pub fn len_all(&self) -> Ref<'_, u32> {
         self.len_all.borrow()
@@ -888,55 +771,35 @@ pub struct WindowsLnkFile_LinkInfo_All {
     f_volume_id: Cell<bool>,
     volume_id: RefCell<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>>,
 }
-impl TryFrom<&WindowsLnkFile_LinkInfo_All>
-    for OptRc<WindowsLnkFile_LinkInfo_All>
-{
+impl TryFrom<&WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
     type Error = KError;
     fn try_from(v: &WindowsLnkFile_LinkInfo_All) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkInfo_All>
-    for OptRc<WindowsLnkFile_LinkInfo_All>
-{
+impl TryFrom<&&WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
     type Error = KError;
     fn try_from(v: &&WindowsLnkFile_LinkInfo_All) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_All>
-    for WindowsLnkFile_LinkInfo_All
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for WindowsLnkFile_LinkInfo_All {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_All>
-    for &WindowsLnkFile_LinkInfo_All
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for &WindowsLnkFile_LinkInfo_All {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_All>
-    for OptRc<WindowsLnkFile_LinkInfo_All>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_All>
-    for &OptRc<WindowsLnkFile_LinkInfo_All>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for &OptRc<WindowsLnkFile_LinkInfo_All> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
         Ok((*self).clone())
     }
 }
@@ -944,11 +807,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_All {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -962,17 +821,10 @@ impl KStruct for WindowsLnkFile_LinkInfo_All {
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_header = _io.read_bytes(usize::try_from(
-            (*self_rc.len_header()).saturating_sub(8_u32),
-        )?)?;
+        let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(8_u32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_Header>(
-            &_io_header,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -980,12 +832,10 @@ impl KStruct for WindowsLnkFile_LinkInfo_All {
     }
 }
 impl WindowsLnkFile_LinkInfo_All {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn local_base_path(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn local_base_path(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_local_base_path.get() {
             return Ok(self.local_base_path.borrow());
@@ -993,21 +843,15 @@ impl WindowsLnkFile_LinkInfo_All {
         self.f_local_base_path.set(true);
         if *self.header().flags().has_volume_id_and_local_base_path() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (*self.header().ofs_local_base_path()).saturating_sub(4_u32),
-            )?)?;
+            _io.seek(usize::try_from((*self.header().ofs_local_base_path()).saturating_sub(4_u32))?)?;
             *self.local_base_path.borrow_mut() = 0;
             _io.seek(_pos)?;
         }
         Ok(self.local_base_path.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn volume_id(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>>> {
         let _io = self._io.borrow();
         if self.f_volume_id.get() {
@@ -1015,15 +859,8 @@ impl WindowsLnkFile_LinkInfo_All {
         }
         if *self.header().flags().has_volume_id_and_local_base_path() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (*self.header().ofs_volume_id()).saturating_sub(4_u32),
-            )?)?;
-            let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_VolumeIdSpec>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            _io.seek(usize::try_from((*self.header().ofs_volume_id()).saturating_sub(4_u32))?)?;
+            let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_VolumeIdSpec>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.volume_id.borrow_mut() = t;
             _io.seek(_pos)?;
         }
@@ -1075,59 +912,35 @@ pub struct WindowsLnkFile_LinkInfo_Header {
     ofs_common_path_suffix_unicode: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsLnkFile_LinkInfo_Header>
-    for OptRc<WindowsLnkFile_LinkInfo_Header>
-{
+impl TryFrom<&WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsLnkFile_LinkInfo_Header,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsLnkFile_LinkInfo_Header) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkInfo_Header>
-    for OptRc<WindowsLnkFile_LinkInfo_Header>
-{
+impl TryFrom<&&WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsLnkFile_LinkInfo_Header,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_Header) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header>
-    for WindowsLnkFile_LinkInfo_Header
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for WindowsLnkFile_LinkInfo_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header>
-    for &WindowsLnkFile_LinkInfo_Header
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for &WindowsLnkFile_LinkInfo_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header>
-    for OptRc<WindowsLnkFile_LinkInfo_Header>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header>
-    for &OptRc<WindowsLnkFile_LinkInfo_Header>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for &OptRc<WindowsLnkFile_LinkInfo_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1135,11 +948,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_Header {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_All;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1151,12 +960,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_LinkInfoFlags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_LinkInfoFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_volume_id.borrow_mut() = _io.read_u4le()?;
@@ -1169,25 +973,22 @@ impl KStruct for WindowsLnkFile_LinkInfo_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
-            *self_rc.ofs_local_base_path_unicode.borrow_mut() =
-                _io.read_u4le()?;
+            *self_rc.ofs_local_base_path_unicode.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
-            *self_rc.ofs_common_path_suffix_unicode.borrow_mut() =
-                _io.read_u4le()?;
+            *self_rc.ofs_common_path_suffix_unicode.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkInfo_Header {}
 impl WindowsLnkFile_LinkInfo_Header {
-    pub fn flags(
-        &self,
-    ) -> Ref<'_, OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>> {
+}
+impl WindowsLnkFile_LinkInfo_Header {
+    pub fn flags(&self) -> Ref<'_, OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>> {
         self.flags.borrow()
     }
 }
@@ -1248,59 +1049,35 @@ pub struct WindowsLnkFile_LinkInfo_LinkInfoFlags {
     reserved2: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-{
+impl TryFrom<&WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsLnkFile_LinkInfo_LinkInfoFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsLnkFile_LinkInfo_LinkInfoFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-{
+impl TryFrom<&&WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsLnkFile_LinkInfo_LinkInfoFlags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_LinkInfoFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for WindowsLnkFile_LinkInfo_LinkInfoFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for WindowsLnkFile_LinkInfo_LinkInfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for &WindowsLnkFile_LinkInfo_LinkInfoFlags
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for &WindowsLnkFile_LinkInfo_LinkInfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-    for &OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for &OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1308,11 +1085,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1326,11 +1099,9 @@ impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(6)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_common_net_rel_link.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.has_common_net_rel_link.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.has_volume_id_and_local_base_path.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.has_volume_id_and_local_base_path.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(24)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1338,7 +1109,8 @@ impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkInfo_LinkInfoFlags {}
+impl WindowsLnkFile_LinkInfo_LinkInfoFlags {
+}
 impl WindowsLnkFile_LinkInfo_LinkInfoFlags {
     pub fn reserved1(&self) -> Ref<'_, u64> {
         self.reserved1.borrow()
@@ -1390,59 +1162,35 @@ pub struct WindowsLnkFile_LinkInfo_VolumeIdBody {
     f_volume_label_ansi: Cell<bool>,
     volume_label_ansi: RefCell<String>,
 }
-impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-{
+impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsLnkFile_LinkInfo_VolumeIdBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsLnkFile_LinkInfo_VolumeIdBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-{
+impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsLnkFile_LinkInfo_VolumeIdBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_VolumeIdBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for WindowsLnkFile_LinkInfo_VolumeIdBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for WindowsLnkFile_LinkInfo_VolumeIdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for &WindowsLnkFile_LinkInfo_VolumeIdBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for &WindowsLnkFile_LinkInfo_VolumeIdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-    for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1450,11 +1198,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_VolumeIdSpec;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1466,8 +1210,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.drive_type.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.drive_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.drive_serial_number.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1483,28 +1226,22 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
     }
 }
 impl WindowsLnkFile_LinkInfo_VolumeIdBody {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_unicode(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_unicode(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_unicode.get() {
             return Ok(self.is_unicode.borrow());
         }
         self.f_is_unicode.set(true);
-        *self.is_unicode.borrow_mut() = ((to_i128(*self.ofs_volume_label()))
-            == (to_i128(20)))
-        .try_into()?;
+        *self.is_unicode.borrow_mut() = (((to_i128(*self.ofs_volume_label())) == (to_i128(20)))).try_into()?;
         Ok(self.is_unicode.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn volume_label_ansi(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn volume_label_ansi(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_volume_label_ansi.get() {
             return Ok(self.volume_label_ansi.borrow());
@@ -1512,13 +1249,8 @@ impl WindowsLnkFile_LinkInfo_VolumeIdBody {
         self.f_volume_label_ansi.set(true);
         if !(*self.is_unicode()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (*self.ofs_volume_label()).saturating_sub(4_u32),
-            )?)?;
-            *self.volume_label_ansi.borrow_mut() = bytes_to_str(
-                &_io.read_bytes_term(0, false, true, true)?,
-                "cp437",
-            )?;
+            _io.seek(usize::try_from((*self.ofs_volume_label()).saturating_sub(4_u32))?)?;
+            *self.volume_label_ansi.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "cp437")?;
             _io.seek(_pos)?;
         }
         Ok(self.volume_label_ansi.borrow())
@@ -1570,59 +1302,35 @@ pub struct WindowsLnkFile_LinkInfo_VolumeIdSpec {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-{
+impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsLnkFile_LinkInfo_VolumeIdSpec,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsLnkFile_LinkInfo_VolumeIdSpec) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-{
+impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsLnkFile_LinkInfo_VolumeIdSpec,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_VolumeIdSpec) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for WindowsLnkFile_LinkInfo_VolumeIdSpec
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for WindowsLnkFile_LinkInfo_VolumeIdSpec {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for &WindowsLnkFile_LinkInfo_VolumeIdSpec
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for &WindowsLnkFile_LinkInfo_VolumeIdSpec {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-    for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1630,11 +1338,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdSpec {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_All;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1648,27 +1352,18 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdSpec {
         let _io = io;
         *self_rc.len_all.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_body = _io.read_bytes(usize::try_from(
-            (*self_rc.len_all()).saturating_sub(4_u32),
-        )?)?;
+        let _raw_body = _io.read_bytes(usize::try_from((*self_rc.len_all()).saturating_sub(4_u32))?)?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
-        let t = Self::read_into::<
-            BytesReader,
-            WindowsLnkFile_LinkInfo_VolumeIdBody,
-        >(
-            &_io_body,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_VolumeIdBody>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkInfo_VolumeIdSpec {}
+impl WindowsLnkFile_LinkInfo_VolumeIdSpec {
+}
 impl WindowsLnkFile_LinkInfo_VolumeIdSpec {
     pub fn len_all(&self) -> Ref<'_, u32> {
         self.len_all.borrow()
@@ -1710,59 +1405,35 @@ pub struct WindowsLnkFile_LinkTargetIdList {
     _io: RefCell<BytesReader>,
     id_list_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsLnkFile_LinkTargetIdList>
-    for OptRc<WindowsLnkFile_LinkTargetIdList>
-{
+impl TryFrom<&WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsLnkFile_LinkTargetIdList,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsLnkFile_LinkTargetIdList) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsLnkFile_LinkTargetIdList>
-    for OptRc<WindowsLnkFile_LinkTargetIdList>
-{
+impl TryFrom<&&WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsLnkFile_LinkTargetIdList,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsLnkFile_LinkTargetIdList) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList>
-    for WindowsLnkFile_LinkTargetIdList
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for WindowsLnkFile_LinkTargetIdList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList>
-    for &WindowsLnkFile_LinkTargetIdList
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for &WindowsLnkFile_LinkTargetIdList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList>
-    for OptRc<WindowsLnkFile_LinkTargetIdList>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList>
-    for &OptRc<WindowsLnkFile_LinkTargetIdList>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for &OptRc<WindowsLnkFile_LinkTargetIdList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1770,11 +1441,7 @@ impl KStruct for WindowsLnkFile_LinkTargetIdList {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1788,23 +1455,18 @@ impl KStruct for WindowsLnkFile_LinkTargetIdList {
         let _io = io;
         *self_rc.len_id_list.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_id_list =
-            _io.read_bytes(usize::from(*self_rc.len_id_list()))?;
+        let _raw_id_list = _io.read_bytes(usize::from(*self_rc.len_id_list()))?;
         *self_rc.id_list_raw.borrow_mut() = _raw_id_list.clone();
         let _io_id_list = BytesReader::from(_raw_id_list);
-        let t = Self::read_into::<BytesReader, WindowsShellItems>(
-            &_io_id_list,
-            None,
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, WindowsShellItems>(&_io_id_list, None, None)?.into();
         *self_rc.id_list.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_LinkTargetIdList {}
+impl WindowsLnkFile_LinkTargetIdList {
+}
 impl WindowsLnkFile_LinkTargetIdList {
     pub fn len_id_list(&self) -> Ref<'_, u16> {
         self.len_id_list.borrow()
@@ -1855,34 +1517,22 @@ impl TryFrom<&&WindowsLnkFile_StringData> for OptRc<WindowsLnkFile_StringData> {
     }
 }
 impl DowncastOptRc<WindowsLnkFile_StringData> for WindowsLnkFile_StringData {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<WindowsLnkFile_StringData> for &WindowsLnkFile_StringData {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsLnkFile_StringData>
-    for OptRc<WindowsLnkFile_StringData>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+impl DowncastOptRc<WindowsLnkFile_StringData> for OptRc<WindowsLnkFile_StringData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsLnkFile_StringData>
-    for &OptRc<WindowsLnkFile_StringData>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+impl DowncastOptRc<WindowsLnkFile_StringData> for &OptRc<WindowsLnkFile_StringData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1890,11 +1540,7 @@ impl KStruct for WindowsLnkFile_StringData {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1908,18 +1554,14 @@ impl KStruct for WindowsLnkFile_StringData {
         let _io = io;
         *self_rc.chars_str.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(
-                (i32::from(*self_rc.chars_str())).saturating_mul(2_i32),
-            )?)?,
-            "UTF-16LE",
-        )?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((i32::from(*self_rc.chars_str())).saturating_mul(2_i32))?)?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl WindowsLnkFile_StringData {}
+impl WindowsLnkFile_StringData {
+}
 impl WindowsLnkFile_StringData {
     pub fn chars_str(&self) -> Ref<'_, u16> {
         self.chars_str.borrow()

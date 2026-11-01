@@ -64,11 +64,7 @@ impl KStruct for WindowsShellItems {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -84,21 +80,12 @@ impl KStruct for WindowsShellItems {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, WindowsShellItems_ShellItem>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, WindowsShellItems_ShellItem>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
                 let _t_items = self_rc.items.borrow();
-                let Some(_tmpa) = _t_items.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_items.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len_data())) == (to_i128(0))) {
-                    break;
-                }
+                if (to_i128(*_tmpa.len_data())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -106,7 +93,8 @@ impl KStruct for WindowsShellItems {
         Ok(())
     }
 }
-impl WindowsShellItems {}
+impl WindowsShellItems {
+}
 
 /**
  * \sa https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-SHLLINK/[MS-SHLLINK].pdf Section 2.2.1
@@ -147,59 +135,35 @@ pub struct WindowsShellItems_FileEntryBody {
     f_is_file: Cell<bool>,
     is_file: RefCell<bool>,
 }
-impl TryFrom<&WindowsShellItems_FileEntryBody>
-    for OptRc<WindowsShellItems_FileEntryBody>
-{
+impl TryFrom<&WindowsShellItems_FileEntryBody> for OptRc<WindowsShellItems_FileEntryBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_FileEntryBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_FileEntryBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsShellItems_FileEntryBody>
-    for OptRc<WindowsShellItems_FileEntryBody>
-{
+impl TryFrom<&&WindowsShellItems_FileEntryBody> for OptRc<WindowsShellItems_FileEntryBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_FileEntryBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_FileEntryBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for WindowsShellItems_FileEntryBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for WindowsShellItems_FileEntryBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for &WindowsShellItems_FileEntryBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for &WindowsShellItems_FileEntryBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for OptRc<WindowsShellItems_FileEntryBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for OptRc<WindowsShellItems_FileEntryBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for &OptRc<WindowsShellItems_FileEntryBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for &OptRc<WindowsShellItems_FileEntryBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -207,11 +171,7 @@ impl KStruct for WindowsShellItems_FileEntryBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -236,54 +196,28 @@ impl KStruct for WindowsShellItems_FileEntryBody {
     }
 }
 impl WindowsShellItems_FileEntryBody {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_dir(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_dir(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_dir.get() {
             return Ok(self.is_dir.borrow());
         }
         self.f_is_dir.set(true);
-        *self.is_dir.borrow_mut() = (((i32::from(
-            *self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .code(),
-        )) & (1_i32))
-            != 0)
-            .try_into()?;
+        *self.is_dir.borrow_mut() = (((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_file(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_file(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_file.get() {
             return Ok(self.is_file.borrow());
         }
         self.f_is_file.set(true);
-        *self.is_file.borrow_mut() = (((i32::from(
-            *self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .code(),
-        )) & (2_i32))
-            != 0)
-            .try_into()?;
+        *self.is_file.borrow_mut() = (((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code())) & (2_i32)) != 0).try_into()?;
         Ok(self.is_file.borrow())
     }
 }
@@ -333,59 +267,35 @@ pub struct WindowsShellItems_RootFolderBody {
     _io: RefCell<BytesReader>,
     shell_folder_id_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsShellItems_RootFolderBody>
-    for OptRc<WindowsShellItems_RootFolderBody>
-{
+impl TryFrom<&WindowsShellItems_RootFolderBody> for OptRc<WindowsShellItems_RootFolderBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_RootFolderBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_RootFolderBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsShellItems_RootFolderBody>
-    for OptRc<WindowsShellItems_RootFolderBody>
-{
+impl TryFrom<&&WindowsShellItems_RootFolderBody> for OptRc<WindowsShellItems_RootFolderBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_RootFolderBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_RootFolderBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for WindowsShellItems_RootFolderBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for WindowsShellItems_RootFolderBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for &WindowsShellItems_RootFolderBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for &WindowsShellItems_RootFolderBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for OptRc<WindowsShellItems_RootFolderBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for OptRc<WindowsShellItems_RootFolderBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for &OptRc<WindowsShellItems_RootFolderBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for &OptRc<WindowsShellItems_RootFolderBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -393,11 +303,7 @@ impl KStruct for WindowsShellItems_RootFolderBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -417,7 +323,8 @@ impl KStruct for WindowsShellItems_RootFolderBody {
         Ok(())
     }
 }
-impl WindowsShellItems_RootFolderBody {}
+impl WindowsShellItems_RootFolderBody {
+}
 impl WindowsShellItems_RootFolderBody {
     pub fn sort_index(&self) -> Ref<'_, u8> {
         self.sort_index.borrow()
@@ -459,55 +366,35 @@ pub struct WindowsShellItems_ShellItem {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&WindowsShellItems_ShellItem>
-    for OptRc<WindowsShellItems_ShellItem>
-{
+impl TryFrom<&WindowsShellItems_ShellItem> for OptRc<WindowsShellItems_ShellItem> {
     type Error = KError;
     fn try_from(v: &WindowsShellItems_ShellItem) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsShellItems_ShellItem>
-    for OptRc<WindowsShellItems_ShellItem>
-{
+impl TryFrom<&&WindowsShellItems_ShellItem> for OptRc<WindowsShellItems_ShellItem> {
     type Error = KError;
     fn try_from(v: &&WindowsShellItems_ShellItem) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItem>
-    for WindowsShellItems_ShellItem
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItem> for WindowsShellItems_ShellItem {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItem>
-    for &WindowsShellItems_ShellItem
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItem> for &WindowsShellItems_ShellItem {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItem>
-    for OptRc<WindowsShellItems_ShellItem>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItem> for OptRc<WindowsShellItems_ShellItem> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItem>
-    for &OptRc<WindowsShellItems_ShellItem>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItem> for &OptRc<WindowsShellItems_ShellItem> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItem>, KError> {
         Ok((*self).clone())
     }
 }
@@ -515,11 +402,7 @@ impl KStruct for WindowsShellItems_ShellItem {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -534,21 +417,11 @@ impl KStruct for WindowsShellItems_ShellItem {
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len_data())) >= (to_i128(2))) {
-            let _raw_data = _io.read_bytes(usize::try_from(
-                (i32::from(*self_rc.len_data())).saturating_sub(2_i32),
-            )?)?;
+        if (to_i128(*self_rc.len_data())) >= (to_i128(2)) {
+            let _raw_data = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_data())).saturating_sub(2_i32))?)?;
             *self_rc.data_raw.borrow_mut() = _raw_data.clone();
             let _io_data = BytesReader::from(_raw_data);
-            let t = Self::read_into::<
-                BytesReader,
-                WindowsShellItems_ShellItemData,
-            >(
-                &_io_data,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, WindowsShellItems_ShellItemData>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.data.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -556,7 +429,8 @@ impl KStruct for WindowsShellItems_ShellItem {
         Ok(())
     }
 }
-impl WindowsShellItems_ShellItem {}
+impl WindowsShellItems_ShellItem {
+}
 impl WindowsShellItems_ShellItem {
     pub fn len_data(&self) -> Ref<'_, u16> {
         self.len_data.borrow()
@@ -598,50 +472,32 @@ pub struct WindowsShellItems_ShellItemData {
 pub enum WindowsShellItems_ShellItemData_Body1 {
     WindowsShellItems_RootFolderBody(OptRc<WindowsShellItems_RootFolderBody>),
 }
-impl TryFrom<&WindowsShellItems_ShellItemData_Body1>
-    for OptRc<WindowsShellItems_RootFolderBody>
-{
+impl TryFrom<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_ShellItemData_Body1,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body1) -> Result<Self, Self::Error> {
         if let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsShellItems_ShellItemData_Body1>
-    for OptRc<WindowsShellItems_RootFolderBody>
-{
+impl TryFrom<&&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_ShellItemData_Body1,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_ShellItemData_Body1) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for WindowsShellItems_ShellItemData_Body1
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for WindowsShellItems_ShellItemData_Body1 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         OptRc::<WindowsShellItems_RootFolderBody>::try_from(self)
     }
 }
-impl DowncastOptRc<WindowsShellItems_RootFolderBody>
-    for &WindowsShellItems_ShellItemData_Body1
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_RootFolderBody> for &WindowsShellItems_ShellItemData_Body1 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_RootFolderBody>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<WindowsShellItems_RootFolderBody>>
-    for WindowsShellItems_ShellItemData_Body1
-{
+impl From<OptRc<WindowsShellItems_RootFolderBody>> for WindowsShellItems_ShellItemData_Body1 {
     fn from(v: OptRc<WindowsShellItems_RootFolderBody>) -> Self {
         Self::WindowsShellItems_RootFolderBody(v)
     }
@@ -651,155 +507,95 @@ pub enum WindowsShellItems_ShellItemData_Body2 {
     WindowsShellItems_VolumeBody(OptRc<WindowsShellItems_VolumeBody>),
     WindowsShellItems_FileEntryBody(OptRc<WindowsShellItems_FileEntryBody>),
 }
-impl TryFrom<&WindowsShellItems_ShellItemData_Body2>
-    for OptRc<WindowsShellItems_VolumeBody>
-{
+impl TryFrom<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_VolumeBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_ShellItemData_Body2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_VolumeBody(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsShellItems_ShellItemData_Body2>
-    for OptRc<WindowsShellItems_VolumeBody>
-{
+impl TryFrom<&&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_VolumeBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_ShellItemData_Body2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for WindowsShellItems_ShellItemData_Body2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for WindowsShellItems_ShellItemData_Body2 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         OptRc::<WindowsShellItems_VolumeBody>::try_from(self)
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for &WindowsShellItems_ShellItemData_Body2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for &WindowsShellItems_ShellItemData_Body2 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<WindowsShellItems_VolumeBody>>
-    for WindowsShellItems_ShellItemData_Body2
-{
+impl From<OptRc<WindowsShellItems_VolumeBody>> for WindowsShellItems_ShellItemData_Body2 {
     fn from(v: OptRc<WindowsShellItems_VolumeBody>) -> Self {
         Self::WindowsShellItems_VolumeBody(v)
     }
 }
-impl TryFrom<&WindowsShellItems_ShellItemData_Body2>
-    for OptRc<WindowsShellItems_FileEntryBody>
-{
+impl TryFrom<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_FileEntryBody> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_ShellItemData_Body2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_FileEntryBody(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&WindowsShellItems_ShellItemData_Body2>
-    for OptRc<WindowsShellItems_FileEntryBody>
-{
+impl TryFrom<&&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_FileEntryBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_ShellItemData_Body2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for WindowsShellItems_ShellItemData_Body2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for WindowsShellItems_ShellItemData_Body2 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         OptRc::<WindowsShellItems_FileEntryBody>::try_from(self)
     }
 }
-impl DowncastOptRc<WindowsShellItems_FileEntryBody>
-    for &WindowsShellItems_ShellItemData_Body2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_FileEntryBody> for &WindowsShellItems_ShellItemData_Body2 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_FileEntryBody>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<WindowsShellItems_FileEntryBody>>
-    for WindowsShellItems_ShellItemData_Body2
-{
+impl From<OptRc<WindowsShellItems_FileEntryBody>> for WindowsShellItems_ShellItemData_Body2 {
     fn from(v: OptRc<WindowsShellItems_FileEntryBody>) -> Self {
         Self::WindowsShellItems_FileEntryBody(v)
     }
 }
-impl TryFrom<&WindowsShellItems_ShellItemData>
-    for OptRc<WindowsShellItems_ShellItemData>
-{
+impl TryFrom<&WindowsShellItems_ShellItemData> for OptRc<WindowsShellItems_ShellItemData> {
     type Error = KError;
-    fn try_from(
-        v: &WindowsShellItems_ShellItemData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &WindowsShellItems_ShellItemData) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsShellItems_ShellItemData>
-    for OptRc<WindowsShellItems_ShellItemData>
-{
+impl TryFrom<&&WindowsShellItems_ShellItemData> for OptRc<WindowsShellItems_ShellItemData> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_ShellItemData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_ShellItemData) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItemData>
-    for WindowsShellItems_ShellItemData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItemData> for WindowsShellItems_ShellItemData {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItemData>
-    for &WindowsShellItems_ShellItemData
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItemData> for &WindowsShellItems_ShellItemData {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItemData>
-    for OptRc<WindowsShellItems_ShellItemData>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItemData> for OptRc<WindowsShellItems_ShellItemData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsShellItems_ShellItemData>
-    for &OptRc<WindowsShellItems_ShellItemData>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
+impl DowncastOptRc<WindowsShellItems_ShellItemData> for &OptRc<WindowsShellItems_ShellItemData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_ShellItemData>, KError> {
         Ok((*self).clone())
     }
 }
@@ -807,11 +603,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItem;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -827,34 +619,19 @@ impl KStruct for WindowsShellItems_ShellItemData {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             31 => {
-                let t = Self::read_into::<_, WindowsShellItems_RootFolderBody>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, WindowsShellItems_RootFolderBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body1.borrow_mut() = Some(t);
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match ((i32::from(*self_rc.code())) & (112_i32)) {
+        match (i32::from(*self_rc.code())) & (112_i32) {
             32 => {
-                let t = Self::read_into::<_, WindowsShellItems_VolumeBody>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, WindowsShellItems_VolumeBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body2.borrow_mut() = Some(t);
             }
             48 => {
-                let t = Self::read_into::<_, WindowsShellItems_FileEntryBody>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, WindowsShellItems_FileEntryBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body2.borrow_mut() = Some(t);
             }
             _ => {}
@@ -864,23 +641,20 @@ impl KStruct for WindowsShellItems_ShellItemData {
         Ok(())
     }
 }
-impl WindowsShellItems_ShellItemData {}
+impl WindowsShellItems_ShellItemData {
+}
 impl WindowsShellItems_ShellItemData {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()
     }
 }
 impl WindowsShellItems_ShellItemData {
-    pub fn body1(
-        &self,
-    ) -> Ref<'_, Option<WindowsShellItems_ShellItemData_Body1>> {
+    pub fn body1(&self) -> Ref<'_, Option<WindowsShellItems_ShellItemData_Body1>> {
         self.body1.borrow()
     }
 }
 impl WindowsShellItems_ShellItemData {
-    pub fn body2(
-        &self,
-    ) -> Ref<'_, Option<WindowsShellItems_ShellItemData_Body2>> {
+    pub fn body2(&self) -> Ref<'_, Option<WindowsShellItems_ShellItemData_Body2>> {
         self.body2.borrow()
     }
 }
@@ -908,57 +682,35 @@ pub struct WindowsShellItems_VolumeBody {
     flags: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&WindowsShellItems_VolumeBody>
-    for OptRc<WindowsShellItems_VolumeBody>
-{
+impl TryFrom<&WindowsShellItems_VolumeBody> for OptRc<WindowsShellItems_VolumeBody> {
     type Error = KError;
     fn try_from(v: &WindowsShellItems_VolumeBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&WindowsShellItems_VolumeBody>
-    for OptRc<WindowsShellItems_VolumeBody>
-{
+impl TryFrom<&&WindowsShellItems_VolumeBody> for OptRc<WindowsShellItems_VolumeBody> {
     type Error = KError;
-    fn try_from(
-        v: &&WindowsShellItems_VolumeBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&WindowsShellItems_VolumeBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for WindowsShellItems_VolumeBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for WindowsShellItems_VolumeBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for &WindowsShellItems_VolumeBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for &WindowsShellItems_VolumeBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for OptRc<WindowsShellItems_VolumeBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for OptRc<WindowsShellItems_VolumeBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<WindowsShellItems_VolumeBody>
-    for &OptRc<WindowsShellItems_VolumeBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
+impl DowncastOptRc<WindowsShellItems_VolumeBody> for &OptRc<WindowsShellItems_VolumeBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsShellItems_VolumeBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -966,11 +718,7 @@ impl KStruct for WindowsShellItems_VolumeBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -988,7 +736,8 @@ impl KStruct for WindowsShellItems_VolumeBody {
         Ok(())
     }
 }
-impl WindowsShellItems_VolumeBody {}
+impl WindowsShellItems_VolumeBody {
+}
 impl WindowsShellItems_VolumeBody {
     pub fn flags(&self) -> Ref<'_, u8> {
         self.flags.borrow()

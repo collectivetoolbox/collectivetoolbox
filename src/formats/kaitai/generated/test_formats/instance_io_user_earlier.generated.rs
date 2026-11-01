@@ -111,11 +111,7 @@ impl KStruct for InstanceIoUserEarlier {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,55 +126,25 @@ impl KStruct for InstanceIoUserEarlier {
         let _raw_sized_a = _io.read_bytes(6_usize)?;
         *self_rc.sized_a_raw.borrow_mut() = _raw_sized_a.clone();
         let _io_sized_a = BytesReader::from(_raw_sized_a);
-        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(
-            &_io_sized_a,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_a, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_a.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_sized_b = _io.read_bytes(6_usize)?;
         *self_rc.sized_b_raw.borrow_mut() = _raw_sized_b.clone();
         let _io_sized_b = BytesReader::from(_raw_sized_b);
-        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(
-            &_io_sized_b,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_b, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_b.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_b.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_a_skipped.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_a.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Baz>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceIoUserEarlier_Baz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.last_accessor.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -186,12 +152,10 @@ impl KStruct for InstanceIoUserEarlier {
     }
 }
 impl InstanceIoUserEarlier {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn a_mid(&self) -> KResult<Ref<'_, u16>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn a_mid(
+        &self
+    ) -> KResult<Ref<'_, u16>> {
         let _io = self._io.borrow();
         if self.f_a_mid.get() {
             return Ok(self.a_mid.borrow());
@@ -204,12 +168,10 @@ impl InstanceIoUserEarlier {
         io.seek(_pos)?;
         Ok(self.a_mid.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn b_mid(&self) -> KResult<Ref<'_, u16>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn b_mid(
+        &self
+    ) -> KResult<Ref<'_, u16>> {
         let _io = self._io.borrow();
         if self.f_b_mid.get() {
             return Ok(self.b_mid.borrow());
@@ -296,34 +258,22 @@ impl TryFrom<&&InstanceIoUserEarlier_Baz> for OptRc<InstanceIoUserEarlier_Baz> {
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Baz> for InstanceIoUserEarlier_Baz {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Baz> for &InstanceIoUserEarlier_Baz {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Baz>
-    for OptRc<InstanceIoUserEarlier_Baz>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Baz> for OptRc<InstanceIoUserEarlier_Baz> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Baz>
-    for &OptRc<InstanceIoUserEarlier_Baz>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Baz> for &OptRc<InstanceIoUserEarlier_Baz> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Baz>, KError> {
         Ok((*self).clone())
     }
 }
@@ -331,11 +281,7 @@ impl KStruct for InstanceIoUserEarlier_Baz {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -348,19 +294,7 @@ impl KStruct for InstanceIoUserEarlier_Baz {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(
-            *self_rc
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .into_b()
-                .inst()?
-                .last()?,
-        )) == (to_i128(89)))
-        {
+        if (to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.into_b().inst()?.last()?)) == (to_i128(89)) {
             *self_rc.v.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -368,7 +302,8 @@ impl KStruct for InstanceIoUserEarlier_Baz {
         Ok(())
     }
 }
-impl InstanceIoUserEarlier_Baz {}
+impl InstanceIoUserEarlier_Baz {
+}
 impl InstanceIoUserEarlier_Baz {
     pub fn v(&self) -> Ref<'_, u8> {
         self.v.borrow()
@@ -411,34 +346,22 @@ impl TryFrom<&&InstanceIoUserEarlier_Foo> for OptRc<InstanceIoUserEarlier_Foo> {
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Foo> for InstanceIoUserEarlier_Foo {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Foo> for &InstanceIoUserEarlier_Foo {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Foo>
-    for OptRc<InstanceIoUserEarlier_Foo>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Foo> for OptRc<InstanceIoUserEarlier_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Foo>
-    for &OptRc<InstanceIoUserEarlier_Foo>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Foo> for &OptRc<InstanceIoUserEarlier_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Foo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -446,11 +369,7 @@ impl KStruct for InstanceIoUserEarlier_Foo {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -465,10 +384,7 @@ impl KStruct for InstanceIoUserEarlier_Foo {
         *self_rc.indicator.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (((to_i128((i64::try_from(self_rc.inst()?._io().size())?)))
-            != (to_i128(0)))
-            && ((to_i128(*self_rc.inst()?.content())) == (to_i128(102))))
-        {
+        if  (((to_i128(i64::try_from(self_rc.inst()?._io().size())?)) != (to_i128(0)))) && (((to_i128(*self_rc.inst()?.content())) == (to_i128(102))))  {
             *self_rc.bar.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -477,58 +393,21 @@ impl KStruct for InstanceIoUserEarlier_Foo {
     }
 }
 impl InstanceIoUserEarlier_Foo {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst(&self) -> KResult<Ref<'_, OptRc<InstanceIoUserEarlier_Slot>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst(
+        &self
+    ) -> KResult<Ref<'_, OptRc<InstanceIoUserEarlier_Slot>>> {
         let _io = self._io.borrow();
         if self.f_inst.get() {
             return Ok(self.inst.borrow());
         }
-        let io = if ((to_i128(*self.indicator())) == (to_i128(202))) {
-            Clone::clone(
-                &*(self
-                    ._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .sized_b()
-                    ._io()),
-            )
-        } else {
-            Clone::clone(
-                &*(self
-                    ._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .sized_a()
-                    ._io()),
-            )
-        };
+        let io = if (to_i128(*self.indicator())) == (to_i128(202)) { Clone::clone(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sized_b()._io())) } else { Clone::clone(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sized_a()._io())) };
         let _pos = io.pos();
         io.seek(1_usize)?;
-        *self.inst_raw.borrow_mut() = io
-            .read_bytes(usize::try_from(if _io.pos() != 14 {
-                4_i32
-            } else {
-                0_i32
-            })?)?
-            .into();
+        *self.inst_raw.borrow_mut() = io.read_bytes(usize::try_from(if _io.pos() != 14 { 4_i32 } else { 0_i32 })?)?.into();
         let inst_raw = self.inst_raw.borrow();
         let _t_inst_raw_io = BytesReader::from(inst_raw.clone());
-        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(
-            &_t_inst_raw_io,
-            Some(self._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_t_inst_raw_io, Some(self._root.clone()), None)?.into();
         *self.inst.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.inst.borrow())
@@ -571,51 +450,35 @@ pub struct InstanceIoUserEarlier_Slot {
     f_last: Cell<bool>,
     last: RefCell<u8>,
 }
-impl TryFrom<&InstanceIoUserEarlier_Slot>
-    for OptRc<InstanceIoUserEarlier_Slot>
-{
+impl TryFrom<&InstanceIoUserEarlier_Slot> for OptRc<InstanceIoUserEarlier_Slot> {
     type Error = KError;
     fn try_from(v: &InstanceIoUserEarlier_Slot) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&InstanceIoUserEarlier_Slot>
-    for OptRc<InstanceIoUserEarlier_Slot>
-{
+impl TryFrom<&&InstanceIoUserEarlier_Slot> for OptRc<InstanceIoUserEarlier_Slot> {
     type Error = KError;
     fn try_from(v: &&InstanceIoUserEarlier_Slot) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Slot> for InstanceIoUserEarlier_Slot {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<InstanceIoUserEarlier_Slot> for &InstanceIoUserEarlier_Slot {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Slot>
-    for OptRc<InstanceIoUserEarlier_Slot>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Slot> for OptRc<InstanceIoUserEarlier_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceIoUserEarlier_Slot>
-    for &OptRc<InstanceIoUserEarlier_Slot>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
+impl DowncastOptRc<InstanceIoUserEarlier_Slot> for &OptRc<InstanceIoUserEarlier_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUserEarlier_Slot>, KError> {
         Ok((*self).clone())
     }
 }
@@ -623,11 +486,7 @@ impl KStruct for InstanceIoUserEarlier_Slot {
     type Root = InstanceIoUserEarlier;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -640,7 +499,7 @@ impl KStruct for InstanceIoUserEarlier_Slot {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128((i64::try_from(_io.size())?))) != (to_i128(0))) {
+        if (to_i128(i64::try_from(_io.size())?)) != (to_i128(0)) {
             *self_rc.content.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -649,22 +508,18 @@ impl KStruct for InstanceIoUserEarlier_Slot {
     }
 }
 impl InstanceIoUserEarlier_Slot {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn last(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn last(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_last.get() {
             return Ok(self.last.borrow());
         }
         self.f_last.set(true);
-        if ((to_i128((i64::try_from(_io.size())?))) != (to_i128(0))) {
+        if (to_i128(i64::try_from(_io.size())?)) != (to_i128(0)) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (i64::try_from(_io.size())?).saturating_sub(1_i64),
-            )?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(1_i64))?)?;
             *self.last.borrow_mut() = _io.read_u1()?;
             _io.seek(_pos)?;
         }

@@ -57,11 +57,7 @@ impl KStruct for Hccap {
     type Root = Hccap;
     type Parent = Hccap;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,12 +73,7 @@ impl KStruct for Hccap {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Hccap_HccapRecord>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Hccap_HccapRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -92,7 +83,8 @@ impl KStruct for Hccap {
         Ok(())
     }
 }
-impl Hccap {}
+impl Hccap {
+}
 impl Hccap {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<Hccap_HccapRecord>>> {
         self.records.borrow()
@@ -153,11 +145,7 @@ impl KStruct for Hccap_EapolDummy {
     type Root = Hccap;
     type Parent = Hccap_HccapRecord;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -173,7 +161,8 @@ impl KStruct for Hccap_EapolDummy {
         Ok(())
     }
 }
-impl Hccap_EapolDummy {}
+impl Hccap_EapolDummy {
+}
 impl Hccap_EapolDummy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -247,11 +236,7 @@ impl KStruct for Hccap_HccapRecord {
     type Root = Hccap;
     type Parent = Hccap;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -276,12 +261,7 @@ impl KStruct for Hccap_HccapRecord {
         let _raw_eapol_buffer = _io.read_bytes(256_usize)?;
         *self_rc.eapol_buffer_raw.borrow_mut() = _raw_eapol_buffer.clone();
         let _io_eapol_buffer = BytesReader::from(_raw_eapol_buffer);
-        let t = Self::read_into::<BytesReader, Hccap_EapolDummy>(
-            &_io_eapol_buffer,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Hccap_EapolDummy>(&_io_eapol_buffer, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.eapol_buffer.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_eapol.borrow_mut() = _io.read_u4le()?;
@@ -295,12 +275,10 @@ impl KStruct for Hccap_HccapRecord {
     }
 }
 impl Hccap_HccapRecord {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn eapol(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn eapol(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_eapol.get() {
             return Ok(self.eapol.borrow());
@@ -309,8 +287,7 @@ impl Hccap_HccapRecord {
         let io = KStream::clone(&*self.eapol_buffer()._io());
         let _pos = io.pos();
         io.seek(0_usize)?;
-        *self.eapol.borrow_mut() =
-            io.read_bytes(usize::try_from(*self.len_eapol())?)?;
+        *self.eapol.borrow_mut() = io.read_bytes(usize::try_from(*self.len_eapol())?)?;
         io.seek(_pos)?;
         Ok(self.eapol.borrow())
     }

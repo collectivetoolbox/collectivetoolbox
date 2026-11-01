@@ -65,8 +65,7 @@ pub const DC_REPLACEMENT_UNAVAIL_DC: DcChar = DcChar::from_short(207);
 /// Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment. (Dc 246).
 pub const DC_BEGIN_SINGLE_LINE_COMMENT: DcChar = DcChar::from_short(246);
 /// As with 247, but starting on a new line in the source form. (Dc 247).
-pub const DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE: DcChar =
-    DcChar::from_short(247);
+pub const DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE: DcChar = DcChar::from_short(247);
 /// Terminates a comment region begun by 246 or 247. (Dc 248).
 pub const DC_END_SINGLE_LINE_COMMENT: DcChar = DcChar::from_short(248);
 /// As with 248, but creating a “/*  */”-style block comment. (Dc 249).
@@ -228,8 +227,7 @@ pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(559);
 /// Terminates an ordered key-value associative map begun by Dc 559. (Dc 560).
 pub const DC_END_KV_MAP: DcChar = DcChar::from_short(560);
 /// Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others. (Dc 561).
-pub const DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS: DcChar =
-    DcChar::from_short(561);
+pub const DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(561);
 /// Ontological root concept representing a type class or category of entities. (Dc 565).
 pub const DC_ENTITY_TYPE: DcChar = DcChar::from_short(565);
 /// Ontological concept representing a directed relationship or predicate type. (Dc 566).
@@ -363,8 +361,7 @@ pub const DC_SUPPORT_COMPLETE: DcChar = DcChar::from_short(629);
 /// Indicates that conversion preserves all information required for unambiguous bit-for-bit reconstruction. (Dc 630).
 pub const DC_SUPPORT_LOSSLESS_ROUNDTRIP: DcChar = DcChar::from_short(630);
 /// Indicates lossless roundtripping with optional strict structural and semantic validation. (Dc 631).
-pub const DC_SUPPORT_LOSSLESS_STRICT_VALIDATION: DcChar =
-    DcChar::from_short(631);
+pub const DC_SUPPORT_LOSSLESS_STRICT_VALIDATION: DcChar = DcChar::from_short(631);
 /// Property indicating a format variation (.Formats:format_variant) along which a format varies. (Dc 632).
 pub const DC_FORMAT_VARIATION_ASPECT: DcChar = DcChar::from_short(632);
 /// Property specifying the default variant format used by a format when none is explicitly specified. (Dc 633).
@@ -372,11 +369,9 @@ pub const DC_DEFAULT_FORMAT_VARIANT: DcChar = DcChar::from_short(633);
 /// Short parameter nickname (such as in '@vary_as("...")') used to identify a format variation aspect in parametric format expressions. (Dc 634).
 pub const DC_DC_FORMAT_VARIATION_NICKNAME: DcChar = DcChar::from_short(634);
 /// Property identifying the data source or provenance from which a seed graph statement or node was derived. (Dc 635).
-pub const DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE: DcChar =
-    DcChar::from_short(635);
+pub const DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE: DcChar = DcChar::from_short(635);
 /// Identifies the Collective Toolbox Dc CSV seed database tables in src/formats/dcdata/data-src/ as a data source. (Dc 636).
-pub const DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE: DcChar =
-    DcChar::from_short(636);
+pub const DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE: DcChar = DcChar::from_short(636);
 /// General concept of manual entry or direct human authoring. (Dc 637).
 pub const DC_MANUAL_ENTRY: DcChar = DcChar::from_short(637);
 /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (Dc 638).

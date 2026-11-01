@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::enum_to_i_class_border_1::EnumToIClassBorder1;
-use super::enum_to_i_class_border_1::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::enum_to_i_class_border_1::EnumToIClassBorder1;
+use super::enum_to_i_class_border_1::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumToIClassBorder2 {
@@ -104,11 +104,7 @@ impl KStruct for EnumToIClassBorder2 {
     type Root = EnumToIClassBorder2;
     type Parent = EnumToIClassBorder2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -135,20 +131,16 @@ impl EnumToIClassBorder2 {
     }
 }
 impl EnumToIClassBorder2 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_dog(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_dog(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_dog.get() {
             return Ok(self.is_dog.borrow());
         }
         self.f_is_dog.set(true);
-        *self.is_dog.borrow_mut() =
-            ((to_i128(i64::from(&*self.parent().some_dog()?))) == (to_i128(4)))
-                .try_into()?;
+        *self.is_dog.borrow_mut() = (((to_i128(i64::from(&*self.parent().some_dog()?))) == (to_i128(4)))).try_into()?;
         Ok(self.is_dog.borrow())
     }
 }

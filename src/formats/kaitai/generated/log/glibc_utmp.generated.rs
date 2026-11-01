@@ -50,11 +50,7 @@ impl KStruct for GlibcUtmp {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -72,12 +68,7 @@ impl KStruct for GlibcUtmp {
             while !_io.is_eof() {
                 let _raw_records = _io.read_bytes(384_usize)?;
                 let _io_records = BytesReader::from(_raw_records);
-                let t = Self::read_into::<BytesReader, GlibcUtmp_Record>(
-                    &_io_records,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, GlibcUtmp_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -87,7 +78,8 @@ impl KStruct for GlibcUtmp {
         Ok(())
     }
 }
-impl GlibcUtmp {}
+impl GlibcUtmp {
+}
 impl GlibcUtmp {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<GlibcUtmp_Record>>> {
         self.records.borrow()
@@ -156,16 +148,15 @@ impl From<&GlibcUtmp_EntryType> for i64 {
             GlibcUtmp_EntryType::UserProcess => 7,
             GlibcUtmp_EntryType::DeadProcess => 8,
             GlibcUtmp_EntryType::Accounting => 9,
-            GlibcUtmp_EntryType::Unknown(v) => v,
+            GlibcUtmp_EntryType::Unknown(v) => v
         }
     }
 }
 
 impl Default for GlibcUtmp_EntryType {
-    fn default() -> Self {
-        GlibcUtmp_EntryType::Unknown(0)
-    }
+    fn default() -> Self { GlibcUtmp_EntryType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct GlibcUtmp_Record {
@@ -227,11 +218,7 @@ impl KStruct for GlibcUtmp_Record {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -243,33 +230,23 @@ impl KStruct for GlibcUtmp_Record {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ut_type.borrow_mut() =
-            i64::from(_io.read_s4le()?).try_into()?;
+        *self_rc.ut_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.line.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.line.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.id.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.user.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.host.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(256_usize)?, "UTF-8")?;
+        *self_rc.host.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exit.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.session.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, GlibcUtmp_Timeval>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, GlibcUtmp_Timeval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tv.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.addr_v6.borrow_mut() = _io.read_bytes(16_usize)?;
@@ -280,7 +257,8 @@ impl KStruct for GlibcUtmp_Record {
         Ok(())
     }
 }
-impl GlibcUtmp_Record {}
+impl GlibcUtmp_Record {
+}
 
 /**
  * Type of login
@@ -463,11 +441,7 @@ impl KStruct for GlibcUtmp_Timeval {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -487,7 +461,8 @@ impl KStruct for GlibcUtmp_Timeval {
         Ok(())
     }
 }
-impl GlibcUtmp_Timeval {}
+impl GlibcUtmp_Timeval {
+}
 
 /**
  * Seconds

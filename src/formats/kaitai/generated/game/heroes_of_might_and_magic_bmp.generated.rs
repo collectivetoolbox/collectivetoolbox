@@ -30,34 +30,22 @@ impl TryFrom<&&HeroesOfMightAndMagicBmp> for OptRc<HeroesOfMightAndMagicBmp> {
     }
 }
 impl DowncastOptRc<HeroesOfMightAndMagicBmp> for HeroesOfMightAndMagicBmp {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<HeroesOfMightAndMagicBmp> for &HeroesOfMightAndMagicBmp {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicBmp>
-    for OptRc<HeroesOfMightAndMagicBmp>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for OptRc<HeroesOfMightAndMagicBmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<HeroesOfMightAndMagicBmp>
-    for &OptRc<HeroesOfMightAndMagicBmp>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for &OptRc<HeroesOfMightAndMagicBmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
         Ok((*self).clone())
     }
 }
@@ -65,11 +53,7 @@ impl KStruct for HeroesOfMightAndMagicBmp {
     type Root = HeroesOfMightAndMagicBmp;
     type Parent = HeroesOfMightAndMagicBmp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,15 +71,14 @@ impl KStruct for HeroesOfMightAndMagicBmp {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(
-            (*self_rc.width()).saturating_mul(*self_rc.height()),
-        ))?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from((*self_rc.width()).saturating_mul(*self_rc.height())))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl HeroesOfMightAndMagicBmp {}
+impl HeroesOfMightAndMagicBmp {
+}
 impl HeroesOfMightAndMagicBmp {
     pub fn magic(&self) -> Ref<'_, u16> {
         self.magic.borrow()

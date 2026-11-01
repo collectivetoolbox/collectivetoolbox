@@ -101,11 +101,7 @@ impl KStruct for ValidFailExpr {
     type Root = ValidFailExpr;
     type Parent = ValidFailExpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,32 +116,23 @@ impl KStruct for ValidFailExpr {
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
         let _borrowed = self_rc.foo();
         let _tmpa = *_borrowed;
-        if !(_tmpa == 1_u8) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/seq/0".to_string(),
-            }));
+        if !((_tmpa == 1_u8)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bar.borrow_mut() = _io.read_s2le()?;
         let _borrowed = self_rc.bar();
         let _tmpa = *_borrowed;
-        if !(((to_i128(_tmpa))
-            < (to_i128((0_i32).saturating_sub(to_i32(190)))))
-            || ((to_i128(_tmpa))
-                > (to_i128((0_i32).saturating_sub(to_i32(190))))))
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/seq/1".to_string(),
-            }));
+        if !( (((to_i128(_tmpa)) < (to_i128((0_i32).saturating_sub(to_i32(190))))) || ((to_i128(_tmpa)) > (to_i128((0_i32).saturating_sub(to_i32(190)))))) ) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailExpr {}
+impl ValidFailExpr {
+}
 impl ValidFailExpr {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

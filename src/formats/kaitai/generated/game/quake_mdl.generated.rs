@@ -91,11 +91,7 @@ impl KStruct for QuakeMdl {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -107,60 +103,34 @@ impl KStruct for QuakeMdl {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, QuakeMdl_MdlHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_MdlHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skins.borrow_mut() = Vec::new();
         let l_skins = usize::try_from(*self_rc.header().num_skins())?;
         for _i in 0_usize..l_skins {
-            let t = Self::read_into::<_, QuakeMdl_MdlSkin>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlSkin>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.skins.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.texture_coordinates.borrow_mut() = Vec::new();
-        let l_texture_coordinates =
-            usize::try_from(*self_rc.header().num_verts())?;
+        let l_texture_coordinates = usize::try_from(*self_rc.header().num_verts())?;
         for _i in 0_usize..l_texture_coordinates {
-            let t = Self::read_into::<_, QuakeMdl_MdlTexcoord>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlTexcoord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.texture_coordinates.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.triangles.borrow_mut() = Vec::new();
         let l_triangles = usize::try_from(*self_rc.header().num_tris())?;
         for _i in 0_usize..l_triangles {
-            let t = Self::read_into::<_, QuakeMdl_MdlTriangle>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlTriangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frames.borrow_mut() = Vec::new();
         let l_frames = usize::try_from(*self_rc.header().num_frames())?;
         for _i in 0_usize..l_frames {
-            let t = Self::read_into::<_, QuakeMdl_MdlFrame>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlFrame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.frames.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -168,7 +138,8 @@ impl KStruct for QuakeMdl {
         Ok(())
     }
 }
-impl QuakeMdl {}
+impl QuakeMdl {
+}
 impl QuakeMdl {
     pub fn header(&self) -> Ref<'_, OptRc<QuakeMdl_MdlHeader>> {
         self.header.borrow()
@@ -180,9 +151,7 @@ impl QuakeMdl {
     }
 }
 impl QuakeMdl {
-    pub fn texture_coordinates(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<QuakeMdl_MdlTexcoord>>> {
+    pub fn texture_coordinates(&self) -> Ref<'_, Vec<OptRc<QuakeMdl_MdlTexcoord>>> {
         self.texture_coordinates.borrow()
     }
 }
@@ -258,11 +227,7 @@ impl KStruct for QuakeMdl_MdlFrame {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -277,29 +242,19 @@ impl KStruct for QuakeMdl_MdlFrame {
         *self_rc.r#type.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
-            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
+            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.min.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
-            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
+            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.max.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
             *self_rc.time.borrow_mut() = Vec::new();
             let l_time = usize::try_from(*self_rc.r#type())?;
             for _i in 0_usize..l_time {
@@ -310,12 +265,7 @@ impl KStruct for QuakeMdl_MdlFrame {
         *self_rc.frames.borrow_mut() = Vec::new();
         let l_frames = usize::try_from(*self_rc.num_simple_frames()?)?;
         for _i in 0_usize..l_frames {
-            let t = Self::read_into::<_, QuakeMdl_MdlSimpleFrame>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlSimpleFrame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.frames.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -324,24 +274,16 @@ impl KStruct for QuakeMdl_MdlFrame {
     }
 }
 impl QuakeMdl_MdlFrame {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_simple_frames(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_simple_frames(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_simple_frames.get() {
             return Ok(self.num_simple_frames.borrow());
         }
         self.f_num_simple_frames.set(true);
-        *self.num_simple_frames.borrow_mut() =
-            (if ((to_i128(*self.r#type())) == (to_i128(0))) {
-                1_i32
-            } else {
-                *self.r#type()
-            })
-            .try_into()?;
+        *self.num_simple_frames.borrow_mut() = (if (to_i128(*self.r#type())) == (to_i128(0)) { 1_i32 } else { *self.r#type() }).try_into()?;
         Ok(self.num_simple_frames.borrow())
     }
 }
@@ -447,11 +389,7 @@ impl KStruct for QuakeMdl_MdlHeader {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -465,45 +403,24 @@ impl KStruct for QuakeMdl_MdlHeader {
         let _io = io;
         *self_rc.ident.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.ident() == vec![0x49u8, 0x44u8, 0x50u8, 0x4fu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/mdl_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/mdl_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_s4le()?;
         let expected: i32 = (6).try_into()?;
         if !(*self_rc.version() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/mdl_header/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/mdl_header/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuakeMdl_Vec3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_Vec3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.scale.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuakeMdl_Vec3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_Vec3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.origin.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.radius.borrow_mut() = _io.read_f4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuakeMdl_Vec3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_Vec3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.eye_position.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_skins.borrow_mut() = _io.read_s4le()?;
@@ -529,23 +446,20 @@ impl KStruct for QuakeMdl_MdlHeader {
     }
 }
 impl QuakeMdl_MdlHeader {
+
     /**
      * Skin size in pixels.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn skin_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn skin_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_skin_size.get() {
             return Ok(self.skin_size.borrow());
         }
         self.f_skin_size.set(true);
-        *self.skin_size.borrow_mut() = ((*self.skin_width())
-            .saturating_mul(*self.skin_height()))
-        .try_into()?;
+        *self.skin_size.borrow_mut() = ((*self.skin_width()).saturating_mul(*self.skin_height())).try_into()?;
         Ok(self.skin_size.borrow())
     }
 }
@@ -713,9 +627,7 @@ impl DowncastOptRc<QuakeMdl_MdlSimpleFrame> for OptRc<QuakeMdl_MdlSimpleFrame> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<QuakeMdl_MdlSimpleFrame>
-    for &OptRc<QuakeMdl_MdlSimpleFrame>
-{
+impl DowncastOptRc<QuakeMdl_MdlSimpleFrame> for &OptRc<QuakeMdl_MdlSimpleFrame> {
     fn downcast_optrc(&self) -> Result<OptRc<QuakeMdl_MdlSimpleFrame>, KError> {
         Ok((*self).clone())
     }
@@ -724,11 +636,7 @@ impl KStruct for QuakeMdl_MdlSimpleFrame {
     type Root = QuakeMdl;
     type Parent = QuakeMdl_MdlFrame;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -740,51 +648,18 @@ impl KStruct for QuakeMdl_MdlSimpleFrame {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, QuakeMdl_MdlVertex>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bbox_min.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuakeMdl_MdlVertex>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bbox_max.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(16_usize)?,
-                Some(0),
-                false,
-                Some(0),
-            ),
-            "ASCII",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, Some(0)), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices.borrow_mut() = Vec::new();
-        let l_vertices = usize::try_from(
-            *self_rc
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .header()
-                .num_verts(),
-        )?;
+        let l_vertices = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_verts())?;
         for _i in 0_usize..l_vertices {
-            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -792,7 +667,8 @@ impl KStruct for QuakeMdl_MdlSimpleFrame {
         Ok(())
     }
 }
-impl QuakeMdl_MdlSimpleFrame {}
+impl QuakeMdl_MdlSimpleFrame {
+}
 impl QuakeMdl_MdlSimpleFrame {
     pub fn bbox_min(&self) -> Ref<'_, OptRc<QuakeMdl_MdlVertex>> {
         self.bbox_min.borrow()
@@ -880,11 +756,7 @@ impl KStruct for QuakeMdl_MdlSkin {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -899,28 +771,17 @@ impl KStruct for QuakeMdl_MdlSkin {
         *self_rc.group.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) == (to_i128(0))) {
-            *self_rc.single_texture_data.borrow_mut() =
-                _io.read_bytes(usize::try_from(
-                    *self_rc
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .header()
-                        .skin_size()?,
-                )?)?;
+        if (to_i128(*self_rc.group())) == (to_i128(0)) {
+            *self_rc.single_texture_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().skin_size()?)?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.num_frames.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.frame_times.borrow_mut() = Vec::new();
             let l_frame_times = usize::try_from(*self_rc.num_frames())?;
             for _i in 0_usize..l_frame_times {
@@ -929,23 +790,11 @@ impl KStruct for QuakeMdl_MdlSkin {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.group_texture_data.borrow_mut() = Vec::new();
             let l_group_texture_data = usize::try_from(*self_rc.num_frames())?;
             for _i in 0_usize..l_group_texture_data {
-                self_rc.group_texture_data.borrow_mut().push(
-                    _io.read_bytes(usize::try_from(
-                        *self_rc
-                            ._root
-                            .get_value()
-                            .borrow()
-                            .upgrade()
-                            .as_ref()
-                            .ok_or(KError::MissingRoot)?
-                            .header()
-                            .skin_size()?,
-                    )?)?,
-                );
+                self_rc.group_texture_data.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().skin_size()?)?)?);
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -953,7 +802,8 @@ impl KStruct for QuakeMdl_MdlSkin {
         Ok(())
     }
 }
-impl QuakeMdl_MdlSkin {}
+impl QuakeMdl_MdlSkin {
+}
 impl QuakeMdl_MdlSkin {
     pub fn group(&self) -> Ref<'_, i32> {
         self.group.borrow()
@@ -1052,11 +902,7 @@ impl KStruct for QuakeMdl_MdlTexcoord {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1078,7 +924,8 @@ impl KStruct for QuakeMdl_MdlTexcoord {
         Ok(())
     }
 }
-impl QuakeMdl_MdlTexcoord {}
+impl QuakeMdl_MdlTexcoord {
+}
 impl QuakeMdl_MdlTexcoord {
     pub fn on_seam(&self) -> Ref<'_, i32> {
         self.on_seam.borrow()
@@ -1158,11 +1005,7 @@ impl KStruct for QuakeMdl_MdlTriangle {
     type Root = QuakeMdl;
     type Parent = QuakeMdl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1186,7 +1029,8 @@ impl KStruct for QuakeMdl_MdlTriangle {
         Ok(())
     }
 }
-impl QuakeMdl_MdlTriangle {}
+impl QuakeMdl_MdlTriangle {
+}
 impl QuakeMdl_MdlTriangle {
     pub fn faces_front(&self) -> Ref<'_, i32> {
         self.faces_front.borrow()
@@ -1254,11 +1098,7 @@ impl KStruct for QuakeMdl_MdlVertex {
     type Root = QuakeMdl;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1282,7 +1122,8 @@ impl KStruct for QuakeMdl_MdlVertex {
         Ok(())
     }
 }
-impl QuakeMdl_MdlVertex {}
+impl QuakeMdl_MdlVertex {
+}
 impl QuakeMdl_MdlVertex {
     pub fn values(&self) -> Ref<'_, Vec<u8>> {
         self.values.borrow()
@@ -1357,11 +1198,7 @@ impl KStruct for QuakeMdl_Vec3 {
     type Root = QuakeMdl;
     type Parent = QuakeMdl_MdlHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1383,7 +1220,8 @@ impl KStruct for QuakeMdl_Vec3 {
         Ok(())
     }
 }
-impl QuakeMdl_Vec3 {}
+impl QuakeMdl_Vec3 {
+}
 impl QuakeMdl_Vec3 {
     pub fn x(&self) -> Ref<'_, f32> {
         self.x.borrow()

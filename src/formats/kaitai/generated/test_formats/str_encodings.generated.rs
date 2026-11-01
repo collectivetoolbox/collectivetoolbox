@@ -111,11 +111,7 @@ impl KStruct for StrEncodings {
     type Root = StrEncodings;
     type Parent = StrEncodings;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,37 +125,26 @@ impl KStruct for StrEncodings {
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str1.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_of_1()))?,
-            "ASCII",
-        )?;
+        *self_rc.str1.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_1()))?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str2.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_of_2()))?,
-            "UTF-8",
-        )?;
+        *self_rc.str2.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_2()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str3.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_of_3()))?,
-            "SJIS",
-        )?;
+        *self_rc.str3.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_3()))?, "SJIS")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str4.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_of_4()))?,
-            "IBM437",
-        )?;
+        *self_rc.str4.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_4()))?, "IBM437")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodings {}
+impl StrEncodings {
+}
 impl StrEncodings {
     pub fn len_of_1(&self) -> Ref<'_, u16> {
         self.len_of_1.borrow()

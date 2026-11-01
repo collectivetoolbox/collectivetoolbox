@@ -102,11 +102,7 @@ impl KStruct for ValidFailInst {
     type Root = ValidFailInst;
     type Parent = ValidFailInst;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,7 +115,7 @@ impl KStruct for ValidFailInst {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.inst()?)) >= (to_i128(0))) {
+        if (to_i128(*self_rc.inst()?)) >= (to_i128(0)) {
             *self_rc.a.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -128,12 +124,10 @@ impl KStruct for ValidFailInst {
     }
 }
 impl ValidFailInst {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_inst.get() {
             return Ok(self.inst.borrow());
@@ -144,10 +138,7 @@ impl ValidFailInst {
         *self.inst.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (80).try_into()?;
         if !(*self.inst.borrow() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/instances/inst".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/instances/inst".to_string() }));
         }
         _io.seek(_pos)?;
         Ok(self.inst.borrow())

@@ -91,11 +91,7 @@ impl KStruct for AvantesRoh60 {
     type Root = AvantesRoh60;
     type Parent = AvantesRoh60;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -136,11 +132,7 @@ impl KStruct for AvantesRoh60 {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.spectrum.borrow_mut() = Vec::new();
-        let l_spectrum = usize::try_from(
-            ((float_to_int(*self_rc.ipixlast())?)
-                .saturating_sub(float_to_int(*self_rc.ipixfirst())?))
-            .saturating_sub(1_i64),
-        )?;
+        let l_spectrum = usize::try_from(((float_to_int(*self_rc.ipixlast())?).saturating_sub(float_to_int(*self_rc.ipixfirst())?)).saturating_sub(1_i64))?;
         for _i in 0_usize..l_spectrum {
             self_rc.spectrum.borrow_mut().push(_io.read_f4le()?);
         }
@@ -155,7 +147,8 @@ impl KStruct for AvantesRoh60 {
         Ok(())
     }
 }
-impl AvantesRoh60 {}
+impl AvantesRoh60 {
+}
 impl AvantesRoh60 {
     pub fn unknown1(&self) -> Ref<'_, f32> {
         self.unknown1.borrow()

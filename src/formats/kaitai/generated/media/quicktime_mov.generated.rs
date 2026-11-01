@@ -53,11 +53,7 @@ impl KStruct for QuicktimeMov {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -69,19 +65,15 @@ impl KStruct for QuicktimeMov {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, QuicktimeMov_AtomList>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuicktimeMov_AtomList>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.atoms.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl QuicktimeMov {}
+impl QuicktimeMov {
+}
 impl QuicktimeMov {
     pub fn atoms(&self) -> Ref<'_, OptRc<QuicktimeMov_AtomList>> {
         self.atoms.borrow()
@@ -205,15 +197,13 @@ impl From<&QuicktimeMov_AtomType> for i64 {
             QuicktimeMov_AtomType::Tref => 1953654118,
             QuicktimeMov_AtomType::Udta => 1969517665,
             QuicktimeMov_AtomType::Vmhd => 1986881636,
-            QuicktimeMov_AtomType::Unknown(v) => v,
+            QuicktimeMov_AtomType::Unknown(v) => v
         }
     }
 }
 
 impl Default for QuicktimeMov_AtomType {
-    fn default() -> Self {
-        QuicktimeMov_AtomType::Unknown(0)
-    }
+    fn default() -> Self { QuicktimeMov_AtomType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -998,16 +988,15 @@ impl From<&QuicktimeMov_Brand> for i64 {
             QuicktimeMov_Brand::Vvoi => 1987473257,
             QuicktimeMov_Brand::Vwpt => 1987539060,
             QuicktimeMov_Brand::Yt4 => 2037658656,
-            QuicktimeMov_Brand::Unknown(v) => v,
+            QuicktimeMov_Brand::Unknown(v) => v
         }
     }
 }
 
 impl Default for QuicktimeMov_Brand {
-    fn default() -> Self {
-        QuicktimeMov_Brand::Unknown(0)
-    }
+    fn default() -> Self { QuicktimeMov_Brand::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct QuicktimeMov_Atom {
@@ -1207,11 +1196,7 @@ impl KStruct for QuicktimeMov_Atom {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_AtomList;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1225,162 +1210,93 @@ impl KStruct for QuicktimeMov_Atom {
         let _io = io;
         *self_rc.len32.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.atom_type.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.atom_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len32())) == (to_i128(1))) {
+        if (to_i128(*self_rc.len32())) == (to_i128(1)) {
             *self_rc.len64.borrow_mut() = _io.read_u8be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.atom_type() {
             QuicktimeMov_AtomType::Dinf => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Ftyp => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_FtypBody>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_FtypBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Mdia => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Minf => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Moof => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Moov => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Mvhd => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_MvhdBody>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_MvhdBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Stbl => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Tkhd => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_TkhdBody>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_TkhdBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Traf => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             QuicktimeMov_AtomType::Trak => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, QuicktimeMov_AtomList>(&_t_body_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1389,28 +1305,16 @@ impl KStruct for QuicktimeMov_Atom {
     }
 }
 impl QuicktimeMov_Atom {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len.get() {
             return Ok(self.len.borrow());
         }
         self.f_len.set(true);
-        *self.len.borrow_mut() = (if ((to_i128(*self.len32())) == (to_i128(0)))
-        {
-            u64::try_from((i64::try_from(_io.size())?).saturating_sub(8_i64))?
-        } else {
-            if ((to_i128(*self.len32())) == (to_i128(1))) {
-                (*self.len64()).saturating_sub(16_u64)
-            } else {
-                u64::from((*self.len32()).saturating_sub(8_u32))
-            }
-        })
-        .try_into()?;
+        *self.len.borrow_mut() = (if (to_i128(*self.len32())) == (to_i128(0)) { u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))? } else { if (to_i128(*self.len32())) == (to_i128(1)) { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
         Ok(self.len.borrow())
     }
 }
@@ -1495,11 +1399,7 @@ impl KStruct for QuicktimeMov_AtomList {
     type Root = QuicktimeMov;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1515,12 +1415,7 @@ impl KStruct for QuicktimeMov_AtomList {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, QuicktimeMov_Atom>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, QuicktimeMov_Atom>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.items.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1530,7 +1425,8 @@ impl KStruct for QuicktimeMov_AtomList {
         Ok(())
     }
 }
-impl QuicktimeMov_AtomList {}
+impl QuicktimeMov_AtomList {
+}
 impl QuicktimeMov_AtomList {
     pub fn items(&self) -> Ref<'_, Vec<OptRc<QuicktimeMov_Atom>>> {
         self.items.borrow()
@@ -1597,11 +1493,7 @@ impl KStruct for QuicktimeMov_Fixed16 {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_MvhdBody;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1621,7 +1513,8 @@ impl KStruct for QuicktimeMov_Fixed16 {
         Ok(())
     }
 }
-impl QuicktimeMov_Fixed16 {}
+impl QuicktimeMov_Fixed16 {
+}
 impl QuicktimeMov_Fixed16 {
     pub fn int_part(&self) -> Ref<'_, i8> {
         self.int_part.borrow()
@@ -1693,11 +1586,7 @@ impl KStruct for QuicktimeMov_Fixed32 {
     type Root = QuicktimeMov;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1717,7 +1606,8 @@ impl KStruct for QuicktimeMov_Fixed32 {
         Ok(())
     }
 }
-impl QuicktimeMov_Fixed32 {}
+impl QuicktimeMov_Fixed32 {
+}
 impl QuicktimeMov_Fixed32 {
     pub fn int_part(&self) -> Ref<'_, i16> {
         self.int_part.borrow()
@@ -1791,11 +1681,7 @@ impl KStruct for QuicktimeMov_FtypBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1807,8 +1693,7 @@ impl KStruct for QuicktimeMov_FtypBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.major_brand.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.major_brand.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_version.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1816,10 +1701,7 @@ impl KStruct for QuicktimeMov_FtypBody {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc
-                    .compatible_brands
-                    .borrow_mut()
-                    .push(i64::from(_io.read_u4be()?).try_into()?);
+                self_rc.compatible_brands.borrow_mut().push(i64::from(_io.read_u4be()?).try_into()?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -1828,7 +1710,8 @@ impl KStruct for QuicktimeMov_FtypBody {
         Ok(())
     }
 }
-impl QuicktimeMov_FtypBody {}
+impl QuicktimeMov_FtypBody {
+}
 impl QuicktimeMov_FtypBody {
     pub fn major_brand(&self) -> Ref<'_, QuicktimeMov_Brand> {
         self.major_brand.borrow()
@@ -1928,11 +1811,7 @@ impl KStruct for QuicktimeMov_MvhdBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1956,20 +1835,10 @@ impl KStruct for QuicktimeMov_MvhdBody {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.duration.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.preferred_rate.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuicktimeMov_Fixed16>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, QuicktimeMov_Fixed16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.preferred_volume.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(10_usize)?;
@@ -1994,7 +1863,8 @@ impl KStruct for QuicktimeMov_MvhdBody {
         Ok(())
     }
 }
-impl QuicktimeMov_MvhdBody {}
+impl QuicktimeMov_MvhdBody {
+}
 
 /**
  * Version of this movie header atom
@@ -2234,11 +2104,7 @@ impl KStruct for QuicktimeMov_TkhdBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2276,27 +2142,18 @@ impl KStruct for QuicktimeMov_TkhdBody {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.matrix.borrow_mut() = _io.read_bytes(36_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.width.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.height.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl QuicktimeMov_TkhdBody {}
+impl QuicktimeMov_TkhdBody {
+}
 impl QuicktimeMov_TkhdBody {
     pub fn version(&self) -> Ref<'_, u8> {
         self.version.borrow()

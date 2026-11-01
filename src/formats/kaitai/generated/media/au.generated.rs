@@ -71,11 +71,7 @@ impl KStruct for Au {
     type Root = Au;
     type Parent = Au;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,26 +85,15 @@ impl KStruct for Au {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x2eu8, 0x73u8, 0x6eu8, 0x64u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_data.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_header = _io.read_bytes(usize::try_from(
-            ((*self_rc.ofs_data()).saturating_sub(u32::try_from(4_i32)?))
-                .saturating_sub(u32::try_from(4_i32)?),
-        )?)?;
+        let _raw_header = _io.read_bytes(usize::try_from(((*self_rc.ofs_data()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, Au_Header>(
-            &_io_header,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Au_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -116,27 +101,16 @@ impl KStruct for Au {
     }
 }
 impl Au {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_data(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_data(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_data.get() {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() =
-            (if ((to_i128(*self.header().data_size()))
-                == (to_i128(4294967295_i64)))
-            {
-                (u64::try_from((i64::try_from(_io.size())?))?)
-                    .saturating_sub(u64::from(*self.ofs_data()))
-            } else {
-                u64::from(*self.header().data_size())
-            })
-            .try_into()?;
+        *self.len_data.borrow_mut() = (if (to_i128(*self.header().data_size())) == (to_i128(4294967295_i64)) { (u64::try_from(i64::try_from(_io.size())?)?).saturating_sub(u64::from(*self.ofs_data())) } else { u64::from(*self.header().data_size()) }).try_into()?;
         Ok(self.len_data.borrow())
     }
 }
@@ -173,6 +147,7 @@ impl Au {
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Au_Encodings {
+
     /**
      * 8-bit G.711 mu-law
      */
@@ -359,16 +334,15 @@ impl From<&Au_Encodings> for i64 {
             Au_Encodings::Alaw8 => 27,
             Au_Encodings::Aes => 28,
             Au_Encodings::DeltaMulaw8 => 29,
-            Au_Encodings::Unknown(v) => v,
+            Au_Encodings::Unknown(v) => v
         }
     }
 }
 
 impl Default for Au_Encodings {
-    fn default() -> Self {
-        Au_Encodings::Unknown(0)
-    }
+    fn default() -> Self { Au_Encodings::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Au_Header {
@@ -418,11 +392,7 @@ impl KStruct for Au_Header {
     type Root = Au;
     type Parent = Au;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -436,30 +406,24 @@ impl KStruct for Au_Header {
         let _io = io;
         *self_rc.data_size.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.encoding.borrow_mut() =
-            i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_rate.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_channels.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         if !(*self_rc.num_channels() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/types/header/seq/3".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/header/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.comment.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None),
-            "ASCII",
-        )?;
+        *self_rc.comment.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Au_Header {}
+impl Au_Header {
+}
 
 /**
  * don't read this field, access `_root.len_data` instead

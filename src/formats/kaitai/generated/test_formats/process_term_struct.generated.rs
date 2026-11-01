@@ -105,11 +105,7 @@ impl KStruct for ProcessTermStruct {
     type Root = ProcessTermStruct;
     type Parent = ProcessTermStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,63 +119,31 @@ impl KStruct for ProcessTermStruct {
         let _io = io;
         let _raw_s1 = _io.read_bytes_term(124, false, true, true)?;
         *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
-        let _processed_s1 = crate::my_custom_fx::MyCustomFx::new(
-            u8::try_from(i64::try_from(32)? & 0xff)?,
-            false,
-            &[0u8],
-        )
-        .decode(&_raw_s1)
-        .map_err(|e| KError::BytesDecodingError { msg: e })?;
+        let _processed_s1 = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(32)? & 0xff)?, false, &[0u8]).decode(&_raw_s1).map_err(|e| KError::BytesDecodingError { msg: e })?;
         let _io_s1 = BytesReader::from(_processed_s1);
-        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(
-            &_io_s1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s2 = _io.read_bytes_term(124, false, false, true)?;
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
-        let _processed_s2 = crate::my_custom_fx::MyCustomFx::new(
-            u8::try_from(i64::try_from(32)? & 0xff)?,
-            false,
-            &[0u8],
-        )
-        .decode(&_raw_s2)
-        .map_err(|e| KError::BytesDecodingError { msg: e })?;
+        let _processed_s2 = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(32)? & 0xff)?, false, &[0u8]).decode(&_raw_s2).map_err(|e| KError::BytesDecodingError { msg: e })?;
         let _io_s2 = BytesReader::from(_processed_s2);
-        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(
-            &_io_s2,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s3 = _io.read_bytes_term(64, true, true, true)?;
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
-        let _processed_s3 = crate::my_custom_fx::MyCustomFx::new(
-            u8::try_from(i64::try_from(32)? & 0xff)?,
-            false,
-            &[0u8],
-        )
-        .decode(&_raw_s3)
-        .map_err(|e| KError::BytesDecodingError { msg: e })?;
+        let _processed_s3 = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(32)? & 0xff)?, false, &[0u8]).decode(&_raw_s3).map_err(|e| KError::BytesDecodingError { msg: e })?;
         let _io_s3 = BytesReader::from(_processed_s3);
-        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(
-            &_io_s3,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessTermStruct {}
+impl ProcessTermStruct {
+}
 impl ProcessTermStruct {
     pub fn s1(&self) -> Ref<'_, OptRc<ProcessTermStruct_BytesWrapper>> {
         self.s1.borrow()
@@ -230,59 +194,35 @@ pub struct ProcessTermStruct_BytesWrapper {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ProcessTermStruct_BytesWrapper>
-    for OptRc<ProcessTermStruct_BytesWrapper>
-{
+impl TryFrom<&ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessTermStruct_BytesWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessTermStruct_BytesWrapper>
-    for OptRc<ProcessTermStruct_BytesWrapper>
-{
+impl TryFrom<&&ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessTermStruct_BytesWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessTermStruct_BytesWrapper>
-    for ProcessTermStruct_BytesWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for ProcessTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessTermStruct_BytesWrapper>
-    for &ProcessTermStruct_BytesWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for &ProcessTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessTermStruct_BytesWrapper>
-    for OptRc<ProcessTermStruct_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessTermStruct_BytesWrapper>
-    for &OptRc<ProcessTermStruct_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for &OptRc<ProcessTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -290,11 +230,7 @@ impl KStruct for ProcessTermStruct_BytesWrapper {
     type Root = ProcessTermStruct;
     type Parent = ProcessTermStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,7 +248,8 @@ impl KStruct for ProcessTermStruct_BytesWrapper {
         Ok(())
     }
 }
-impl ProcessTermStruct_BytesWrapper {}
+impl ProcessTermStruct_BytesWrapper {
+}
 impl ProcessTermStruct_BytesWrapper {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()

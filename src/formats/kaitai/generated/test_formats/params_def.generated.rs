@@ -104,11 +104,7 @@ impl KStruct for ParamsDef {
     type Root = ParamsDef;
     type Parent = ParamsDef;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,10 +116,7 @@ impl KStruct for ParamsDef {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.len())?)?,
-            "UTF-8",
-        )?;
+        *self_rc.buf.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_trailer() {
@@ -150,7 +143,8 @@ impl ParamsDef {
         *self.has_trailer.borrow_mut() = has_trailer;
     }
 }
-impl ParamsDef {}
+impl ParamsDef {
+}
 impl ParamsDef {
     pub fn buf(&self) -> Ref<'_, String> {
         self.buf.borrow()

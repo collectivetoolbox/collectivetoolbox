@@ -53,12 +53,12 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::enum_import_seq::EnumImportSeq;
-use super::enum_import_seq::*;
-use super::params_def_enum_imported::ParamsDefEnumImported;
-use super::params_def_enum_imported::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::params_def_enum_imported::ParamsDefEnumImported;
+use super::params_def_enum_imported::*;
+use super::enum_import_seq::EnumImportSeq;
+use super::enum_import_seq::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsParamsDefEnumImported {
@@ -69,57 +69,35 @@ pub struct ImportsParamsDefEnumImported {
     two: RefCell<OptRc<ParamsDefEnumImported>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ImportsParamsDefEnumImported>
-    for OptRc<ImportsParamsDefEnumImported>
-{
+impl TryFrom<&ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
     type Error = KError;
     fn try_from(v: &ImportsParamsDefEnumImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ImportsParamsDefEnumImported>
-    for OptRc<ImportsParamsDefEnumImported>
-{
+impl TryFrom<&&ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
     type Error = KError;
-    fn try_from(
-        v: &&ImportsParamsDefEnumImported,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ImportsParamsDefEnumImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefEnumImported>
-    for ImportsParamsDefEnumImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefEnumImported> for ImportsParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefEnumImported>
-    for &ImportsParamsDefEnumImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefEnumImported> for &ImportsParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefEnumImported>
-    for OptRc<ImportsParamsDefEnumImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ImportsParamsDefEnumImported>
-    for &OptRc<ImportsParamsDefEnumImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefEnumImported> for &OptRc<ImportsParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
         Ok((*self).clone())
     }
 }
@@ -127,11 +105,7 @@ impl KStruct for ImportsParamsDefEnumImported {
     type Root = ImportsParamsDefEnumImported;
     type Parent = ImportsParamsDefEnumImported;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -146,20 +120,16 @@ impl KStruct for ImportsParamsDefEnumImported {
         let t = Self::read_into::<_, EnumImportSeq>(&*_io, None, None)?.into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t: &mut ParamsDefEnumImported| {
-            Ok(t.set_params(*self_rc.one().pet_1(), *self_rc.one().pet_2()))
-        };
-        let t = Self::read_into_with_init::<_, ParamsDefEnumImported>(
-            &*_io, None, None, &f,
-        )?
-        .into();
+        let f = |t : &mut ParamsDefEnumImported| Ok(t.set_params(*self_rc.one().pet_1(), *self_rc.one().pet_2()));
+        let t = Self::read_into_with_init::<_, ParamsDefEnumImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ImportsParamsDefEnumImported {}
+impl ImportsParamsDefEnumImported {
+}
 impl ImportsParamsDefEnumImported {
     pub fn one(&self) -> Ref<'_, OptRc<EnumImportSeq>> {
         self.one.borrow()

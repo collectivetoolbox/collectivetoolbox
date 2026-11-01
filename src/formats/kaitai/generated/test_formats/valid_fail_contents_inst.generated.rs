@@ -103,11 +103,7 @@ impl KStruct for ValidFailContentsInst {
     type Root = ValidFailContentsInst;
     type Parent = ValidFailContentsInst;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,12 +125,10 @@ impl KStruct for ValidFailContentsInst {
     }
 }
 impl ValidFailContentsInst {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn foo(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn foo(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_foo.get() {
             return Ok(self.foo.borrow());
@@ -144,10 +138,7 @@ impl ValidFailContentsInst {
         _io.seek(0_usize)?;
         *self.foo.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self.foo.borrow() == vec![0x51u8, 0x41u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/instances/foo".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/instances/foo".to_string() }));
         }
         _io.seek(_pos)?;
         Ok(self.foo.borrow())

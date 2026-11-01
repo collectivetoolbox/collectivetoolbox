@@ -62,11 +62,7 @@ impl KStruct for Wmf {
     type Root = Wmf;
     type Parent = Wmf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,41 +74,22 @@ impl KStruct for Wmf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Wmf_SpecialHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Wmf_SpecialHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.special_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Wmf_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Wmf_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Wmf_Record>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Wmf_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 let _t_records = self_rc.records.borrow();
-                let Some(_tmpa) = _t_records.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_records.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.function() == Wmf_Func::Eof {
-                    break;
-                }
+                if *_tmpa.function() == Wmf_Func::Eof { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -120,7 +97,8 @@ impl KStruct for Wmf {
         Ok(())
     }
 }
-impl Wmf {}
+impl Wmf {
+}
 impl Wmf {
     pub fn special_header(&self) -> Ref<'_, OptRc<Wmf_SpecialHeader>> {
         self.special_header.borrow()
@@ -212,15 +190,13 @@ impl From<&Wmf_BinRasterOp> for i64 {
             Wmf_BinRasterOp::Mergepennot => 14,
             Wmf_BinRasterOp::Mergepen => 15,
             Wmf_BinRasterOp::White => 16,
-            Wmf_BinRasterOp::Unknown(v) => v,
+            Wmf_BinRasterOp::Unknown(v) => v
         }
     }
 }
 
 impl Default for Wmf_BinRasterOp {
-    fn default() -> Self {
-        Wmf_BinRasterOp::Unknown(0)
-    }
+    fn default() -> Self { Wmf_BinRasterOp::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -450,15 +426,13 @@ impl From<&Wmf_Func> for i64 {
             Wmf_Func::Dibstretchblt => 2881,
             Wmf_Func::Setdibtodev => 3379,
             Wmf_Func::Stretchdib => 3907,
-            Wmf_Func::Unknown(v) => v,
+            Wmf_Func::Unknown(v) => v
         }
     }
 }
 
 impl Default for Wmf_Func {
-    fn default() -> Self {
-        Wmf_Func::Unknown(0)
-    }
+    fn default() -> Self { Wmf_Func::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -484,15 +458,13 @@ impl From<&Wmf_MixMode> for i64 {
         match *v {
             Wmf_MixMode::Transparent => 1,
             Wmf_MixMode::Opaque => 2,
-            Wmf_MixMode::Unknown(v) => v,
+            Wmf_MixMode::Unknown(v) => v
         }
     }
 }
 
 impl Default for Wmf_MixMode {
-    fn default() -> Self {
-        Wmf_MixMode::Unknown(0)
-    }
+    fn default() -> Self { Wmf_MixMode::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -518,16 +490,15 @@ impl From<&Wmf_PolyFillMode> for i64 {
         match *v {
             Wmf_PolyFillMode::Alternate => 1,
             Wmf_PolyFillMode::Winding => 2,
-            Wmf_PolyFillMode::Unknown(v) => v,
+            Wmf_PolyFillMode::Unknown(v) => v
         }
     }
 }
 
 impl Default for Wmf_PolyFillMode {
-    fn default() -> Self {
-        Wmf_PolyFillMode::Unknown(0)
-    }
+    fn default() -> Self { Wmf_PolyFillMode::Unknown(0) }
 }
+
 
 /**
  * \sa section 2.2.1.7
@@ -580,11 +551,7 @@ impl KStruct for Wmf_ColorRef {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -608,7 +575,8 @@ impl KStruct for Wmf_ColorRef {
         Ok(())
     }
 }
-impl Wmf_ColorRef {}
+impl Wmf_ColorRef {
+}
 impl Wmf_ColorRef {
     pub fn red(&self) -> Ref<'_, u8> {
         self.red.borrow()
@@ -691,11 +659,7 @@ impl KStruct for Wmf_Header {
     type Root = Wmf;
     type Parent = Wmf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -707,8 +671,7 @@ impl KStruct for Wmf_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.metafile_type.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.metafile_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -726,7 +689,8 @@ impl KStruct for Wmf_Header {
         Ok(())
     }
 }
-impl Wmf_Header {}
+impl Wmf_Header {
+}
 impl Wmf_Header {
     pub fn metafile_type(&self) -> Ref<'_, Wmf_Header_MetafileType> {
         self.metafile_type.borrow()
@@ -796,16 +760,15 @@ impl From<&Wmf_Header_MetafileType> for i64 {
         match *v {
             Wmf_Header_MetafileType::MemoryMetafile => 1,
             Wmf_Header_MetafileType::DiskMetafile => 2,
-            Wmf_Header_MetafileType::Unknown(v) => v,
+            Wmf_Header_MetafileType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Wmf_Header_MetafileType {
-    fn default() -> Self {
-        Wmf_Header_MetafileType::Unknown(0)
-    }
+    fn default() -> Self { Wmf_Header_MetafileType::Unknown(0) }
 }
+
 
 /**
  * \sa section 2.3.3.15 = params_polyline
@@ -856,11 +819,7 @@ impl KStruct for Wmf_ParamsPolygon {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -877,12 +836,7 @@ impl KStruct for Wmf_ParamsPolygon {
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.num_points())?;
         for _i in 0_usize..l_points {
-            let t = Self::read_into::<_, Wmf_PointS>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, Wmf_PointS>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -890,7 +844,8 @@ impl KStruct for Wmf_ParamsPolygon {
         Ok(())
     }
 }
-impl Wmf_ParamsPolygon {}
+impl Wmf_ParamsPolygon {
+}
 impl Wmf_ParamsPolygon {
     pub fn num_points(&self) -> Ref<'_, i16> {
         self.num_points.borrow()
@@ -962,11 +917,7 @@ impl KStruct for Wmf_ParamsPolyline {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -983,12 +934,7 @@ impl KStruct for Wmf_ParamsPolyline {
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.num_points())?;
         for _i in 0_usize..l_points {
-            let t = Self::read_into::<_, Wmf_PointS>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                None,
-            )?
-            .into();
+            let t = Self::read_into::<_, Wmf_PointS>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -996,7 +942,8 @@ impl KStruct for Wmf_ParamsPolyline {
         Ok(())
     }
 }
-impl Wmf_ParamsPolyline {}
+impl Wmf_ParamsPolyline {
+}
 impl Wmf_ParamsPolyline {
     pub fn num_points(&self) -> Ref<'_, i16> {
         self.num_points.borrow()
@@ -1067,11 +1014,7 @@ impl KStruct for Wmf_ParamsSetbkmode {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1083,14 +1026,14 @@ impl KStruct for Wmf_ParamsSetbkmode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.bk_mode.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.bk_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Wmf_ParamsSetbkmode {}
+impl Wmf_ParamsSetbkmode {
+}
 
 /**
  * Defines current graphic context background mix mode.
@@ -1137,34 +1080,22 @@ impl TryFrom<&&Wmf_ParamsSetpolyfillmode> for OptRc<Wmf_ParamsSetpolyfillmode> {
     }
 }
 impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for Wmf_ParamsSetpolyfillmode {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &Wmf_ParamsSetpolyfillmode {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Wmf_ParamsSetpolyfillmode>
-    for OptRc<Wmf_ParamsSetpolyfillmode>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Wmf_ParamsSetpolyfillmode>
-    for &OptRc<Wmf_ParamsSetpolyfillmode>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &OptRc<Wmf_ParamsSetpolyfillmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1172,11 +1103,7 @@ impl KStruct for Wmf_ParamsSetpolyfillmode {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1188,14 +1115,14 @@ impl KStruct for Wmf_ParamsSetpolyfillmode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.poly_fill_mode.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.poly_fill_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Wmf_ParamsSetpolyfillmode {}
+impl Wmf_ParamsSetpolyfillmode {
+}
 
 /**
  * Defines current polygon fill mode.
@@ -1265,11 +1192,7 @@ impl KStruct for Wmf_ParamsSetrop2 {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1281,14 +1204,14 @@ impl KStruct for Wmf_ParamsSetrop2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.draw_mode.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.draw_mode.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Wmf_ParamsSetrop2 {}
+impl Wmf_ParamsSetrop2 {
+}
 
 /**
  * Defines current foreground binary raster operation mixing mode.
@@ -1359,11 +1282,7 @@ impl KStruct for Wmf_ParamsSetwindowext {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1383,7 +1302,8 @@ impl KStruct for Wmf_ParamsSetwindowext {
         Ok(())
     }
 }
-impl Wmf_ParamsSetwindowext {}
+impl Wmf_ParamsSetwindowext {
+}
 
 /**
  * Vertical extent of the window in logical units.
@@ -1463,11 +1383,7 @@ impl KStruct for Wmf_ParamsSetwindoworg {
     type Root = Wmf;
     type Parent = Wmf_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1487,7 +1403,8 @@ impl KStruct for Wmf_ParamsSetwindoworg {
         Ok(())
     }
 }
-impl Wmf_ParamsSetwindoworg {}
+impl Wmf_ParamsSetwindoworg {
+}
 
 /**
  * Y coordinate of the window origin, in logical units.
@@ -1567,11 +1484,7 @@ impl KStruct for Wmf_PointS {
     type Root = Wmf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1591,7 +1504,8 @@ impl KStruct for Wmf_PointS {
         Ok(())
     }
 }
-impl Wmf_PointS {}
+impl Wmf_PointS {
+}
 
 /**
  * X coordinate of the point, in logical units.
@@ -1781,16 +1695,12 @@ impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetpolyfillmode> {
     }
 }
 impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for Wmf_Record_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         OptRc::<Wmf_ParamsSetpolyfillmode>::try_from(self)
     }
 }
 impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &Wmf_Record_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1945,11 +1855,7 @@ impl KStruct for Wmf_Record {
     type Root = Wmf;
     type Parent = Wmf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1963,155 +1869,67 @@ impl KStruct for Wmf_Record {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.function.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.function.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.function() {
             Wmf_Func::Polygon => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsPolygon>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsPolygon>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Polyline => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsPolyline>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsPolyline>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setbkcolor => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ColorRef>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ColorRef>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setbkmode => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsSetbkmode>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsSetbkmode>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setpolyfillmode => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Wmf_ParamsSetpolyfillmode>(
-                        &_t_params_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsSetpolyfillmode>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setrop2 => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsSetrop2>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsSetrop2>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setwindowext => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsSetwindowext>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsSetwindowext>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             Wmf_Func::Setwindoworg => {
-                *self_rc.params_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into();
+                *self_rc.params_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into();
                 let params_raw = self_rc.params_raw.borrow();
                 let _t_params_raw_io = BytesReader::from(params_raw.clone());
-                let t = Self::read_into::<BytesReader, Wmf_ParamsSetwindoworg>(
-                    &_t_params_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Wmf_ParamsSetwindoworg>(&_t_params_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.params.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(
-                        ((*self_rc.size()).saturating_sub(3_u32))
-                            .saturating_mul(2_u32),
-                    )?)?
-                    .into(),
-                );
+                *self_rc.params.borrow_mut() = Some(_io.read_bytes(usize::try_from(((*self_rc.size()).saturating_sub(3_u32)).saturating_mul(2_u32))?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2119,7 +1937,8 @@ impl KStruct for Wmf_Record {
         Ok(())
     }
 }
-impl Wmf_Record {}
+impl Wmf_Record {
+}
 impl Wmf_Record {
     pub fn size(&self) -> Ref<'_, u32> {
         self.size.borrow()
@@ -2204,11 +2023,7 @@ impl KStruct for Wmf_SpecialHeader {
     type Root = Wmf;
     type Parent = Wmf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2222,18 +2037,12 @@ impl KStruct for Wmf_SpecialHeader {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xd7u8, 0xcdu8, 0xc6u8, 0x9au8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/special_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.handle.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.handle() == vec![0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/special_header/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.left.borrow_mut() = _io.read_s2le()?;
@@ -2248,10 +2057,7 @@ impl KStruct for Wmf_SpecialHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/special_header/seq/7".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/special_header/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u2le()?;
@@ -2260,7 +2066,8 @@ impl KStruct for Wmf_SpecialHeader {
         Ok(())
     }
 }
-impl Wmf_SpecialHeader {}
+impl Wmf_SpecialHeader {
+}
 impl Wmf_SpecialHeader {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

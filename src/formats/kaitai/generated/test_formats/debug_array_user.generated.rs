@@ -101,11 +101,7 @@ impl KStruct for DebugArrayUser {
     type Root = DebugArrayUser;
     type Parent = DebugArrayUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,23 +113,14 @@ impl KStruct for DebugArrayUser {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DebugArrayUser_Cat>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DebugArrayUser_Cat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.one_cat.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
-            let t: OptRc<DebugArrayUser_Cat> =
-                OptRc::from(DebugArrayUser_Cat::default());
-            let (root_in, parent_in) = (
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            );
+            let t: OptRc<DebugArrayUser_Cat> = OptRc::from(DebugArrayUser_Cat::default());
+            let (root_in, parent_in) = (Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()));
             let root = Self::downcast(root_in, t.clone(), true);
             let parent = Self::downcast(parent_in, t.clone(), false);
             let res = DebugArrayUser_Cat::read(&t, &*_io, root, parent);
@@ -145,7 +132,8 @@ impl KStruct for DebugArrayUser {
         Ok(())
     }
 }
-impl DebugArrayUser {}
+impl DebugArrayUser {
+}
 impl DebugArrayUser {
     pub fn one_cat(&self) -> Ref<'_, OptRc<DebugArrayUser_Cat>> {
         self.one_cat.borrow()
@@ -212,11 +200,7 @@ impl KStruct for DebugArrayUser_Cat {
     type Root = DebugArrayUser;
     type Parent = DebugArrayUser;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -234,7 +218,8 @@ impl KStruct for DebugArrayUser_Cat {
         Ok(())
     }
 }
-impl DebugArrayUser_Cat {}
+impl DebugArrayUser_Cat {
+}
 impl DebugArrayUser_Cat {
     pub fn meow(&self) -> Ref<'_, u8> {
         self.meow.borrow()

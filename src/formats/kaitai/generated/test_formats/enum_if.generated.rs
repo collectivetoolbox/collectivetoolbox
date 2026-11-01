@@ -102,11 +102,7 @@ impl KStruct for EnumIf {
     type Root = EnumIf;
     type Parent = EnumIf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,35 +114,21 @@ impl KStruct for EnumIf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, EnumIf_Operation>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, EnumIf_Operation>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, EnumIf_Operation>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EnumIf {}
+impl EnumIf {
+}
 impl EnumIf {
     pub fn op1(&self) -> Ref<'_, OptRc<EnumIf_Operation>> {
         self.op1.borrow()
@@ -196,16 +178,15 @@ impl From<&EnumIf_Opcodes> for i64 {
         match *v {
             EnumIf_Opcodes::AString => 83,
             EnumIf_Opcodes::ATuple => 84,
-            EnumIf_Opcodes::Unknown(v) => v,
+            EnumIf_Opcodes::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumIf_Opcodes {
-    fn default() -> Self {
-        EnumIf_Opcodes::Unknown(0)
-    }
+    fn default() -> Self { EnumIf_Opcodes::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumIf_ArgStr {
@@ -253,11 +234,7 @@ impl KStruct for EnumIf_ArgStr {
     type Root = EnumIf;
     type Parent = EnumIf_Operation;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -271,16 +248,14 @@ impl KStruct for EnumIf_ArgStr {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len()))?,
-            "UTF-8",
-        )?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EnumIf_ArgStr {}
+impl EnumIf_ArgStr {
+}
 impl EnumIf_ArgStr {
     pub fn len(&self) -> Ref<'_, u8> {
         self.len.borrow()
@@ -353,11 +328,7 @@ impl KStruct for EnumIf_ArgTuple {
     type Root = EnumIf;
     type Parent = EnumIf_Operation;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -377,7 +348,8 @@ impl KStruct for EnumIf_ArgTuple {
         Ok(())
     }
 }
-impl EnumIf_ArgTuple {}
+impl EnumIf_ArgTuple {
+}
 impl EnumIf_ArgTuple {
     pub fn num1(&self) -> Ref<'_, u8> {
         self.num1.borrow()
@@ -446,11 +418,7 @@ impl KStruct for EnumIf_Operation {
     type Root = EnumIf;
     type Parent = EnumIf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -466,23 +434,13 @@ impl KStruct for EnumIf_Operation {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.opcode() == EnumIf_Opcodes::ATuple {
-            let t = Self::read_into::<_, EnumIf_ArgTuple>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, EnumIf_ArgTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_tuple.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.opcode() == EnumIf_Opcodes::AString {
-            let t = Self::read_into::<_, EnumIf_ArgStr>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, EnumIf_ArgStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_str.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -490,7 +448,8 @@ impl KStruct for EnumIf_Operation {
         Ok(())
     }
 }
-impl EnumIf_Operation {}
+impl EnumIf_Operation {
+}
 impl EnumIf_Operation {
     pub fn opcode(&self) -> Ref<'_, EnumIf_Opcodes> {
         self.opcode.borrow()

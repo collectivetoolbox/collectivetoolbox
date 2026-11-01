@@ -105,11 +105,7 @@ impl KStruct for RepeatNTermStruct {
     type Root = RepeatNTermStruct;
     type Parent = RepeatNTermStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,13 +122,7 @@ impl KStruct for RepeatNTermStruct {
         for _i in 0_usize..l_records1 {
             let _raw_records1 = _io.read_bytes_term(170, false, true, true)?;
             let _io_records1 = BytesReader::from(_raw_records1);
-            let t =
-                Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(
-                    &_io_records1,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records1.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -141,13 +131,7 @@ impl KStruct for RepeatNTermStruct {
         for _i in 0_usize..l_records2 {
             let _raw_records2 = _io.read_bytes_term(170, true, true, true)?;
             let _io_records2 = BytesReader::from(_raw_records2);
-            let t =
-                Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(
-                    &_io_records2,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records2.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -156,13 +140,7 @@ impl KStruct for RepeatNTermStruct {
         for _i in 0_usize..l_records3 {
             let _raw_records3 = _io.read_bytes_term(85, false, false, true)?;
             let _io_records3 = BytesReader::from(_raw_records3);
-            let t =
-                Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(
-                    &_io_records3,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records3.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -170,25 +148,20 @@ impl KStruct for RepeatNTermStruct {
         Ok(())
     }
 }
-impl RepeatNTermStruct {}
 impl RepeatNTermStruct {
-    pub fn records1(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
+}
+impl RepeatNTermStruct {
+    pub fn records1(&self) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
         self.records1.borrow()
     }
 }
 impl RepeatNTermStruct {
-    pub fn records2(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
+    pub fn records2(&self) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
         self.records2.borrow()
     }
 }
 impl RepeatNTermStruct {
-    pub fn records3(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
+    pub fn records3(&self) -> Ref<'_, Vec<OptRc<RepeatNTermStruct_BytesWrapper>>> {
         self.records3.borrow()
     }
 }
@@ -227,59 +200,35 @@ pub struct RepeatNTermStruct_BytesWrapper {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&RepeatNTermStruct_BytesWrapper>
-    for OptRc<RepeatNTermStruct_BytesWrapper>
-{
+impl TryFrom<&RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &RepeatNTermStruct_BytesWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &RepeatNTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&RepeatNTermStruct_BytesWrapper>
-    for OptRc<RepeatNTermStruct_BytesWrapper>
-{
+impl TryFrom<&&RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &&RepeatNTermStruct_BytesWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&RepeatNTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<RepeatNTermStruct_BytesWrapper>
-    for RepeatNTermStruct_BytesWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for RepeatNTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<RepeatNTermStruct_BytesWrapper>
-    for &RepeatNTermStruct_BytesWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for &RepeatNTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatNTermStruct_BytesWrapper>
-    for OptRc<RepeatNTermStruct_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatNTermStruct_BytesWrapper>
-    for &OptRc<RepeatNTermStruct_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for &OptRc<RepeatNTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -287,11 +236,7 @@ impl KStruct for RepeatNTermStruct_BytesWrapper {
     type Root = RepeatNTermStruct;
     type Parent = RepeatNTermStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -309,7 +254,8 @@ impl KStruct for RepeatNTermStruct_BytesWrapper {
         Ok(())
     }
 }
-impl RepeatNTermStruct_BytesWrapper {}
+impl RepeatNTermStruct_BytesWrapper {
+}
 impl RepeatNTermStruct_BytesWrapper {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()

@@ -64,11 +64,7 @@ impl KStruct for Warcraft2Pud {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -84,12 +80,7 @@ impl KStruct for Warcraft2Pud {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Warcraft2Pud_Section>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Warcraft2Pud_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.sections.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -99,7 +90,8 @@ impl KStruct for Warcraft2Pud {
         Ok(())
     }
 }
-impl Warcraft2Pud {}
+impl Warcraft2Pud {
+}
 impl Warcraft2Pud {
     pub fn sections(&self) -> Ref<'_, Vec<OptRc<Warcraft2Pud_Section>>> {
         self.sections.borrow()
@@ -154,15 +146,13 @@ impl From<&Warcraft2Pud_Controller> for i64 {
             Warcraft2Pud_Controller::Human => 5,
             Warcraft2Pud_Controller::RescuePassive => 6,
             Warcraft2Pud_Controller::RescueActive => 7,
-            Warcraft2Pud_Controller::Unknown(v) => v,
+            Warcraft2Pud_Controller::Unknown(v) => v
         }
     }
 }
 
 impl Default for Warcraft2Pud_Controller {
-    fn default() -> Self {
-        Warcraft2Pud_Controller::Unknown(0)
-    }
+    fn default() -> Self { Warcraft2Pud_Controller::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -194,15 +184,13 @@ impl From<&Warcraft2Pud_TerrainType> for i64 {
             Warcraft2Pud_TerrainType::Winter => 1,
             Warcraft2Pud_TerrainType::Wasteland => 2,
             Warcraft2Pud_TerrainType::Swamp => 3,
-            Warcraft2Pud_TerrainType::Unknown(v) => v,
+            Warcraft2Pud_TerrainType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Warcraft2Pud_TerrainType {
-    fn default() -> Self {
-        Warcraft2Pud_TerrainType::Unknown(0)
-    }
+    fn default() -> Self { Warcraft2Pud_TerrainType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -522,16 +510,15 @@ impl From<&Warcraft2Pud_UnitType> for i64 {
             Warcraft2Pud_UnitType::Runestone => 102,
             Warcraft2Pud_UnitType::HumanWall => 103,
             Warcraft2Pud_UnitType::OrcWall => 104,
-            Warcraft2Pud_UnitType::Unknown(v) => v,
+            Warcraft2Pud_UnitType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Warcraft2Pud_UnitType {
-    fn default() -> Self {
-        Warcraft2Pud_UnitType::Unknown(0)
-    }
+    fn default() -> Self { Warcraft2Pud_UnitType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Warcraft2Pud_Section {
@@ -550,9 +537,7 @@ pub enum Warcraft2Pud_Section_Body {
     Warcraft2Pud_SectionDim(OptRc<Warcraft2Pud_SectionDim>),
     Warcraft2Pud_SectionEra(OptRc<Warcraft2Pud_SectionEra>),
     Warcraft2Pud_SectionOwnr(OptRc<Warcraft2Pud_SectionOwnr>),
-    Warcraft2Pud_SectionStartingResource(
-        OptRc<Warcraft2Pud_SectionStartingResource>,
-    ),
+    Warcraft2Pud_SectionStartingResource(OptRc<Warcraft2Pud_SectionStartingResource>),
     Warcraft2Pud_SectionType(OptRc<Warcraft2Pud_SectionType>),
     Warcraft2Pud_SectionUnit(OptRc<Warcraft2Pud_SectionUnit>),
     Warcraft2Pud_SectionVer(OptRc<Warcraft2Pud_SectionVer>),
@@ -634,16 +619,12 @@ impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionOwnr> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         OptRc::<Warcraft2Pud_SectionOwnr>::try_from(self)
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -652,49 +633,32 @@ impl From<OptRc<Warcraft2Pud_SectionOwnr>> for Warcraft2Pud_Section_Body {
         Self::Warcraft2Pud_SectionOwnr(v)
     }
 }
-impl TryFrom<&Warcraft2Pud_Section_Body>
-    for OptRc<Warcraft2Pud_SectionStartingResource>
-{
+impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionStartingResource> {
     type Error = KError;
     fn try_from(v: &Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
-        if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionStartingResource(
-            x,
-        ) = v
-        {
+        if let Warcraft2Pud_Section_Body::Warcraft2Pud_SectionStartingResource(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Warcraft2Pud_Section_Body>
-    for OptRc<Warcraft2Pud_SectionStartingResource>
-{
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionStartingResource> {
     type Error = KError;
     fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for Warcraft2Pud_Section_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         OptRc::<Warcraft2Pud_SectionStartingResource>::try_from(self)
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for &Warcraft2Pud_Section_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Warcraft2Pud_SectionStartingResource>>
-    for Warcraft2Pud_Section_Body
-{
+impl From<OptRc<Warcraft2Pud_SectionStartingResource>> for Warcraft2Pud_Section_Body {
     fn from(v: OptRc<Warcraft2Pud_SectionStartingResource>) -> Self {
         Self::Warcraft2Pud_SectionStartingResource(v)
     }
@@ -715,16 +679,12 @@ impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionType> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionType> for Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         OptRc::<Warcraft2Pud_SectionType>::try_from(self)
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionType> for &Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -749,16 +709,12 @@ impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionUnit> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionUnit> for Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         OptRc::<Warcraft2Pud_SectionUnit>::try_from(self)
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &Warcraft2Pud_Section_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -853,11 +809,7 @@ impl KStruct for Warcraft2Pud_Section {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -869,162 +821,83 @@ impl KStruct for Warcraft2Pud_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.name().as_str() {
             "DIM " => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionDim>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionDim>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "ERA " => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionEra>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionEra>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "ERAX" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionEra>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionEra>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "OWNR" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionOwnr>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionOwnr>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "SGLD" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Warcraft2Pud_SectionStartingResource,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionStartingResource>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "SLBR" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Warcraft2Pud_SectionStartingResource,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionStartingResource>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "SOIL" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Warcraft2Pud_SectionStartingResource,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionStartingResource>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "TYPE" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionType>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionType>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "UNIT" => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionUnit>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionUnit>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "VER " => {
-                *self_rc.body_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Warcraft2Pud_SectionVer>(
-                        &_t_body_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Warcraft2Pud_SectionVer>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.size())?)?.into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.size())?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1032,7 +905,8 @@ impl KStruct for Warcraft2Pud_Section {
         Ok(())
     }
 }
-impl Warcraft2Pud_Section {}
+impl Warcraft2Pud_Section {
+}
 impl Warcraft2Pud_Section {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()
@@ -1106,9 +980,7 @@ impl DowncastOptRc<Warcraft2Pud_SectionDim> for OptRc<Warcraft2Pud_SectionDim> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionDim>
-    for &OptRc<Warcraft2Pud_SectionDim>
-{
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for &OptRc<Warcraft2Pud_SectionDim> {
     fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
         Ok((*self).clone())
     }
@@ -1117,11 +989,7 @@ impl KStruct for Warcraft2Pud_SectionDim {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1141,7 +1009,8 @@ impl KStruct for Warcraft2Pud_SectionDim {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionDim {}
+impl Warcraft2Pud_SectionDim {
+}
 impl Warcraft2Pud_SectionDim {
     pub fn x(&self) -> Ref<'_, u16> {
         self.x.borrow()
@@ -1203,9 +1072,7 @@ impl DowncastOptRc<Warcraft2Pud_SectionEra> for OptRc<Warcraft2Pud_SectionEra> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionEra>
-    for &OptRc<Warcraft2Pud_SectionEra>
-{
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for &OptRc<Warcraft2Pud_SectionEra> {
     fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
         Ok((*self).clone())
     }
@@ -1214,11 +1081,7 @@ impl KStruct for Warcraft2Pud_SectionEra {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1230,14 +1093,14 @@ impl KStruct for Warcraft2Pud_SectionEra {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.terrain.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.terrain.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionEra {}
+impl Warcraft2Pud_SectionEra {
+}
 impl Warcraft2Pud_SectionEra {
     pub fn terrain(&self) -> Ref<'_, Warcraft2Pud_TerrainType> {
         self.terrain.borrow()
@@ -1280,34 +1143,22 @@ impl TryFrom<&&Warcraft2Pud_SectionOwnr> for OptRc<Warcraft2Pud_SectionOwnr> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for Warcraft2Pud_SectionOwnr {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &Warcraft2Pud_SectionOwnr {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionOwnr>
-    for OptRc<Warcraft2Pud_SectionOwnr>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for OptRc<Warcraft2Pud_SectionOwnr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionOwnr>
-    for &OptRc<Warcraft2Pud_SectionOwnr>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &OptRc<Warcraft2Pud_SectionOwnr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1315,11 +1166,7 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1335,10 +1182,7 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc
-                    .controller_by_player
-                    .borrow_mut()
-                    .push(i64::from(_io.read_u1()?).try_into()?);
+                self_rc.controller_by_player.borrow_mut().push(i64::from(_io.read_u1()?).try_into()?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -1347,11 +1191,10 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionOwnr {}
 impl Warcraft2Pud_SectionOwnr {
-    pub fn controller_by_player(
-        &self,
-    ) -> Ref<'_, Vec<Warcraft2Pud_Controller>> {
+}
+impl Warcraft2Pud_SectionOwnr {
+    pub fn controller_by_player(&self) -> Ref<'_, Vec<Warcraft2Pud_Controller>> {
         self.controller_by_player.borrow()
     }
 }
@@ -1375,59 +1218,35 @@ pub struct Warcraft2Pud_SectionStartingResource {
     resources_by_player: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Warcraft2Pud_SectionStartingResource>
-    for OptRc<Warcraft2Pud_SectionStartingResource>
-{
+impl TryFrom<&Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
     type Error = KError;
-    fn try_from(
-        v: &Warcraft2Pud_SectionStartingResource,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Warcraft2Pud_SectionStartingResource) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Warcraft2Pud_SectionStartingResource>
-    for OptRc<Warcraft2Pud_SectionStartingResource>
-{
+impl TryFrom<&&Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
     type Error = KError;
-    fn try_from(
-        v: &&Warcraft2Pud_SectionStartingResource,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Warcraft2Pud_SectionStartingResource) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for Warcraft2Pud_SectionStartingResource
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for Warcraft2Pud_SectionStartingResource {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for &Warcraft2Pud_SectionStartingResource
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &Warcraft2Pud_SectionStartingResource {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for OptRc<Warcraft2Pud_SectionStartingResource>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionStartingResource>
-    for &OptRc<Warcraft2Pud_SectionStartingResource>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &OptRc<Warcraft2Pud_SectionStartingResource> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1435,11 +1254,7 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1455,10 +1270,7 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc
-                    .resources_by_player
-                    .borrow_mut()
-                    .push(_io.read_u2le()?);
+                self_rc.resources_by_player.borrow_mut().push(_io.read_u2le()?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -1467,7 +1279,8 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionStartingResource {}
+impl Warcraft2Pud_SectionStartingResource {
+}
 impl Warcraft2Pud_SectionStartingResource {
     pub fn resources_by_player(&self) -> Ref<'_, Vec<u16>> {
         self.resources_by_player.borrow()
@@ -1516,34 +1329,22 @@ impl TryFrom<&&Warcraft2Pud_SectionType> for OptRc<Warcraft2Pud_SectionType> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionType> for Warcraft2Pud_SectionType {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionType> for &Warcraft2Pud_SectionType {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionType>
-    for OptRc<Warcraft2Pud_SectionType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionType> for OptRc<Warcraft2Pud_SectionType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionType>
-    for &OptRc<Warcraft2Pud_SectionType>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionType> for &OptRc<Warcraft2Pud_SectionType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1551,11 +1352,7 @@ impl KStruct for Warcraft2Pud_SectionType {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1568,16 +1365,8 @@ impl KStruct for Warcraft2Pud_SectionType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(10_usize)?;
-        if !(*self_rc.magic()
-            == vec![
-                0x57u8, 0x41u8, 0x52u8, 0x32u8, 0x20u8, 0x4du8, 0x41u8, 0x50u8,
-                0x0u8, 0x0u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/section_type/seq/0".to_string(),
-            }));
+        if !(*self_rc.magic() == vec![0x57u8, 0x41u8, 0x52u8, 0x32u8, 0x20u8, 0x4du8, 0x41u8, 0x50u8, 0x0u8, 0x0u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/section_type/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bytes(2_usize)?;
@@ -1588,7 +1377,8 @@ impl KStruct for Warcraft2Pud_SectionType {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionType {}
+impl Warcraft2Pud_SectionType {
+}
 impl Warcraft2Pud_SectionType {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -1650,34 +1440,22 @@ impl TryFrom<&&Warcraft2Pud_SectionUnit> for OptRc<Warcraft2Pud_SectionUnit> {
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionUnit> for Warcraft2Pud_SectionUnit {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &Warcraft2Pud_SectionUnit {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionUnit>
-    for OptRc<Warcraft2Pud_SectionUnit>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for OptRc<Warcraft2Pud_SectionUnit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionUnit>
-    for &OptRc<Warcraft2Pud_SectionUnit>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &OptRc<Warcraft2Pud_SectionUnit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1685,11 +1463,7 @@ impl KStruct for Warcraft2Pud_SectionUnit {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1705,12 +1479,7 @@ impl KStruct for Warcraft2Pud_SectionUnit {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Warcraft2Pud_Unit>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Warcraft2Pud_Unit>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.units.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1720,7 +1489,8 @@ impl KStruct for Warcraft2Pud_SectionUnit {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionUnit {}
+impl Warcraft2Pud_SectionUnit {
+}
 impl Warcraft2Pud_SectionUnit {
     pub fn units(&self) -> Ref<'_, Vec<OptRc<Warcraft2Pud_Unit>>> {
         self.units.borrow()
@@ -1777,9 +1547,7 @@ impl DowncastOptRc<Warcraft2Pud_SectionVer> for OptRc<Warcraft2Pud_SectionVer> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Warcraft2Pud_SectionVer>
-    for &OptRc<Warcraft2Pud_SectionVer>
-{
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for &OptRc<Warcraft2Pud_SectionVer> {
     fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
         Ok((*self).clone())
     }
@@ -1788,11 +1556,7 @@ impl KStruct for Warcraft2Pud_SectionVer {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1810,7 +1574,8 @@ impl KStruct for Warcraft2Pud_SectionVer {
         Ok(())
     }
 }
-impl Warcraft2Pud_SectionVer {}
+impl Warcraft2Pud_SectionVer {
+}
 impl Warcraft2Pud_SectionVer {
     pub fn version(&self) -> Ref<'_, u16> {
         self.version.borrow()
@@ -1878,11 +1643,7 @@ impl KStruct for Warcraft2Pud_Unit {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_SectionUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1909,25 +1670,17 @@ impl KStruct for Warcraft2Pud_Unit {
     }
 }
 impl Warcraft2Pud_Unit {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn resource(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn resource(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_resource.get() {
             return Ok(self.resource.borrow());
         }
         self.f_resource.set(true);
-        if ((*self.u_type() == Warcraft2Pud_UnitType::GoldMine)
-            || (*self.u_type() == Warcraft2Pud_UnitType::HumanOilWell)
-            || (*self.u_type() == Warcraft2Pud_UnitType::OrcOilWell)
-            || (*self.u_type() == Warcraft2Pud_UnitType::OilPatch))
-        {
-            *self.resource.borrow_mut() = ((i32::from(*self.options()))
-                .saturating_mul(2500_i32))
-            .try_into()?;
+        if  (*self.u_type() == Warcraft2Pud_UnitType::GoldMine) || (*self.u_type() == Warcraft2Pud_UnitType::HumanOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OrcOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OilPatch)  {
+            *self.resource.borrow_mut() = ((i32::from(*self.options())).saturating_mul(2500_i32)).try_into()?;
         }
         Ok(self.resource.borrow())
     }

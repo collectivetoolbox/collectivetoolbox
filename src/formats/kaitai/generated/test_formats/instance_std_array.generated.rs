@@ -105,11 +105,7 @@ impl KStruct for InstanceStdArray {
     type Root = InstanceStdArray;
     type Parent = InstanceStdArray;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -132,12 +128,10 @@ impl KStruct for InstanceStdArray {
     }
 }
 impl InstanceStdArray {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn entries(&self) -> KResult<Ref<'_, Vec<Vec<u8>>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn entries(
+        &self
+    ) -> KResult<Ref<'_, Vec<Vec<u8>>>> {
         let _io = self._io.borrow();
         if self.f_entries.get() {
             return Ok(self.entries.borrow());
@@ -149,17 +143,10 @@ impl InstanceStdArray {
         *self.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self.qty_entries())?;
         for _i in 0_usize..l_entries {
-            self.entries_raw.borrow_mut().push(
-                _io.read_bytes(usize::try_from(*self.entry_size())?)?.into(),
-            );
+            self.entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let entries_raw = self.entries_raw.borrow();
-            let _io_entries_raw = BytesReader::from(
-                entries_raw.last().ok_or(KError::EmptyIterator)?.clone(),
-            );
-            self.entries.borrow_mut().push(
-                _io_entries_raw
-                    .read_bytes(usize::try_from(*self.entry_size())?)?,
-            );
+            let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            self.entries.borrow_mut().push(_io_entries_raw.read_bytes(usize::try_from(*self.entry_size())?)?);
         }
         _io.seek(_pos)?;
         Ok(self.entries.borrow())

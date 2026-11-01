@@ -104,11 +104,7 @@ impl KStruct for CombineBool {
     type Root = CombineBool;
     type Parent = CombineBool;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,12 +123,10 @@ impl KStruct for CombineBool {
     }
 }
 impl CombineBool {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bool_calc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bool_calc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_bool_calc.get() {
             return Ok(self.bool_calc.borrow());
@@ -141,23 +135,16 @@ impl CombineBool {
         *self.bool_calc.borrow_mut() = (false).try_into()?;
         Ok(self.bool_calc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bool_calc_bit(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bool_calc_bit(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_bool_calc_bit.get() {
             return Ok(self.bool_calc_bit.borrow());
         }
         self.f_bool_calc_bit.set(true);
-        *self.bool_calc_bit.borrow_mut() = (if true {
-            *self.bool_calc()?
-        } else {
-            *self.bool_bit()
-        })
-        .try_into()?;
+        *self.bool_calc_bit.borrow_mut() = (if true { *self.bool_calc()? } else { *self.bool_bit() }).try_into()?;
         Ok(self.bool_calc_bit.borrow())
     }
 }

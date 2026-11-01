@@ -103,11 +103,7 @@ impl KStruct for IntegersMinMax {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,43 +115,24 @@ impl KStruct for IntegersMinMax {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, IntegersMinMax_Unsigned>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, IntegersMinMax_Unsigned>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.unsigned_min.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, IntegersMinMax_Unsigned>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, IntegersMinMax_Unsigned>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.unsigned_max.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, IntegersMinMax_Signed>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, IntegersMinMax_Signed>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.signed_min.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, IntegersMinMax_Signed>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, IntegersMinMax_Signed>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.signed_max.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl IntegersMinMax {}
+impl IntegersMinMax {
+}
 impl IntegersMinMax {
     pub fn unsigned_min(&self) -> Ref<'_, OptRc<IntegersMinMax_Unsigned>> {
         self.unsigned_min.borrow()
@@ -238,11 +215,7 @@ impl KStruct for IntegersMinMax_Signed {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -272,7 +245,8 @@ impl KStruct for IntegersMinMax_Signed {
         Ok(())
     }
 }
-impl IntegersMinMax_Signed {}
+impl IntegersMinMax_Signed {
+}
 impl IntegersMinMax_Signed {
     pub fn s1(&self) -> Ref<'_, i8> {
         self.s1.borrow()
@@ -361,9 +335,7 @@ impl DowncastOptRc<IntegersMinMax_Unsigned> for OptRc<IntegersMinMax_Unsigned> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<IntegersMinMax_Unsigned>
-    for &OptRc<IntegersMinMax_Unsigned>
-{
+impl DowncastOptRc<IntegersMinMax_Unsigned> for &OptRc<IntegersMinMax_Unsigned> {
     fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Unsigned>, KError> {
         Ok((*self).clone())
     }
@@ -372,11 +344,7 @@ impl KStruct for IntegersMinMax_Unsigned {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -406,7 +374,8 @@ impl KStruct for IntegersMinMax_Unsigned {
         Ok(())
     }
 }
-impl IntegersMinMax_Unsigned {}
+impl IntegersMinMax_Unsigned {
+}
 impl IntegersMinMax_Unsigned {
     pub fn u1(&self) -> Ref<'_, u8> {
         self.u1.borrow()

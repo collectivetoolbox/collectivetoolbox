@@ -53,12 +53,12 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::cast_to_imported::CastToImported;
-use super::cast_to_imported::*;
-use super::hello_world::HelloWorld;
-use super::hello_world::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::hello_world::HelloWorld;
+use super::hello_world::*;
+use super::cast_to_imported::CastToImported;
+use super::cast_to_imported::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsCastToImported {
@@ -105,11 +105,7 @@ impl KStruct for ImportsCastToImported {
     type Root = ImportsCastToImported;
     type Parent = ImportsCastToImported;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,20 +120,16 @@ impl KStruct for ImportsCastToImported {
         let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
         *self_rc.hw.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t: &mut CastToImported| {
-            Ok(t.set_params(Struct::from_opt_rc(&(self_rc.hw()))))
-        };
-        let t = Self::read_into_with_init::<_, CastToImported>(
-            &*_io, None, None, &f,
-        )?
-        .into();
+        let f = |t : &mut CastToImported| Ok(t.set_params(Struct::from_opt_rc(&(self_rc.hw()))));
+        let t = Self::read_into_with_init::<_, CastToImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ImportsCastToImported {}
+impl ImportsCastToImported {
+}
 impl ImportsCastToImported {
     pub fn hw(&self) -> Ref<'_, OptRc<HelloWorld>> {
         self.hw.borrow()

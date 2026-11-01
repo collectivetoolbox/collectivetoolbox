@@ -60,11 +60,7 @@ impl KStruct for Id3v11 {
     type Root = Id3v11;
     type Parent = Id3v11;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,26 +77,17 @@ impl KStruct for Id3v11 {
     }
 }
 impl Id3v11 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn id3v1_tag(&self) -> KResult<Ref<'_, OptRc<Id3v11_Id3V11Tag>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn id3v1_tag(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Id3v11_Id3V11Tag>>> {
         let _io = self._io.borrow();
         if self.f_id3v1_tag.get() {
             return Ok(self.id3v1_tag.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (i64::try_from(_io.size())?).saturating_sub(128_i64),
-        )?)?;
-        let t = Self::read_into::<_, Id3v11_Id3V11Tag>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(128_i64))?)?;
+        let t = Self::read_into::<_, Id3v11_Id3V11Tag>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.id3v1_tag.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.id3v1_tag.borrow())
@@ -185,11 +172,7 @@ impl KStruct for Id3v11_Id3V11Tag {
     type Root = Id3v11;
     type Parent = Id3v11;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -203,10 +186,7 @@ impl KStruct for Id3v11_Id3V11Tag {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x54u8, 0x41u8, 0x47u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/id3_v1_1_tag/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/id3_v1_1_tag/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.title.borrow_mut() = _io.read_bytes(30_usize)?;
@@ -215,8 +195,7 @@ impl KStruct for Id3v11_Id3V11Tag {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.album.borrow_mut() = _io.read_bytes(30_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.year.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comment.borrow_mut() = _io.read_bytes(30_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -226,7 +205,8 @@ impl KStruct for Id3v11_Id3V11Tag {
         Ok(())
     }
 }
-impl Id3v11_Id3V11Tag {}
+impl Id3v11_Id3V11Tag {
+}
 impl Id3v11_Id3V11Tag {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -713,13 +693,12 @@ impl From<&Id3v11_Id3V11Tag_GenreEnum> for i64 {
             Id3v11_Id3V11Tag_GenreEnum::ACapella => 123,
             Id3v11_Id3V11Tag_GenreEnum::EuroHouse => 124,
             Id3v11_Id3V11Tag_GenreEnum::DanceHall => 125,
-            Id3v11_Id3V11Tag_GenreEnum::Unknown(v) => v,
+            Id3v11_Id3V11Tag_GenreEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for Id3v11_Id3V11Tag_GenreEnum {
-    fn default() -> Self {
-        Id3v11_Id3V11Tag_GenreEnum::Unknown(0)
-    }
+    fn default() -> Self { Id3v11_Id3V11Tag_GenreEnum::Unknown(0) }
 }
+

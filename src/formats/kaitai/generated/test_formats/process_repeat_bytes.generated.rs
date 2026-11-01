@@ -101,11 +101,7 @@ impl KStruct for ProcessRepeatBytes {
     type Root = ProcessRepeatBytes;
     type Parent = ProcessRepeatBytes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,17 +116,15 @@ impl KStruct for ProcessRepeatBytes {
         *self_rc.bufs.borrow_mut() = Vec::new();
         let l_bufs = 2_usize;
         for _i in 0_usize..l_bufs {
-            self_rc
-                .bufs
-                .borrow_mut()
-                .push(process_xor_one(&_io.read_bytes(5_usize)?, 158_u8));
+            self_rc.bufs.borrow_mut().push(process_xor_one(&_io.read_bytes(5_usize)?, 158_u8));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessRepeatBytes {}
+impl ProcessRepeatBytes {
+}
 impl ProcessRepeatBytes {
     pub fn bufs(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.bufs.borrow()

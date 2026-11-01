@@ -102,11 +102,7 @@ impl KStruct for DebugEnumName {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,25 +119,18 @@ impl KStruct for DebugEnumName {
         *self_rc.array_of_ints.borrow_mut() = Vec::new();
         let l_array_of_ints = 1_usize;
         for _i in 0_usize..l_array_of_ints {
-            self_rc
-                .array_of_ints
-                .borrow_mut()
-                .push(i64::from(_io.read_u1()?).try_into()?);
+            self_rc.array_of_ints.borrow_mut().push(i64::from(_io.read_u1()?).try_into()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DebugEnumName_TestSubtype>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, DebugEnumName_TestSubtype>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.test_type.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DebugEnumName {}
+impl DebugEnumName {
+}
 impl DebugEnumName {
     pub fn one(&self) -> Ref<'_, DebugEnumName_TestEnum1> {
         self.one.borrow()
@@ -188,15 +177,13 @@ impl From<&DebugEnumName_TestEnum1> for i64 {
     fn from(v: &DebugEnumName_TestEnum1) -> Self {
         match *v {
             DebugEnumName_TestEnum1::EnumValue80 => 80,
-            DebugEnumName_TestEnum1::Unknown(v) => v,
+            DebugEnumName_TestEnum1::Unknown(v) => v
         }
     }
 }
 
 impl Default for DebugEnumName_TestEnum1 {
-    fn default() -> Self {
-        DebugEnumName_TestEnum1::Unknown(0)
-    }
+    fn default() -> Self { DebugEnumName_TestEnum1::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -219,16 +206,15 @@ impl From<&DebugEnumName_TestEnum2> for i64 {
     fn from(v: &DebugEnumName_TestEnum2) -> Self {
         match *v {
             DebugEnumName_TestEnum2::EnumValue65 => 65,
-            DebugEnumName_TestEnum2::Unknown(v) => v,
+            DebugEnumName_TestEnum2::Unknown(v) => v
         }
     }
 }
 
 impl Default for DebugEnumName_TestEnum2 {
-    fn default() -> Self {
-        DebugEnumName_TestEnum2::Unknown(0)
-    }
+    fn default() -> Self { DebugEnumName_TestEnum2::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct DebugEnumName_TestSubtype {
@@ -254,34 +240,22 @@ impl TryFrom<&&DebugEnumName_TestSubtype> for OptRc<DebugEnumName_TestSubtype> {
     }
 }
 impl DowncastOptRc<DebugEnumName_TestSubtype> for DebugEnumName_TestSubtype {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<DebugEnumName_TestSubtype> for &DebugEnumName_TestSubtype {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DebugEnumName_TestSubtype>
-    for OptRc<DebugEnumName_TestSubtype>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+impl DowncastOptRc<DebugEnumName_TestSubtype> for OptRc<DebugEnumName_TestSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DebugEnumName_TestSubtype>
-    for &OptRc<DebugEnumName_TestSubtype>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+impl DowncastOptRc<DebugEnumName_TestSubtype> for &OptRc<DebugEnumName_TestSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
         Ok((*self).clone())
     }
 }
@@ -289,11 +263,7 @@ impl KStruct for DebugEnumName_TestSubtype {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -314,21 +284,16 @@ impl KStruct for DebugEnumName_TestSubtype {
     }
 }
 impl DebugEnumName_TestSubtype {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn instance_field(
-        &self,
+        &self
     ) -> KResult<Ref<'_, DebugEnumName_TestSubtype_InnerEnum2>> {
         let _io = self._io.borrow();
         if self.f_instance_field.get() {
             return Ok(self.instance_field.borrow());
         }
         self.f_instance_field.set(true);
-        *self.instance_field.borrow_mut() =
-            i64::from(((i32::from(*self.field2())) & (15_i32))).try_into()?;
+        *self.instance_field.borrow_mut() = i64::from((i32::from(*self.field2())) & (15_i32)).try_into()?;
         Ok(self.instance_field.borrow())
     }
 }
@@ -373,15 +338,13 @@ impl From<&DebugEnumName_TestSubtype_InnerEnum1> for i64 {
     fn from(v: &DebugEnumName_TestSubtype_InnerEnum1) -> Self {
         match *v {
             DebugEnumName_TestSubtype_InnerEnum1::EnumValue67 => 67,
-            DebugEnumName_TestSubtype_InnerEnum1::Unknown(v) => v,
+            DebugEnumName_TestSubtype_InnerEnum1::Unknown(v) => v
         }
     }
 }
 
 impl Default for DebugEnumName_TestSubtype_InnerEnum1 {
-    fn default() -> Self {
-        DebugEnumName_TestSubtype_InnerEnum1::Unknown(0)
-    }
+    fn default() -> Self { DebugEnumName_TestSubtype_InnerEnum1::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -404,13 +367,12 @@ impl From<&DebugEnumName_TestSubtype_InnerEnum2> for i64 {
     fn from(v: &DebugEnumName_TestSubtype_InnerEnum2) -> Self {
         match *v {
             DebugEnumName_TestSubtype_InnerEnum2::EnumValue11 => 11,
-            DebugEnumName_TestSubtype_InnerEnum2::Unknown(v) => v,
+            DebugEnumName_TestSubtype_InnerEnum2::Unknown(v) => v
         }
     }
 }
 
 impl Default for DebugEnumName_TestSubtype_InnerEnum2 {
-    fn default() -> Self {
-        DebugEnumName_TestSubtype_InnerEnum2::Unknown(0)
-    }
+    fn default() -> Self { DebugEnumName_TestSubtype_InnerEnum2::Unknown(0) }
 }
+

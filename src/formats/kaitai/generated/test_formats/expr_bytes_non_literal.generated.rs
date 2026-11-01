@@ -103,11 +103,7 @@ impl KStruct for ExprBytesNonLiteral {
     type Root = ExprBytesNonLiteral;
     type Parent = ExprBytesNonLiteral;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,19 +124,16 @@ impl KStruct for ExprBytesNonLiteral {
     }
 }
 impl ExprBytesNonLiteral {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn calc_bytes(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn calc_bytes(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_calc_bytes.get() {
             return Ok(self.calc_bytes.borrow());
         }
         self.f_calc_bytes.set(true);
-        *self.calc_bytes.borrow_mut() =
-            vec![u8::try_from(*self.one())?, u8::try_from(*self.two())?];
+        *self.calc_bytes.borrow_mut() = vec![u8::try_from(*self.one())?, u8::try_from(*self.two())?];
         Ok(self.calc_bytes.borrow())
     }
 }

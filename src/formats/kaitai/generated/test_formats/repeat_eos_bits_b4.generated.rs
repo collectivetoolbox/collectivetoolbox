@@ -100,11 +100,7 @@ impl KStruct for RepeatEosBitsB4 {
     type Root = RepeatEosBitsB4;
     type Parent = RepeatEosBitsB4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,7 +125,8 @@ impl KStruct for RepeatEosBitsB4 {
         Ok(())
     }
 }
-impl RepeatEosBitsB4 {}
+impl RepeatEosBitsB4 {
+}
 impl RepeatEosBitsB4 {
     pub fn nibbles(&self) -> Ref<'_, Vec<u64>> {
         self.nibbles.borrow()

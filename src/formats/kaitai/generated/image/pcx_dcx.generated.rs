@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::pcx::Pcx;
-use super::pcx::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::pcx::Pcx;
+use super::pcx::*;
 
 /**
  * DCX is a simple extension of PCX image format allowing to bundle
@@ -59,11 +59,7 @@ impl KStruct for PcxDcx {
     type Root = PcxDcx;
     type Parent = PcxDcx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,31 +73,19 @@ impl KStruct for PcxDcx {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xb1u8, 0x68u8, 0xdeu8, 0x3au8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.files.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, PcxDcx_PcxOffset>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, PcxDcx_PcxOffset>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.files.borrow_mut().push(t);
                 let _t_files = self_rc.files.borrow();
-                let Some(_tmpa) = _t_files.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_files.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.ofs_body())) == (to_i128(0))) {
-                    break;
-                }
+                if (to_i128(*_tmpa.ofs_body())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -109,7 +93,8 @@ impl KStruct for PcxDcx {
         Ok(())
     }
 }
-impl PcxDcx {}
+impl PcxDcx {
+}
 impl PcxDcx {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -178,11 +163,7 @@ impl KStruct for PcxDcx_PcxOffset {
     type Root = PcxDcx;
     type Parent = PcxDcx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -201,17 +182,15 @@ impl KStruct for PcxDcx_PcxOffset {
     }
 }
 impl PcxDcx_PcxOffset {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, OptRc<Pcx>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Pcx>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
-        if ((to_i128(*self.ofs_body())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_body())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_body())?)?;
             let t = Self::read_into::<_, Pcx>(&*_io, None, None)?.into();

@@ -106,11 +106,7 @@ impl KStruct for SwitchCast {
     type Root = SwitchCast;
     type Parent = SwitchCast;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,12 +122,7 @@ impl KStruct for SwitchCast {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, SwitchCast_Opcode>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, SwitchCast_Opcode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.opcodes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -142,65 +133,38 @@ impl KStruct for SwitchCast {
     }
 }
 impl SwitchCast {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn err_cast(&self) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn err_cast(
+        &self
+    ) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
         let _io = self._io.borrow();
         if self.f_err_cast.get() {
             return Ok(self.err_cast.borrow());
         }
-        *self.err_cast.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(
-            &*((self.opcodes().get(2_usize).ok_or(KError::CastError)?.body())
-                .as_ref()
-                .ok_or(KError::CastError)?),
-        )?
-        .clone();
+        *self.err_cast.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*((self.opcodes().get(2_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.err_cast.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn first_obj(&self) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn first_obj(
+        &self
+    ) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
         let _io = self._io.borrow();
         if self.f_first_obj.get() {
             return Ok(self.first_obj.borrow());
         }
-        *self.first_obj.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(
-            &*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body())
-                .as_ref()
-                .ok_or(KError::CastError)?),
-        )?
-        .clone();
+        *self.first_obj.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.first_obj.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn second_val(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn second_val(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_second_val.get() {
             return Ok(self.second_val.borrow());
         }
         self.f_second_val.set(true);
-        *self.second_val.borrow_mut() =
-            (*OptRc::<SwitchCast_Intval>::try_from(
-                &*((self
-                    .opcodes()
-                    .get(1_usize)
-                    .ok_or(KError::CastError)?
-                    .body())
-                .as_ref()
-                .ok_or(KError::CastError)?),
-            )?
-            .value())
-            .try_into()?;
+        *self.second_val.borrow_mut() = (*OptRc::<SwitchCast_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value()).try_into()?;
         Ok(self.second_val.borrow())
     }
 }
@@ -265,11 +229,7 @@ impl KStruct for SwitchCast_Intval {
     type Root = SwitchCast;
     type Parent = SwitchCast_Opcode;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -287,7 +247,8 @@ impl KStruct for SwitchCast_Intval {
         Ok(())
     }
 }
-impl SwitchCast_Intval {}
+impl SwitchCast_Intval {
+}
 impl SwitchCast_Intval {
     pub fn value(&self) -> Ref<'_, u8> {
         self.value.borrow()
@@ -415,11 +376,7 @@ impl KStruct for SwitchCast_Opcode {
     type Root = SwitchCast;
     type Parent = SwitchCast;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -435,21 +392,11 @@ impl KStruct for SwitchCast_Opcode {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             73 => {
-                let t = Self::read_into::<_, SwitchCast_Intval>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, SwitchCast_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             83 => {
-                let t = Self::read_into::<_, SwitchCast_Strval>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, SwitchCast_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -459,7 +406,8 @@ impl KStruct for SwitchCast_Opcode {
         Ok(())
     }
 }
-impl SwitchCast_Opcode {}
+impl SwitchCast_Opcode {
+}
 impl SwitchCast_Opcode {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()
@@ -526,11 +474,7 @@ impl KStruct for SwitchCast_Strval {
     type Root = SwitchCast;
     type Parent = SwitchCast_Opcode;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -542,14 +486,14 @@ impl KStruct for SwitchCast_Strval {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SwitchCast_Strval {}
+impl SwitchCast_Strval {
+}
 impl SwitchCast_Strval {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

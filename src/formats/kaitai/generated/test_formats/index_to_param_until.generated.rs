@@ -102,11 +102,7 @@ impl KStruct for IndexToParamUntil {
     type Root = IndexToParamUntil;
     type Parent = IndexToParamUntil;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,28 +126,13 @@ impl KStruct for IndexToParamUntil {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t: &mut IndexToParamUntil_Block| {
-                    Ok(t.set_params(
-                        (_i).try_into().map_err(|_| KError::CastError)?,
-                    ))
-                };
-                let t =
-                    Self::read_into_with_init::<_, IndexToParamUntil_Block>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                let f = |t : &mut IndexToParamUntil_Block| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
+                let t = Self::read_into_with_init::<_, IndexToParamUntil_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.blocks.borrow_mut().push(t);
                 let _t_blocks = self_rc.blocks.borrow();
-                let Some(_tmpa) = _t_blocks.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_blocks.last() else { break; };
                 _i = _i.saturating_add(1);
-                if _io.is_eof() {
-                    break;
-                }
+                if _io.is_eof() { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -159,7 +140,8 @@ impl KStruct for IndexToParamUntil {
         Ok(())
     }
 }
-impl IndexToParamUntil {}
+impl IndexToParamUntil {
+}
 impl IndexToParamUntil {
     pub fn qty(&self) -> Ref<'_, u32> {
         self.qty.borrow()
@@ -224,9 +206,7 @@ impl DowncastOptRc<IndexToParamUntil_Block> for OptRc<IndexToParamUntil_Block> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<IndexToParamUntil_Block>
-    for &OptRc<IndexToParamUntil_Block>
-{
+impl DowncastOptRc<IndexToParamUntil_Block> for &OptRc<IndexToParamUntil_Block> {
     fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil_Block>, KError> {
         Ok((*self).clone())
     }
@@ -235,11 +215,7 @@ impl KStruct for IndexToParamUntil_Block {
     type Root = IndexToParamUntil;
     type Parent = IndexToParamUntil;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -251,21 +227,7 @@ impl KStruct for IndexToParamUntil_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(
-                *(self_rc
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sizes()
-                    .get(usize::try_from(*self_rc.idx())?)
-                    .ok_or(KError::CastError)?),
-            )?)?,
-            "ASCII",
-        )?;
+        *self_rc.buf.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sizes().get(usize::try_from(*self_rc.idx())?).ok_or(KError::CastError)?))?)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -281,7 +243,8 @@ impl IndexToParamUntil_Block {
         *self.idx.borrow_mut() = idx;
     }
 }
-impl IndexToParamUntil_Block {}
+impl IndexToParamUntil_Block {
+}
 impl IndexToParamUntil_Block {
     pub fn buf(&self) -> Ref<'_, String> {
         self.buf.borrow()

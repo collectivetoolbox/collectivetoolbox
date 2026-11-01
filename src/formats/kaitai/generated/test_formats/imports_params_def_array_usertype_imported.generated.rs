@@ -53,12 +53,12 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::hello_world::HelloWorld;
-use super::hello_world::*;
-use super::params_def_array_usertype_imported::ParamsDefArrayUsertypeImported;
-use super::params_def_array_usertype_imported::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::params_def_array_usertype_imported::ParamsDefArrayUsertypeImported;
+use super::params_def_array_usertype_imported::*;
+use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsParamsDefArrayUsertypeImported {
@@ -69,59 +69,35 @@ pub struct ImportsParamsDefArrayUsertypeImported {
     two: RefCell<OptRc<ParamsDefArrayUsertypeImported>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ImportsParamsDefArrayUsertypeImported>
-    for OptRc<ImportsParamsDefArrayUsertypeImported>
-{
+impl TryFrom<&ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
     type Error = KError;
-    fn try_from(
-        v: &ImportsParamsDefArrayUsertypeImported,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ImportsParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ImportsParamsDefArrayUsertypeImported>
-    for OptRc<ImportsParamsDefArrayUsertypeImported>
-{
+impl TryFrom<&&ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
     type Error = KError;
-    fn try_from(
-        v: &&ImportsParamsDefArrayUsertypeImported,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ImportsParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported>
-    for ImportsParamsDefArrayUsertypeImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for ImportsParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported>
-    for &ImportsParamsDefArrayUsertypeImported
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for &ImportsParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported>
-    for OptRc<ImportsParamsDefArrayUsertypeImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported>
-    for &OptRc<ImportsParamsDefArrayUsertypeImported>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for &OptRc<ImportsParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
         Ok((*self).clone())
     }
 }
@@ -129,11 +105,7 @@ impl KStruct for ImportsParamsDefArrayUsertypeImported {
     type Root = ImportsParamsDefArrayUsertypeImported;
     type Parent = ImportsParamsDefArrayUsertypeImported;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -152,20 +124,16 @@ impl KStruct for ImportsParamsDefArrayUsertypeImported {
             self_rc.hws.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t: &mut ParamsDefArrayUsertypeImported| {
-            Ok(t.set_params((self_rc.hws()).clone()))
-        };
-        let t = Self::read_into_with_init::<_, ParamsDefArrayUsertypeImported>(
-            &*_io, None, None, &f,
-        )?
-        .into();
+        let f = |t : &mut ParamsDefArrayUsertypeImported| Ok(t.set_params((self_rc.hws()).clone()));
+        let t = Self::read_into_with_init::<_, ParamsDefArrayUsertypeImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ImportsParamsDefArrayUsertypeImported {}
+impl ImportsParamsDefArrayUsertypeImported {
+}
 impl ImportsParamsDefArrayUsertypeImported {
     pub fn hws(&self) -> Ref<'_, Vec<OptRc<HelloWorld>>> {
         self.hws.borrow()

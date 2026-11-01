@@ -58,11 +58,7 @@ impl KStruct for Uimage {
     type Root = Uimage;
     type Parent = Uimage;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -74,22 +70,17 @@ impl KStruct for Uimage {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Uimage_Uheader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Uimage_Uheader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.header().len_image())?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_image())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Uimage {}
+impl Uimage {
+}
 impl Uimage {
     pub fn header(&self) -> Ref<'_, OptRc<Uimage_Uheader>> {
         self.header.borrow()
@@ -118,6 +109,7 @@ impl Uimage {
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageArch {
+
     /**
      * Invalid CPU
      */
@@ -321,19 +313,18 @@ impl From<&Uimage_UimageArch> for i64 {
             Uimage_UimageArch::X8664 => 24,
             Uimage_UimageArch::Xtensa => 25,
             Uimage_UimageArch::Riscv => 26,
-            Uimage_UimageArch::Unknown(v) => v,
+            Uimage_UimageArch::Unknown(v) => v
         }
     }
 }
 
 impl Default for Uimage_UimageArch {
-    fn default() -> Self {
-        Uimage_UimageArch::Unknown(0)
-    }
+    fn default() -> Self { Uimage_UimageArch::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageComp {
+
     /**
      * No Compression Used
      */
@@ -373,19 +364,18 @@ impl From<&Uimage_UimageComp> for i64 {
             Uimage_UimageComp::Lzo => 4,
             Uimage_UimageComp::Lz4 => 5,
             Uimage_UimageComp::Zstd => 6,
-            Uimage_UimageComp::Unknown(v) => v,
+            Uimage_UimageComp::Unknown(v) => v
         }
     }
 }
 
 impl Default for Uimage_UimageComp {
-    fn default() -> Self {
-        Uimage_UimageComp::Unknown(0)
-    }
+    fn default() -> Self { Uimage_UimageComp::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageOs {
+
     /**
      * Invalid OS
      */
@@ -610,19 +600,18 @@ impl From<&Uimage_UimageOs> for i64 {
             Uimage_UimageOs::Opensbi => 27,
             Uimage_UimageOs::Efi => 28,
             Uimage_UimageOs::Elf => 29,
-            Uimage_UimageOs::Unknown(v) => v,
+            Uimage_UimageOs::Unknown(v) => v
         }
     }
 }
 
 impl Default for Uimage_UimageOs {
-    fn default() -> Self {
-        Uimage_UimageOs::Unknown(0)
-    }
+    fn default() -> Self { Uimage_UimageOs::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageType {
+
     /**
      * Invalid Image
      */
@@ -973,16 +962,15 @@ impl From<&Uimage_UimageType> for i64 {
             Uimage_UimageType::TfaBl31 => 45,
             Uimage_UimageType::Stm32imageV2 => 46,
             Uimage_UimageType::Amlimage => 47,
-            Uimage_UimageType::Unknown(v) => v,
+            Uimage_UimageType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Uimage_UimageType {
-    fn default() -> Self {
-        Uimage_UimageType::Unknown(0)
-    }
+    fn default() -> Self { Uimage_UimageType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Uimage_Uheader {
@@ -1040,11 +1028,7 @@ impl KStruct for Uimage_Uheader {
     type Root = Uimage;
     type Parent = Uimage;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1058,10 +1042,7 @@ impl KStruct for Uimage_Uheader {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x27u8, 0x5u8, 0x19u8, 0x56u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/uheader/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/uheader/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_crc.borrow_mut() = _io.read_u4be()?;
@@ -1078,30 +1059,20 @@ impl KStruct for Uimage_Uheader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.os_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.architecture.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.architecture.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.image_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.image_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.compression_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(32_usize)?,
-                Some(0),
-                false,
-                None,
-            ),
-            "UTF-8",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Uimage_Uheader {}
+impl Uimage_Uheader {
+}
 impl Uimage_Uheader {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

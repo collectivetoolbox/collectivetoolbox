@@ -103,11 +103,7 @@ impl KStruct for OptionalId {
     type Root = OptionalId;
     type Parent = OptionalId;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,7 +125,8 @@ impl KStruct for OptionalId {
         Ok(())
     }
 }
-impl OptionalId {}
+impl OptionalId {
+}
 impl OptionalId {
     pub fn unnamed0(&self) -> Ref<'_, u8> {
         self.unnamed0.borrow()

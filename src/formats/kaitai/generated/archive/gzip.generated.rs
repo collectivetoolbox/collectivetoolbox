@@ -108,11 +108,7 @@ impl KStruct for Gzip {
     type Root = Gzip;
     type Parent = Gzip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,33 +122,19 @@ impl KStruct for Gzip {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x1fu8, 0x8bu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression_method.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Gzip_Flags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Gzip_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mod_time.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.compression_method() {
             Gzip_CompressionMethods::Deflate => {
-                let t = Self::read_into::<_, Gzip_ExtraFlagsDeflate>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Gzip_ExtraFlagsDeflate>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.extra_flags.borrow_mut() = Some(t);
             }
             _ => {}
@@ -162,25 +144,18 @@ impl KStruct for Gzip {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_extra() {
-            let t = Self::read_into::<_, Gzip_Extras>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Gzip_Extras>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extras.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_name() {
-            *self_rc.name.borrow_mut() =
-                _io.read_bytes_term(0, false, true, true)?;
+            *self_rc.name.borrow_mut() = _io.read_bytes_term(0, false, true, true)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_comment() {
-            *self_rc.comment.borrow_mut() =
-                _io.read_bytes_term(0, false, true, true)?;
+            *self_rc.comment.borrow_mut() = _io.read_bytes_term(0, false, true, true)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -188,11 +163,7 @@ impl KStruct for Gzip {
             *self_rc.header_crc16.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((usize::try_from((i64::try_from(_io.size())?))?)
-                .saturating_sub(_io.pos()))
-            .saturating_sub(8_usize),
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from(i64::try_from(_io.size())?)?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body_crc32.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -202,7 +173,8 @@ impl KStruct for Gzip {
         Ok(())
     }
 }
-impl Gzip {}
+impl Gzip {
+}
 impl Gzip {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -335,19 +307,18 @@ impl From<&Gzip_CompressionMethods> for i64 {
     fn from(v: &Gzip_CompressionMethods) -> Self {
         match *v {
             Gzip_CompressionMethods::Deflate => 8,
-            Gzip_CompressionMethods::Unknown(v) => v,
+            Gzip_CompressionMethods::Unknown(v) => v
         }
     }
 }
 
 impl Default for Gzip_CompressionMethods {
-    fn default() -> Self {
-        Gzip_CompressionMethods::Unknown(0)
-    }
+    fn default() -> Self { Gzip_CompressionMethods::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Gzip_Oses {
+
     /**
      * FAT filesystem (MS-DOS, OS/2, NT/Win32)
      */
@@ -463,16 +434,15 @@ impl From<&Gzip_Oses> for i64 {
             Gzip_Oses::Qdos => 12,
             Gzip_Oses::AcornRiscos => 13,
             Gzip_Oses::Unknown => 255,
-            Gzip_Oses::UnknownVariant(v) => v,
+            Gzip_Oses::UnknownVariant(v) => v
         }
     }
 }
 
 impl Default for Gzip_Oses {
-    fn default() -> Self {
-        Gzip_Oses::UnknownVariant(0)
-    }
+    fn default() -> Self { Gzip_Oses::UnknownVariant(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Gzip_ExtraFlagsDeflate {
@@ -518,11 +488,7 @@ impl KStruct for Gzip_ExtraFlagsDeflate {
     type Root = Gzip;
     type Parent = Gzip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -534,18 +500,16 @@ impl KStruct for Gzip_ExtraFlagsDeflate {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.compression_strength.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.compression_strength.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gzip_ExtraFlagsDeflate {}
 impl Gzip_ExtraFlagsDeflate {
-    pub fn compression_strength(
-        &self,
-    ) -> Ref<'_, Gzip_ExtraFlagsDeflate_CompressionStrengths> {
+}
+impl Gzip_ExtraFlagsDeflate {
+    pub fn compression_strength(&self) -> Ref<'_, Gzip_ExtraFlagsDeflate_CompressionStrengths> {
         self.compression_strength.borrow()
     }
 }
@@ -569,9 +533,7 @@ pub enum Gzip_ExtraFlagsDeflate_CompressionStrengths {
 
 impl TryFrom<i64> for Gzip_ExtraFlagsDeflate_CompressionStrengths {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Gzip_ExtraFlagsDeflate_CompressionStrengths> {
+    fn try_from(flag: i64) -> KResult<Gzip_ExtraFlagsDeflate_CompressionStrengths> {
         match flag {
             2 => Ok(Gzip_ExtraFlagsDeflate_CompressionStrengths::Best),
             4 => Ok(Gzip_ExtraFlagsDeflate_CompressionStrengths::Fast),
@@ -585,16 +547,15 @@ impl From<&Gzip_ExtraFlagsDeflate_CompressionStrengths> for i64 {
         match *v {
             Gzip_ExtraFlagsDeflate_CompressionStrengths::Best => 2,
             Gzip_ExtraFlagsDeflate_CompressionStrengths::Fast => 4,
-            Gzip_ExtraFlagsDeflate_CompressionStrengths::Unknown(v) => v,
+            Gzip_ExtraFlagsDeflate_CompressionStrengths::Unknown(v) => v
         }
     }
 }
 
 impl Default for Gzip_ExtraFlagsDeflate_CompressionStrengths {
-    fn default() -> Self {
-        Gzip_ExtraFlagsDeflate_CompressionStrengths::Unknown(0)
-    }
+    fn default() -> Self { Gzip_ExtraFlagsDeflate_CompressionStrengths::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Gzip_Extras {
@@ -642,11 +603,7 @@ impl KStruct for Gzip_Extras {
     type Root = Gzip;
     type Parent = Gzip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -660,23 +617,18 @@ impl KStruct for Gzip_Extras {
         let _io = io;
         *self_rc.len_subfields.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_subfields =
-            _io.read_bytes(usize::from(*self_rc.len_subfields()))?;
+        let _raw_subfields = _io.read_bytes(usize::from(*self_rc.len_subfields()))?;
         *self_rc.subfields_raw.borrow_mut() = _raw_subfields.clone();
         let _io_subfields = BytesReader::from(_raw_subfields);
-        let t = Self::read_into::<BytesReader, Gzip_Subfields>(
-            &_io_subfields,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Gzip_Subfields>(&_io_subfields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.subfields.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gzip_Extras {}
+impl Gzip_Extras {
+}
 impl Gzip_Extras {
     pub fn len_subfields(&self) -> Ref<'_, u16> {
         self.len_subfields.borrow()
@@ -753,11 +705,7 @@ impl KStruct for Gzip_Flags {
     type Root = Gzip;
     type Parent = Gzip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -785,7 +733,8 @@ impl KStruct for Gzip_Flags {
         Ok(())
     }
 }
-impl Gzip_Flags {}
+impl Gzip_Flags {
+}
 impl Gzip_Flags {
     pub fn reserved1(&self) -> Ref<'_, u64> {
         self.reserved1.borrow()
@@ -899,11 +848,7 @@ impl KStruct for Gzip_Subfield {
     type Root = Gzip;
     type Parent = Gzip_Subfields;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -919,14 +864,14 @@ impl KStruct for Gzip_Subfield {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() =
-            _io.read_bytes(usize::from(*self_rc.len_data()))?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_data()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Gzip_Subfield {}
+impl Gzip_Subfield {
+}
 
 /**
  * Subfield ID, typically two ASCII letters.
@@ -1011,11 +956,7 @@ impl KStruct for Gzip_Subfields {
     type Root = Gzip;
     type Parent = Gzip_Extras;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1031,12 +972,7 @@ impl KStruct for Gzip_Subfields {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Gzip_Subfield>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Gzip_Subfield>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1046,7 +982,8 @@ impl KStruct for Gzip_Subfields {
         Ok(())
     }
 }
-impl Gzip_Subfields {}
+impl Gzip_Subfields {
+}
 impl Gzip_Subfields {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Gzip_Subfield>>> {
         self.entries.borrow()

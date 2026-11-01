@@ -106,11 +106,7 @@ impl KStruct for DocstringsDocrefMulti {
     type Root = DocstringsDocrefMulti;
     type Parent = DocstringsDocrefMulti;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,7 +122,8 @@ impl KStruct for DocstringsDocrefMulti {
         Ok(())
     }
 }
-impl DocstringsDocrefMulti {}
+impl DocstringsDocrefMulti {
+}
 impl DocstringsDocrefMulti {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

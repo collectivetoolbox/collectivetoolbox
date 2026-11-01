@@ -122,11 +122,7 @@ impl KStruct for Expr3 {
     type Root = Expr3;
     type Parent = Expr3;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,140 +136,113 @@ impl KStruct for Expr3 {
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.two.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc.two.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Expr3 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn four(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn four(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_four.get() {
             return Ok(self.four.borrow());
         }
         self.f_four.set(true);
-        *self.four.borrow_mut() =
-            format!("{}{}", format!("{}{}", "_", self.two()), "_").to_string();
+        *self.four.borrow_mut() = format!("{}{}", format!("{}{}", "_", self.two()), "_").to_string();
         Ok(self.four.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_eq(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_eq(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_eq.get() {
             return Ok(self.is_str_eq.borrow());
         }
         self.f_is_str_eq.set(true);
-        *self.is_str_eq.borrow_mut() =
-            (self.two().as_str() == "ACK").try_into()?;
+        *self.is_str_eq.borrow_mut() = ((self.two().as_str() == "ACK")).try_into()?;
         Ok(self.is_str_eq.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_ge(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_ge(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_ge.get() {
             return Ok(self.is_str_ge.borrow());
         }
         self.f_is_str_ge.set(true);
-        *self.is_str_ge.borrow_mut() =
-            (self.two().as_str() >= "ACK2").try_into()?;
+        *self.is_str_ge.borrow_mut() = ((self.two().as_str() >= "ACK2")).try_into()?;
         Ok(self.is_str_ge.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_gt(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_gt(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_gt.get() {
             return Ok(self.is_str_gt.borrow());
         }
         self.f_is_str_gt.set(true);
-        *self.is_str_gt.borrow_mut() =
-            (self.two().as_str() > "ACK2").try_into()?;
+        *self.is_str_gt.borrow_mut() = ((self.two().as_str() > "ACK2")).try_into()?;
         Ok(self.is_str_gt.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_le(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_le(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_le.get() {
             return Ok(self.is_str_le.borrow());
         }
         self.f_is_str_le.set(true);
-        *self.is_str_le.borrow_mut() =
-            (self.two().as_str() <= "ACK2").try_into()?;
+        *self.is_str_le.borrow_mut() = ((self.two().as_str() <= "ACK2")).try_into()?;
         Ok(self.is_str_le.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_lt(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_lt(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_lt.get() {
             return Ok(self.is_str_lt.borrow());
         }
         self.f_is_str_lt.set(true);
-        *self.is_str_lt.borrow_mut() =
-            (self.two().as_str() < "ACK2").try_into()?;
+        *self.is_str_lt.borrow_mut() = ((self.two().as_str() < "ACK2")).try_into()?;
         Ok(self.is_str_lt.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_lt2(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_lt2(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_lt2.get() {
             return Ok(self.is_str_lt2.borrow());
         }
         self.f_is_str_lt2.set(true);
-        *self.is_str_lt2.borrow_mut() =
-            (self.three()?.as_str() < self.two().as_str()).try_into()?;
+        *self.is_str_lt2.borrow_mut() = ((self.three()?.as_str() < self.two().as_str())).try_into()?;
         Ok(self.is_str_lt2.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_str_ne(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_str_ne(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_str_ne.get() {
             return Ok(self.is_str_ne.borrow());
         }
         self.f_is_str_ne.set(true);
-        *self.is_str_ne.borrow_mut() =
-            (self.two().as_str() != "ACK").try_into()?;
+        *self.is_str_ne.borrow_mut() = ((self.two().as_str() != "ACK")).try_into()?;
         Ok(self.is_str_ne.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn test_not(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn test_not(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_test_not.get() {
             return Ok(self.test_not.borrow());
@@ -282,12 +251,10 @@ impl Expr3 {
         *self.test_not.borrow_mut() = (!(false)).try_into()?;
         Ok(self.test_not.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn three(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn three(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_three.get() {
             return Ok(self.three.borrow());
