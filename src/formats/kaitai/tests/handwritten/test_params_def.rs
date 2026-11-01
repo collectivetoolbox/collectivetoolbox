@@ -42,7 +42,10 @@ fn test_params_def() -> KResult<()> {
         manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"),
     )?;
     let _io = BytesReader::from(bytes);
-    let f = |t: &mut ParamsDef| Ok(t.set_params(5, true));
+    let f = |t: &mut ParamsDef| {
+        t.set_params(5, true);
+        Ok(())
+    };
     let r: OptRc<ParamsDef> =
         ParamsDef::read_into_with_init(&_io, None, None, &f)?;
 

@@ -2998,13 +2998,13 @@ mod tests {
 
     #[ctb_test]
     fn test_hierarchical_evaluation() {
-        let content = r#"
+        let content = r"
 0	belong		0x00051600	AppleSingle encoded Macintosh file
 !:mime	application/x-apple-single
 !:ext	as
 >4	belong		0x00020000	\b, version 2.0
 >4	belong		0x00010000	\b, version 1.0
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3024,11 +3024,11 @@ mod tests {
 
     #[ctb_test]
     fn test_relative_offset_evaluation() {
-        let content = r#"
+        let content = r"
 0	string		\x1f\x8b	gzip
 >&0	byte		8		\b, deflated
 >>&0	byte		x		\b, flags %02x
-"#;
+";
         let rules = parse_magic_content(content);
         let sample = [0x1f, 0x8b, 0x08, 0x04];
         let mut slice: &[u8] = &sample;
@@ -3038,10 +3038,10 @@ mod tests {
 
     #[ctb_test]
     fn test_indirect_offset_evaluation() {
-        let content = r#"
+        let content = r"
 0	string		MZ		DOS executable
 >(0x10.l)	string	PE\0\0		\b, PE header
-"#;
+";
         let rules = parse_magic_content(content);
         let mut file_data = vec![0u8; 64];
         file_data[0] = b'M';
@@ -3060,10 +3060,10 @@ mod tests {
 
     #[ctb_test]
     fn test_formatted_descriptions_and_dates() {
-        let content = r#"
+        let content = r"
 0	lequad		0x0102030405060708	Header %016llx
 >8	ledate		x			\b, created %s
-"#;
+";
         let rules = parse_magic_content(content);
         let mut data = vec![0u8; 16];
         data[0..8].copy_from_slice(&0x0102030405060708u64.to_le_bytes());
@@ -3080,10 +3080,10 @@ mod tests {
 
     #[ctb_test]
     fn test_negative_date_stamps() {
-        let content = r#"
+        let content = r"
 0	string		HIST		Historical record
 >4	ledate		x		\b, date %s
-"#;
+";
         let rules = parse_magic_content(content);
         let mut data = vec![0u8; 16];
         data[0..4].copy_from_slice(b"HIST");
@@ -3100,14 +3100,14 @@ mod tests {
 
     #[ctb_test]
     fn test_subroutine_use_evaluation() {
-        let content = r#"
+        let content = r"
 0	name		common-arch
 >4	byte		1		\b, 32-bit
 >4	byte		2		\b, 64-bit
 
 0	string		\177ELF		ELF
 >0	use		common-arch
-"#;
+";
         let (rules, templates) =
             super::super::magic_parser::parse_magic_content_with_templates(
                 content,
@@ -3122,9 +3122,9 @@ mod tests {
 
     #[ctb_test]
     fn test_regex_matching() {
-        let content = r#"
+        let content = r"
 0	regex/c/128	^<!doctype\s+html	HTML document
-"#;
+";
         let rules = parse_magic_content(content);
         let sample = b"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">";
         let mut slice: &[u8] = &sample[..];
@@ -3134,9 +3134,9 @@ mod tests {
 
     #[ctb_test]
     fn test_pascal_string_matching() {
-        let content = r#"
+        let content = r"
 0	pstring/B	Hello			Pascal Greeting
-"#;
+";
         let rules = parse_magic_content(content);
         let sample = [5, b'H', b'e', b'l', b'l', b'o', b'!'];
         let mut slice: &[u8] = &sample;
@@ -3146,11 +3146,11 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_indirect_multiplier_and_synchsafe() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Test
 >(4.l*2+2)	string		HIT		\b, multiplier hit
 >(12.I+2)	string		TAG		\b, synchsafe hit
-"#;
+";
         let rules = parse_magic_content(content);
         let mut synch_sample = vec![0u8; 150];
         synch_sample[0..4].copy_from_slice(b"TEST");
@@ -3168,10 +3168,10 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_search_negation() {
-        let content_pass = r#"
+        let content_pass = r"
 0	string		TEST		Test
 >0	search/64	!FORBIDDEN	\b, cleanly negated
-"#;
+";
         let rules_pass = parse_magic_content(content_pass);
         let sample = b"TEST This is a clean test without forbidden word";
         let mut slice: &[u8] = sample;
@@ -3186,10 +3186,10 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_recursive_indirect_magic() {
-        let content = r#"
+        let content = r"
 0	string		WRAP		Wrapper
 >4	indirect	x		\b:
-"#;
+";
         let rules = parse_magic_content(content);
         let mut sample = vec![0u8; 32];
         sample[0..4].copy_from_slice(b"WRAP");
@@ -3202,11 +3202,11 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_der_rules() {
-        let content = r#"
+        let content = r"
 0	der	seq
 >&0	der	int1=00
 >&0	der	int3=010001	DER Encoded Key Pair, 512 bits
-"#;
+";
         let rules = parse_magic_content(content);
         // Sequence (tag 0x30, len 8) containing:
         // - INTEGER (tag 0x02, len 1, val 0x00)
@@ -3220,7 +3220,7 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_der_hierarchical_certificate_info() {
-        let content = r#"
+        let content = r"
 0	name	certinfo
 >0	der	seq
 >>&0	der	set
@@ -3232,7 +3232,7 @@ mod tests {
 >&0	der	seq
 >>&0	der	int1=00		DER Encoded Certificate request
 >>&0	use	certinfo
-"#;
+";
         let (rules, tpls) =
             crate::magic_parser::parse_magic_content_with_templates(content);
         // Outer SEQUENCE (0x30, len 20)
@@ -3262,12 +3262,12 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_float_and_double() {
-        let content = r#"
+        let content = r"
 0	lefloat		>10.0		lefloat: %f
 >4	befloat		!0.0		\b, befloat: %g
 >8	ledouble	2.75		\b, ledouble: %.2f
 >16	bedouble	x		\b, bedouble: %g
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3291,10 +3291,10 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_string16() {
-        let content = r#"
+        let content = r"
 0	lestring16	Workbook	Excel Workbook
 >16	lestring16	x		\b, title: %.10s
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3321,9 +3321,9 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_varints() {
-        let content = r#"
+        let content = r"
 0	levarint	300		LEB128 val: %u
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3363,10 +3363,10 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_octal() {
-        let content = r#"
+        let content = r"
 0	octal		0755		Permissions: %s
 >4	octal		x		\b, other: %s
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3381,11 +3381,11 @@ mod tests {
 
     #[ctb_test]
     fn test_evaluate_guid_le_and_be() {
-        let content = r#"
+        let content = r"
 0	guid		7B5C52E4-D88C-4DA7-AEB1-5378D02996D3	OneNote document
 >0	leguid		x					\b, GUID: %s
 >16	beguid		00112233-4455-6677-8899-AABBCCDDEEFF	\b, UUID %s
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
 
@@ -3420,12 +3420,12 @@ mod tests {
 
     #[ctb_test]
     fn test_indirect_offset_arithmetic_and_bitwise() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Header
 >(4.s*2)	leshort		0x1234		\b, mul target
 >(8.s&0xFF)	leshort		0x5678		\b, and target
 >(12,s)		leshort		0x9abc		\b, signed target
-"#;
+";
         let rules = parse_magic_content(content);
         let mut data = vec![0u8; 64];
         data[0..4].copy_from_slice(b"TEST");
@@ -3450,14 +3450,14 @@ mod tests {
 
     #[ctb_test]
     fn test_conditional_branching_evaluation() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Header
 >4	if		byte	1	\b, branch 1
 >4	elif		byte	2	\b, branch 2
 >4	else		byte	x	\b, fallback
 >0	clear		x
 >5	byte		9		\b, post-clear
-"#;
+";
         let rules = parse_magic_content(content);
 
         // Case 1: byte at 4 is 1 -> branch 1 matches, elif and else skipped.
@@ -3499,12 +3499,12 @@ mod tests {
 
     #[ctb_test]
     fn test_string_modifiers_evaluation() {
-        let content = r#"
+        let content = r"
 0	string/w	hello\ world	Spaced Header
 >20	string/f	test		\b, word bounded
 >30	string/t	textfile	\b, text only
 >40	string/b	binfile		\b, binary only
-"#;
+";
         let rules = parse_magic_content(content);
 
         // Text data matching /w ("hello   world") and /f ("test" surrounded by spaces)
@@ -3532,11 +3532,11 @@ mod tests {
 
     #[ctb_test]
     fn test_regex_line_limit_evaluation() {
-        let content = r#"
+        let content = r"
 0	string		HEAD		Regex Header
 >4	regex/1l	TARGET		\b, line 1 found
 >4	regex/2l	SECOND		\b, line 2 found
-"#;
+";
         let rules = parse_magic_content(content);
 
         let data = b"HEAD LINE1\nSECOND\nTARGET\n";

@@ -183,10 +183,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_time_spec_invalid() {
-        assert!(parse_time_spec("").is_err());
-        assert!(parse_time_spec("   ").is_err());
-        assert!(parse_time_spec("not_a_time").is_err());
-        assert!(parse_time_spec("7xyz").is_err());
+        parse_time_spec("").unwrap_err();
+        parse_time_spec("   ").unwrap_err();
+        parse_time_spec("not_a_time").unwrap_err();
+        parse_time_spec("7xyz").unwrap_err();
     }
 
     #[crate::ctb_test]

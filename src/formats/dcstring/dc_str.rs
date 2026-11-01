@@ -546,7 +546,7 @@ mod tests {
         for split in 0..=bytes.len() {
             let prefix = &bytes[..split];
             if s.is_char_boundary(split) {
-                assert!(validate_dctf(prefix).is_ok());
+                validate_dctf(prefix).unwrap();
             } else {
                 let err = validate_dctf(prefix).unwrap_err();
                 // Incomplete canonical prefix at chunk boundary must return error_len == None

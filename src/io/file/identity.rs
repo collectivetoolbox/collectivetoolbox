@@ -729,13 +729,10 @@ mod tests {
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(355));
         1u64.encode_dc_mixed(&mut encoded)?;
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(320));
-        assert!(
-            encoded
+        encoded
                 .decode::<FileIdentity>(
                     &ctb_formats_dcstring::DcProjectionPolicy::strict()
-                )
-                .is_err()
-        );
+                ).unwrap_err();
         let decoded = encoded.decode::<FileIdentity>(
             &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
         )?;

@@ -17,13 +17,13 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Empirical Challenge Test Suite for Milestone 3 (LinkPath, StreamName, AttachedStream):
+//! Empirical Challenge Test Suite for Milestone 3 (`LinkPath`, `StreamName`, AttachedStream):
 //! 1. Stress-test `LinkPath`: strict rejection of bare strings/binaries vs forgiving recovery,
 //!    conflicting 561 equivalent representations, and path normalization across platforms.
 //! 2. Stress-test `StreamName`: WTF-8 lone surrogates, invalid UTF-8 bytes, long stream names
 //!    (up to 128 KiB), and format tag handling.
-//! 3. Stress-test `AttachedStream`: missing stream data tags (Dc 385), missing StreamKind,
-//!    missing FileEntity, corrupt container framing, and nameless stream handling.
+//! 3. Stress-test `AttachedStream`: missing stream data tags (Dc 385), missing `StreamKind`,
+//!    missing `FileEntity`, corrupt container framing, and nameless stream handling.
 
 #[expect(
     unused_imports,

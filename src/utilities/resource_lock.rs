@@ -674,7 +674,7 @@ mod tests {
     fn check_filesystem_lock_support_concurrent() {
         let mut handles = Vec::new();
         for _ in 0..8 {
-            let handle = thread::spawn(|| check_filesystem_lock_support());
+            let handle = thread::spawn(check_filesystem_lock_support);
             handles.push(handle);
         }
         for handle in handles {

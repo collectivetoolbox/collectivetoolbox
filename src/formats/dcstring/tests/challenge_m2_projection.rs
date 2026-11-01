@@ -1468,11 +1468,10 @@ fn test_challenge_zero_base64_allocation_projection() -> Result<()> {
     // If projection were converting the 5 MiB payload to Base64 text and then parsing,
     // it would allocate ~6.67 MiB of Base64 chars and take substantial CPU time.
     // Zero-allocation projection slices directly into the arena's byte span.
-    println!("Projected 5 MiB BinaryPayload in {:?}", elapsed);
+    println!("Projected 5 MiB BinaryPayload in {elapsed:?}");
     ensure!(
         elapsed < Duration::from_millis(100),
-        "Projection of 5 MiB BinaryPayload took too long ({:?}); suspected Base64 conversion or extraneous copies!",
-        elapsed
+        "Projection of 5 MiB BinaryPayload took too long ({elapsed:?}); suspected Base64 conversion or extraneous copies!"
     );
 
     ensure!(
@@ -1623,8 +1622,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let mut str_mst = DcMstring::new();
     str_mst.push_char(DC_BEGIN_LIST);
     str_mst.push_char(DC_TYPE_ANY);
-    string_arr
-        .get(0)
+    string_arr.first()
         .context("Missing elem 0")?
         .encode_dc_mixed(&mut str_mst)?;
     str_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
@@ -1649,8 +1647,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let mut opt_mst = DcMstring::new();
     opt_mst.push_char(DC_BEGIN_LIST);
     opt_mst.push_char(DC_TYPE_ANY);
-    opt_arr
-        .get(0)
+    opt_arr.first()
         .context("Missing opt 0")?
         .encode_dc_mixed(&mut opt_mst)?;
     opt_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);

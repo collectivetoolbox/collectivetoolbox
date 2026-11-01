@@ -1072,8 +1072,7 @@ mod tests {
             assert_eq!(
                 res.status,
                 ParityCategory::Passing,
-                "Case {} should pass",
-                name
+                "Case {name} should pass"
             );
             assert_eq!(res.top_format_id, Some(FormatId::Zstd));
         }
@@ -1086,8 +1085,7 @@ mod tests {
             assert_eq!(
                 res.status,
                 ParityCategory::Passing,
-                "Case {} should pass",
-                name
+                "Case {name} should pass"
             );
             assert!(res.top_description.contains("script"));
         }
@@ -1100,8 +1098,7 @@ mod tests {
             assert_eq!(
                 res.status,
                 ParityCategory::Passing,
-                "Case {} should pass",
-                name
+                "Case {name} should pass"
             );
         }
 
@@ -1123,8 +1120,7 @@ mod tests {
             assert_eq!(
                 res.status,
                 ParityCategory::Passing,
-                "Case {} should pass",
-                name
+                "Case {name} should pass"
             );
         }
 

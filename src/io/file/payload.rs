@@ -1281,7 +1281,7 @@ mod tests {
         let changed =
             filetime::FileTime::from_unix_time(1_234_567, 123_456_700);
         filetime::set_file_mtime(&path, changed).unwrap();
-        assert!(source.finish().is_err());
+        source.finish().unwrap_err();
         drop(source);
         assert_eq!(
             filetime::FileTime::from_last_modification_time(
@@ -1319,8 +1319,8 @@ mod tests {
             &path,
             FileTime::from_unix_time(1_111_111, 456),
         )?;
-        assert!(source.finish().is_err());
-        assert!(snapshot.validate().is_err());
+        source.finish().unwrap_err();
+        snapshot.validate().unwrap_err();
         Ok(())
     }
 
@@ -1361,7 +1361,7 @@ mod tests {
             old,
             FileTime::from_unix_time(1_234_568, 456),
         )?;
-        assert!(snapshot.validate().is_err());
+        snapshot.validate().unwrap_err();
         Ok(())
     }
 
@@ -1378,10 +1378,10 @@ mod tests {
             .map_err(|_| anyhow::anyhow!("Test lock poisoned"))?;
         let (seconds, nanos) =
             baseline.change_time.context("Missing Unix change time")?;
-        let different_nanos = if nanos == 0 { 1 } else { 0 };
+        let different_nanos = u32::from(nanos == 0);
         baseline.change_time = Some((seconds, different_nanos));
         drop(baseline);
-        assert!(snapshot.validate().is_err());
+        snapshot.validate().unwrap_err();
         Ok(())
     }
 

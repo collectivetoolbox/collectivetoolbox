@@ -77,12 +77,12 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_case_sensitivity() {
-        assert!(DcShorthand::parse("F80").is_err());
-        assert!(DcShorthand::parse("U12a").is_err());
-        assert!(DcShorthand::parse("u12A").is_err());
-        assert!(DcShorthand::parse("U0020").is_err());
-        assert!(DcShorthand::parse("").is_err());
-        assert!(DcShorthand::parse("x123").is_err());
+        DcShorthand::parse("F80").unwrap_err();
+        DcShorthand::parse("U12a").unwrap_err();
+        DcShorthand::parse("u12A").unwrap_err();
+        DcShorthand::parse("U0020").unwrap_err();
+        DcShorthand::parse("").unwrap_err();
+        DcShorthand::parse("x123").unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -105,7 +105,7 @@ mod tests {
             FORMAT_REGION_START.saturating_add(80)
         );
         assert_eq!(DcShorthand::parse("l2228304")?.to_global_id()?, 2_228_304);
-        assert!(DcShorthand::parse("L42")?.to_global_id().is_err());
+        DcShorthand::parse("L42")?.to_global_id().unwrap_err();
         Ok(())
     }
 
@@ -114,9 +114,9 @@ mod tests {
         assert_eq!(parse_format_shorthand("f80")?, 80);
         assert_eq!(parse_format_shorthand("80")?, 80);
         assert_eq!(parse_format_shorthand("  f0  ")?, 0);
-        assert!(parse_format_shorthand("F80").is_err());
-        assert!(parse_format_shorthand("abc").is_err());
-        assert!(parse_format_shorthand("").is_err());
+        parse_format_shorthand("F80").unwrap_err();
+        parse_format_shorthand("abc").unwrap_err();
+        parse_format_shorthand("").unwrap_err();
         Ok(())
     }
 
@@ -124,9 +124,9 @@ mod tests {
     fn test_unicode_shorthand_helper() -> Result<()> {
         assert_eq!(parse_unicode_shorthand("u12a")?, 0x012A);
         assert_eq!(parse_unicode_shorthand("u0020")?, 0x20);
-        assert!(parse_unicode_shorthand("U0020").is_err());
-        assert!(parse_unicode_shorthand("u12A").is_err());
-        assert!(parse_unicode_shorthand("u110000").is_err());
+        parse_unicode_shorthand("U0020").unwrap_err();
+        parse_unicode_shorthand("u12A").unwrap_err();
+        parse_unicode_shorthand("u110000").unwrap_err();
         Ok(())
     }
 }

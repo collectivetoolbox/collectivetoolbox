@@ -856,12 +856,12 @@ mod tests {
     #[test]
     fn test_flags_tuple_wildcard_discard() {
         let v = lint_snippet(
-            r#"
+            r"
             fn example(bytes: &[u8]) -> Result<()> {
                 let (doc, _) = ctb_formats_dcstring::dcmm_to_dcmstring(bytes)?;
                 Ok(())
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(
@@ -873,12 +873,12 @@ mod tests {
     #[test]
     fn test_flags_tuple_underscore_log_discard() {
         let v = lint_snippet(
-            r#"
+            r"
             fn example(r: &mut R, w: &mut W) -> Result<u64> {
                 let (n, _log) = validate_and_copy_dcmm_stream_with_options(r, w, &opts)?;
                 Ok(n)
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(v[0].message.contains("`_log`"));
@@ -887,12 +887,12 @@ mod tests {
     #[test]
     fn test_flags_unconsumed_conversion_output_log_field() {
         let v = lint_snippet(
-            r#"
+            r"
             fn example(document: Vec<u8>) -> Result<Vec<u8>> {
                 let out = dctext_to_dcstring(&document)?;
                 Ok(out.result.into_bytes())
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(v[0].message.contains("never accesses `out.log`"));
@@ -901,11 +901,11 @@ mod tests {
     #[test]
     fn test_flags_direct_field_access_on_conversion_call() {
         let v = lint_snippet(
-            r#"
+            r"
             fn example(document: Vec<u8>) -> Result<Vec<u8>> {
                 Ok(dctext_to_dcstring(&document)?.result.into_bytes())
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(
@@ -917,11 +917,11 @@ mod tests {
     #[test]
     fn test_flags_unused_format_log_param() {
         let v = lint_snippet(
-            r#"
+            r"
             fn example(data: &str, _log: &mut FormatLog) -> Result<Vec<u8>> {
                 Ok(data.as_bytes().to_vec())
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(v[0].message.contains("FormatLog parameter `_log`"));
@@ -930,12 +930,12 @@ mod tests {
     #[test]
     fn test_flags_unconsumed_local_format_log_default() {
         let v = lint_snippet(
-            r#"
+            r"
             fn get_version(data: &[u8]) -> String {
                 let mut log = FormatLog::default();
                 get_version_with_log(data, &mut log)
             }
-            "#,
+            ",
         );
         assert_eq!(v.len(), 1);
         assert!(

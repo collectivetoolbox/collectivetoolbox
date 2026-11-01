@@ -405,10 +405,10 @@ mod tests {
         assert_eq!(parse_bytes("2T").unwrap(), 2 * 1024 * 1024 * 1024 * 1024);
         assert_eq!(parse_bytes("2TiB").unwrap(), 2 * 1024 * 1024 * 1024 * 1024);
         assert_eq!(parse_bytes("2TB").unwrap(), 2_000_000_000_000);
-        assert!(parse_bytes("").is_err());
-        assert!(parse_bytes("   ").is_err());
-        assert!(parse_bytes("not_a_number").is_err());
-        assert!(parse_bytes("-50").is_err());
-        assert!(parse_bytes("10xyz").is_err());
+        parse_bytes("").unwrap_err();
+        parse_bytes("   ").unwrap_err();
+        parse_bytes("not_a_number").unwrap_err();
+        parse_bytes("-50").unwrap_err();
+        parse_bytes("10xyz").unwrap_err();
     }
 }

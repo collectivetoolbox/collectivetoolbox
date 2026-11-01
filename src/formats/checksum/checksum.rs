@@ -801,7 +801,7 @@ mod tests {
             HashAlgorithm::try_from("fnv1_128").unwrap(),
             HashAlgorithm::Fnv1_128
         );
-        assert!(HashAlgorithm::try_from("nonexistent_hash").is_err());
+        HashAlgorithm::try_from("nonexistent_hash").unwrap_err();
 
         let help = csum_help_table();
         assert!(help.contains("Supported hash algorithms:"));

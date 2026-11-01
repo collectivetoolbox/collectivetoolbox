@@ -1874,7 +1874,7 @@ mod tests {
         let normalized = normalize_newlines(&valid_header);
         let lines: Vec<&str> = normalized.lines().collect();
         let result = check_detection_header(&lines);
-        assert!(result.is_ok());
+        result.unwrap();
 
         let dummy_path = Path::new("src/formats/detection/dummy.rs");
         let parsed = parse_license_header(&valid_header, dummy_path).unwrap();
@@ -1882,7 +1882,7 @@ mod tests {
         assert!(parsed.has_darwin_header);
 
         let docblock_result = check_module_docblock(&valid_header, &parsed);
-        assert!(docblock_result.is_ok());
+        docblock_result.unwrap();
     }
 
     #[test]
@@ -2030,7 +2030,7 @@ mod tests {
 
         let doc_result =
             check_module_docblock(&header_after_darwin, &parsed_header);
-        assert!(doc_result.is_ok());
+        doc_result.unwrap();
     }
 
     #[test]

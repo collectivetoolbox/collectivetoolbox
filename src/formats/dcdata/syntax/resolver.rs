@@ -2446,14 +2446,11 @@ mod tests {
         incompatible.dc_id = DcChar::from_short(9002).to_u128();
         incompatible.syntax = None;
         incompatible.decompositions = vec!["<equiv>397".to_owned()];
-        assert!(
-            DatasetRuleResolver::load_from_dataset(
+        DatasetRuleResolver::load_from_dataset(
                 &[incompatible, original.clone()],
                 &[],
                 Some(&named)
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         Ok(())
     }
 
@@ -2756,28 +2753,22 @@ mod tests {
             Some(ctb_storage_minimal::shorthand::DcShorthand::Short(310));
         rival_close.decompositions.clear();
 
-        assert!(
-            DatasetRuleResolver::load_from_dataset(
+        DatasetRuleResolver::load_from_dataset(
                 &[list_open.clone(), list_close.clone(), rival_close],
                 &[],
                 None,
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 2. Opener's syntax rule ending with a closer (9701) that conflicts with its declared @closes closer (311)
         let mut mismatched_open = list_open.clone();
         mismatched_open.syntax = Some(parse_dc_syntax(
             ":~ [type] [element] (312 [element])* 9701",
         )?);
-        assert!(
-            DatasetRuleResolver::load_from_dataset(
+        DatasetRuleResolver::load_from_dataset(
                 &[mismatched_open, list_close.clone()],
                 &[],
                 None,
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         Ok(())
     }
@@ -2890,7 +2881,7 @@ mod tests {
             let raw = format!(":(260){{{bounds}}}");
             assert!(parse_dc_syntax(&raw).is_err(), "accepted {raw}");
         }
-        assert!(parse_dc_syntax(":(260){1..3").is_err());
+        parse_dc_syntax(":(260){1..3").unwrap_err();
         for bounds in ["2", "0..3", "..3", "1..", "..", ",3", "1,", ","] {
             parse_dc_syntax(&format!(":(260){{{bounds}}}"))?;
         }

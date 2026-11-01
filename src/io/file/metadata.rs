@@ -1691,9 +1691,9 @@ mod tests {
             let mut encoded = DcMstring::new();
             assert!(invalid.encode_dc_mixed(&mut encoded).is_err());
         }
-        assert!(timestamps.validate().is_ok());
-        assert!(checked_file_time(i64::MIN, 0).is_err());
-        assert!(checked_file_time(0, 1_000_000_000).is_err());
+        timestamps.validate().unwrap();
+        checked_file_time(i64::MIN, 0).unwrap_err();
+        checked_file_time(0, 1_000_000_000).unwrap_err();
         let pre_epoch = checked_file_time(-1, 999_999_999).unwrap();
         assert_eq!(pre_epoch.unix_seconds(), -1);
         assert_eq!(pre_epoch.nanoseconds(), 999_999_999);
@@ -1723,12 +1723,9 @@ mod tests {
                 .iter()
                 .any(|warning| warning.contains("native conversion range"))
         );
-        assert!(
-            crate::apply_entity_metadata(
+        crate::apply_entity_metadata(
                 &path, None, &metadata, false, false, true, true
-            )
-            .is_err()
-        );
+            ).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1765,11 +1762,8 @@ mod tests {
                 .as_ref()
                 .is_some_and(|value| Arc::ptr_eq(value, &environment))
         );
-        assert!(
-            encoded
-                .decode::<FileEntity>(&DcProjectionPolicy::strict())
-                .is_err()
-        );
+        encoded
+                .decode::<FileEntity>(&DcProjectionPolicy::strict()).unwrap_err();
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
         ensure!(
@@ -2162,27 +2156,18 @@ mod tests {
             warnings: Vec::new(),
             errors: Vec::new(),
         };
-        assert!(
-            metadata::check_metadata_replication(
+        metadata::check_metadata_replication(
                 &path, &metadata, true, false, true
-            )
-            .is_err()
-        );
-        assert!(
-            metadata::check_metadata_replication(
+            ).unwrap_err();
+        metadata::check_metadata_replication(
                 &path, &metadata, false, false, true
-            )
-            .is_ok()
-        );
+            ).unwrap();
         if let Some(ref mut ts) = metadata.timestamps {
             ts.birthtime_sec = None;
         }
-        assert!(
-            metadata::check_metadata_replication(
+        metadata::check_metadata_replication(
                 &path, &metadata, false, false, true
-            )
-            .is_err()
-        );
+            ).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -2226,11 +2211,8 @@ mod tests {
                 source.push_char(DcChar::from_short(391));
             }
             source.push_char(DcChar::from_short(402));
-            assert!(
-                source
-                    .decode::<AppleMetadata>(&DcProjectionPolicy::strict())
-                    .is_err()
-            );
+            source
+                    .decode::<AppleMetadata>(&DcProjectionPolicy::strict()).unwrap_err();
         }
         Ok(())
     }
@@ -2280,7 +2262,7 @@ mod tests {
             .encode_dc_mixed(&mut missing_ctime)
             .unwrap();
         missing_ctime.push_char(DcChar::from_short(322));
-        assert!(missing_ctime.decode::<FileMetadata>(&strict).is_err());
+        missing_ctime.decode::<FileMetadata>(&strict).unwrap_err();
         let view = missing_ctime.inspect_with_policy::<FileMetadata>(&quiet);
         assert!(view.diagnostic().is_some());
         let recovered_ts = view
@@ -2311,7 +2293,7 @@ mod tests {
             .encode_dc_mixed(&mut env_unknown)
             .unwrap();
         env_unknown.push_char(DcChar::from_short(341));
-        assert!(env_unknown.decode::<EnvDescription>(&strict).is_err());
+        env_unknown.decode::<EnvDescription>(&strict).unwrap_err();
         let env_view =
             env_unknown.inspect_with_policy::<EnvDescription>(&quiet);
         assert!(env_view.diagnostic().is_some());
@@ -2390,16 +2372,13 @@ mod tests {
             "future.attribute".to_owned(),
             metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
-        assert!(
-            metadata::check_metadata_replication(
+        metadata::check_metadata_replication(
                 &path,
                 &entity.metadata,
                 true,
                 false,
                 true
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         let warnings = metadata::check_metadata_replication(
             &path,
             &entity.metadata,
@@ -2464,12 +2443,9 @@ mod tests {
                 |warning| warning.contains("Failed to set file timestamps")
             )
         );
-        assert!(
-            crate::materializer::apply_entity_metadata(
+        crate::materializer::apply_entity_metadata(
                 &missing, None, &requested, false, false, true, true,
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         #[cfg(windows)]
         {
             requested.mode = Some(0o444);
@@ -2491,16 +2467,13 @@ mod tests {
                 .contains("read-only permissions")
             );
         }
-        assert!(
-            metadata::check_metadata_replication(
+        metadata::check_metadata_replication(
                 &temp.path().join("missing"),
                 &entity.metadata,
                 false,
                 false,
                 true
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         let options = EntityAuditOptions {
             best_effort: false,
             ..Default::default()

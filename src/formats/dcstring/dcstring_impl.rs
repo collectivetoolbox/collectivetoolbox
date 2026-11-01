@@ -461,21 +461,21 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_validation_and_errors() {
-        assert!(validate_dctf(b"hello world").is_ok());
-        assert!(validate_dcutf(b"hello world").is_ok());
+        validate_dctf(b"hello world").unwrap();
+        validate_dcutf(b"hello world").unwrap();
 
         let mut buf = Vec::new();
         buf.extend_from_slice(b"abc");
         let mut dc_buf = [0u8; 24];
         let n = encode_utf_8e_128_buf(&mut dc_buf, SHORT_DC_REGION_START + 100);
         buf.extend_from_slice(&dc_buf[..n]);
-        assert!(validate_dcutf(&buf).is_ok());
+        validate_dcutf(&buf).unwrap();
 
         let mut dctf_buf = Vec::new();
         dctf_buf.extend_from_slice(b"abc");
         let n_dctf = encode_dctf_buf(&mut dc_buf, SHORT_DC_REGION_START + 100);
         dctf_buf.extend_from_slice(&dc_buf[..n_dctf]);
-        assert!(validate_dctf(&dctf_buf).is_ok());
+        validate_dctf(&dctf_buf).unwrap();
 
         // Invalid continuation byte as start
         let err = validate_dctf(b"abc\x80def").unwrap_err();

@@ -297,7 +297,7 @@ mod tests {
         assert!(!resp.ok);
         assert_eq!(resp.error.context("missing error")?.code, "cancelled");
         tokio::time::timeout(timeout, CANCEL_TEST_DROPPED.notified()).await?;
-        assert!(to_server_rx.try_recv().is_err());
+        to_server_rx.try_recv().unwrap_err();
         drop(from_server_tx);
         tokio::time::timeout(timeout, peer.wait_closed()).await?;
         Ok(())

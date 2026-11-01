@@ -1891,14 +1891,11 @@ mod tests {
                 )
                 .is_err()
         );
-        assert!(
-            sandbox
+        sandbox
                 .ensure_dir_all(
                     Path::new("owned/child"),
                     PathTraversalPolicy::StrictSandboxed
-                )
-                .is_err()
-        );
+                ).unwrap_err();
         assert!(!root.join("moved/child").exists());
         fs::rename(&root, temp.path().join("moved-root")).unwrap();
         fs::create_dir(&root).unwrap();
@@ -1914,12 +1911,12 @@ mod tests {
                 .authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse)
                 .is_err()
         );
-        assert!(SandboxableDir::open(&root).is_err());
-        assert!(SandboxableDir::create_or_open(&root).is_err());
-        assert!(SandboxableDir::create_or_open(root.join(".")).is_err());
+        SandboxableDir::open(&root).unwrap_err();
+        SandboxableDir::create_or_open(&root).unwrap_err();
+        SandboxableDir::create_or_open(root.join(".")).unwrap_err();
         let dangling = temp.path().join("dangling");
         std::os::unix::fs::symlink("missing", &dangling).unwrap();
-        assert!(SandboxableDir::create_or_open(&dangling).is_err());
+        SandboxableDir::create_or_open(&dangling).unwrap_err();
         assert_eq!(fs::read_link(dangling).unwrap(), Path::new("missing"));
     }
 
@@ -2336,7 +2333,7 @@ mod tests {
                     "regular" => fs::write(&destination, b"original").unwrap(),
                     "symlink" => {
                         std::os::unix::fs::symlink("missing", &destination)
-                            .unwrap()
+                            .unwrap();
                     }
                     "directory" => fs::create_dir(&destination).unwrap(),
                     "fifo" => nix::unistd::mkfifo(
@@ -2407,7 +2404,7 @@ mod tests {
                             Path::new("source")
                         ),
                         "hardlink" => {
-                            assert_eq!(published.ino(), source_before.ino())
+                            assert_eq!(published.ino(), source_before.ino());
                         }
                         "fifo" => assert!(published.file_type().is_fifo()),
                         _ => unreachable!(),

@@ -1336,7 +1336,7 @@ mod tests {
     fn test_parse_os_directive() {
         let mut report = ValidationReport::default();
         let parsed = parse_aliases_or_base_column(
-            r#"@os(f405), @os(f406), @implies(f161)"#,
+            r"@os(f405), @os(f406), @implies(f161)",
             "test_format.csv",
             1,
             &mut report,
@@ -1349,7 +1349,7 @@ mod tests {
         // Test invalid OS token (non-shorthand text like "macos" is disallowed)
         let mut err_report = ValidationReport::default();
         let _ = parse_aliases_or_base_column(
-            r#"@os(macos)"#,
+            r"@os(macos)",
             "test_format.csv",
             1,
             &mut err_report,

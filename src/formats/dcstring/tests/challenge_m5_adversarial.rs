@@ -353,7 +353,7 @@ mod challenge2_complex_container_nesting {
     /// (`315`) inside a checksummed section (`543..544 + 545`), verifying:
     /// - SHA-256 section digest verification
     /// - Framing and arena AST construction
-    /// - `DcMixedDecode` transparent projection to typed values (PathBuf and String)
+    /// - `DcMixedDecode` transparent projection to typed values (`PathBuf` and String)
     /// - Detection of tamper anywhere in the nested envelope
     #[crate::ctb_test]
     fn test_adversarial_equivalent_in_optional_in_checksummed_section()

@@ -825,9 +825,9 @@ mod tests {
         write_inner(&mut old, crate::DcKvMapEncoding::Pairs, 2)?;
         let mut changed = DcMstring::new();
         write_inner(&mut changed, crate::DcKvMapEncoding::Pairs, 3)?;
-        assert!(preserve_source(&old, &changed).is_err());
+        preserve_source(&old, &changed).unwrap_err();
         write_inner(&mut changed, crate::DcKvMapEncoding::Pairs, 4)?;
-        assert!(preserve_source(&old, &changed).is_err());
+        preserve_source(&old, &changed).unwrap_err();
         let mut unchanged = DcMstring::new();
         write_inner(&mut unchanged, crate::DcKvMapEncoding::Pairs, 1)?;
         let revised = preserve_source(&old, &unchanged)?;

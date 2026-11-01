@@ -1998,7 +1998,8 @@ mod tests {
             );
             return Ok(());
         }
-        let result = std::thread::Builder::new()
+        
+        std::thread::Builder::new()
             .stack_size(512 * 1024)
             .spawn(|| -> Result<()> {
                 let mut source = DcString::new();
@@ -2031,8 +2032,7 @@ mod tests {
                 Ok(())
             })?
             .join()
-            .map_err(|_| anyhow::anyhow!("Assignment worker panicked"))?;
-        result
+            .map_err(|_| anyhow::anyhow!("Assignment worker panicked"))?
     }
 
     #[crate::ctb_test]

@@ -4824,7 +4824,7 @@ mod tests {
                 b: u64,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_tag).is_err());
+        expand_derive_dc_mixed(&dup_tag).unwrap_err();
 
         // 2. Alias colliding with primary tag in compound struct
         let dup_alias: DeriveInput = syn::parse_quote! {
@@ -4836,7 +4836,7 @@ mod tests {
                 b: u64,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_alias).is_err());
+        expand_derive_dc_mixed(&dup_alias).unwrap_err();
 
         // 3. Flattened nested tag colliding with another field's tag in compound struct
         let dup_flattened_nested: DeriveInput = syn::parse_quote! {
@@ -4848,7 +4848,7 @@ mod tests {
                 b: Inner,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_flattened_nested).is_err());
+        expand_derive_dc_mixed(&dup_flattened_nested).unwrap_err();
 
         // 4. Multiple catchall flattened fields in compound struct
         let dup_catchall: DeriveInput = syn::parse_quote! {
@@ -4860,7 +4860,7 @@ mod tests {
                 b: InnerB,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_catchall).is_err());
+        expand_derive_dc_mixed(&dup_catchall).unwrap_err();
 
         // 5. Duplicate tag or alias in #[dc(flatten)] struct
         let dup_in_flat: DeriveInput = syn::parse_quote! {
@@ -4872,7 +4872,7 @@ mod tests {
                 b: u64,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_in_flat).is_err());
+        expand_derive_dc_mixed(&dup_in_flat).unwrap_err();
 
         // 6. Multiple catchall fields in #[dc(flatten)] struct
         let dup_flat_catchall: DeriveInput = syn::parse_quote! {
@@ -4884,7 +4884,7 @@ mod tests {
                 b: InnerB,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_flat_catchall).is_err());
+        expand_derive_dc_mixed(&dup_flat_catchall).unwrap_err();
 
         // 7. Duplicate flag or alias in #[dc(flags)] struct
         let dup_flag: DeriveInput = syn::parse_quote! {
@@ -4896,7 +4896,7 @@ mod tests {
                 reparse: bool,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_flag).is_err());
+        expand_derive_dc_mixed(&dup_flag).unwrap_err();
 
         // 8. Duplicate field tag or alias inside enum struct variant
         let dup_enum_field: DeriveInput = syn::parse_quote! {
@@ -4910,7 +4910,7 @@ mod tests {
                 },
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_enum_field).is_err());
+        expand_derive_dc_mixed(&dup_enum_field).unwrap_err();
 
         // 9. Duplicate key in key_value struct and duplicate name in names enum
         let dup_kv: DeriveInput = syn::parse_quote! {
@@ -4922,7 +4922,7 @@ mod tests {
                 b: u64,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_kv).is_err());
+        expand_derive_dc_mixed(&dup_kv).unwrap_err();
 
         let dup_names: DeriveInput = syn::parse_quote! {
             #[dc(names)]
@@ -4933,6 +4933,6 @@ mod tests {
                 B,
             }
         };
-        assert!(expand_derive_dc_mixed(&dup_names).is_err());
+        expand_derive_dc_mixed(&dup_names).unwrap_err();
     }
 }

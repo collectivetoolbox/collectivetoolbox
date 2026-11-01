@@ -1109,8 +1109,7 @@ mod tests {
             SYSTEM_REGION_START + u128::try_from(baseline_nodes.len()).unwrap();
 
         // 1. Missing `# @provenance`
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1118,13 +1117,10 @@ mod tests {
                     "sha".to_string(),
                     "u61 u62\n".to_string()
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 2. `# @provenance: manual` without `# @rationale:`
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1132,13 +1128,10 @@ mod tests {
                     "sha".to_string(),
                     "# @provenance: manual\nu61 u62\n".to_string()
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 3. Self-reference (`l<next_id>`) and forward reference (`l<next_id + 1>`)
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1146,11 +1139,8 @@ mod tests {
                     "sha".to_string(),
                     format!("# @provenance: csv\n586 l{next_id} 571\n"),
                 )],
-            )
-            .is_err()
-        );
-        assert!(
-            prevalidate_and_plan_inbox_items(
+            ).unwrap_err();
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1158,13 +1148,10 @@ mod tests {
                     "sha".to_string(),
                     format!("# @provenance: csv\n586 l{} 571\n", next_id + 1),
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 4. Malformed `Dc 348 "Ambiguous values"` list (< 2 candidates or duplicate candidates)
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1174,11 +1161,8 @@ mod tests {
                         "# @provenance: csv\n348 310 275 l{SYSTEM_REGION_START} 311\n"
                     ),
                 )],
-            )
-            .is_err()
-        );
-        assert!(
-            prevalidate_and_plan_inbox_items(
+            ).unwrap_err();
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1188,13 +1172,10 @@ mod tests {
                         "# @provenance: csv\n348 310 275 l{SYSTEM_REGION_START} 312 l{SYSTEM_REGION_START} 311\n"
                     ),
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 5. Attaching `610` (`Has value`) to a non-`584` (`Has a`) node (`l8589934592` is a string value node)
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1204,9 +1185,7 @@ mod tests {
                         "# @provenance: csv\n610 l{SYSTEM_REGION_START} l{SYSTEM_REGION_START}\n"
                     ),
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 6. Unauthorized active duplicate (`"ProgrammaticIdentifier"` string tokens already exist at `l8589934592`)
         let dup_body = baseline_nodes[0]
@@ -1215,8 +1194,7 @@ mod tests {
             .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join(" ");
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &[(
@@ -1224,9 +1202,7 @@ mod tests {
                     "sha".to_string(),
                     format!("# @provenance: csv\n{dup_body}\n"),
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 7. Authorized active duplicate succeeds when `# @allow-duplicate-of: l8589934592` is declared
         let planned = prevalidate_and_plan_inbox_items(
@@ -1271,14 +1247,11 @@ mod tests {
             "s4".to_string(),
             "# @provenance: csv\nu78 u79\n".to_string(),
         ));
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &baseline_nodes,
                 &prov_map,
                 &bad_batch
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // With `# @allow-duplicate-of: l<next_id>`, item 3 succeeds!
         batch.push((
@@ -1371,7 +1344,7 @@ mod tests {
                     std::str::from_utf8(&fragment)?.find(character).unwrap()
                         + partial_bytes;
                 let torn_fragment = &fragment[..split_at];
-                assert!(std::str::from_utf8(torn_fragment).is_err());
+                std::str::from_utf8(torn_fragment).unwrap_err();
                 let mut torn_journal = baseline_journal.clone();
                 torn_journal.extend_from_slice(torn_fragment);
                 fs::write(&journal_path, &torn_journal)?;
@@ -1382,7 +1355,7 @@ mod tests {
                     parsed.torn_trailing_fragment.as_deref(),
                     Some(torn_fragment)
                 );
-                assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
+                load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
                 recover_pending_ledger_journal(root, None, false)?;
                 assert_eq!(fs::read(&journal_path)?, baseline_journal);
                 assert_eq!(
@@ -1420,7 +1393,7 @@ mod tests {
                     + item.raw_line.find(character).unwrap()
                     + partial_bytes;
                 let torn_chunk = &complete_chunk[..split_at];
-                assert!(std::str::from_utf8(torn_chunk).is_err());
+                std::str::from_utf8(torn_chunk).unwrap_err();
 
                 let mut corrupt_complete_chunk = torn_chunk.to_vec();
                 corrupt_complete_chunk.push(b'\n');
@@ -1578,7 +1551,7 @@ mod tests {
         assert!(inbox_dir.join("003_c.ctbnode-incoming").is_file());
 
         // External gated reader (`load_ledger_nodes_from_dir`) MUST reject the open `BATCH_PENDING` journal!
-        assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
+        load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
 
         // 3. Retry the EXACT SAME `process_inbox_nodes(root, Some(&manifest_path), false)` call!
         // It must take the Manifest-Enforced Resume Path (accepting the partially appended ledger
@@ -1622,7 +1595,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(format!("{err:#}").contains("Simulated fault injection"));
-        assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
+        load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
 
         // Standalone recovery finishes the torn `BATCH_COMMITTED` record!
         assert!(recover_pending_ledger_journal(root, None, false)?);
@@ -1638,16 +1611,16 @@ mod tests {
             .join(format!("{next_manual_id}_004_manual.ctbnode-incoming"));
         let orig_bytes = fs::read(&manual_alloc_path)?;
         fs::write(&manual_alloc_path, b"# tampered\n")?;
-        assert!(verify_repo_committed_node_provenance(root).is_err());
+        verify_repo_committed_node_provenance(root).unwrap_err();
         fs::write(&manual_alloc_path, orig_bytes)?;
-        assert!(verify_repo_committed_node_provenance(root).is_ok());
+        verify_repo_committed_node_provenance(root).unwrap();
 
         // 7. Adding an unrecorded `.ctbnode-incoming` file in `nodes/allocated/` is caught!
         let rogue_path = alloc_dir.join("9999999999_rogue.ctbnode-incoming");
         fs::write(&rogue_path, manual_incoming)?;
-        assert!(verify_repo_committed_node_provenance(root).is_err());
+        verify_repo_committed_node_provenance(root).unwrap_err();
         fs::remove_file(&rogue_path)?;
-        assert!(verify_repo_committed_node_provenance(root).is_ok());
+        verify_repo_committed_node_provenance(root).unwrap();
 
         // 8. Pad chunk 1 to 100 nodes + 1 node in chunk 2 (101 total nodes), closing chunk 1!
         // Verify that all allocated `.ctbnode-incoming` files from closed chunk 1 (nodes 1..=100)
@@ -1669,7 +1642,7 @@ mod tests {
         assert_eq!(close_outcome.total_nodes, 101);
         assert!(!manual_alloc_path.exists());
         let remaining_alloc_files: Vec<String> = fs::read_dir(&alloc_dir)?
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| {
                 e.path().extension().and_then(|s| s.to_str())
                     == Some("ctbnode-incoming")
@@ -1743,8 +1716,7 @@ mod tests {
 
         // 2. Manual inbox node attempting to retract or supersede a CSV node is rejected in prevalidation
         let csv_node_id = nodes[0].id;
-        assert!(
-            prevalidate_and_plan_inbox_items(
+        prevalidate_and_plan_inbox_items(
                 &nodes,
                 &prov_map,
                 &[(
@@ -1754,9 +1726,7 @@ mod tests {
                         "# @provenance: manual\n# @rationale: try retract csv\n592 615 l{csv_node_id}\n"
                     ),
                 )],
-            )
-            .is_err()
-        );
+            ).unwrap_err();
 
         // 3. If an active Manual node references a CSV statement node that CSV reconciliation wants to retract,
         // CSV reconciliation aborts with a Cross-ownership conflict error!

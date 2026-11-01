@@ -1036,7 +1036,7 @@ mod tests {
     use super::*;
     use crate::detection::guess_format_report;
 
-    /// Builds a synthetic CscJournal4 payload for decompression chain tests.
+    /// Builds a synthetic `CscJournal4` payload for decompression chain tests.
     fn csc_journal_v4_bytes() -> Vec<u8> {
         let mut data = Vec::new();
         data.extend_from_slice(b"CTBCSCJ\x04");
@@ -1077,7 +1077,7 @@ mod tests {
         assert!(!writer.is_limit_reached());
         assert_eq!(writer.write(b"67890123").unwrap(), 5);
         assert!(writer.is_limit_reached());
-        assert!(writer.write(b"more").is_err());
+        writer.write(b"more").unwrap_err();
         assert_eq!(writer.into_inner(), b"1234567890");
     }
 

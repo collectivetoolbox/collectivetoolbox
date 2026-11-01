@@ -159,7 +159,7 @@ fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage()
         "Forgiving snapshot must recover session environment"
     );
     ensure!(
-        forgiving_snap.destination.as_os_str().len() > 0,
+        !forgiving_snap.destination.as_os_str().is_empty(),
         "Forgiving snapshot must recover session destination"
     );
 

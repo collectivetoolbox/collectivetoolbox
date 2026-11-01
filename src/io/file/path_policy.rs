@@ -375,15 +375,12 @@ mod tests {
         let escaping_target = b"../../secret.txt";
 
         // PreserveVerbatim allows escaping target
-        assert!(
-            validate_symlink_target(
+        validate_symlink_target(
                 &dest_root,
                 &symlink_path,
                 escaping_target,
                 SymlinkValidationPolicy::PreserveVerbatim,
-            )
-            .is_ok()
-        );
+            ).unwrap();
 
         // RejectEscapingSymlinks catches it
         let res = validate_symlink_target(

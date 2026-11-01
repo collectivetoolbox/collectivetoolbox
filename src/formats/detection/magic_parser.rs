@@ -2399,13 +2399,13 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_simple_libmagic_rule() {
-        let content = r#"
+        let content = r"
 # Gzip rule
 0	string		\037\213	gzip compressed data
 !:mime	application/gzip
 !:ext	gz
 >2	byte		8		deflated
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
@@ -2420,12 +2420,12 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_relative_and_indirect_offsets() {
-        let content = r#"
+        let content = r"
 0	string		MZ		DOS executable
 >(0x3c.l)	string	PE\0\0		PE executable
 >>&0	leshort		0x014c		for Intel 80386
 >>(&4.s+2)	byte	x		subsystem
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let pe_child = &rules[0].children[0];
@@ -2458,7 +2458,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_negative_indirect_base_and_multiplier() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Test Header
 >(-6.l)	string		FOOT		negative base indirect
 >(4.l*4+16)	string		DATA		multiplied indirect
@@ -2466,7 +2466,7 @@ mod tests {
 >(6.i+10)	string		TAG2		id3 little-endian synchsafe
 >0	search/64	!NOTFOUND	negated search
 >0	indirect	x		recursive indirect magic
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
@@ -2524,13 +2524,13 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_quad_dates_and_flags() {
-        let content = r#"
+        let content = r"
 0	lequad		0x123456789abcdef0	quad match
 >8	date		x			modified %s
 >12	pstring/H	foo			pascal string
 >20	string/c	bar			case-insensitive bar
 >30	regex/c/1024	^BEGIN			regex match
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
@@ -2564,14 +2564,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_named_templates_and_use() {
-        let content = r#"
+        let content = r"
 0	name		elf-details
 >4	byte		1		32-bit
 >4	byte		2		64-bit
 
 0	string		\177ELF		ELF file
 >0	use		elf-details
-"#;
+";
         let (rules, templates) = parse_magic_content_with_templates(content);
         assert_eq!(templates.len(), 1);
         assert!(templates.contains_key("elf-details"));
@@ -2588,7 +2588,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_new_magic_types() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Header
 >0	lefloat		>0.0001		lefloat rule
 >4	befloat		!0.0		befloat rule
@@ -2608,7 +2608,7 @@ mod tests {
 >120	leguid		x		leguid any
 >136	beguid		00112233-4455-6677-8899-AABBCCDDEEFF	beguid match
 >152	beguid		x		beguid any
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
@@ -2696,7 +2696,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_indirect_operators_and_modifiers() {
-        let content = r#"
+        let content = r"
 0	string		TEST		Header
 >(4.s*2)	leshort		1		mul test
 >(4.l&0xFF)	lelong		2		and test
@@ -2706,7 +2706,7 @@ mod tests {
 >(4.l%8)	lelong		6		mod test
 >(~4.l)		lelong		7		inverse test
 >(4,l+10)	lelong		8		signed test
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
@@ -2804,7 +2804,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_conditionals_and_string_flags() {
-        let content = r#"
+        let content = r"
 0	string/w	TEST		Header
 >0	if		byte	1	if branch
 >>4	string/f	hello		word boundary
@@ -2813,7 +2813,7 @@ mod tests {
 >0	else		else branch
 >>4	string/b	raw		binary only
 >0	clear		x
-"#;
+";
         let rules = parse_magic_content(content);
         assert_eq!(rules.len(), 1);
         let root = &rules[0];

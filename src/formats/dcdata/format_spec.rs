@@ -99,16 +99,16 @@ mod tests {
         // Confirm the parser flexibly supports other valid syntaxes
         let long_dc_string =
             "298 302 298 303 298 302 f15 f542 299 f0 299 f0 299";
-        let decoded = decode_dc_stream_string(&long_dc_string).unwrap();
+        let decoded = decode_dc_stream_string(long_dc_string).unwrap();
         assert_eq!(decoded, expr);
         let manually_written_dc_string = "302 303 302 f15 f542 299 f0 299 f0";
         let decoded =
-            decode_dc_stream_string(&manually_written_dc_string).unwrap();
+            decode_dc_stream_string(manually_written_dc_string).unwrap();
         assert_eq!(decoded, expr);
         // Doesn't actually need terminators for transmutation/conversion as they only take two parameters... only & or | would need them
         let manually_written_dc_string = "302 303 302 f15 f542 f0 f0";
         let decoded =
-            decode_dc_stream_string(&manually_written_dc_string).unwrap();
+            decode_dc_stream_string(manually_written_dc_string).unwrap();
         assert_eq!(decoded, expr);
     }
 
@@ -189,26 +189,26 @@ mod tests {
     #[crate::ctb_test]
     fn test_strict_disambiguation_rules() {
         // Mixing & and | without parentheses is rejected
-        assert!(parse_format_expr("f10 & f20 | f30").is_err());
-        assert!(parse_format_expr("(f10 & f20) | f30").is_ok());
-        assert!(parse_format_expr("f10 & (f20 | f30)").is_ok());
+        parse_format_expr("f10 & f20 | f30").unwrap_err();
+        parse_format_expr("(f10 & f20) | f30").unwrap();
+        parse_format_expr("f10 & (f20 | f30)").unwrap();
 
         // Mixing & or | with > or ! or : without parentheses is rejected
-        assert!(parse_format_expr("f10 & f20 > f30").is_err());
-        assert!(parse_format_expr("f10 > f20 & f30").is_err());
-        assert!(parse_format_expr("f10 & (f20 > f30)").is_ok());
-        assert!(parse_format_expr("(f10 > f20) & f30").is_ok());
+        parse_format_expr("f10 & f20 > f30").unwrap_err();
+        parse_format_expr("f10 > f20 & f30").unwrap_err();
+        parse_format_expr("f10 & (f20 > f30)").unwrap();
+        parse_format_expr("(f10 > f20) & f30").unwrap();
 
         // Homogeneous chaining of & and | is permitted
-        assert!(parse_format_expr("f10 & f20 & f30").is_ok());
-        assert!(parse_format_expr("f10 | f20 | f30").is_ok());
+        parse_format_expr("f10 & f20 & f30").unwrap();
+        parse_format_expr("f10 | f20 | f30").unwrap();
     }
 
     #[crate::ctb_test]
     fn test_validator_registered_named_types_and_shorthands() {
         // Valid registered named type
         let valid_named = parse_format_expr("f0 > string").unwrap();
-        assert!(validate_format_expr(&valid_named).is_ok());
+        validate_format_expr(&valid_named).unwrap();
 
         // Unregistered identifier / nickname is rejected
         let invalid_nick = parse_format_expr("f0 > utf8").unwrap();
@@ -216,7 +216,7 @@ mod tests {
 
         // Valid transformation target
         let valid_trans = parse_format_expr("f10 : f323").unwrap();
-        assert!(validate_format_expr(&valid_trans).is_ok());
+        validate_format_expr(&valid_trans).unwrap();
 
         // Invalid transformation target (f0 is UTF-8 encoding, not a registered transformation)
         let invalid_trans = parse_format_expr("f10 : f0").unwrap();
@@ -320,10 +320,10 @@ mod tests {
     fn test_parametric_application_validation() {
         // Valid application
         let valid = parse_format_expr("f350(radix=16)").unwrap();
-        assert!(validate_format_expr(&valid).is_ok());
+        validate_format_expr(&valid).unwrap();
 
         let valid_base_ref = parse_format_expr("f350(radix=f354)").unwrap();
-        assert!(validate_format_expr(&valid_base_ref).is_ok());
+        validate_format_expr(&valid_base_ref).unwrap();
 
         // Radix <= 0 rejected
         let invalid_radix = parse_format_expr("f350(radix=0)").unwrap();

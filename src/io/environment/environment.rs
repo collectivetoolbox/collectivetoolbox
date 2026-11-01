@@ -1699,7 +1699,7 @@ mod tests {
             let error = EnvDescription::from_json(json)
                 .expect_err("unknown JSON fields must be rejected");
             assert!(error.to_string().contains("unknown field"));
-            assert!(serde_json::from_str::<EnvDescription>(json).is_err());
+            serde_json::from_str::<EnvDescription>(json).unwrap_err();
         }
         Ok(())
     }
@@ -2005,9 +2005,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_unmocked_remote_discovery_fails_in_tests() {
-        assert!(public_ipv4().is_err());
-        assert!(public_ipv6().is_err());
-        assert!(server_system_time_offset_nanos().is_err());
+        public_ipv4().unwrap_err();
+        public_ipv6().unwrap_err();
+        server_system_time_offset_nanos().unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -2141,7 +2141,7 @@ mod tests {
             ctb_version: "0.1.49".to_string(),
             cwd: Some(PathBuf::from("/workspace")),
             local_ips: vec![
-                IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+                IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
                 IpAddr::V6(std::net::Ipv6Addr::LOCALHOST),
             ],
             public_ips: vec![

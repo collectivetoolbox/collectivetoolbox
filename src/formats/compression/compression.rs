@@ -840,7 +840,7 @@ mod tests {
 
         for (case_name, data) in test_cases {
             if data.is_empty() && format == FormatId::Compact {
-                assert!(compress(data, comp_fmt).is_err());
+                compress(data, comp_fmt).unwrap_err();
                 continue;
             }
             let compressed = match compress(data, comp_fmt) {

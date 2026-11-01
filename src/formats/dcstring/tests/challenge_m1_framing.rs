@@ -393,8 +393,7 @@ fn test_challenge_empty_containers_all_types() -> Result<()> {
         let inner = stub.inner_span.context("expected inner span")?;
         ensure!(
             inner.start == inner.end,
-            "{name}: inner span length must be 0, got {:?}",
-            inner
+            "{name}: inner span length must be 0, got {inner:?}"
         );
 
         // Enter empty frame
@@ -482,16 +481,14 @@ fn test_challenge_dangling_closers_rejected() -> Result<()> {
         let doc = create_mstring(&[closer]);
         ensure!(
             validate_dc_mixed_strict(&doc).is_err(),
-            "Dangling closer {:?} must be rejected by strict validation",
-            closer
+            "Dangling closer {closer:?} must be rejected by strict validation"
         );
 
         let policy = DcProjectionPolicy::strict();
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         ensure!(
             nav.next_sibling_stub(&policy).is_err(),
-            "Dangling closer {:?} must cause error in strict navigator",
-            closer
+            "Dangling closer {closer:?} must cause error in strict navigator"
         );
     }
 
@@ -737,7 +734,7 @@ fn test_challenge_named_types_with_format_rules() -> Result<()> {
     )?;
     let mut nav_fn = DcDocumentNavigator::from_mstr(&doc_fn);
     let mut ctx_fn = SyntaxEvalContext::new(&**resolver, None);
-    let matched_fn = nav_fn.eval_pattern(&filename_pat, &mut ctx_fn)?;
+    let matched_fn = nav_fn.eval_pattern(filename_pat, &mut ctx_fn)?;
     ensure!(matched_fn, "filename rule must match 511 [f228: ...] 512");
     ensure!(!ctx_fn.has_errors, "no errors in eval");
     ensure!(
@@ -756,7 +753,7 @@ fn test_challenge_named_types_with_format_rules() -> Result<()> {
     let mut nav_fn_trunc = DcDocumentNavigator::from_mstr(&doc_fn_truncated);
     let mut ctx_fn_trunc = SyntaxEvalContext::new(&**resolver, None);
     let matched_fn_trunc =
-        nav_fn_trunc.eval_pattern(&filename_pat, &mut ctx_fn_trunc)?;
+        nav_fn_trunc.eval_pattern(filename_pat, &mut ctx_fn_trunc)?;
     ensure!(
         !matched_fn_trunc,
         "filename rule must FAIL when 512 is missing"
@@ -769,7 +766,7 @@ fn test_challenge_named_types_with_format_rules() -> Result<()> {
     let mut nav_fn_seq = DcDocumentNavigator::from_mstr(&doc_fn_seq);
     let mut ctx_fn_seq = SyntaxEvalContext::new(&**resolver, None);
     let matched_fn_seq =
-        nav_fn_seq.eval_pattern(&filename_pat, &mut ctx_fn_seq)?;
+        nav_fn_seq.eval_pattern(filename_pat, &mut ctx_fn_seq)?;
     ensure!(matched_fn_seq, "filename rule matches prefix");
     ensure!(
         nav_fn_seq.position() == u64::try_from(doc_fn.as_bytes().len())?,
@@ -789,7 +786,7 @@ fn test_challenge_named_types_with_format_rules() -> Result<()> {
     ]);
     let mut nav_ip = DcDocumentNavigator::from_mstr(&doc_ip);
     let mut ctx_ip = SyntaxEvalContext::new(&**resolver, None);
-    let matched_ip = nav_ip.eval_pattern(&ipaddr_pat, &mut ctx_ip)?;
+    let matched_ip = nav_ip.eval_pattern(ipaddr_pat, &mut ctx_ip)?;
     ensure!(
         matched_ip,
         "ipaddr rule must match 511 [f490: 6 [f199:] 7] 512"
@@ -1037,14 +1034,12 @@ mod challenger_framing_and_operators {
         )?;
         let elapsed_bare = t_bare.elapsed();
         println!(
-            "validate_dc_mixed_strict (bare 1 MiB binary): {:?}",
-            elapsed_bare
+            "validate_dc_mixed_strict (bare 1 MiB binary): {elapsed_bare:?}"
         );
 
         ensure!(
             elapsed_bare < std::time::Duration::from_millis(50),
-            "validate_dc_mixed_strict on bare 1 MiB raw binary took too long ({:?})",
-            elapsed_bare
+            "validate_dc_mixed_strict on bare 1 MiB raw binary took too long ({elapsed_bare:?})"
         );
 
         // 2. Binary in list
@@ -1065,14 +1060,12 @@ mod challenger_framing_and_operators {
         let t_validate = t1.elapsed();
 
         println!(
-            "push_binary: {:?}, validate_dc_mixed_strict (in list): {:?}",
-            t_push, t_validate
+            "push_binary: {t_push:?}, validate_dc_mixed_strict (in list): {t_validate:?}"
         );
 
         ensure!(
             t_validate < std::time::Duration::from_millis(50),
-            "validate_dc_mixed_strict on 1 MiB raw binary took too long ({:?})",
-            t_validate
+            "validate_dc_mixed_strict on 1 MiB raw binary took too long ({t_validate:?})"
         );
 
         // 2. Verify with binary with metadata (e.g. SHA-256)
@@ -1089,13 +1082,11 @@ mod challenger_framing_and_operators {
         let t_validate_meta = t2.elapsed();
 
         println!(
-            "validate_dc_mixed_strict with metadata: {:?}",
-            t_validate_meta
+            "validate_dc_mixed_strict with metadata: {t_validate_meta:?}"
         );
         ensure!(
             t_validate_meta < std::time::Duration::from_millis(50),
-            "validate_dc_mixed_strict with metadata took too long ({:?})",
-            t_validate_meta
+            "validate_dc_mixed_strict with metadata took too long ({t_validate_meta:?})"
         );
         Ok(())
     }

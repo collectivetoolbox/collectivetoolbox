@@ -1970,7 +1970,7 @@ mod tests {
         assert!(infallible.is_inaccessible());
         assert!(infallible.is_error());
         assert!(!infallible.is_ok());
-        assert!(infallible.check_ok().is_err());
+        infallible.check_ok().unwrap_err();
         assert_eq!(infallible.kind.entity_type(), FileEntityType::Inaccessible);
     }
 

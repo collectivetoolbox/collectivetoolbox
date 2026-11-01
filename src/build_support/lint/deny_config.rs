@@ -147,10 +147,10 @@ mod tests {
 
     #[test]
     fn test_empty_ignore_passes() {
-        let toml_content = r#"
+        let toml_content = r"
 [advisories]
 ignore = []
-"#;
+";
         let table: Table = toml_content.parse().unwrap();
         let violations = check_deny_table(&table, Path::new("deny.toml"));
         assert!(violations.is_empty());
@@ -158,10 +158,10 @@ ignore = []
 
     #[test]
     fn test_missing_ignore_or_advisories_passes() {
-        let toml_content = r#"
+        let toml_content = r"
 [graph]
 all-features = false
-"#;
+";
         let table: Table = toml_content.parse().unwrap();
         let violations = check_deny_table(&table, Path::new("deny.toml"));
         assert!(violations.is_empty());
@@ -209,8 +209,7 @@ ignore = "RUSTSEC-2026-0001"
         let violations = check_deny_toml(root).unwrap();
         assert!(
             violations.is_empty(),
-            "repository deny.toml has violations: {:?}",
-            violations
+            "repository deny.toml has violations: {violations:?}"
         );
     }
 }

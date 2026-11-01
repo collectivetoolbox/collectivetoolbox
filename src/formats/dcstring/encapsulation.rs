@@ -848,7 +848,7 @@ mod tests {
         }
         text.push(DC_END_ENCAPSULATION_BINARY);
         assert!(parse_metadata(&checksum).is_err());
-        assert!(parse_text(&text).is_err());
+        parse_text(&text).unwrap_err();
         for action in [
             crate::DiagnosticAction::Warn,
             crate::DiagnosticAction::Log,
@@ -920,16 +920,13 @@ mod tests {
             bad_length.push(ch);
         }
         bad_length.push(DC_END_ENCAPSULATION_BINARY);
-        assert!(parse_text(&bad_length).is_err());
+        parse_text(&bad_length).unwrap_err();
         let mut arena = crate::DcSyntaxArena::new();
-        assert!(
-            crate::DcDocumentNavigator::parse_arena(
+        crate::DcDocumentNavigator::parse_arena(
                 bad_length.as_bytes(),
                 &mut arena,
                 &crate::DcProjectionPolicy::strict()
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         let unsupported = checksum_text(
             FormatId::Md5.dc_char().context("Missing MD5 type")?,
             &[0u8; 16],
@@ -1077,23 +1074,23 @@ mod tests {
     fn encapsulation_nesting_budget_is_caller_configurable() -> Result<()> {
         let default_budget = crate::DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH;
         let (at_default, _) = nesting_budget_chain(default_budget)?;
-        assert!(parse_text(&at_default).is_ok());
+        parse_text(&at_default).unwrap();
         let (over_default, _) =
             nesting_budget_chain(default_budget.saturating_add(1))?;
-        assert!(parse_text(&over_default).is_err());
+        parse_text(&over_default).unwrap_err();
         let raised = crate::DcProjectionPolicy::strict()
             .with_max_encapsulation_metadata_depth(
                 default_budget.saturating_add(1),
             );
-        assert!(parse_text_with_policy(&over_default, &raised).is_ok());
+        parse_text_with_policy(&over_default, &raised).unwrap();
         let (over_raised, _) =
             nesting_budget_chain(default_budget.saturating_add(2))?;
-        assert!(parse_text_with_policy(&over_raised, &raised).is_err());
+        parse_text_with_policy(&over_raised, &raised).unwrap_err();
         let mut metadata = DcString::new();
         metadata.push(ctb_utilities::format_id::DC_SHA256);
         metadata.push_dc_str(&over_default);
         assert!(parse_metadata(&metadata).is_err());
-        assert!(parse_metadata_with_policy(&metadata, &raised).is_ok());
+        parse_metadata_with_policy(&metadata, &raised).unwrap();
         Ok(())
     }
 
@@ -1154,8 +1151,8 @@ mod tests {
 
         let tight = crate::DcProjectionPolicy::strict()
             .with_max_encapsulation_payload_bytes(8);
-        assert!(parse_text_with_policy(&text, &tight).is_err());
-        assert!(DcMstring::from_dc_str_with_policy(&text, &tight).is_err());
+        parse_text_with_policy(&text, &tight).unwrap_err();
+        DcMstring::from_dc_str_with_policy(&text, &tight).unwrap_err();
 
         let sufficient = crate::DcProjectionPolicy::strict()
             .with_max_encapsulation_payload_bytes(16);
@@ -1172,7 +1169,7 @@ mod tests {
             legacy.push(DcChar::from_short(short));
         }
         legacy.push(DC_END_ENCAPSULATION_BINARY);
-        assert!(parse_text_with_policy(&legacy, &tight).is_err());
+        parse_text_with_policy(&legacy, &tight).unwrap_err();
         assert_eq!(parse_text_with_policy(&legacy, &sufficient)?.1, payload);
 
         // Policy-configurable utilities (push_binary_with_metadata_and_policy, write_text_with_policy,
@@ -1193,9 +1190,9 @@ mod tests {
             &md5_checksum,
             &forgiving,
         )?;
-        assert!(mixed.to_dc_string().is_err());
+        mixed.to_dc_string().unwrap_err();
         let text_md5 = mixed.to_dc_string_with_policy(&forgiving)?;
-        assert!(DcMstring::from_dc_str(&text_md5).is_err());
+        DcMstring::from_dc_str(&text_md5).unwrap_err();
         let roundtripped =
             DcMstring::from_dc_str_with_policy(&text_md5, &forgiving)?;
         assert_eq!(roundtripped.as_bytes(), mixed.as_bytes());

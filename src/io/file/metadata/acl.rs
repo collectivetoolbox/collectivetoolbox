@@ -1525,7 +1525,7 @@ mod tests {
                 false,
                 false,
             );
-            assert!(res_lax.is_ok());
+            res_lax.unwrap();
         }
     }
 }

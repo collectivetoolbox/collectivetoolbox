@@ -3982,10 +3982,10 @@ mod tests {
         assert_eq!(source, original);
         source.push_str("unknown suffix");
         let original = source.clone();
-        assert!(source.decode::<u64>(&strict).is_err());
+        source.decode::<u64>(&strict).unwrap_err();
         assert_eq!(source, original);
         source.push_binary(b"suffix");
-        assert!(source.decode::<u64>(&strict).is_err());
+        source.decode::<u64>(&strict).unwrap_err();
         Ok(())
     }
     use super::*;
@@ -4039,9 +4039,9 @@ mod tests {
             assert_eq!(view.source_bytes(), source.as_bytes());
             if unknown {
                 assert_eq!(view.fields()[1].field(), "path");
-                assert!(view.replace_field("path", &updated).is_ok());
+                view.replace_field("path", &updated).unwrap();
             } else {
-                assert!(view.replace_field("path", &updated).is_err());
+                view.replace_field("path", &updated).unwrap_err();
             }
             let revised = view.replace_field("inode", &updated)?;
             let replacement_end = revised
@@ -4092,7 +4092,7 @@ mod tests {
         let view = source.inspect::<SampleFileRecord>();
         assert_eq!(view.value(), Some(&original));
         assert!(view.diagnostic().is_some());
-        assert!(source.decode::<SampleFileRecord>(&strict).is_err());
+        source.decode::<SampleFileRecord>(&strict).unwrap_err();
         let revised = view.replace_field("inode", &updated)?;
         assert_eq!(revised.chunks().last(), source.chunks().last());
         Ok(())
@@ -4146,7 +4146,7 @@ mod tests {
         );
         let mut encapsulated = DcMstring::new();
         encapsulated.push_binary(b"payload");
-        assert!(encapsulated.replace_source_field(22..23, &source).is_err());
+        encapsulated.replace_source_field(22..23, &source).unwrap_err();
         Ok(())
     }
 
@@ -4177,8 +4177,8 @@ mod tests {
                 .iter()
                 .any(|field| field.field() == "inode" && field.depth() == 2)
         );
-        assert!(view.replace_field("inode", &updated).is_err());
-        assert!(view.replace_field("numbers", &updated).is_err());
+        view.replace_field("inode", &updated).unwrap_err();
+        view.replace_field("numbers", &updated).unwrap_err();
         let inode = view
             .fields()
             .iter()
@@ -4189,13 +4189,10 @@ mod tests {
             revised.decode::<SourceNestedRecord>(&strict)?.inner,
             updated.inner
         );
-        assert!(view.replace_annotation(inode, &updated).is_err());
+        view.replace_annotation(inode, &updated).unwrap_err();
         let other_view = source.inspect::<SourceNestedRecord>();
-        assert!(
-            other_view
-                .replace_annotation(inode, &updated.inner)
-                .is_err()
-        );
+        other_view
+                .replace_annotation(inode, &updated.inner).unwrap_err();
         let number = view
             .fields()
             .iter()
@@ -4214,12 +4211,9 @@ mod tests {
         duplicate.push_char(DcChar::from_short(317));
         original.inner.encode_dc_field("inode", &mut duplicate)?;
         updated.inner.encode_dc_field("inode", &mut duplicate)?;
-        assert!(
-            duplicate
+        duplicate
                 .inspect::<SampleFileRecord>()
-                .replace_field("inode", &updated.inner)
-                .is_err()
-        );
+                .replace_field("inode", &updated.inner).unwrap_err();
         Ok(())
     }
 
@@ -4405,7 +4399,7 @@ mod tests {
                     encoding.encode_entry_end(&mut encoded);
                 }
                 encoding.encode_end(&mut encoded);
-                assert!(encoded.decode::<SampleKeyedRecord>(&strict).is_err());
+                encoded.decode::<SampleKeyedRecord>(&strict).unwrap_err();
             }
             let mut duplicate = DcMstring::new();
             encoding.encode_header(&mut duplicate);
@@ -4417,9 +4411,7 @@ mod tests {
                 encoding.encode_entry_end(&mut duplicate);
             }
             encoding.encode_end(&mut duplicate);
-            assert!(
-                duplicate.decode::<BTreeMap<String, u64>>(&strict).is_err()
-            );
+            duplicate.decode::<BTreeMap<String, u64>>(&strict).unwrap_err();
         }
         for separators in [false, true] {
             let mut encoded = DcMstring::new();
@@ -4431,15 +4423,15 @@ mod tests {
                 encoded.push_char(DcChar::from_short(312));
             }
             1u64.encode_dc_mixed(&mut encoded)?;
-            assert!(encoded.decode::<BTreeMap<String, u64>>(&strict).is_err());
+            encoded.decode::<BTreeMap<String, u64>>(&strict).unwrap_err();
         }
         let mut legacy = DcMstring::new();
         legacy.push_char(DC_BEGIN_KV_MAP);
         "count".encode_dc_mixed(&mut legacy)?;
         1u64.encode_dc_mixed(&mut legacy)?;
         legacy.push_char(DC_END_KV_MAP);
-        assert!(legacy.decode::<SampleKeyedRecord>(&strict).is_err());
-        assert!(legacy.decode::<BTreeMap<String, u64>>(&strict).is_err());
+        legacy.decode::<SampleKeyedRecord>(&strict).unwrap_err();
+        legacy.decode::<BTreeMap<String, u64>>(&strict).unwrap_err();
         Ok(())
     }
 
@@ -4553,7 +4545,7 @@ mod tests {
                 invalid.push_char(DcChar::from_short(dc));
             }
             crate::DcKvMapEncoding::Pairs.encode_end(&mut invalid);
-            assert!(invalid.decode::<BTreeMap<bool, bool>>(&strict).is_err());
+            invalid.decode::<BTreeMap<bool, bool>>(&strict).unwrap_err();
             assert!(crate::validate_dc_mixed_strict(&invalid).is_err());
         }
         Ok(())
@@ -4622,7 +4614,7 @@ mod tests {
         let mut arena = crate::DcSyntaxArena::new();
         let node_id = nav.parse_node_into_arena(&mut arena, &strict)?;
         let mut ctx = crate::DcProjectionContext::new(&arena, &strict);
-        assert!(decode_filename_bytes(&mut ctx, node_id).is_err());
+        decode_filename_bytes(&mut ctx, node_id).unwrap_err();
         Ok(())
     }
 
@@ -4781,11 +4773,11 @@ mod tests {
         // Ensure IPv4 and IPv6 representations cannot be confused or cross-decoded:
         let mut v4_mst = DcMstring::new();
         v4.encode_dc_mixed(&mut v4_mst)?;
-        assert!(v4_mst.decode::<std::net::Ipv6Addr>(&strict).is_err());
+        v4_mst.decode::<std::net::Ipv6Addr>(&strict).unwrap_err();
 
         let mut v6_mst = DcMstring::new();
         v6.encode_dc_mixed(&mut v6_mst)?;
-        assert!(v6_mst.decode::<std::net::Ipv4Addr>(&strict).is_err());
+        v6_mst.decode::<std::net::Ipv4Addr>(&strict).unwrap_err();
 
         let decoded_v4_ip = v4_mst.decode::<std::net::IpAddr>(&strict)?;
         assert_eq!(decoded_v4_ip, ip_v4);
@@ -5388,7 +5380,7 @@ mod tests {
         mismatch.push_char(DcChar::from_short(275));
         10u32.encode_dc_mixed(&mut mismatch)?;
         mismatch.push_char(DC_END_LIST);
-        assert!(mismatch.decode::<Vec<u32>>(&strict).is_err());
+        mismatch.decode::<Vec<u32>>(&strict).unwrap_err();
         assert_eq!(mismatch.decode::<Vec<u32>>(&forgiving)?, vec![10]);
         Ok(())
     }
@@ -5426,7 +5418,7 @@ mod tests {
         original.encode_dc_field("optional_size", &mut with_unknown)?;
         with_unknown.push_char(DcChar::from_short(318));
 
-        assert!(with_unknown.decode::<SampleFileRecord>(&strict).is_err());
+        with_unknown.decode::<SampleFileRecord>(&strict).unwrap_err();
         assert_eq!(
             with_unknown.decode::<SampleFileRecord>(&forgiving)?,
             original
@@ -5440,7 +5432,7 @@ mod tests {
         original.encode_dc_field("path", &mut malformed)?;
         malformed.push_char(DcChar::from_short(318));
 
-        assert!(malformed.decode::<SampleFileRecord>(&strict).is_err());
+        malformed.decode::<SampleFileRecord>(&strict).unwrap_err();
         let recovered = malformed.decode::<SampleFileRecord>(&forgiving)?;
         assert_eq!(recovered.inode, 0);
         assert_eq!(recovered.path, std::path::Path::new("path"));

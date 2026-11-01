@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Empirical Challenge Test Suite for Milestone 3 (AppleSingle/AppleDouble):
 //! 1. Stress-test `read_apple_single_double` with truncated, corrupt headers,
 //!    overflowing entry descriptors, out-of-bound slices, and corrupt xattrs.
-//! 2. Stress-test `FinderInfo` and `ExtendedFinderInfo` DcMixed projection under
+//! 2. Stress-test `FinderInfo` and `ExtendedFinderInfo` `DcMixed` projection under
 //!    strict and forgiving policies with malformed Dc structures, missing fields,
 //!    untyped equivalent lists, and invalid label indices.
 //! 3. Generative fuzzing harness to ensure error propagation and zero panics.

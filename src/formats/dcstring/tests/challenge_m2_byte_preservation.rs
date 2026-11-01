@@ -18,7 +18,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Empirical Challenge Test Suite for Milestone 2:
-//! 1. Verify `source_edit.rs` byte preservation on multi-field DcMixed documents.
+//! 1. Verify `source_edit.rs` byte preservation on multi-field `DcMixed` documents.
 //! 2. Untouched fields retain byte-exact original source representation.
 //! 3. Whitespace, formatting, and trailing content outside records are preserved.
 //! 4. Sequential edits, varied field lengths, Unicode, and nested structures.
@@ -121,15 +121,15 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes()
 
     // 1. Prefix before `name` is 100% byte-exact:
     ensure!(
-        &revised_clean.as_bytes()[..rev_name_range.start]
-            == &orig_clean_bytes[..name_range.start],
+        revised_clean.as_bytes()[..rev_name_range.start]
+            == orig_clean_bytes[..name_range.start],
         "Untouched prefix before updated field was altered!"
     );
 
     // 2. Suffix after `name` is 100% byte-exact:
     ensure!(
-        &revised_clean.as_bytes()[rev_name_range.end..]
-            == &orig_clean_bytes[name_range.end..],
+        revised_clean.as_bytes()[rev_name_range.end..]
+            == orig_clean_bytes[name_range.end..],
         "Untouched suffix after updated field was altered!"
     );
 
@@ -547,16 +547,16 @@ fn test_challenge_complex_record_with_collections_and_maps() -> Result<()> {
 
     // 1. All bytes before `title` are 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[..rev_title_range.start]
-            == &orig_bytes[..title_range.start],
+        revised.as_bytes()[..rev_title_range.start]
+            == orig_bytes[..title_range.start],
         "Bytes before title diverged!"
     );
 
     // 2. All bytes after `title` (which includes `counters`, `flags`, and closer)
     // are 100% byte-exact!
     ensure!(
-        &revised.as_bytes()[rev_title_range.end..]
-            == &orig_bytes[title_range.end..],
+        revised.as_bytes()[rev_title_range.end..]
+            == orig_bytes[title_range.end..],
         "Bytes after title diverged!"
     );
 
@@ -661,15 +661,15 @@ fn test_challenge_keyed_map_preserves_legacy_delimiters_and_untouched_entries()
 
     // 1. Untouched entry `title` before `count` is 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[..rev_count_annot.range().start]
-            == &orig_bytes[..count_annot.range().start],
+        revised.as_bytes()[..rev_count_annot.range().start]
+            == orig_bytes[..count_annot.range().start],
         "Prefix before count in keyed map diverged!"
     );
 
     // 2. Untouched entry `active` after `count` is 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[rev_count_annot.range().end..]
-            == &orig_bytes[count_annot.range().end..],
+        revised.as_bytes()[rev_count_annot.range().end..]
+            == orig_bytes[count_annot.range().end..],
         "Suffix after count in keyed map diverged!"
     );
 

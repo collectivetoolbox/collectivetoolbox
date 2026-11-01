@@ -1079,8 +1079,7 @@ mod tests {
 
         // Strict CtbNodeIncoming rejects missing # @provenance header, while permissive mode recovers tokens
         let missing_prov = b"# @comment: Missing provenance\nu41 296 f80\n";
-        assert!(
-            convert_bytes_to_dcmstring(
+        convert_bytes_to_dcmstring(
                 missing_prov,
                 Some("bad.ctbnode-incoming"),
                 &DcConversionOptions {
@@ -1090,9 +1089,7 @@ mod tests {
                     permissive: false,
                     ..Default::default()
                 },
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         let perm_incoming = convert_bytes_to_dcmstring(
             missing_prov,
             Some("bad.ctbnode-incoming"),

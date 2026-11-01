@@ -169,7 +169,7 @@ mod tests {
 
         let non_short = DcChar::from_long(42);
         assert!(!non_short.is_short_dc());
-        assert!(non_short.to_short().is_err());
+        non_short.to_short().unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -181,7 +181,7 @@ mod tests {
 
         let non_fmt = DcChar::from_short(10);
         assert!(!non_fmt.is_format());
-        assert!(non_fmt.to_format().is_err());
+        non_fmt.to_format().unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(uni_a.as_char(), Some('A'));
         assert_eq!(uni_a, 'A');
 
-        assert!(DcChar::from_unicode(0x11_0000).is_err());
+        DcChar::from_unicode(0x11_0000).unwrap_err();
     }
 
     #[crate::ctb_test]

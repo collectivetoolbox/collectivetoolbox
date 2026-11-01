@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    non-binary nodes.
 //! 3. `NativeMetadata`: pairs vs legacy key-value maps, duplicate keys, missing
 //!    fields under strict vs forgiving policies.
-//! 4. `AppleMetadata`: container framing, unknown fields, FinderInfo, real name,
+//! 4. `AppleMetadata`: container framing, unknown fields, `FinderInfo`, real name,
 //!    comment, backup timestamp.
 
 #[expect(
@@ -818,7 +818,7 @@ fn test_challenge_partially_equivalent_561_separation() -> Result<()> {
 // 2. STANDALONE FILETIMESTAMPS ROUNDTRIP EMPIRICAL CHALLENGES
 // ============================================================================
 
-/// Tests standalone FileTimestamps across varied epoch boundary and nanosecond
+/// Tests standalone `FileTimestamps` across varied epoch boundary and nanosecond
 /// configurations using direct `assert_dc_roundtrip(&ts)`.
 
 #[crate::ctb_test]
@@ -994,7 +994,7 @@ fn test_challenge_standalone_file_timestamps_varied_configurations()
     Ok(())
 }
 
-/// Tests that standalone FileTimestamps reject invalid timestamps and malformed input.
+/// Tests that standalone `FileTimestamps` reject invalid timestamps and malformed input.
 
 #[crate::ctb_test]
 fn test_challenge_standalone_file_timestamps_rejections() -> Result<()> {
@@ -1079,7 +1079,7 @@ fn test_platform_raw_flags_valid_payloads_and_endianness() -> Result<()> {
         "8-byte PlatformRawFlags raw_value mismatch under forgiving policy"
     );
     ensure!(
-        dec_strict64.as_ref() == &val64.to_le_bytes(),
+        dec_strict64.as_ref() == val64.to_le_bytes(),
         "8-byte PlatformRawFlags as_ref bytes must match little-endian bytes"
     );
 

@@ -4355,7 +4355,7 @@ mod tests {
         // 2. Verify live SeedGraphIndex only uses `.Formats:format_variant` Dcs as targets of Dc 632,
         // and Dc 9 ("Gregorian calendar identifier") is recognized as a format in `.Formats:calendar`.
         let shared = crate::seed_graph::SeedGraphIndex::shared()?;
-        for (&(_, prop, val_tok), _) in shared.active_multi_props() {
+        for &(_, prop, val_tok) in shared.active_multi_props().keys() {
             if prop == sh(DC_FORMAT_VARIATION_ASPECT) {
                 assert!(
                     matches!(val_tok, DcShorthand::Format(_)),

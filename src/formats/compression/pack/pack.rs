@@ -530,47 +530,6 @@ pub fn compress_pack_stream(
     Ok(u64::try_from(orig_size)?)
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn package_merge_limits_pack_tree_to_24_levels() -> Result<()> {
-        let mut input = Vec::new();
-        let mut previous = 1usize;
-        let mut current = 1usize;
-        for symbol in 0u8..26 {
-            input.extend(std::iter::repeat_n(symbol, previous));
-            let next = previous.saturating_add(current);
-            previous = current;
-            current = next;
-        }
-
-        let mut packed = Vec::new();
-        compress_pack_stream(&mut input.as_slice(), &mut packed)?;
-        let max_depth = packed
-            .get(6)
-            .copied()
-            .context("Packed stream is missing its maximum depth")?;
-        assert!((1..=24).contains(&max_depth));
-
-        let mut unpacked = Vec::new();
-        decompress_pack_stream(&mut packed.as_slice(), &mut unpacked)?;
-        assert_eq!(unpacked, input);
-        Ok(())
-    }
-}
-
 // -----------------------------------------------------------------------------
 // Early PDP-11 OldPack Decompression (`0x1F 0x1F`)
 // -----------------------------------------------------------------------------
@@ -932,6 +891,47 @@ pub fn compress_old_pack_stream(
     }
 
     Ok(u64::try_from(orig_size)?)
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn package_merge_limits_pack_tree_to_24_levels() -> Result<()> {
+        let mut input = Vec::new();
+        let mut previous = 1usize;
+        let mut current = 1usize;
+        for symbol in 0u8..26 {
+            input.extend(std::iter::repeat_n(symbol, previous));
+            let next = previous.saturating_add(current);
+            previous = current;
+            current = next;
+        }
+
+        let mut packed = Vec::new();
+        compress_pack_stream(&mut input.as_slice(), &mut packed)?;
+        let max_depth = packed
+            .get(6)
+            .copied()
+            .context("Packed stream is missing its maximum depth")?;
+        assert!((1..=24).contains(&max_depth));
+
+        let mut unpacked = Vec::new();
+        decompress_pack_stream(&mut packed.as_slice(), &mut unpacked)?;
+        assert_eq!(unpacked, input);
+        Ok(())
+    }
 }
 
 /*

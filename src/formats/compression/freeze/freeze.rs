@@ -1531,10 +1531,10 @@ mod tests {
         let bad = [0x00, 0x00, 0x41];
         let mut out = Vec::new();
         let res2 = decompress_freeze2_stream(&mut &bad[..], &mut out);
-        assert!(res2.is_err());
+        res2.unwrap_err();
 
         let res1 = decompress_freeze1_stream(&mut &bad[..], &mut out);
-        assert!(res1.is_err());
+        res1.unwrap_err();
     }
 }
 

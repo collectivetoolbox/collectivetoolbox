@@ -1506,7 +1506,7 @@ mod tests {
         assert_eq!(
             reader.read_bits_int_be(65).unwrap_err(),
             KError::ReadBitsTooLarge { requested: 65 }
-        )
+        );
     }
 
     #[crate::ctb_test]

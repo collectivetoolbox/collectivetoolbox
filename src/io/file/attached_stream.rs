@@ -1803,16 +1803,13 @@ mod tests {
             std::fs::create_dir_all(companion.parent().unwrap())?;
             std::fs::write(&companion, b"original")?;
             let before = std::fs::symlink_metadata(&companion)?;
-            assert!(
-                write_apple_double_companion(
+            write_apple_double_companion(
                     &entity,
                     &path,
                     &sandbox,
                     style,
                     ExistingEntryPolicy::Refuse
-                )
-                .is_err()
-            );
+                ).unwrap_err();
             assert_eq!(std::fs::read(&companion)?, b"original");
             assert_eq!(
                 std::fs::metadata(&companion)?.modified()?,
@@ -1893,16 +1890,13 @@ mod tests {
                 comment: Some("replacement".into()),
                 ..Default::default()
             });
-            assert!(
-                write_apple_double_companion(
+            write_apple_double_companion(
                     &entity,
                     &path,
                     &sandbox,
                     AppleDoubleStyle::Alongside,
                     ExistingEntryPolicy::Refuse
-                )
-                .is_err()
-            );
+                ).unwrap_err();
             assert_eq!(std::fs::read_link(&companion)?, target);
             assert_eq!(std::fs::read(&path)?, b"primary");
             if dangling {
@@ -1970,32 +1964,26 @@ mod tests {
                 } else {
                     timestamps.mtime_nsec = 1_000_000_000;
                 }
-                assert!(
-                    write_apple_double_companion(
+                write_apple_double_companion(
                         &invalid,
                         &path,
                         &sandbox,
                         AppleDoubleStyle::Alongside,
                         existing
-                    )
-                    .is_err()
-                );
+                    ).unwrap_err();
                 assert_eq!(std::fs::read(&companion)?, b"original");
                 assert_eq!(std::fs::read(&path)?, b"primary");
                 assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
             }
         }
         entity.identity.relative_path = Some(PathBuf::from("../../file"));
-        assert!(
-            write_apple_double_companion(
+        write_apple_double_companion(
                 &entity,
                 &path,
                 &sandbox,
                 AppleDoubleStyle::Zip,
                 ExistingEntryPolicy::Replace
-            )
-            .is_err()
-        );
+            ).unwrap_err();
         assert_eq!(std::fs::read(&companion)?, b"original");
         assert_eq!(std::fs::read(&path)?, b"primary");
         assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);

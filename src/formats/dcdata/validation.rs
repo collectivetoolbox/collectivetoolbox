@@ -2584,8 +2584,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_validate_support_level() {
         // Blank or whitespace-only is valid (interpreted as 0 0)
-        assert!(validate_support_level("").is_ok());
-        assert!(validate_support_level("   ").is_ok());
+        validate_support_level("").unwrap();
+        validate_support_level("   ").unwrap();
         let empty_lvl = SupportLevel::parse("").unwrap();
         assert_eq!(empty_lvl.general, 0);
         assert_eq!(empty_lvl.dc, 0);

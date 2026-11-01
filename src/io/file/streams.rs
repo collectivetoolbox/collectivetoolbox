@@ -2158,7 +2158,7 @@ mod tests {
             crate::streams::write_streams(&path, None, &entity.streams, false)
                 .is_err()
         );
-        assert!(audit_entity(&path, &entity, &options).is_err());
+        audit_entity(&path, &entity, &options).unwrap_err();
         entity.streams[0].name =
             Some(StreamName::from_windows_utf16(&[0xd800]));
         assert!(

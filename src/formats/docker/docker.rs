@@ -516,7 +516,7 @@ mod tests {
 
         let tar_bytes = builder.into_inner().unwrap();
         let result = validate_docker_archive(Cursor::new(&tar_bytes), false);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[crate::ctb_test]

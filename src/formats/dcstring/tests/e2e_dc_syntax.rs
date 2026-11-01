@@ -540,14 +540,12 @@ mod tier2_boundary_corner_cases {
         ensure!(
             key_node.kind == DcSyntaxKind::Atom(DcChar::from_short(515))
                 && key_node.is_escaped_atom(),
-            "Expected escaped Atom(515) key, got {:?}",
-            key_node
+            "Expected escaped Atom(515) key, got {key_node:?}"
         );
         ensure!(
             val_node.kind == DcSyntaxKind::Atom(DcChar::from_short(312))
                 && val_node.is_escaped_atom(),
-            "Expected escaped Atom(312) value, got {:?}",
-            val_node
+            "Expected escaped Atom(312) value, got {val_node:?}"
         );
 
         // Deprecated 313..314 key-value map warns once under strict() and records 1 diagnostic
@@ -1497,7 +1495,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies DefaultDcExpressionEvaluator evaluates EquivalentRepresentations (397).
+    /// Verifies `DefaultDcExpressionEvaluator` evaluates `EquivalentRepresentations` (397).
     #[crate::ctb_test]
     fn test_default_evaluator_equivalent_representations() -> Result<()> {
         let resolver = default_syntax_resolver();
@@ -1549,7 +1547,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
     }
 
     /// Verifies that a Group pattern wrapping [number:Natural0] properly checks subtype
-    /// constraints on an EquivalentRepresentations set.
+    /// constraints on an `EquivalentRepresentations` set.
     #[crate::ctb_test]
     fn test_group_pattern_wrapping_constrained_number_in_equivalent_set()
     -> Result<()> {
@@ -1912,7 +1910,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies number subtype constraint resolution through SyntaxRuleResolver
+    /// Verifies number subtype constraint resolution through `SyntaxRuleResolver`
     /// with format shorthands and rule references.
     #[crate::ctb_test]
     fn test_number_satisfies_subtype_resolver_driven() -> Result<()> {
@@ -1967,7 +1965,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let policy = DcProjectionPolicy::strict();
 
         let mut mst = DcMstring::new();
-        let expected_ip = Ipv4Addr::new(127, 0, 0, 1);
+        let expected_ip = Ipv4Addr::LOCALHOST;
         expected_ip.encode_dc_mixed(&mut mst)?;
 
         let decoded: Ipv4Addr = mst.decode::<Ipv4Addr>(&policy)?;
@@ -2023,7 +2021,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         }
     }
 
-    /// Verifies threading custom SyntaxRuleResolver and DcExpressionEvaluator into DcProjectionContext.
+    /// Verifies threading custom `SyntaxRuleResolver` and `DcExpressionEvaluator` into `DcProjectionContext`.
     #[crate::ctb_test]
     fn test_projection_context_custom_resolver_and_evaluator_threading()
     -> Result<()> {
@@ -2070,7 +2068,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies unwrap_equivalent_or_self and unwrap_transparent resolving 398 and expression nodes (540, 276, 279).
+    /// Verifies `unwrap_equivalent_or_self` and `unwrap_transparent` resolving 398 and expression nodes (540, 276, 279).
     #[crate::ctb_test]
     fn test_unwrap_equivalent_and_expression_nodes() -> Result<()> {
         let policy = DcProjectionPolicy::strict();

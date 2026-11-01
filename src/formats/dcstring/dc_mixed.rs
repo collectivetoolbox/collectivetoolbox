@@ -4088,7 +4088,7 @@ mod tests {
         assert_eq!(mst.chunks().count(), 0);
 
         // Validation of empty DcMstring succeeds
-        assert!(validate_dcmst(mst.as_bytes()).is_ok());
+        validate_dcmst(mst.as_bytes()).unwrap();
     }
 
     #[crate::ctb_test]
@@ -4121,7 +4121,7 @@ mod tests {
         let payload2 = b"Checksummed binary content!";
         mst.push_binary_with_sha256(payload2).unwrap();
 
-        assert!(validate_dcmst(mst.as_bytes()).is_ok());
+        validate_dcmst(mst.as_bytes()).unwrap();
 
         let chunks: Vec<DcMixed<'_>> = mst.chunks().collect();
         assert_eq!(chunks.len(), 4);
@@ -4208,7 +4208,7 @@ mod tests {
         for dc in [314, 999, 203, 127] {
             text.push(DcChar::from_short(dc));
         }
-        assert!(DcMstring::from_dc_string(&text).is_err());
+        DcMstring::from_dc_string(&text).unwrap_err();
         Ok(())
     }
 
@@ -4737,7 +4737,7 @@ mod tests {
         unsupported_doc.push_char(DC_END_CHECKSUMMED_SECTION);
         unsupported_doc.push_char(DC_SECTION_DIGEST);
         unsupported_doc.push_checksum(DcChar::from_format(217), &[0u8; 16])?;
-        assert!(dcmstring_to_dcmm1(&unsupported_doc).is_err());
+        dcmstring_to_dcmm1(&unsupported_doc).unwrap_err();
 
         // Quoted checksummed section inside a literal frame (260..261) must also have
         // its digest verified and recomputed across DcMixed2 <-> DcMixed1 conversion.
@@ -4783,7 +4783,7 @@ mod tests {
             ctb_utilities::format_id::DC_SHA256,
             &unclosed_digest,
         )?;
-        assert!(dcmstring_to_dcmm1(&unclosed_inner).is_err());
+        dcmstring_to_dcmm1(&unclosed_inner).unwrap_err();
 
         Ok(())
     }
