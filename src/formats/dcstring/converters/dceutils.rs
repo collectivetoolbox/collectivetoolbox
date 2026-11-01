@@ -19,10 +19,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Conversion between `dceutils` formats (`CdceLegacy`, `Dce`, `Dce_3_0a`, `Dce_3_01a`, etc.) and `DcMstring`.
 //!
-//! Unlike EITE formats, `dceutils` formats do not support `Dc 308` (`Next number is a long (global graph) Dc`),
-//! and each format supports only a limited repertoire of short Dcs. Unrepresentable characters are logged as
-//! warnings in [`FormatLog`], while DCE stateful-encoding control characters (`13..=16`, `112..=115`, `194`,
-//! `196..=199`, `205`) are preserved as-is when converting to Dc documents.
+//! Supported short Dc repertoires by DCE format version:
+//! - **DCE 3.0a (`3_0a`, `3_0a_raw`, `hex_3_0a`, `hex_3_0a_raw`)**: short Dcs `0..=115`.
+//! - **DCE 3.01a (`3_01a`, `3_01a_raw`, `hex_3_01a`, `hex_3_01a_raw`)**: short Dcs `0..=199`,
+//!   unlocking Base64 encapsulation (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for data and UTF-8.
+//! - **DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`, `hex_3_02a_raw`) and `dce` / `hex_dce`**:
+//!   short Dcs `0..=202` (plus version selector `Dc 205`) and Base64 encapsulation.
+//!
+//! Unlike EITE formats, `dceutils` formats do not support `Dc 308` (`Next number is a long (global graph) Dc`).
+//! Unrepresentable characters are logged as warnings in [`FormatLog`], while DCE stateful-encoding control
+//! characters (`13..=16`, `112..=115`, `194`, `196..=199`, `205`) are preserved as-is when converting to Dc documents.
 
 #[expect(
     unused_imports,
@@ -116,13 +122,18 @@ pub fn dceutils_to_dcmstring_with_options(
 ) -> Result<(DcMstring, FormatLog)> {
     let mut raw_log = FormatLog::default();
     let short_dcs = match format_code {
-        "legacy_cdce" | "cdce_legacy" => {
-            let dc_csv = ctb_formats_dceutils::cdce::convert_legacy_cdce_to_dc(
-                bytes,
-                false,
-                &mut raw_log,
-            )?;
-            parse_comma_short_dcs(&dc_csv, &mut raw_log)?
+        "cdce" | "legacy_cdce" | "cdce_legacy" => {
+            let (dc_bytes, sub_log) =
+                ctb_formats_dceutils::converter::dce_convert_with_log(
+                    bytes,
+                    format_code,
+                    "dc",
+                )?;
+            raw_log.merge(&sub_log);
+            let dc_csv = String::from_utf8(dc_bytes)
+                .context("Invalid UTF-8 from dceutils dc conversion")?;
+            let parsed = parse_comma_short_dcs(&dc_csv, &mut raw_log)?;
+            strip_outer_unbounded_markers(&parsed)
         }
         "cdce_lstrict" | "cdce_legacy_strict" => {
             let dc_csv = ctb_formats_dceutils::cdce::convert_legacy_cdce_to_dc(
@@ -141,8 +152,11 @@ pub fn dceutils_to_dcmstring_with_options(
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
         | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
-            ctb_formats_dceutils::decode_dce_preserving_controls(
+        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
+        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
+        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
+        | "dce_3_02a_raw_hex" => {
+            ctb_formats_dceutils::converter::decode_dce_preserving_controls(
                 bytes,
                 format_code,
                 &mut raw_log,
@@ -160,7 +174,7 @@ pub fn dceutils_to_dcmstring_with_options(
         | "utf8_dc64_bin_enc"
         | "utf8_dc64_bin_enc_hex" => {
             let (dc_bytes, sub_log) =
-                ctb_formats_dceutils::dce_convert_with_log(
+                ctb_formats_dceutils::converter::dce_convert_with_log(
                     bytes,
                     format_code,
                     "dc",
@@ -178,23 +192,81 @@ pub fn dceutils_to_dcmstring_with_options(
     Ok((doc, log))
 }
 
+fn strip_outer_unbounded_markers(dcs: &[u32]) -> Vec<u32> {
+    if dcs.len() >= 2 && dcs.first() == Some(&114) && dcs.last() == Some(&115) {
+        if let Some(sub) = dcs.get(1..dcs.len().saturating_sub(1)) {
+            return sub.to_vec();
+        }
+    }
+    dcs.to_vec()
+}
+
 /// Converts a `DcMstring` into a list of short Dc IDs suitable for `dceutils` export,
 /// logging warnings in `log` for any binary chunks, long Dcs (`> SHORT_DC_REGION_END`),
-/// or unmappable Unicode characters (since `dceutils` formats do not support `Dc 308`).
+/// or unmappable Unicode characters (when targeting formats that do not support
+/// DCE 3.01a+ Base64 encapsulation).
 fn dcmstring_to_dceutils_short_dcs(
     doc: &DcMstring,
     target_format: &str,
     log: &mut FormatLog,
 ) -> Result<Vec<u32>> {
     crate::validate_dcmst(doc.as_bytes())?;
-    let tables = ctb_formats_dceutils::tables::get_tables();
     let mut short_dcs = Vec::new();
     let mut char_idx = 0_u64;
+    let mut unmapped_utf8_buf = String::new();
+
+    let supports_b64_encap = matches!(
+        target_format,
+        "dce"
+            | "hex_dce"
+            | "dce_hex"
+            | "3_01a"
+            | "dce_3_01a"
+            | "3_01a_raw"
+            | "dce_3_01a_raw"
+            | "hex_3_01a"
+            | "3_01a_hex"
+            | "dce_3_01a_hex"
+            | "hex_3_01a_raw"
+            | "3_01a_raw_hex"
+            | "dce_3_01a_raw_hex"
+            | "3_02a"
+            | "dce_3_02a"
+            | "3_02a_raw"
+            | "dce_3_02a_raw"
+            | "hex_3_02a"
+            | "3_02a_hex"
+            | "dce_3_02a_hex"
+            | "hex_3_02a_raw"
+            | "3_02a_raw_hex"
+            | "dce_3_02a_raw_hex"
+            | "dc"
+            | "dc_id_list"
+            | "cdce"
+            | "utf8_dc64"
+            | "utf8_dc64_enc"
+            | "utf8_dc64_bin"
+            | "utf8_dc64_bin_hex"
+            | "utf8_dc64_bin_enc"
+            | "utf8_dc64_bin_enc_hex"
+    );
+
+    let flush_unmapped = |buf: &mut String, out: &mut Vec<u32>| {
+        if !buf.is_empty() {
+            out.extend(
+                ctb_formats_dceutils::converter::encode_utf8_to_dc64_encapsulated(
+                    buf.as_bytes(),
+                ),
+            );
+            buf.clear();
+        }
+    };
 
     for chunk in doc.chunks() {
         match chunk {
             DcMixedChunk::Binary { data, .. }
             | DcMixedChunk::BinaryWithMetadata { data, .. } => {
+                flush_unmapped(&mut unmapped_utf8_buf, &mut short_dcs);
                 log.export_warning(
                     char_idx,
                     &format!(
@@ -209,56 +281,44 @@ fn dcmstring_to_dceutils_short_dcs(
                     if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END)
                         .contains(&dcid)
                     {
+                        flush_unmapped(&mut unmapped_utf8_buf, &mut short_dcs);
                         let offset = dcid.saturating_sub(SHORT_DC_REGION_START);
                         if let Ok(short_id) = u32::try_from(offset) {
                             short_dcs.push(short_id);
                         }
                     } else if dcid <= 0x10_FFFF {
-                        let hex_key = if dcid == 0 {
-                            "00".to_string()
-                        } else {
-                            format!("{dcid:X}")
-                        };
-                        if let Some(mapped) =
-                            tables.dc_map_unicode_lossy.get(&hex_key)
-                            && !mapped.is_empty()
-                            && let Ok(short_id) = mapped.parse::<u32>()
-                        {
-                            if dcid == 0x2D {
+                        let cp = u32::try_from(dcid)
+                            .context("Unicode codepoint fits in u32")?;
+                        if let Some(short_id) = ctb_formats_dceutils::converter::unicode_codepoint_to_short_dc_lossy(cp) {
+                            flush_unmapped(
+                                &mut unmapped_utf8_buf,
+                                &mut short_dcs,
+                            );
+                            if cp == 0x2D {
                                 log.export_warning(
                                     char_idx,
                                     "U+002D (HYPHEN-MINUS) mapped lossily to short Dc 31 (U+2010 HYPHEN).",
                                 );
                             }
                             short_dcs.push(short_id);
+                        } else if supports_b64_encap
+                            && let Some(ch) = char::from_u32(cp)
+                        {
+                            unmapped_utf8_buf.push(ch);
                         } else {
-                            let fallback_short = match dcid {
-                                0x08 => Some(116_u32),
-                                0x09 => Some(117_u32),
-                                0x0A => Some(120_u32),
-                                0x0B => Some(118_u32),
-                                0x0C => Some(193_u32),
-                                0x0D => Some(121_u32),
-                                0x85 => Some(119_u32),
-                                0xFE00 => Some(122_u32),
-                                0xFE01 => Some(123_u32),
-                                0xFE02 => Some(124_u32),
-                                0xFE03 => Some(125_u32),
-                                0xFE04 => Some(126_u32),
-                                _ => None,
-                            };
-                            if let Some(short_id) = fallback_short {
-                                short_dcs.push(short_id);
-                            } else {
-                                log.export_warning(
-                                    char_idx,
-                                    &format!(
-                                        "Unicode character U+{dcid:04X} cannot be represented in dceutils format ({target_format}) and was omitted."
-                                    ),
-                                );
-                            }
+                            flush_unmapped(
+                                &mut unmapped_utf8_buf,
+                                &mut short_dcs,
+                            );
+                            log.export_warning(
+                                char_idx,
+                                &format!(
+                                    "Unicode character U+{dcid:04X} cannot be represented in dceutils format ({target_format}) and was omitted."
+                                ),
+                            );
                         }
                     } else {
+                        flush_unmapped(&mut unmapped_utf8_buf, &mut short_dcs);
                         log.export_warning(
                             char_idx,
                             &format!(
@@ -272,6 +332,7 @@ fn dcmstring_to_dceutils_short_dcs(
         }
     }
 
+    flush_unmapped(&mut unmapped_utf8_buf, &mut short_dcs);
     Ok(short_dcs)
 }
 
@@ -293,15 +354,20 @@ pub fn dcmstring_to_dceutils(
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
         | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" => {
-            let bytes = ctb_formats_dceutils::encode_dce_preserving_controls(
-                &short_dcs,
-                format_code,
-                &mut log,
-            )?;
+        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
+        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
+        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
+        | "dce_3_02a_raw_hex" => {
+            let bytes =
+                ctb_formats_dceutils::converter::encode_dce_preserving_controls(
+                    &short_dcs,
+                    format_code,
+                    &mut log,
+                )?;
             Ok((bytes, log))
         }
-        "legacy_cdce"
+        "cdce"
+        | "legacy_cdce"
         | "cdce_legacy"
         | "html_l"
         | "html_legacy"
@@ -317,36 +383,13 @@ pub fn dcmstring_to_dceutils(
         | "utf8_dc64_bin_hex"
         | "utf8_dc64_bin_enc"
         | "utf8_dc64_bin_enc_hex" => {
-            if matches!(
-                format_code,
-                "legacy_cdce"
-                    | "cdce_legacy"
-                    | "utf8_dc64"
-                    | "utf8_dc64_enc"
-                    | "utf8_dc64_bin"
-                    | "utf8_dc64_bin_hex"
-                    | "utf8_dc64_bin_enc"
-                    | "utf8_dc64_bin_enc_hex"
-            ) {
-                for (idx, &short_id) in short_dcs.iter().enumerate() {
-                    if matches!(short_id, 116..=126 | 193) {
-                        // Reason for fallback: diagnostic character index saturates at u64::MAX if usize exceeds 64 bits.
-                        log.export_warning(
-                            u64::try_from(idx).unwrap_or(u64::MAX),
-                            &format!(
-                                "Short Dc {short_id} exports to Unicode in {format_code} but will not roundtrip on import (not in DcMap_Unicode_Lossy)."
-                            ),
-                        );
-                    }
-                }
-            }
             let csv = short_dcs
                 .iter()
                 .map(u32::to_string)
                 .collect::<Vec<_>>()
                 .join(",");
             let (bytes, sub_log) =
-                ctb_formats_dceutils::dce_convert_with_log(
+                ctb_formats_dceutils::converter::dce_convert_with_log(
                     csv.as_bytes(),
                     "dc",
                     format_code,

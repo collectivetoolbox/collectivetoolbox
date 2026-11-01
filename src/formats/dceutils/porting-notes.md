@@ -76,3 +76,20 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
      test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      ```
+
+## Spec-Compliant Converters (`converter.rs`) vs. Legacy PHP Port
+
+The legacy modules (`cdce.rs`, `dce3_0a.rs`, `dce3_01a.rs`, `unicode.rs`, `legacy.rs`, and the top-level `dce_convert` in `dceutils.rs`) are retained as a faithful, bug-compatible port of `old/libdce-2.51/` for side-by-side comparison.
+
+A separate module, `converter.rs` (`ctb_formats_dceutils::converter`), implements the full DCE specification from `docs/` (`docs/converted/*.md`), addressing the gaps and bugs present in `old/libdce-2.51/`:
+
+1. **Full Short Dc Repertoire by Version**:
+   - **DCE 3.0a (`0..=115`)**: Supports all 116 allocated short Dcs (`0..=115`), including `Dc 2..=11` on `Semantic_Records` (`Core:C6`) and `Dc 12` on `Mathematics` (`Core:C7`), `Dc 13..=17`, `Dc 112` on `DCE_Version_Selectors` (`Core:01`), and `Dc 113..=115`.
+   - **DCE 3.01a (`0..=199`)**: Supports all 200 allocated short Dcs (`0..=199`), unlocking Base64 encapsulation (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for arbitrary UTF-8 and data.
+   - **DCE 3.02a (`0..=202`, plus `Dc 205`)**: Supports all 203 allocated short Dcs (`0..=202`), adding keyed embed framing (`Dc 200` on `Core:C9`, `Dc 201` on `Core:CB`, `Dc 202` on `Core:CA`) and version selector `Dc 205` (`DCE_Version_Selectors:03`).
+2. **Upstream Spreadsheet & PHP Table Fixes**:
+   - **Base64 `'i'` (`Dc 161`, digit 34) vs `'I'` (`Dc 135`, digit 8)**: LibreOffice Calc auto-capitalized lowercase `'i'` to `'I'` in the `Base64` and `Dc to Base64` sheets of the `.ods` specification, causing `Base64_to_Dc.csv` to overwrite `'I'` -> `161` and omit `'i'`, and `Dc_to_Base64.csv` to map `161` -> `'I'`.
+   - **`Dc 113` (`End DCE content`)**: Fixed the `Core:01` typo in `DCE Character List by ID` (`DcMapSend_dce3_0a.csv` and `DcMapSend_dce3_01a_All.csv`) to `Core:03`.
+   - **`Dc 15` (`Begin DCE content`)**: Encodes interior `Dc 15` as `Core:02` rather than repeating the 5-byte `DCEe\x02` file magic.
+   - **Complete 109 Direct Unicode Mappings**: Includes the 12 Unicode mappings added in DCE 3.01a (`0x08..=0x0D`, `0x85`, `0xFE00..=0xFE04` -> `Dc 116..=126`, `Dc 193`) that were missing from `DcMap_Unicode_Lossy.csv`.
+   - **State Machine Transitions**: Emits `0xFD` (`Dc 13`) to return to `Core` before switching between two non-`Core` sheets or before emitting `0x81` (`Dc 115`), and fixes the `Punctuation_and_Whitespace` vs `Whitespace_and_Punctuation` sheet-name mismatch.

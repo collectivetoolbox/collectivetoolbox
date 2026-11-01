@@ -1241,5 +1241,88 @@ mod tests {
             warn_export.log.get_warnings().len() >= 2,
             "Expected warnings for unmappable short Dc 308 and long Dc 3000000"
         );
+
+        // 4. Verify all short Dcs 0..=115 in DCE 3.0a, 0..=199 in DCE 3.01a, and 0..=202 in DCE (3.02a)
+        // roundtrip losslessly via DcMstring.
+        for short_id in 0..=115_u32 {
+            let mut doc = DcMstring::new();
+            doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
+            let exported = convert_dcmstring_to_bytes(
+                &doc,
+                SupportedDcOutputFormat::Dce_3_0a,
+                &DcExportOptions::default(),
+            )
+            .expect("export 0..=115 to Dce_3_0a");
+            assert!(
+                !exported.log.has_errors() && !exported.log.has_warnings(),
+                "Dce_3_0a export of short Dc {short_id} emitted warnings/errors: {:?}",
+                exported.log
+            );
+            let reimported = convert_bytes_to_dcmstring(
+                &exported.bytes,
+                None,
+                &DcConversionOptions::default(),
+            )
+            .expect("reimport Dce_3_0a");
+            let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
+            assert!(
+                dcs.contains(&short_start.saturating_add(u128::from(short_id))),
+                "Dce_3_0a reimported DcMstring missing short Dc {short_id}"
+            );
+        }
+
+        for short_id in 0..=199_u32 {
+            let mut doc = DcMstring::new();
+            doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
+            let exported = convert_dcmstring_to_bytes(
+                &doc,
+                SupportedDcOutputFormat::Dce_3_01a,
+                &DcExportOptions::default(),
+            )
+            .expect("export 0..=199 to Dce_3_01a");
+            assert!(
+                !exported.log.has_errors() && !exported.log.has_warnings(),
+                "Dce_3_01a export of short Dc {short_id} emitted warnings/errors: {:?}",
+                exported.log
+            );
+            let reimported = convert_bytes_to_dcmstring(
+                &exported.bytes,
+                None,
+                &DcConversionOptions::default(),
+            )
+            .expect("reimport Dce_3_01a");
+            let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
+            assert!(
+                dcs.contains(&short_start.saturating_add(u128::from(short_id))),
+                "Dce_3_01a reimported DcMstring missing short Dc {short_id}"
+            );
+        }
+
+        for short_id in 0..=202_u32 {
+            let mut doc = DcMstring::new();
+            doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
+            let exported = convert_dcmstring_to_bytes(
+                &doc,
+                SupportedDcOutputFormat::Dce,
+                &DcExportOptions::default(),
+            )
+            .expect("export 0..=202 to Dce");
+            assert!(
+                !exported.log.has_errors() && !exported.log.has_warnings(),
+                "Dce export of short Dc {short_id} emitted warnings/errors: {:?}",
+                exported.log
+            );
+            let reimported = convert_bytes_to_dcmstring(
+                &exported.bytes,
+                Some("doc.dce"),
+                &DcConversionOptions::default(),
+            )
+            .expect("reimport Dce");
+            let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
+            assert!(
+                dcs.contains(&short_start.saturating_add(u128::from(short_id))),
+                "Dce reimported DcMstring missing short Dc {short_id}"
+            );
+        }
     }
 }
