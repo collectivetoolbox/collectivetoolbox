@@ -51,7 +51,8 @@ use crate::dc::{
     DC_BEGIN_LIST, DC_BEGIN_PARAMETER, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE,
     DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
-    DC_CHARACTER_SCRIPT, DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
+    DC_CHARACTER_SCRIPT, DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE,
+    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
@@ -71,7 +72,7 @@ use crate::dc::{
     DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
     DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
     DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
     DC_TYPE_TRANSFORMATION, DC_TYPE_TRANSMUTATION, DC_TYPE_UNION,
     DC_UNICODE_SCRIPT, DcChar,
 };
@@ -83,7 +84,8 @@ use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_integer_value_tokens,
     decode_nodes_from_ctbnbdl_bytes, decode_string_value_tokens,
     format_chunk_bundle_filename, parse_chunk_bundle_filename_start_id,
-    parse_statement_tokens, single_valued_property_set,
+    parse_for_each_statement_tokens, parse_statement_tokens,
+    single_valued_property_set,
 };
 use crate::shared::{BidiClass, GeneralCategory};
 use crate::syntax::ast::{
@@ -190,6 +192,12 @@ pub struct SeedGraphIndex {
     /// statement with no active `610` value). Multiple active statements for the same property or
     /// on the same `584` node are NOT shadowed here; all remain active in the index.
     pub(crate) orphaned_stmt_ids: Vec<u128>,
+    /// In-graph provenance (`Dc 635` `"Collective Toolbox seed graph data source"`) mapped from
+    /// target node ID (`u128`) to its declared data source token (e.g. `Dc 636` or `Dc 637`).
+    pub(crate) node_data_source: HashMap<u128, DcShorthand>,
+    /// Active statement node IDs (`Dc 638` `"For each"`, `Dc 584` `"Has a"`, and `Dc 610` `"Has value"`)
+    /// that assert `Dc 635` `"Collective Toolbox seed graph data source"`.
+    pub(crate) provenance_stmt_ids: HashSet<u128>,
 }
 
 /// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
@@ -479,6 +487,9 @@ impl SeedGraphIndex {
         let sh_char_script = sh(DC_CHARACTER_SCRIPT);
         let sh_uni_script = sh(DC_UNICODE_SCRIPT);
         let sh_entity_type = sh(DC_ENTITY_TYPE);
+        let sh_data_source =
+            sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE);
+        let sh_this_element = sh(DC_THIS_ELEMENT);
 
         let mut node_index_by_id = HashMap::with_capacity(nodes.len());
         for (idx, node) in nodes.iter().enumerate() {
@@ -497,6 +508,8 @@ impl SeedGraphIndex {
         let mut active_pref_qual_by_stmt: HashMap<u128, Vec<u128>> =
             HashMap::new();
         let mut orphaned_stmt_ids: Vec<u128> = Vec::new();
+        let mut node_data_source: HashMap<u128, DcShorthand> = HashMap::new();
+        let mut provenance_stmt_ids: HashSet<u128> = HashSet::new();
 
         for node in &nodes {
             if let Some(decoded_str) = decode_string_value_tokens(&node.tokens)
@@ -511,7 +524,13 @@ impl SeedGraphIndex {
                 continue;
             }
             let stmt_opt = parse_statement_tokens(&node.tokens);
+            let for_each_opt = if stmt_opt.is_none() {
+                parse_for_each_statement_tokens(&node.tokens)
+            } else {
+                None
+            };
             if stmt_opt.is_none()
+                && for_each_opt.is_none()
                 && parse_ambiguous_values_tokens(&node.tokens).is_none()
             {
                 value_node_by_tokens
@@ -528,6 +547,12 @@ impl SeedGraphIndex {
                                 .is_some_and(|n| {
                                     parse_statement_tokens(&n.tokens)
                                         .is_some_and(|(v, _, _)| v == sh_has_a)
+                                        || parse_for_each_statement_tokens(
+                                            &n.tokens,
+                                        )
+                                        .is_some_and(|(v, _, _, _, _)| {
+                                            v == sh_has_a
+                                        })
                                 });
                             if is_prop_has_a {
                                 active_has_val_by_stmt
@@ -551,6 +576,12 @@ impl SeedGraphIndex {
                             .is_some_and(|n| {
                                 parse_statement_tokens(&n.tokens)
                                     .is_some_and(|(v, _, _)| v == sh_has_a)
+                                    || parse_for_each_statement_tokens(
+                                        &n.tokens,
+                                    )
+                                    .is_some_and(|(v, _, _, _, _)| {
+                                        v == sh_has_a
+                                    })
                             });
                         if targets_has_a {
                             if !inactive_ids.contains(&has_a_id) {
@@ -609,6 +640,111 @@ impl SeedGraphIndex {
             if inactive_ids.contains(&node.id) {
                 continue;
             }
+            if let Some((inner_verb, inner_subj, inner_obj, _list_type, targets)) =
+                parse_for_each_statement_tokens(&node.tokens)
+            {
+                let resolve_iter_tok = |pat: DcShorthand, elem: DcShorthand| -> DcShorthand {
+                    if pat == sh_this_element {
+                        elem
+                    } else if pat == sh_enclosing_doc {
+                        DcShorthand::Long(node.id)
+                    } else {
+                        pat
+                    }
+                };
+                if inner_verb == sh_has_a {
+                    if let Some(has_vals) = active_has_val_by_stmt.get(&node.id)
+                        && !has_vals.is_empty()
+                    {
+                        if inner_obj == sh_data_source {
+                            provenance_stmt_ids.insert(node.id);
+                            for &(has_val_id, val_tok) in has_vals {
+                                provenance_stmt_ids.insert(has_val_id);
+                                for &elem in &targets {
+                                    let subj = resolve_iter_tok(inner_subj, elem);
+                                    if let DcShorthand::Long(target_node_id) = subj
+                                    {
+                                        node_data_source
+                                            .insert(target_node_id, val_tok);
+                                    }
+                                }
+                            }
+                        } else {
+                            let pref_ids = active_pref_qual_by_stmt.get(&node.id);
+                            let preferred_id =
+                                pref_ids.and_then(|ids| ids.last().copied());
+                            if preferred_id.is_some() {
+                                consumed_pref_qual_has_a_ids.insert(node.id);
+                            }
+                            for &(has_val_id, val_tok) in has_vals {
+                                for &elem in &targets {
+                                    let subj = resolve_iter_tok(inner_subj, elem);
+                                    let obj = resolve_iter_tok(inner_obj, elem);
+                                    if single_valued_props.contains(&obj) {
+                                        single_props_by_subj_prop
+                                            .entry((subj, obj))
+                                            .or_default()
+                                            .push((node.id, has_val_id, val_tok));
+                                        active_single_props.insert(
+                                            (subj, obj),
+                                            (node.id, has_val_id, val_tok),
+                                        );
+                                    } else {
+                                        if let Some(pref_id) = preferred_id {
+                                            active_multi_preferred.insert(
+                                                (subj, obj, val_tok),
+                                                pref_id,
+                                            );
+                                        }
+                                        active_multi_props.insert(
+                                            (subj, obj, val_tok),
+                                            (node.id, has_val_id),
+                                        );
+                                        multi_props_by_subj_prop
+                                            .entry((subj, obj))
+                                            .or_default()
+                                            .push(ActivePropertyValue {
+                                                has_a_id: node.id,
+                                                has_val_id,
+                                                value: val_tok,
+                                                preferred_id,
+                                            });
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        orphaned_stmt_ids.push(node.id);
+                    }
+                } else if inner_verb != sh_has_value
+                    && inner_verb != sh_supersedes
+                    && inner_verb != sh_retracts
+                {
+                    for &elem in &targets {
+                        let subj = resolve_iter_tok(inner_subj, elem);
+                        let obj = resolve_iter_tok(inner_obj, elem);
+                        direct_stmts_all
+                            .entry((inner_verb, subj, obj))
+                            .or_default()
+                            .push(node.id);
+                        if active_direct_stmts
+                            .insert((inner_verb, subj, obj), node.id)
+                            .is_none()
+                        {
+                            direct_objects_by_verb_subj
+                                .entry((inner_verb, subj))
+                                .or_default()
+                                .push(obj);
+                            direct_subjects_by_verb_obj
+                                .entry((inner_verb, obj))
+                                .or_default()
+                                .push(subj);
+                        }
+                    }
+                }
+                continue;
+            }
+
             let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
             else {
                 continue;
@@ -648,6 +784,16 @@ impl SeedGraphIndex {
                 if let Some(has_vals) = active_has_val_by_stmt.get(&node.id)
                     && !has_vals.is_empty()
                 {
+                    if obj == sh_data_source {
+                        if let DcShorthand::Long(target_node_id) = subj {
+                            provenance_stmt_ids.insert(node.id);
+                            for &(has_val_id, val_tok) in has_vals {
+                                provenance_stmt_ids.insert(has_val_id);
+                                node_data_source.insert(target_node_id, val_tok);
+                            }
+                            continue;
+                        }
+                    }
                     let pref_ids = active_pref_qual_by_stmt.get(&node.id);
                     let first_pref_id =
                         pref_ids.and_then(|ids| ids.last().copied());
@@ -832,7 +978,23 @@ impl SeedGraphIndex {
             direct_objects_by_verb_subj,
             direct_subjects_by_verb_obj,
             orphaned_stmt_ids,
+            node_data_source,
+            provenance_stmt_ids,
         }
+    }
+
+    /// Returns the declared `Dc 635` (`"Collective Toolbox seed graph data source"`) token
+    /// for `node_id` in the seed graph, if present.
+    #[must_use]
+    pub fn node_data_source(&self, node_id: u128) -> Option<DcShorthand> {
+        self.node_data_source.get(&node_id).copied()
+    }
+
+    /// Returns `true` if the seed graph contains any `Dc 635` (`"Collective Toolbox seed graph data source"`)
+    /// provenance declarations.
+    #[must_use]
+    pub fn has_in_graph_provenance(&self) -> bool {
+        !self.node_data_source.is_empty()
     }
 
     /// Returns the total number of nodes in the loaded seed graph.

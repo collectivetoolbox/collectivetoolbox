@@ -370,6 +370,18 @@ pub enum DcRole {
     DefaultFormatVariant,
     /// Short parameter nickname (such as in '@vary_as("...")') used to identify a format variation aspect in parametric format expressions. (`634`).
     DcFormatVariationNickname,
+    /// Property identifying the data source or provenance from which a seed graph statement or node was derived. (`635`).
+    CollectiveToolboxSeedGraphDataSource,
+    /// Identifies the Collective Toolbox Dc CSV seed database tables in src/formats/dcdata/data-src/ as a data source. (`636`).
+    CollectiveToolboxDcCsvSeedDatabase,
+    /// General concept of manual entry or direct human authoring. (`637`).
+    ManualEntry,
+    /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (`638`).
+    ForEach,
+    /// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (`639`).
+    ThisElement,
+    /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (`640`).
+    TypeAtomDc,
     /// Format indicator for an integer in a number header (`FormatId::Integer`).
 IntegerFormatIndicator,
 /// Base64 encapsulation digit character (0..=63).
@@ -558,6 +570,12 @@ match self {
             Self::FormatVariationAspect => Some(632),
             Self::DefaultFormatVariant => Some(633),
             Self::DcFormatVariationNickname => Some(634),
+            Self::CollectiveToolboxSeedGraphDataSource => Some(635),
+            Self::CollectiveToolboxDcCsvSeedDatabase => Some(636),
+            Self::ManualEntry => Some(637),
+            Self::ForEach => Some(638),
+            Self::ThisElement => Some(639),
+            Self::TypeAtomDc => Some(640),
             _ => None,
 }
 }
@@ -741,6 +759,12 @@ match self {
             Self::FormatVariationAspect => short == Some(632),
             Self::DefaultFormatVariant => short == Some(633),
             Self::DcFormatVariationNickname => short == Some(634),
+            Self::CollectiveToolboxSeedGraphDataSource => short == Some(635),
+            Self::CollectiveToolboxDcCsvSeedDatabase => short == Some(636),
+            Self::ManualEntry => short == Some(637),
+            Self::ForEach => short == Some(638),
+            Self::ThisElement => short == Some(639),
+            Self::TypeAtomDc => short == Some(640),
             Self::IntegerFormatIndicator => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)
@@ -749,7 +773,7 @@ match self {
 Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640))
 }
 Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
 Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),

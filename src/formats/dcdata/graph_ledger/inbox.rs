@@ -383,18 +383,48 @@ pub fn load_and_validate_node_provenance(
         }
     }
 
+    // Also populate in-graph provenance (`Dc 635` -> `Dc 636` Csv / `Dc 637` Manual) from the graph itself.
+    let single_props = super::single_valued_property_set();
+    let seed_idx = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
+        nodes.to_vec(),
+        &single_props,
+    );
+    for (&node_id, &src_tok) in &seed_idx.node_data_source {
+        let in_graph_prov = if src_tok
+            == sh(crate::dc::DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE)
+        {
+            Some(NodeProvenance::Csv)
+        } else if src_tok == sh(crate::dc::DC_MANUAL_ENTRY) {
+            Some(NodeProvenance::Manual)
+        } else {
+            None
+        };
+        if let Some(prov) = in_graph_prov {
+            map.entries
+                .entry(node_id)
+                .or_insert_with(|| NodeProvenanceEntry {
+                    node_id,
+                    provenance: prov,
+                    rationale: None,
+                    allocated_file: None,
+                });
+        }
+    }
+
     // Reason for fallback: when no bootstrap_checkpoint record is present in in-memory unit tests, default to PRE_JOURNAL_BASELINE_LAST_ID.
     let bootstrap_last_id = committed_pairs
         .iter()
         .find(|(p, _)| p.kind == "bootstrap_checkpoint")
         .map_or(PRE_JOURNAL_BASELINE_LAST_ID, |(p, _)| p.final_last_id);
 
-    // Every node > bootstrap_last_id must have a committed journal record.
+    // Every node > bootstrap_last_id must have a committed journal record or in-graph provenance.
     for node in nodes {
-        if node.id > bootstrap_last_id {
+        if node.id > bootstrap_last_id
+            && !seed_idx.provenance_stmt_ids.contains(&node.id)
+        {
             ensure!(
                 map.entries.contains_key(&node.id),
-                "CRITICAL: Ledger node l{} (> l{bootstrap_last_id}) has no BATCH_COMMITTED provenance entry in ledger-journal.jsonl!",
+                "CRITICAL: Ledger node l{} (> l{bootstrap_last_id}) has no BATCH_COMMITTED or in-graph provenance entry!",
                 node.id
             );
         }
@@ -522,6 +552,22 @@ pub fn prevalidate_and_plan_inbox_items(
                     "{inbox_name} (l{next_id}): duplicate candidate l{cand_id} in Dc 348 list"
                 );
             }
+        } else if parsed.tokens.first() == Some(&sh(crate::dc::DC_FOR_EACH)) {
+            let Some((inner_verb, _, _, _, elements)) =
+                super::parse_for_each_statement_tokens(&parsed.tokens)
+            else {
+                bail!(
+                    "{inbox_name} (l{next_id}): malformed Dc 638 'For each' statement syntax"
+                );
+            };
+            ensure!(
+                is_relationship_verb_with(inner_verb, framing),
+                "{inbox_name} (l{next_id}): Dc 638 'For each' inner verb {inner_verb} is not a relationship verb"
+            );
+            ensure!(
+                !elements.is_empty(),
+                "{inbox_name} (l{next_id}): Dc 638 'For each' list cannot be empty"
+            );
         } else if let Some(&first_tok) = parsed.tokens.first()
             && is_relationship_verb_with(first_tok, framing)
         {
@@ -605,6 +651,10 @@ pub fn prevalidate_and_plan_inbox_items(
                 let check_node_is_has_a = |n: &LedgerNode| -> bool {
                     parse_statement_tokens(&n.tokens)
                         .is_some_and(|(v, _, o)| v == sh_has_a && o != sh_preferred)
+                        || super::parse_for_each_statement_tokens(&n.tokens)
+                            .is_some_and(|(v, _, o, _, _)| {
+                                v == sh_has_a && o != sh_preferred
+                            })
                 };
                 let mut is_has_a = check_node_is_has_a(target_node);
                 if !is_has_a {
@@ -1829,6 +1879,99 @@ mod tests {
 
         let loaded = load_ledger_nodes_from_dir(&graph_dir)?;
         assert_eq!(loaded.len(), 100);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_in_graph_provenance_for_each_and_manual_protection() -> Result<()> {
+        let mut defn = sample_test_dc_defn(900, "Test Dc", "Desc");
+        let scripts = BTreeSet::from([".Semantic".to_string()]);
+        let (mut nodes, _) =
+            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+
+        let idx1 = crate::seed_graph::SeedGraphIndex::from_nodes(nodes.clone());
+        assert!(idx1.has_in_graph_provenance());
+        for node in &nodes[..nodes.len() - 2] {
+            assert_eq!(
+                idx1.node_data_source(node.id),
+                Some(sh(crate::dc::DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE))
+            );
+        }
+
+        // Append a manual alias via in-graph `Dc 635` (`Collective Toolbox seed graph data source`) -> `Dc 637` (`Manual entry`)
+        // without using any external `NodeProvenanceMap`.
+        let str_id = SYSTEM_REGION_START + u128::try_from(nodes.len()).unwrap();
+        nodes.push(LedgerNode {
+            id: str_id,
+            tokens: encode_string_value_tokens("in-graph-manual-alias"),
+            comment: "\"in-graph-manual-alias\"".to_string(),
+        });
+        let has_a_id = str_id + 1;
+        nodes.push(LedgerNode {
+            id: has_a_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_A),
+                DcShorthand::Short(900),
+                sh(crate::dc::DC_INFORMAL_ALIAS),
+            ),
+            comment: "Manual Has a".to_string(),
+        });
+        let has_val_id = str_id + 2;
+        nodes.push(LedgerNode {
+            id: has_val_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(has_a_id),
+                DcShorthand::Long(str_id),
+            ),
+            comment: "Manual Has value".to_string(),
+        });
+        let prov_for_each_id = str_id + 3;
+        nodes.push(LedgerNode {
+            id: prov_for_each_id,
+            tokens: super::encode_for_each_statement_tokens(
+                sh(DC_HAS_A),
+                sh(crate::dc::DC_THIS_ELEMENT),
+                sh(crate::dc::DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),
+                sh(crate::dc::DC_TYPE_ATOM_DC),
+                &[
+                    DcShorthand::Long(str_id),
+                    DcShorthand::Long(has_a_id),
+                    DcShorthand::Long(has_val_id),
+                ],
+            ),
+            comment: "Manual For each provenance".to_string(),
+        });
+        let prov_has_val_id = str_id + 4;
+        nodes.push(LedgerNode {
+            id: prov_has_val_id,
+            tokens: encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(prov_for_each_id),
+                sh(crate::dc::DC_MANUAL_ENTRY),
+            ),
+            comment: "Manual provenance value".to_string(),
+        });
+
+        // Running CSV reconciliation with an empty `NodeProvenanceMap::default()` must preserve the manual alias
+        // while retracting the removed CSV alias (`csv-alias`).
+        defn.aliases.clear();
+        let (nodes_after, stats_after) =
+            update_ledger_in_memory(nodes, &[defn], &[], &scripts, None)?;
+        assert_eq!(stats_after.nodes_retracted, 2);
+        let idx2 = crate::seed_graph::SeedGraphIndex::from_nodes(nodes_after);
+        assert_eq!(
+            idx2.get_multi_properties(
+                DcShorthand::Short(900),
+                sh(crate::dc::DC_INFORMAL_ALIAS)
+            )
+            .len(),
+            1
+        );
+        assert_eq!(
+            idx2.node_data_source(has_a_id),
+            Some(sh(crate::dc::DC_MANUAL_ENTRY))
+        );
         Ok(())
     }
 }

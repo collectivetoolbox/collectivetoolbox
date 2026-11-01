@@ -149,15 +149,86 @@ fn collect_dc_const_records(
     Ok(records)
 }
 
-/// Generates the contents of `dc.generated.rs` from a pre-built [`BuildGraphIndex`].
-///
-/// # Errors
-/// Returns an error if the graph is missing required ontology Dcs or contains invalid identifiers.
-pub fn generate_dc_code_from_index(
-    index: &BuildGraphIndex,
-) -> Result<String> {
-    let records = collect_dc_const_records(index)?;
+fn collect_pending_csv_dc_const_records(
+    categories_dir: &Path,
+    records: &mut Vec<DcConstRecord>,
+) -> Result<()> {
+    if !categories_dir.is_dir() {
+        return Ok(());
+    }
+    let mut seen_shorts: HashSet<u32> =
+        records.iter().map(|r| r.short_id).collect();
+    let mut seen_idents: HashSet<String> = records
+        .iter()
+        .map(|r| format!("DC_{}", to_screaming_snake_case(&r.ident)))
+        .collect();
 
+    let mut entries: Vec<_> = fs::read_dir(categories_dir)?
+        .filter_map(std::result::Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("csv"))
+        .collect();
+    entries.sort();
+
+    for path in entries {
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .flexible(true)
+            .from_path(&path)?;
+        for result in rdr.records() {
+            let row = result?;
+            let Some(short_str) = row.get(1).map(str::trim) else {
+                continue;
+            };
+            let Ok(short_id) = short_str.parse::<u32>() else {
+                continue;
+            };
+            if seen_shorts.contains(&short_id) {
+                continue;
+            }
+            let Some(xrefs) = row.get(8) else {
+                continue;
+            };
+            let Some(ident_start) = xrefs.find("@ident(\"") else {
+                continue;
+            };
+            let Some(after_prefix) = xrefs.get(ident_start.saturating_add(8)..)
+            else {
+                continue;
+            };
+            let Some(ident_end) = after_prefix.find("\")") else {
+                continue;
+            };
+            let Some(ident_slice) = after_prefix.get(..ident_end) else {
+                continue;
+            };
+            let ident = ident_slice.trim().to_string();
+            if !is_valid_rust_ident(&ident) {
+                continue;
+            }
+            let const_name =
+                format!("DC_{}", to_screaming_snake_case(&ident));
+            if !seen_idents.insert(const_name) {
+                continue;
+            }
+            seen_shorts.insert(short_id);
+            // Reason for fallback: CSV rows missing Name or Description default to empty string.
+            let name = row.get(2).unwrap_or("").trim().to_string();
+            // Reason for fallback: CSV rows missing Name or Description default to empty string.
+            let description = row.get(9).unwrap_or("").trim().to_string();
+            records.push(DcConstRecord {
+                short_id,
+                ident,
+                name,
+                description,
+            });
+        }
+    }
+    records.sort_by_key(|r| r.short_id);
+    Ok(())
+}
+
+fn format_dc_code_from_records(records: &[DcConstRecord]) -> String {
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
     out.push_str("\n\n");
@@ -176,7 +247,7 @@ pub fn generate_dc_code_from_index(
     );
     out.push_str("pub use crate::dc_char::DcChar;\n\n");
 
-    for rec in &records {
+    for rec in records {
         let const_name = to_screaming_snake_case(&rec.ident);
         let doc = if !rec.description.is_empty() {
             &rec.description
@@ -216,7 +287,18 @@ pub fn generate_dc_code_from_index(
     out.push_str("    }\n");
     out.push_str("}\n");
 
-    Ok(out)
+    out
+}
+
+/// Generates the contents of `dc.generated.rs` from a pre-built [`BuildGraphIndex`].
+///
+/// # Errors
+/// Returns an error if the graph is missing required ontology Dcs or contains invalid identifiers.
+pub fn generate_dc_code_from_index(
+    index: &BuildGraphIndex,
+) -> Result<String> {
+    let records = collect_dc_const_records(index)?;
+    Ok(format_dc_code_from_records(&records))
 }
 
 /// Generates the contents of `dc.generated.rs` from the system graph in `graph_dir`.
@@ -225,7 +307,17 @@ pub fn generate_dc_code_from_index(
 /// Returns an error if `graph_dir` cannot be read or contains invalid data.
 pub fn generate_dc_code(graph_dir: &Path) -> Result<String> {
     let index = BuildGraphIndex::from_graph_dir(graph_dir)?;
-    generate_dc_code_from_index(&index)
+    let mut records = collect_dc_const_records(&index)?;
+    if let Ok(repo_root) = crate::find_repository_root_from(graph_dir) {
+        let categories_dir = repo_root
+            .join("src")
+            .join("formats")
+            .join("dcdata")
+            .join("data-src")
+            .join("categories");
+        collect_pending_csv_dc_const_records(&categories_dir, &mut records)?;
+    }
+    Ok(format_dc_code_from_records(&records))
 }
 
 /// Generates `src/formats/dcdata/dc.generated.rs` if its contents have changed.

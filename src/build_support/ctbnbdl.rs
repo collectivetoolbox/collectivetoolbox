@@ -1000,6 +1000,127 @@ pub fn parse_statement_tokens_with(
     }
 }
 
+/// Encodes a `Dc 638 "For each"` relationship statement over a typed list of `[atom_dc]` targets:
+/// `638 <inner_verb> [atom_dc: <inner_subj>] [atom_dc: <inner_obj>] 310 <list_type> <t_1> [312 <t_2> ...] 311`.
+#[must_use]
+pub fn encode_for_each_statement_tokens_with(
+    inner_verb: DcShorthand,
+    inner_subj: DcShorthand,
+    inner_obj: DcShorthand,
+    list_type: DcShorthand,
+    targets: &[DcShorthand],
+    framing: CtbnbdlFramingDcs,
+) -> Vec<DcShorthand> {
+    let mut out = Vec::with_capacity(targets.len().saturating_mul(2).saturating_add(7));
+    out.push(DcShorthand::Short(638));
+    out.push(inner_verb);
+    push_atom_dc_with(&mut out, inner_subj, framing);
+    push_atom_dc_with(&mut out, inner_obj, framing);
+    out.push(DcShorthand::Short(310));
+    out.push(list_type);
+    for (i, &target) in targets.iter().enumerate() {
+        if i > 0 {
+            out.push(DcShorthand::Short(312));
+        }
+        push_atom_dc_with(&mut out, target, framing);
+    }
+    out.push(DcShorthand::Short(311));
+    out
+}
+
+/// Parses a `Dc 638 "For each"` relationship statement node
+/// (`638 <inner_verb> <inner_subj> <inner_obj> (310 <list_type> <elem_1> [312 <elem_2> ...] 311 | <atom_dc>)`)
+/// into `(inner_verb, inner_subj, inner_obj, list_type, expanded_targets)`.
+#[must_use]
+pub fn parse_for_each_statement_tokens_with(
+    tokens: &[DcShorthand],
+    framing: CtbnbdlFramingDcs,
+) -> Option<(
+    DcShorthand,
+    DcShorthand,
+    DcShorthand,
+    DcShorthand,
+    Vec<DcShorthand>,
+)> {
+    if tokens.first() != Some(&DcShorthand::Short(638)) {
+        return None;
+    }
+    let inner_verb = *tokens.get(1)?;
+    if !is_relationship_verb_with(inner_verb, framing) {
+        return None;
+    }
+    let mut idx = 2usize;
+    let inner_subj = consume_atom_dc_with(tokens, &mut idx, framing)?;
+    let inner_obj = consume_atom_dc_with(tokens, &mut idx, framing)?;
+
+    if tokens.get(idx) == Some(&DcShorthand::Short(310)) {
+        idx = idx.saturating_add(1);
+        let list_type = *tokens.get(idx)?;
+        idx = idx.saturating_add(1);
+        let end_idx = tokens.len().checked_sub(1)?;
+        if idx >= end_idx || tokens.get(end_idx) != Some(&DcShorthand::Short(311))
+        {
+            return None;
+        }
+        let mut targets = Vec::new();
+        while idx < end_idx {
+            if tokens.get(idx) == Some(&DcShorthand::Short(4)) {
+                idx = idx.saturating_add(1);
+                let start_tok = consume_atom_dc_with(tokens, &mut idx, framing)?;
+                let end_tok = consume_atom_dc_with(tokens, &mut idx, framing)?;
+                match (start_tok, end_tok) {
+                    (DcShorthand::Long(s), DcShorthand::Long(e))
+                        if s <= e && e.saturating_sub(s) <= 1_000_000 =>
+                    {
+                        for id in s..=e {
+                            targets.push(DcShorthand::Long(id));
+                        }
+                    }
+                    (DcShorthand::Short(s), DcShorthand::Short(e)) if s <= e => {
+                        for id in s..=e {
+                            targets.push(DcShorthand::Short(id));
+                        }
+                    }
+                    _ => return None,
+                }
+            } else {
+                let elem = consume_atom_dc_with(tokens, &mut idx, framing)?;
+                targets.push(elem);
+            }
+            if idx > end_idx {
+                return None;
+            }
+            if idx < end_idx {
+                if tokens.get(idx) != Some(&DcShorthand::Short(312)) {
+                    return None;
+                }
+                idx = idx.saturating_add(1);
+                if idx >= end_idx {
+                    return None;
+                }
+            }
+        }
+        if targets.is_empty() {
+            None
+        } else {
+            Some((inner_verb, inner_subj, inner_obj, list_type, targets))
+        }
+    } else {
+        let elem = consume_atom_dc_with(tokens, &mut idx, framing)?;
+        if idx == tokens.len() {
+            Some((
+                inner_verb,
+                inner_subj,
+                inner_obj,
+                DcShorthand::Short(640),
+                vec![elem],
+            ))
+        } else {
+            None
+        }
+    }
+}
+
 /// Partitions an ordered slice of `LedgerNode` entries into `(active_nodes, inactive_nodes)`
 /// preserving ascending node ID order in both output vectors.
 ///
@@ -1074,12 +1195,46 @@ pub fn partition_active_and_inactive_nodes_with(
 
     let mut active_stmt_ids: HashSet<u128> = HashSet::new();
     let mut inactive_stmt_ids: HashSet<u128> = HashSet::new();
+    let mut provenance_stmt_ids: HashSet<u128> = HashSet::new();
+    let sh_data_source = DcShorthand::Short(635);
     for node in nodes {
+        if let Some((inner_verb, _, inner_obj, _, _)) =
+            parse_for_each_statement_tokens_with(&node.tokens, framing)
+        {
+            if inner_verb == framing.has_a && inner_obj == sh_data_source {
+                provenance_stmt_ids.insert(node.id);
+            }
+            let is_active = if superseded_or_retracted_ids.contains(&node.id)
+                || revision_stmt_ids.contains(&node.id)
+            {
+                false
+            } else if inner_verb == framing.has_a && inner_obj != framing.preferred {
+                has_a_with_active_value.contains(&node.id)
+            } else {
+                true
+            };
+            if is_active {
+                active_stmt_ids.insert(node.id);
+            } else {
+                inactive_stmt_ids.insert(node.id);
+            }
+            continue;
+        }
+
         let Some((verb, subj, obj)) =
             parse_statement_tokens_with(&node.tokens, framing)
         else {
             continue;
         };
+        if verb == framing.has_a && obj == sh_data_source {
+            provenance_stmt_ids.insert(node.id);
+        } else if verb == framing.has_value {
+            if let DcShorthand::Long(target_id) = subj
+                && provenance_stmt_ids.contains(&target_id)
+            {
+                provenance_stmt_ids.insert(node.id);
+            }
+        }
         let is_active = if superseded_or_retracted_ids.contains(&node.id)
             || revision_stmt_ids.contains(&node.id)
         {
@@ -1109,12 +1264,17 @@ pub fn partition_active_and_inactive_nodes_with(
         }
     }
 
-    // Pass 3: Compute transitive reachability of `DcShorthand::Long(id)` nodes from
-    // active statements and from inactive statements.
+    // Pass 3: Compute transitive reachability of `DcShorthand::Long(id)` value nodes from
+    // active domain statements and from inactive domain statements.
+    // Note: Provenance metadata statements (`638` / `584 _ 635` and their `610` values)
+    // do not keep otherwise-unreferenced value nodes alive when their domain statement is retracted.
     let collect_reachable = |seed_stmt_ids: &HashSet<u128>| -> HashSet<u128> {
         let mut reachable: HashSet<u128> = HashSet::new();
         let mut worklist: Vec<u128> = Vec::new();
         for &stmt_id in seed_stmt_ids {
+            if provenance_stmt_ids.contains(&stmt_id) {
+                continue;
+            }
             if let Some(stmt_node) = node_by_id.get(&stmt_id) {
                 for &tok in &stmt_node.tokens {
                     if let DcShorthand::Long(ref_id) = tok {
@@ -1124,6 +1284,14 @@ pub fn partition_active_and_inactive_nodes_with(
             }
         }
         while let Some(ref_id) = worklist.pop() {
+            if active_stmt_ids.contains(&ref_id)
+                || inactive_stmt_ids.contains(&ref_id)
+                || superseded_or_retracted_ids.contains(&ref_id)
+                || revision_stmt_ids.contains(&ref_id)
+                || provenance_stmt_ids.contains(&ref_id)
+            {
+                continue;
+            }
             if reachable.insert(ref_id) {
                 if let Some(ref_node) = node_by_id.get(&ref_id) {
                     for &tok in &ref_node.tokens {

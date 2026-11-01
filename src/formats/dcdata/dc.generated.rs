@@ -368,6 +368,18 @@ pub const DC_FORMAT_VARIATION_ASPECT: DcChar = DcChar::from_short(632);
 pub const DC_DEFAULT_FORMAT_VARIANT: DcChar = DcChar::from_short(633);
 /// Short parameter nickname (such as in '@vary_as("...")') used to identify a format variation aspect in parametric format expressions. (Dc 634).
 pub const DC_DC_FORMAT_VARIATION_NICKNAME: DcChar = DcChar::from_short(634);
+/// Property identifying the data source or provenance from which a seed graph statement or node was derived. (Dc 635).
+pub const DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE: DcChar = DcChar::from_short(635);
+/// Identifies the Collective Toolbox Dc CSV seed database tables in src/formats/dcdata/data-src/ as a data source. (Dc 636).
+pub const DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE: DcChar = DcChar::from_short(636);
+/// General concept of manual entry or direct human authoring. (Dc 637).
+pub const DC_MANUAL_ENTRY: DcChar = DcChar::from_short(637);
+/// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (Dc 638).
+pub const DC_FOR_EACH: DcChar = DcChar::from_short(638);
+/// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (Dc 639).
+pub const DC_THIS_ELEMENT: DcChar = DcChar::from_short(639);
+/// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (Dc 640).
+pub const DC_TYPE_ATOM_DC: DcChar = DcChar::from_short(640);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]
