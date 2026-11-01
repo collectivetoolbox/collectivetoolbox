@@ -38,6 +38,7 @@ cleanup_vendor() {
         git clean -fd || true
         popd || exit 1
     fi
+    git -C "$REPO_ROOT" checkout -- ':(glob)**/*.generated.rs' || true
 }
 
 quick=false
@@ -61,12 +62,14 @@ for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | 
 done
 
 if [[ "$quick" == false ]]; then
-    export RUSTFLAGS="${RUSTFLAGS:-} -A unused_imports -A unfulfilled_lint_expectations"
+    export RUSTFLAGS="${RUSTFLAGS:-} -A unused_imports -A unfulfilled_lint_expectations -A clippy::allow_attributes -A clippy::map_unwrap_or -A clippy::manual_unwrap_or"
     cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" || { echo "ERROR: cargo fix --workspace failed"; exit 1; }
     commit
     cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" --tests || { echo "ERROR: cargo fix --workspace --tests failed"; exit 1; }
     commit
     cargo clippy --workspace --fix --allow-dirty --allow-staged "${vendor_excludes[@]}" || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
+    commit
+    cargo clippy --workspace --fix --allow-dirty --allow-staged "${vendor_excludes[@]}" --tests || { echo "ERROR: cargo clippy --fix --tests failed"; exit 1; }
     commit
 fi
 
