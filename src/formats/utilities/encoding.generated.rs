@@ -22,9 +22,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Do not edit by hand.
 
 #[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
+unused_imports,
+clippy::wildcard_imports,
+reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 use ctb_utilities::FormatId;
@@ -33,50 +33,44 @@ use ctb_utilities::dc_char::DcChar;
 /// Mode for handling low character codes (0x00..=0x1F) in single-byte encodings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub enum LowArea {
-    /// Graphical symbols (e.g. Neo graphical symbols, CP437 dingbats).
-    #[default]
-    Graphical,
-    /// Control characters (standard C0 control codes).
-    Control,
+/// Graphical symbols (e.g. Neo graphical symbols, CP437 dingbats).
+#[default]
+Graphical,
+/// Control characters (standard C0 control codes).
+Control,
 }
 
 /// Regional character layout for Neo encodings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub enum NeoRegion {
-    /// United States layout.
-    #[default]
-    Us,
-    /// Ukrainian Macintosh layout.
-    UaMac,
-    /// Ukrainian PC layout.
-    UaPc,
+/// United States layout.
+#[default]
+Us,
+/// Ukrainian Macintosh layout.
+UaMac,
+/// Ukrainian PC layout.
+UaPc,
 }
 
 impl NeoRegion {
-    /// Returns the dedicated `FormatId` for this Neo regional variant and low-area mode.
-    #[must_use]
-    pub const fn to_format_id(self, low_area: LowArea) -> FormatId {
-        match (self, low_area) {
-            (Self::Us, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUs,
-            (Self::UaMac, LowArea::Graphical) => {
-                FormatId::AlphaSmartNeoLowGrUaMac
-            }
-            (Self::UaPc, LowArea::Graphical) => {
-                FormatId::AlphaSmartNeoLowGrUaPc
-            }
-            (Self::Us, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUs,
-            (Self::UaMac, LowArea::Control) => {
-                FormatId::AlphaSmartNeoLowCtlUaMac
-            }
-            (Self::UaPc, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUaPc,
-        }
-    }
+/// Returns the dedicated `FormatId` for this Neo regional variant and low-area mode.
+#[must_use]
+pub const fn to_format_id(self, low_area: LowArea) -> FormatId {
+match (self, low_area) {
+(Self::Us, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUs,
+(Self::UaMac, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUaMac,
+(Self::UaPc, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUaPc,
+(Self::Us, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUs,
+(Self::UaMac, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUaMac,
+(Self::UaPc, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUaPc,
+}
+}
 
-    /// Returns the dedicated `DcChar` constant for this Neo variant if known.
-    #[must_use]
-    pub const fn dc_char(self, low_area: LowArea) -> Option<DcChar> {
-        self.to_format_id(low_area).dc_char()
-    }
+/// Returns the dedicated `DcChar` constant for this Neo variant if known.
+#[must_use]
+pub const fn dc_char(self, low_area: LowArea) -> Option<DcChar> {
+self.to_format_id(low_area).dc_char()
+}
 }
 
 /// Line ending delimiter pattern.
@@ -98,379 +92,316 @@ pub enum LineEndingKind {
 }
 
 impl LineEndingKind {
-    /// Returns the string representation of this line ending delimiter.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Lf => "\n",
-            Self::Cr => "\r",
-            Self::CrLf => "\r\n",
-            Self::LfCr => "\n\r",
-            Self::Rs => "\x1E",
-            Self::Nl => "\u{0085}",
-        }
-    }
+/// Returns the string representation of this line ending delimiter.
+#[must_use]
+pub const fn as_str(self) -> &'static str {
+match self {
+                    Self::Lf => "\n",
+                    Self::Cr => "\r",
+                    Self::CrLf => "\r\n",
+                    Self::LfCr => "\n\r",
+                    Self::Rs => "\x1E",
+                    Self::Nl => "\u{0085}",
+                }
+}
 
-    /// Returns the byte sequence for this line ending in UTF-8.
-    #[must_use]
-    pub const fn as_bytes(self) -> &'static [u8] {
-        self.as_str().as_bytes()
-    }
+/// Returns the byte sequence for this line ending in UTF-8.
+#[must_use]
+pub const fn as_bytes(self) -> &'static [u8] {
+self.as_str().as_bytes()
+}
 
-    /// Creates a `LineEndingFormat` with terminated mode for this delimiter kind.
-    #[must_use]
-    pub const fn terminated(self) -> LineEndingFormat {
-        LineEndingFormat::terminated(self)
-    }
+/// Creates a `LineEndingFormat` with terminated mode for this delimiter kind.
+#[must_use]
+pub const fn terminated(self) -> LineEndingFormat {
+LineEndingFormat::terminated(self)
+}
 
-    /// Creates a `LineEndingFormat` with separated mode for this delimiter kind.
-    #[must_use]
-    pub const fn separated(self) -> LineEndingFormat {
-        LineEndingFormat::separated(self)
-    }
+/// Creates a `LineEndingFormat` with separated mode for this delimiter kind.
+#[must_use]
+pub const fn separated(self) -> LineEndingFormat {
+LineEndingFormat::separated(self)
+}
 
-    /// Maps this terminated line ending kind to its corresponding `FormatId`.
-    #[must_use]
-    pub const fn to_format_id(self) -> FormatId {
-        self.terminated().to_format_id()
-    }
+/// Maps this terminated line ending kind to its corresponding `FormatId`.
+#[must_use]
+pub const fn to_format_id(self) -> FormatId {
+self.terminated().to_format_id()
+}
 
-    /// Returns the dedicated `DcChar` for this line ending in terminated mode.
-    #[must_use]
-    pub const fn dc_char(self) -> Option<DcChar> {
-        self.to_format_id().dc_char()
-    }
+/// Returns the dedicated `DcChar` for this line ending in terminated mode.
+#[must_use]
+pub const fn dc_char(self) -> Option<DcChar> {
+self.to_format_id().dc_char()
+}
 }
 
 /// Mode defining whether newlines terminate every line or only separate lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TerminationMode {
-    /// Every line including the last line is terminated by the newline sequence.
-    #[default]
-    Terminated,
-    /// Newline sequences only appear between lines; no trailing terminator on final line.
-    Separated,
+/// Every line including the last line is terminated by the newline sequence.
+#[default]
+Terminated,
+/// Newline sequences only appear between lines; no trailing terminator on final line.
+Separated,
 }
 
 /// Full specification of line ending style and termination mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct LineEndingFormat {
-    /// The line ending delimiter pattern.
-    pub kind: LineEndingKind,
-    /// Whether the delimiter terminates all lines or only separates them.
-    pub mode: TerminationMode,
+/// The line ending delimiter pattern.
+pub kind: LineEndingKind,
+/// Whether the delimiter terminates all lines or only separates them.
+pub mode: TerminationMode,
 }
 
 impl LineEndingFormat {
-    /// Creates a new `LineEndingFormat` with terminated mode.
-    #[must_use]
-    pub const fn terminated(kind: LineEndingKind) -> Self {
-        Self {
-            kind,
-            mode: TerminationMode::Terminated,
-        }
-    }
+/// Creates a new `LineEndingFormat` with terminated mode.
+#[must_use]
+pub const fn terminated(kind: LineEndingKind) -> Self {
+Self {
+kind,
+mode: TerminationMode::Terminated,
+}
+}
 
-    /// Creates a new `LineEndingFormat` with separated mode.
-    #[must_use]
-    pub const fn separated(kind: LineEndingKind) -> Self {
-        Self {
-            kind,
-            mode: TerminationMode::Separated,
-        }
-    }
+/// Creates a new `LineEndingFormat` with separated mode.
+#[must_use]
+pub const fn separated(kind: LineEndingKind) -> Self {
+Self {
+kind,
+mode: TerminationMode::Separated,
+}
+}
 
-    /// Maps this line ending format to its canonical `FormatId`.
-    #[must_use]
-    pub const fn to_format_id(self) -> FormatId {
-        match (self.mode, self.kind) {
-            (TerminationMode::Terminated, LineEndingKind::Lf) => {
-                FormatId::LineEndingLf
-            }
-            (TerminationMode::Terminated, LineEndingKind::Cr) => {
-                FormatId::LineEndingCr
-            }
-            (TerminationMode::Terminated, LineEndingKind::CrLf) => {
-                FormatId::LineEndingCrLf
-            }
-            (TerminationMode::Terminated, LineEndingKind::LfCr) => {
-                FormatId::LineEndingLfCr
-            }
-            (TerminationMode::Terminated, LineEndingKind::Rs) => {
-                FormatId::LineEndingRs
-            }
-            (TerminationMode::Terminated, LineEndingKind::Nl) => {
-                FormatId::LineEndingNl
-            }
-            (TerminationMode::Separated, LineEndingKind::Lf) => {
-                FormatId::LineSeparatorLf
-            }
-            (TerminationMode::Separated, LineEndingKind::Cr) => {
-                FormatId::LineSeparatorCr
-            }
-            (TerminationMode::Separated, LineEndingKind::CrLf) => {
-                FormatId::LineSeparatorCrLf
-            }
-            (TerminationMode::Separated, LineEndingKind::LfCr) => {
-                FormatId::LineSeparatorLfCr
-            }
-            (TerminationMode::Separated, LineEndingKind::Rs) => {
-                FormatId::LineSeparatorRs
-            }
-            (TerminationMode::Separated, LineEndingKind::Nl) => {
-                FormatId::LineSeparatorNl
-            }
-        }
-    }
+/// Maps this line ending format to its canonical `FormatId`.
+#[must_use]
+pub const fn to_format_id(self) -> FormatId {
+match (self.mode, self.kind) {
+                    (TerminationMode::Terminated, LineEndingKind::Lf) => FormatId::LineEndingLf,
+                    (TerminationMode::Terminated, LineEndingKind::Cr) => FormatId::LineEndingCr,
+                    (TerminationMode::Terminated, LineEndingKind::CrLf) => FormatId::LineEndingCrLf,
+                    (TerminationMode::Terminated, LineEndingKind::LfCr) => FormatId::LineEndingLfCr,
+                    (TerminationMode::Terminated, LineEndingKind::Rs) => FormatId::LineEndingRs,
+                    (TerminationMode::Terminated, LineEndingKind::Nl) => FormatId::LineEndingNl,
+                    (TerminationMode::Separated, LineEndingKind::Lf) => FormatId::LineSeparatorLf,
+                    (TerminationMode::Separated, LineEndingKind::Cr) => FormatId::LineSeparatorCr,
+                    (TerminationMode::Separated, LineEndingKind::CrLf) => FormatId::LineSeparatorCrLf,
+                    (TerminationMode::Separated, LineEndingKind::LfCr) => FormatId::LineSeparatorLfCr,
+                    (TerminationMode::Separated, LineEndingKind::Rs) => FormatId::LineSeparatorRs,
+                    (TerminationMode::Separated, LineEndingKind::Nl) => FormatId::LineSeparatorNl,
+                }
+}
 
-    /// Converts a `FormatId` to the corresponding `LineEndingFormat` if it represents a line ending.
-    #[must_use]
-    pub const fn from_format_id(id: FormatId) -> Option<Self> {
-        match id {
-            FormatId::LineEndingLf => {
-                Some(Self::terminated(LineEndingKind::Lf))
-            }
-            FormatId::LineEndingCr => {
-                Some(Self::terminated(LineEndingKind::Cr))
-            }
-            FormatId::LineEndingCrLf => {
-                Some(Self::terminated(LineEndingKind::CrLf))
-            }
-            FormatId::LineEndingLfCr => {
-                Some(Self::terminated(LineEndingKind::LfCr))
-            }
-            FormatId::LineEndingRs => {
-                Some(Self::terminated(LineEndingKind::Rs))
-            }
-            FormatId::LineEndingNl => {
-                Some(Self::terminated(LineEndingKind::Nl))
-            }
-            FormatId::LineSeparatorLf => {
-                Some(Self::separated(LineEndingKind::Lf))
-            }
-            FormatId::LineSeparatorCr => {
-                Some(Self::separated(LineEndingKind::Cr))
-            }
-            FormatId::LineSeparatorCrLf => {
-                Some(Self::separated(LineEndingKind::CrLf))
-            }
-            FormatId::LineSeparatorLfCr => {
-                Some(Self::separated(LineEndingKind::LfCr))
-            }
-            FormatId::LineSeparatorRs => {
-                Some(Self::separated(LineEndingKind::Rs))
-            }
-            FormatId::LineSeparatorNl => {
-                Some(Self::separated(LineEndingKind::Nl))
-            }
-            _ => None,
-        }
-    }
+/// Converts a `FormatId` to the corresponding `LineEndingFormat` if it represents a line ending.
+#[must_use]
+pub const fn from_format_id(id: FormatId) -> Option<Self> {
+match id {
+                    FormatId::LineEndingLf => Some(Self::terminated(LineEndingKind::Lf)),
+                    FormatId::LineEndingCr => Some(Self::terminated(LineEndingKind::Cr)),
+                    FormatId::LineEndingCrLf => Some(Self::terminated(LineEndingKind::CrLf)),
+                    FormatId::LineEndingLfCr => Some(Self::terminated(LineEndingKind::LfCr)),
+                    FormatId::LineEndingRs => Some(Self::terminated(LineEndingKind::Rs)),
+                    FormatId::LineEndingNl => Some(Self::terminated(LineEndingKind::Nl)),
+                    FormatId::LineSeparatorLf => Some(Self::separated(LineEndingKind::Lf)),
+                    FormatId::LineSeparatorCr => Some(Self::separated(LineEndingKind::Cr)),
+                    FormatId::LineSeparatorCrLf => Some(Self::separated(LineEndingKind::CrLf)),
+                    FormatId::LineSeparatorLfCr => Some(Self::separated(LineEndingKind::LfCr)),
+                    FormatId::LineSeparatorRs => Some(Self::separated(LineEndingKind::Rs)),
+                    FormatId::LineSeparatorNl => Some(Self::separated(LineEndingKind::Nl)),
+                    _ => None,
+}
+}
 
-    /// Returns the dedicated `DcChar` for this line ending format if known.
-    #[must_use]
-    pub const fn dc_char(self) -> Option<DcChar> {
-        self.to_format_id().dc_char()
-    }
+/// Returns the dedicated `DcChar` for this line ending format if known.
+#[must_use]
+pub const fn dc_char(self) -> Option<DcChar> {
+self.to_format_id().dc_char()
+}
 }
 
 /// Option controlling line ending conversion during encoding, decoding, and transcoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LineEndingOption {
-    /// Keep line endings as they are (no conversion / pure character conversion).
-    #[default]
-    Preserve,
-    /// Convert to the idiomatic line ending for the target character encoding.
-    EncodingDefault,
-    /// Convert to a specific line ending format.
-    Specific(LineEndingFormat),
+/// Keep line endings as they are (no conversion / pure character conversion).
+#[default]
+Preserve,
+/// Convert to the idiomatic line ending for the target character encoding.
+EncodingDefault,
+/// Convert to a specific line ending format.
+Specific(LineEndingFormat),
 }
 
 /// Structured single-byte character encoding settings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharEncoding {
-    /// Code Page 437 (DOS Latin US).
-    Cp437 {
-        /// Low-area mode (graphical dingbats vs control codes).
-        low_area: LowArea,
-        /// Whether alternative Unicode variants are included in reverse encoding.
-        include_variants: bool,
-    },
-    /// Neo character encoding.
-    Neo {
-        /// Regional layout variant.
-        region: NeoRegion,
-        /// Low-area mode.
-        low_area: LowArea,
-    },
-    /// ASCII.
-    Ascii,
-    /// `MacRoman`.
-    MacRoman,
-    /// Windows-1252 ("ANSI").
-    Windows1252,
-    /// ISO 8859-1.
-    Iso88591,
-}
+/// Code Page 437 (DOS Latin US).
+Cp437 {
+/// Low-area mode (graphical dingbats vs control codes).
+low_area: LowArea,
+/// Whether alternative Unicode variants are included in reverse encoding.
+include_variants: bool,
+},
+/// Neo character encoding.
+Neo {
+/// Regional layout variant.
+region: NeoRegion,
+/// Low-area mode.
+low_area: LowArea,
+},
+            /// ASCII.
+            Ascii,
+            /// MacRoman.
+            MacRoman,
+            /// Windows-1252 ("ANSI").
+            Windows1252,
+            /// ISO 8859-1.
+            Iso88591,
+        }
 
 impl CharEncoding {
-    /// Default CP437 encoding with graphical dingbats and variant aliases.
-    #[must_use]
-    pub const fn cp437() -> Self {
-        Self::Cp437 {
-            low_area: LowArea::Graphical,
-            include_variants: true,
-        }
-    }
+/// Default CP437 encoding with graphical dingbats and variant aliases.
+#[must_use]
+pub const fn cp437() -> Self {
+Self::Cp437 {
+low_area: LowArea::Graphical,
+include_variants: true,
+}
+}
 
-    /// CP437 encoding with control characters in low area.
-    #[must_use]
-    pub const fn cp437_control() -> Self {
-        Self::Cp437 {
-            low_area: LowArea::Control,
-            include_variants: true,
-        }
-    }
+/// CP437 encoding with control characters in low area.
+#[must_use]
+pub const fn cp437_control() -> Self {
+Self::Cp437 {
+low_area: LowArea::Control,
+include_variants: true,
+}
+}
 
-    /// Standard Neo US layout with graphical low area.
-    #[must_use]
-    pub const fn neo_us() -> Self {
-        Self::Neo {
-            region: NeoRegion::Us,
-            low_area: LowArea::Graphical,
-        }
-    }
+/// Standard Neo US layout with graphical low area.
+#[must_use]
+pub const fn neo_us() -> Self {
+Self::Neo {
+region: NeoRegion::Us,
+low_area: LowArea::Graphical,
+}
+}
 
-    /// Neo encoding with custom region and low area.
-    #[must_use]
-    pub const fn neo(region: NeoRegion, low_area: LowArea) -> Self {
-        Self::Neo { region, low_area }
-    }
+/// Neo encoding with custom region and low area.
+#[must_use]
+pub const fn neo(region: NeoRegion, low_area: LowArea) -> Self {
+Self::Neo { region, low_area }
+}
 
-    /// ASCII.
-    #[must_use]
-    pub const fn ascii() -> Self {
-        Self::Ascii
-    }
+            /// ASCII.
+#[must_use]
+pub const fn ascii() -> Self {
+Self::Ascii
+}
 
-    /// `MacRoman`.
-    #[must_use]
-    pub const fn mac_roman() -> Self {
-        Self::MacRoman
-    }
+            /// MacRoman.
+#[must_use]
+pub const fn mac_roman() -> Self {
+Self::MacRoman
+}
 
-    /// Windows-1252 ("ANSI").
-    #[must_use]
-    pub const fn windows_1252() -> Self {
-        Self::Windows1252
-    }
+            /// Windows-1252 ("ANSI").
+#[must_use]
+pub const fn windows_1252() -> Self {
+Self::Windows1252
+}
 
-    /// Windows-1252 ("ANSI") encoding alias.
-    #[must_use]
-    pub const fn win1252() -> Self {
-        Self::Windows1252
-    }
+            /// Windows-1252 ("ANSI") encoding alias.
+#[must_use]
+pub const fn win1252() -> Self {
+Self::Windows1252
+}
 
-    /// ISO 8859-1.
-    #[must_use]
-    pub const fn iso_88591() -> Self {
-        Self::Iso88591
-    }
+            /// ISO 8859-1.
+#[must_use]
+pub const fn iso_88591() -> Self {
+Self::Iso88591
+}
 
-    /// ISO 8859-1 encoding alias.
-    #[must_use]
-    pub const fn iso_8859_1() -> Self {
-        Self::Iso88591
-    }
+            /// ISO 8859-1 encoding alias.
+#[must_use]
+pub const fn iso_8859_1() -> Self {
+Self::Iso88591
+}
 
-    /// Maps this character encoding to its canonical `FormatId`.
-    #[must_use]
-    pub const fn to_format_id(self) -> FormatId {
-        match self {
-            Self::Cp437 { .. } => FormatId::Cp437,
-            Self::Neo { region, low_area } => region.to_format_id(low_area),
-            Self::Ascii => FormatId::Ascii,
-            Self::MacRoman => FormatId::MacRoman,
-            Self::Windows1252 => FormatId::Win1252,
-            Self::Iso88591 => FormatId::Iso88591,
-        }
-    }
-
-    /// Converts a `FormatId` to the corresponding `CharEncoding` if it represents an encoding.
-    #[must_use]
-    pub const fn from_format_id(id: FormatId) -> Option<Self> {
-        match id {
-            FormatId::Cp437 => Some(Self::cp437()),
-            FormatId::AlphaSmartNeo => Some(Self::neo_us()),
-            FormatId::AlphaSmartNeoLowGrUs => {
-                Some(Self::neo(NeoRegion::Us, LowArea::Graphical))
-            }
-            FormatId::AlphaSmartNeoLowGrUaMac => {
-                Some(Self::neo(NeoRegion::UaMac, LowArea::Graphical))
-            }
-            FormatId::AlphaSmartNeoLowGrUaPc => {
-                Some(Self::neo(NeoRegion::UaPc, LowArea::Graphical))
-            }
-            FormatId::AlphaSmartNeoLowCtlUs => {
-                Some(Self::neo(NeoRegion::Us, LowArea::Control))
-            }
-            FormatId::AlphaSmartNeoLowCtlUaMac => {
-                Some(Self::neo(NeoRegion::UaMac, LowArea::Control))
-            }
-            FormatId::AlphaSmartNeoLowCtlUaPc => {
-                Some(Self::neo(NeoRegion::UaPc, LowArea::Control))
-            }
-            FormatId::Ascii => Some(Self::Ascii),
-            FormatId::MacRoman => Some(Self::MacRoman),
-            FormatId::Win1252 => Some(Self::Windows1252),
-            FormatId::Iso88591 => Some(Self::Iso88591),
-            _ => None,
-        }
-    }
-
-    /// Returns the dedicated `DcChar` constant for this character encoding if known.
-    #[must_use]
-    pub const fn dc_char(self) -> Option<DcChar> {
-        self.to_format_id().dc_char()
-    }
-
-    /// Returns the idiomatic / natural default line ending for this character encoding.
-    #[must_use]
-    pub const fn default_line_ending(self) -> LineEndingKind {
-        match self {
-            Self::Cp437 { .. } => LineEndingKind::CrLf,
-            Self::Neo { .. } => LineEndingKind::Cr,
-            Self::Ascii => LineEndingKind::Lf,
-            Self::MacRoman => LineEndingKind::Cr,
-            Self::Windows1252 => LineEndingKind::CrLf,
-            Self::Iso88591 => LineEndingKind::Lf,
-        }
-    }
-
-    /// Checks whether the specified line ending can be encoded in this character encoding.
-    #[must_use]
-    pub const fn supports_line_ending(self, ending: LineEndingKind) -> bool {
-        match ending {
-            LineEndingKind::Lf
-            | LineEndingKind::Cr
-            | LineEndingKind::CrLf
-            | LineEndingKind::LfCr => true,
-            LineEndingKind::Rs => match self {
-                Self::Ascii
-                | Self::MacRoman
-                | Self::Windows1252
-                | Self::Iso88591 => true,
-                Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {
-                    matches!(low_area, LowArea::Control)
+            /// Maps this character encoding to its canonical `FormatId`.
+#[must_use]
+pub const fn to_format_id(self) -> FormatId {
+match self {
+Self::Cp437 { .. } => FormatId::Cp437,
+Self::Neo { region, low_area } => region.to_format_id(low_area),
+                    Self::Ascii => FormatId::Ascii,
+                    Self::MacRoman => FormatId::MacRoman,
+                    Self::Windows1252 => FormatId::Win1252,
+                    Self::Iso88591 => FormatId::Iso88591,
                 }
-            },
-            LineEndingKind::Nl => false,
-        }
-    }
+}
+
+/// Converts a `FormatId` to the corresponding `CharEncoding` if it represents an encoding.
+#[must_use]
+pub const fn from_format_id(id: FormatId) -> Option<Self> {
+match id {
+FormatId::Cp437 => Some(Self::cp437()),
+FormatId::AlphaSmartNeo => Some(Self::neo_us()),
+FormatId::AlphaSmartNeoLowGrUs => Some(Self::neo(NeoRegion::Us, LowArea::Graphical)),
+FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::neo(NeoRegion::UaMac, LowArea::Graphical)),
+FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::neo(NeoRegion::UaPc, LowArea::Graphical)),
+FormatId::AlphaSmartNeoLowCtlUs => Some(Self::neo(NeoRegion::Us, LowArea::Control)),
+FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::neo(NeoRegion::UaMac, LowArea::Control)),
+FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::neo(NeoRegion::UaPc, LowArea::Control)),
+                    FormatId::Ascii => Some(Self::Ascii),
+                    FormatId::MacRoman => Some(Self::MacRoman),
+                    FormatId::Win1252 => Some(Self::Windows1252),
+                    FormatId::Iso88591 => Some(Self::Iso88591),
+                    _ => None,
+}
+}
+
+/// Returns the dedicated `DcChar` constant for this character encoding if known.
+#[must_use]
+pub const fn dc_char(self) -> Option<DcChar> {
+self.to_format_id().dc_char()
+}
+
+/// Returns the idiomatic / natural default line ending for this character encoding.
+#[must_use]
+pub const fn default_line_ending(self) -> LineEndingKind {
+match self {
+                    Self::Cp437 { .. } => LineEndingKind::CrLf,
+                    Self::Neo { .. } => LineEndingKind::Cr,
+                    Self::Ascii => LineEndingKind::Lf,
+                    Self::MacRoman => LineEndingKind::Cr,
+                    Self::Windows1252 => LineEndingKind::CrLf,
+                    Self::Iso88591 => LineEndingKind::Lf,
+                }
+}
+
+/// Checks whether the specified line ending can be encoded in this character encoding.
+#[must_use]
+pub const fn supports_line_ending(self, ending: LineEndingKind) -> bool {
+match ending {
+LineEndingKind::Lf
+| LineEndingKind::Cr
+| LineEndingKind::CrLf
+| LineEndingKind::LfCr => true,
+LineEndingKind::Rs => match self {
+                        Self::Ascii | Self::MacRoman | Self::Windows1252 | Self::Iso88591 => true,
+                        Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {
+matches!(low_area, LowArea::Control)
+}
+},
+LineEndingKind::Nl => false,
+}
+}
 }
 
 impl Default for CharEncoding {
-    fn default() -> Self {
-        Self::cp437()
-    }
+fn default() -> Self {
+Self::cp437()
+}
 }

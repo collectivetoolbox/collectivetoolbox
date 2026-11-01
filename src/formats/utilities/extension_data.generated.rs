@@ -909,9 +909,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
 pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {
     let mut matches = Vec::new();
     for entry in EXTENSION_REGISTRY {
-        if entry.rule.matches_extension(ext)
-            && !matches.contains(&entry.format_id)
-        {
+        if entry.rule.matches_extension(ext) && !matches.contains(&entry.format_id) {
             matches.push(entry.format_id);
         }
     }
@@ -928,9 +926,7 @@ pub fn extension_rules_for_format(format_id: FormatId) -> Vec<ExtensionRule> {
 }
 
 /// Returns the primary (first registered) extension for the given `FormatId`.
-pub fn primary_extension_for_format(
-    format_id: FormatId,
-) -> Option<&'static str> {
+pub fn primary_extension_for_format(format_id: FormatId) -> Option<&'static str> {
     EXTENSION_REGISTRY
         .iter()
         .find(|entry| entry.format_id == format_id)
