@@ -143,6 +143,7 @@ impl FileMetadataJson {
                 FileEntityKind::Directory | FileEntityKind::Bundle { .. }
             )
         {
+            // Reason for fallback: missing original filename in metadata defaults destination leaf to "file"
             let orig_name = entity
                 .identity
                 .relative_path

@@ -185,6 +185,7 @@ fn check_target_reference(
     match target {
         CharTarget::Dc(id) => {
             if is_range_endpoint {
+                // Reason for fallback: SHORT_DC_REGION_END - SHORT_DC_REGION_START is 0xFFFF, which always fits in u32.
                 let max_short_dc = u32::try_from(
                     ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_END
                         .saturating_sub(ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START),

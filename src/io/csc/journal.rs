@@ -224,6 +224,7 @@ fn system_time_from_sec(timestamp_sec: i64) -> std::time::SystemTime {
 
 fn sec_from_system_time(time: std::time::SystemTime) -> i64 {
     match time.duration_since(UNIX_EPOCH) {
+        // Reason for fallback: Duration after epoch exceeding i64::MAX seconds clamps to i64::MAX.
         Ok(dur) => i64::try_from(dur.as_secs()).unwrap_or(i64::MAX),
         Err(err) => {
             let dur = err.duration();
