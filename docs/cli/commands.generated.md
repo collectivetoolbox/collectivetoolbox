@@ -381,7 +381,9 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii, cscjournal]
+          Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+      --permissive
+          Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
@@ -403,12 +405,72 @@ Options:
   -h, --help
           Print help (see more with '--help')
 
+Supported input formats (--from):
+  Document formats:
+    3_01a (Dce_3_01a): DCE 3.01a
+    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    3_0a (Dce_3_0a): DCE 3.0a
+    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
+    csdl (Csdl): Comma-separated Dc list (long Dcs)
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
+    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnode-incoming (CtbNodeIncoming): Collective Toolbox incoming graph node (shorthand text)
+    ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
+    dc_id_list (DcIdList): Dc ID list (ASCII)
+    dcal (Dcal): Dc ASCII List (long Dcs)
+    dce (Dce): DCE (automatic version selection)
+    dcil (DcIntegerList): Dc Integer List (short Dcs)
+    dcmm, dcmstr (DcMixed): Dc mixed mode
+    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcsh (Dcsh): Dc shorthand ASCII list
+    dctext (DcText): DcText
+    dctf (DcTf): DcTF (Dc Transformation Format)
+    dcts (Dcts): DcText short
+    dcutf (DcUtf): DcUtf
+    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
+    hex_dce (DceHex): DCE (hex-encoded)
+    legacy_cdce (CdceLegacy): CDCE (legacy)
+    sems (Sems): SEMS (short Dcs)
+    utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
+    utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    utf8_dc64_bin_enc_hex (Utf8_Dc64_bin_enc_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    utf8_dc64_bin_hex (Utf8_Dc64_bin_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    utf8_dc64_enc (Utf8_Dc64_enc): UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+  Text encodings:
+    alphasmartneo (AlphaSmartNeo): AlphaSmart Neo encoding (has several variants)
+    alphasmartneolowctluamac (AlphaSmartNeoLowCtlUaMac): AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    alphasmartneolowctluapc (AlphaSmartNeoLowCtlUaPc): AlphaSmart Neo, control low bytes, Ukraine (PC)
+    alphasmartneolowctlus (AlphaSmartNeoLowCtlUs): AlphaSmart Neo, control low bytes, USA
+    alphasmartneolowgruamac (AlphaSmartNeoLowGrUaMac): AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    alphasmartneolowgruapc (AlphaSmartNeoLowGrUaPc): AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    alphasmartneolowgrus (AlphaSmartNeoLowGrUs): AlphaSmart Neo, graphical low bytes, USA
+    ascii (Ascii): ASCII
+    asciisafesubset (AsciiSafeSubset): Printable ASCII
+    cp437 (Cp437): Code page 437 (CCSID 437)
+    iso88591, latin1 (Iso88591): ISO 8859-1
+    macroman (MacRoman): MacRoman
+    utf8, txt, utf-8 (Utf8): UTF-8
+    win1252, ansi (Win1252): Windows-1252 ("ANSI")
+  Database & archive formats:
+    cscarchive (CscArchive): Collective Toolbox csc archive
+    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscjournal (CscJournal): Collective Toolbox csc journal
+
 Examples:
   $ ctoolbox character_description "Hello"
   $ ctoolbox character_description --codepoint U+1F602
   $ ctoolbox character_description --wuc-compat "Hello"
   $ ctoolbox character_description --from dcal "65 1114408 2228304"
   $ ctoolbox character_description --codepoint dc:296
+  $ ctoolbox character_description --from dcmm --permissive -f input.bin
   $ ctoolbox character_description -f input.txt -o output.txt
 ```
 
@@ -432,31 +494,31 @@ Options:
 
 Supported compression formats:
   br, brotli: Brotli compressed stream (RFC 9841)
-  gz, gzip: GNU gzip format (RFC 1952)
-  deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
-  zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
-  bz2, bzip2: Bzip2 compressed stream
   bz, bzip: Original bzip compression
-  zst, zstd: Zstandard compression
-  lz, lzip: Lzip compression
-  xz: XZ compression
-  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
+  bz2, bzip2: Bzip2 compressed stream
+  compact: `compact` (McMaster Adaptive Huffman)
   compress: `compress` format, modern LZW block format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6: `compress` 1.6 (LZW sorted chain format)
   compress2, compress-2: `compress` 2.0 (LZW non-block format)
-  pack: `pack` format, common version (Huffman)
-  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
-  compact: `compact` (McMaster Adaptive Huffman)
-  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
+  deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
+  gz, gzip: GNU gzip format (RFC 1952)
+  lz, lzip: Lzip compression
   lz4: LZ4
-  lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  lzo: LZO (Lempel-Ziv-Oberhumer)
   melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
   melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
+  pack: `pack` format, common version (Huffman)
+  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   szip: szip (Michael Schindler)
   szip111, szip-1.11: szip (Michael Schindler) version 1.11+
+  xz: XZ compression
+  zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
+  zst, zstd: Zstandard compression
 ```
 
 ### `ctoolbox convert`
@@ -470,19 +532,143 @@ Arguments:
   [INPUT]  Input data string. If not provided, reads from stdin or --file
 
 Options:
-      --from <FROM>                 Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii, cscjournal]
-  -t, --to <TO>                     Output format [default: utf8] [possible values: dcil, html, htmlfragment, elad, eitecolorcoded, dctext, dcutf, dcal, dcts, dcmm, dctf, dcmm1, dcmm2, utf8, asciisafesubset, ascii]
+      --from <FROM>                 Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+      --permissive                  Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+  -t, --to <TO>                     Output format (accepts nickname, FormatId name, or f<N> shorthand) [default: utf8]
   -f, --file <FILE>                 Input file path (or - for stdin)
   -o, --output <OUTPUT>             Output file path (or - for stdout)
   -F, --force                       Overwrite existing output file without prompt
       --allow-binary-encapsulation  Allow encapsulating arbitrary binary bytes into DcMixed mode if input format cannot be decoded
-  -h, --help                        Print help (see more with '--help')
+  -h, --help                        Print help
+
+Supported input formats (--from):
+  Document formats:
+    3_01a (Dce_3_01a): DCE 3.01a
+    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    3_0a (Dce_3_0a): DCE 3.0a
+    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
+    csdl (Csdl): Comma-separated Dc list (long Dcs)
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
+    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnode-incoming (CtbNodeIncoming): Collective Toolbox incoming graph node (shorthand text)
+    ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
+    dc_id_list (DcIdList): Dc ID list (ASCII)
+    dcal (Dcal): Dc ASCII List (long Dcs)
+    dce (Dce): DCE (automatic version selection)
+    dcil (DcIntegerList): Dc Integer List (short Dcs)
+    dcmm, dcmstr (DcMixed): Dc mixed mode
+    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcsh (Dcsh): Dc shorthand ASCII list
+    dctext (DcText): DcText
+    dctf (DcTf): DcTF (Dc Transformation Format)
+    dcts (Dcts): DcText short
+    dcutf (DcUtf): DcUtf
+    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
+    hex_dce (DceHex): DCE (hex-encoded)
+    legacy_cdce (CdceLegacy): CDCE (legacy)
+    sems (Sems): SEMS (short Dcs)
+    utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
+    utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    utf8_dc64_bin_enc_hex (Utf8_Dc64_bin_enc_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    utf8_dc64_bin_hex (Utf8_Dc64_bin_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    utf8_dc64_enc (Utf8_Dc64_enc): UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+  Text encodings:
+    alphasmartneo (AlphaSmartNeo): AlphaSmart Neo encoding (has several variants)
+    alphasmartneolowctluamac (AlphaSmartNeoLowCtlUaMac): AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    alphasmartneolowctluapc (AlphaSmartNeoLowCtlUaPc): AlphaSmart Neo, control low bytes, Ukraine (PC)
+    alphasmartneolowctlus (AlphaSmartNeoLowCtlUs): AlphaSmart Neo, control low bytes, USA
+    alphasmartneolowgruamac (AlphaSmartNeoLowGrUaMac): AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    alphasmartneolowgruapc (AlphaSmartNeoLowGrUaPc): AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    alphasmartneolowgrus (AlphaSmartNeoLowGrUs): AlphaSmart Neo, graphical low bytes, USA
+    ascii (Ascii): ASCII
+    asciisafesubset (AsciiSafeSubset): Printable ASCII
+    cp437 (Cp437): Code page 437 (CCSID 437)
+    iso88591, latin1 (Iso88591): ISO 8859-1
+    macroman (MacRoman): MacRoman
+    utf8, txt, utf-8 (Utf8): UTF-8
+    win1252, ansi (Win1252): Windows-1252 ("ANSI")
+  Database & archive formats:
+    cscarchive (CscArchive): Collective Toolbox csc archive
+    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscjournal (CscJournal): Collective Toolbox csc journal
+
+Supported output formats (--to):
+  Document formats:
+    3_01a (Dce_3_01a): DCE 3.01a
+    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    3_0a (Dce_3_0a): DCE 3.0a
+    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    csdl (Csdl): Comma-separated Dc list (long Dcs)
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
+    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
+    dc_id_list (DcIdList): Dc ID list (ASCII)
+    dcal (Dcal): Dc ASCII List (long Dcs)
+    dce (Dce): DCE (automatic version selection)
+    dcil (DcIntegerList): Dc Integer List (short Dcs)
+    dcmm, dcmstr (DcMixed): Dc mixed mode
+    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcsh (Dcsh): Dc shorthand ASCII list
+    dctext (DcText): DcText
+    dctf (DcTf): DcTF (Dc Transformation Format)
+    dcts (Dcts): DcText short
+    dcutf (DcUtf): DcUtf
+    eitecolorcoded (EiteColorCoded): Color-coded HTML integer list
+    elad (Elad): EITE Language in ASCII documents (ELAD)
+    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
+    hex_dce (DceHex): DCE (hex-encoded)
+    html (Html): HTML
+    html_l (HtmlLegacyCdce): HTML (legacy CDCE output)
+    html_snippet_l (HtmlLegacyCdceSnippet): HTML (snippet) (legacy CDCE output)
+    htmlfragment (HtmlFragment): HTML fragment
+    legacy_cdce (CdceLegacy): CDCE (legacy)
+    sems (Sems): SEMS (short Dcs)
+    utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
+    utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+    utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+    utf8_dc64_bin_enc_hex (Utf8_Dc64_bin_enc_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+    utf8_dc64_bin_hex (Utf8_Dc64_bin_hex): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+    utf8_dc64_enc (Utf8_Dc64_enc): UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+  Text encodings:
+    alphasmartneo (AlphaSmartNeo): AlphaSmart Neo encoding (has several variants)
+    alphasmartneolowctluamac (AlphaSmartNeoLowCtlUaMac): AlphaSmart Neo, control low bytes, Ukraine (Mac)
+    alphasmartneolowctluapc (AlphaSmartNeoLowCtlUaPc): AlphaSmart Neo, control low bytes, Ukraine (PC)
+    alphasmartneolowctlus (AlphaSmartNeoLowCtlUs): AlphaSmart Neo, control low bytes, USA
+    alphasmartneolowgruamac (AlphaSmartNeoLowGrUaMac): AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+    alphasmartneolowgruapc (AlphaSmartNeoLowGrUaPc): AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+    alphasmartneolowgrus (AlphaSmartNeoLowGrUs): AlphaSmart Neo, graphical low bytes, USA
+    ascii (Ascii): ASCII
+    asciisafesubset (AsciiSafeSubset): Printable ASCII
+    cp437 (Cp437): Code page 437 (CCSID 437)
+    iso88591, latin1 (Iso88591): ISO 8859-1
+    macroman (MacRoman): MacRoman
+    utf8, txt, utf-8 (Utf8): UTF-8
+    win1252, ansi (Win1252): Windows-1252 ("ANSI")
+  Database & archive formats:
+    cscarchive (CscArchive): Collective Toolbox csc archive
+    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscjournal (CscJournal): Collective Toolbox csc journal
 
 Examples:
   $ ctoolbox convert --from dcal --to dctext "65 1114408 2228304"
   $ ctoolbox convert -f input.dcal -o output.txt --to utf8
   $ ctoolbox convert --to dcts "hello world"
   $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal
+  $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext
 ```
 
 ### `ctoolbox cp`
@@ -829,29 +1015,29 @@ Options:
   -h, --help       Print help
 
 Supported hash algorithms:
-  xxh32, xxhash32: xxHash32
-  xxh64, xxhash64: xxHash64
-  xxh3, xxhash3-64, xxhash3_64: xxHash3-64
-  xxh128, xxhash128, xxhash3-128, xxhash3_128: xxHash3-128
-  sha256, sha-256, sha2-256, sha2_256: SHA-256
-  Fnv0_32: FNV-0 hash, 32 bits
-  Fnv0_64: FNV-0 hash, 64 bits
+  Fnv0_1024: FNV-0 hash, 1024 bits
   Fnv0_128: FNV-0 hash, 128 bits
   Fnv0_256: FNV-0 hash, 256 bits
+  Fnv0_32: FNV-0 hash, 32 bits
   Fnv0_512: FNV-0 hash, 512 bits
-  Fnv0_1024: FNV-0 hash, 1024 bits
-  Fnv1_32: FNV-1 hash, 32 bits
-  Fnv1_64: FNV-1 hash, 64 bits
+  Fnv0_64: FNV-0 hash, 64 bits
+  Fnv1_1024: FNV-1 hash, 1024 bits
   Fnv1_128: FNV-1 hash, 128 bits
   Fnv1_256: FNV-1 hash, 256 bits
+  Fnv1_32: FNV-1 hash, 32 bits
   Fnv1_512: FNV-1 hash, 512 bits
-  Fnv1_1024: FNV-1 hash, 1024 bits
-  Fnv1a_32: FNV-1a hash, 32 bits
-  Fnv1a_64: FNV-1a hash, 64 bits
+  Fnv1_64: FNV-1 hash, 64 bits
+  Fnv1a_1024: FNV-1a hash, 1024 bits
   Fnv1a_128: FNV-1a hash, 128 bits
   Fnv1a_256: FNV-1a hash, 256 bits
+  Fnv1a_32: FNV-1a hash, 32 bits
   Fnv1a_512: FNV-1a hash, 512 bits
-  Fnv1a_1024: FNV-1a hash, 1024 bits
+  Fnv1a_64: FNV-1a hash, 64 bits
+  sha256, sha-256, sha2-256, sha2_256: SHA-256
+  xxh128, xxhash128, xxhash3-128, xxhash3_128: xxHash3-128
+  xxh3, xxhash3-64, xxhash3_64: xxHash3-64
+  xxh32, xxhash32: xxHash32
+  xxh64, xxhash64: xxHash64
 ```
 
 ### `ctoolbox ctb-asset-bundle-extract`
@@ -1040,31 +1226,31 @@ Options:
 
 Supported compression formats:
   br, brotli: Brotli compressed stream (RFC 9841)
-  gz, gzip: GNU gzip format (RFC 1952)
-  deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
-  zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
-  bz2, bzip2: Bzip2 compressed stream
   bz, bzip: Original bzip compression
-  zst, zstd: Zstandard compression
-  lz, lzip: Lzip compression
-  xz: XZ compression
-  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
+  bz2, bzip2: Bzip2 compressed stream
+  compact: `compact` (McMaster Adaptive Huffman)
   compress: `compress` format, modern LZW block format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6: `compress` 1.6 (LZW sorted chain format)
   compress2, compress-2: `compress` 2.0 (LZW non-block format)
-  pack: `pack` format, common version (Huffman)
-  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
-  compact: `compact` (McMaster Adaptive Huffman)
-  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
+  deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
+  gz, gzip: GNU gzip format (RFC 1952)
+  lz, lzip: Lzip compression
   lz4: LZ4
-  lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  lzo: LZO (Lempel-Ziv-Oberhumer)
   melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
   melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
+  pack: `pack` format, common version (Huffman)
+  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   szip: szip (Michael Schindler)
   szip111, szip-1.11: szip (Michael Schindler) version 1.11+
+  xz: XZ compression
+  zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
+  zst, zstd: Zstandard compression
 ```
 
 ### `ctoolbox file`
