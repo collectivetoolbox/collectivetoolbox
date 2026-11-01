@@ -1679,7 +1679,7 @@ impl Warcraft2Pud_Unit {
             return Ok(self.resource.borrow());
         }
         self.f_resource.set(true);
-        if  (*self.u_type() == Warcraft2Pud_UnitType::GoldMine) || (*self.u_type() == Warcraft2Pud_UnitType::HumanOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OrcOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OilPatch)  {
+        if  ((*self.u_type() == Warcraft2Pud_UnitType::GoldMine) || (*self.u_type() == Warcraft2Pud_UnitType::HumanOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OrcOilWell) || (*self.u_type() == Warcraft2Pud_UnitType::OilPatch))  {
             *self.resource.borrow_mut() = ((i32::from(*self.options())).saturating_mul(2500_i32)).try_into()?;
         }
         Ok(self.resource.borrow())

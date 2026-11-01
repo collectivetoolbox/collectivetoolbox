@@ -247,7 +247,7 @@ impl WindowsResourceFile_Resource {
             return Ok(self.type_as_predef.borrow());
         }
         self.f_type_as_predef.set(true);
-        if  (!(*self.r#type().is_string()?)) && (((to_i128(*self.r#type().as_numeric())) <= (to_i128(255))))  {
+        if  ((!(*self.r#type().is_string()?)) && (((to_i128(*self.r#type().as_numeric())) <= (to_i128(255)))))  {
             *self.type_as_predef.borrow_mut() = i64::from(*self.r#type().as_numeric()).try_into()?;
         }
         Ok(self.type_as_predef.borrow())
@@ -543,13 +543,13 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
                     let Some(_tmpa) = _t_rest.last() else { break; };
                     let _tmpa = *_tmpa;
                     _i = _i.saturating_add(1);
-                    if (to_i128(_tmpa)) == (to_i128(0)) { break; }
+                    if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0)  {
+        if  ((*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0))  {
             *self_rc.noop.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }

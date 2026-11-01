@@ -584,38 +584,36 @@ pub fn materialize_entity_with_stream_source(
 
     let max_leaf_bytes = if options.strict_lossless {
         crate::clean_name::MAX_FILENAME_BYTES
+    } else if options.apple_write_mode.is_windows_ads()
+        && !entity.streams.is_empty()
+    {
+        let max_stream_len: usize = entity
+            .streams
+            .iter()
+            .map(|s| {
+                // Reason for fallback: unnamed stream (e.g. Mac resource fork) reserves 7 bytes for companion suffix
+                s.name
+                    .as_ref()
+                    .map_or(7, |n| n.as_bytes().len().clamp(8, 64))
+            })
+            .max()
+            .unwrap_or(16); // Reason for fallback: non-empty streams slice always yields Some
+        crate::clean_name::MAX_FILENAME_BYTES
+            .saturating_sub(max_stream_len.saturating_add(1))
+    } else if options.apple_write_mode.double_style().is_some()
+        && (!entity.streams.is_empty()
+            // Reason for fallback: absent AppleMetadata defaults to false
+            || entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()))
+    {
+        crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(2)
+    } else if (options.apple_write_mode == AppleWriteMode::ForceAppleSingle
+        || options.apple_write_mode == AppleWriteMode::MaybeAppleSingle)
+        && options.apple_single_write_extension
+            != crate::apple_double::AppleSingleExtension::WithoutExtension
+    {
+        crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(4)
     } else {
-        if options.apple_write_mode.is_windows_ads()
-            && !entity.streams.is_empty()
-        {
-            let max_stream_len: usize = entity
-                .streams
-                .iter()
-                .map(|s| {
-                    // Reason for fallback: unnamed stream (e.g. Mac resource fork) reserves 7 bytes for companion suffix
-                    s.name
-                        .as_ref()
-                        .map_or(7, |n| n.as_bytes().len().clamp(8, 64))
-                })
-                .max()
-                .unwrap_or(16); // Reason for fallback: non-empty streams slice always yields Some
-            crate::clean_name::MAX_FILENAME_BYTES
-                .saturating_sub(max_stream_len.saturating_add(1))
-        } else if options.apple_write_mode.double_style().is_some()
-            && (!entity.streams.is_empty()
-                // Reason for fallback: absent AppleMetadata defaults to false
-                || entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()))
-        {
-            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(2)
-        } else if (options.apple_write_mode == AppleWriteMode::ForceAppleSingle
-            || options.apple_write_mode == AppleWriteMode::MaybeAppleSingle)
-            && options.apple_single_write_extension
-                != crate::apple_double::AppleSingleExtension::WithoutExtension
-        {
-            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(4)
-        } else {
-            crate::clean_name::MAX_FILENAME_BYTES
-        }
+        crate::clean_name::MAX_FILENAME_BYTES
     };
 
     let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless

@@ -345,13 +345,13 @@ impl KStruct for ZxSpectrumTap_Block {
         *self_rc.flag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (((to_i128(*self_rc.len_block())) == (to_i128(19)))) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header)  {
+        if  ((((to_i128(*self_rc.len_block())) == (to_i128(19)))) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header))  {
             let t = Self::read_into::<_, ZxSpectrumTap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len_block())) == (to_i128(19)) {
+        if ((to_i128(*self_rc.len_block())) == (to_i128(19))) {
             *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_data())).saturating_add(4_i32))?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }

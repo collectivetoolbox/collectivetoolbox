@@ -857,7 +857,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.num_vertices.borrow());
         }
         self.f_num_vertices.set(true);
-        *self.num_vertices.borrow_mut() = (if (to_i128(*self.cmd_num_vertices())) < (to_i128(0)) { (0_i32).saturating_sub(to_i32(*self.cmd_num_vertices())) } else { *self.cmd_num_vertices() }).try_into()?;
+        *self.num_vertices.borrow_mut() = (if ((to_i128(*self.cmd_num_vertices())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(*self.cmd_num_vertices())) } else { *self.cmd_num_vertices() }).try_into()?;
         Ok(self.num_vertices.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -869,7 +869,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.primitive.borrow());
         }
         self.f_primitive.set(true);
-        *self.primitive.borrow_mut() = if (to_i128(*self.cmd_num_vertices())) < (to_i128(0)) { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
+        *self.primitive.borrow_mut() = if ((to_i128(*self.cmd_num_vertices())) < (to_i128(0))) { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
         Ok(self.primitive.borrow())
     }
 }
@@ -962,7 +962,7 @@ impl KStruct for Quake2Md2_GlCmdsList {
                     let _t_items = self_rc.items.borrow();
                     let Some(_tmpa) = _t_items.last() else { break; };
                     _i = _i.saturating_add(1);
-                    if (to_i128(*_tmpa.cmd_num_vertices())) == (to_i128(0)) { break; }
+                    if ((to_i128(*_tmpa.cmd_num_vertices())) == (to_i128(0))) { break; }
                 }
             }
             *self_rc._io.borrow_mut() = _io.clone();

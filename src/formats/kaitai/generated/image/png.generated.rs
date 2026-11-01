@@ -164,7 +164,7 @@ impl KStruct for Png {
                 let _t_chunks = self_rc.chunks.borrow();
                 let Some(_tmpa) = _t_chunks.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((_tmpa.r#type()?.as_str() == "IEND")) || (_io.is_eof())  { break; }
+                if  (((_tmpa.r#type()?.as_str() == "IEND")) || (_io.is_eof()))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -3769,7 +3769,7 @@ impl Png_FrameControlChunk {
             return Ok(self.delay.borrow());
         }
         self.f_delay.set(true);
-        *self.delay.borrow_mut() = (((to_f64(*self.delay_num())) / (if (to_i128(*self.delay_den())) == (to_i128(0)) { 100.0 } else { to_f64(*self.delay_den()) }))).try_into()?;
+        *self.delay.borrow_mut() = (((to_f64(*self.delay_num())) / (if ((to_i128(*self.delay_den())) == (to_i128(0))) { 100.0 } else { to_f64(*self.delay_den()) }))).try_into()?;
         Ok(self.delay.borrow())
     }
 }
@@ -4738,7 +4738,7 @@ impl KStruct for Png_InternationalTextChunk {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
-        if !(*self_rc.compression_method() == if (to_i128(*self_rc.compression_flag())) == (to_i128(1)) { Png_CompressionMethods::Zlib.clone() } else { self_rc.compression_method().clone() }) {
+        if !(*self_rc.compression_method() == if ((to_i128(*self_rc.compression_flag())) == (to_i128(1))) { Png_CompressionMethods::Zlib.clone() } else { self_rc.compression_method().clone() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/international_text_chunk/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -4747,7 +4747,7 @@ impl KStruct for Png_InternationalTextChunk {
         *self_rc.translated_keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.compression_flag())) == (to_i128(0)) {
+        if ((to_i128(*self_rc.compression_flag())) == (to_i128(0))) {
             let _raw_text_plain = _io.read_bytes_full()?;
             *self_rc.text_plain_raw.borrow_mut() = _raw_text_plain.clone();
             let _io_text_plain = BytesReader::from(_raw_text_plain);
@@ -4756,7 +4756,7 @@ impl KStruct for Png_InternationalTextChunk {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.compression_flag())) == (to_i128(1)) {
+        if ((to_i128(*self_rc.compression_flag())) == (to_i128(1))) {
             let _raw_text_zlib = _io.read_bytes_full()?;
             *self_rc.text_zlib_raw.borrow_mut() = _raw_text_zlib.clone();
             let _processed_text_zlib = process_zlib(&_raw_text_zlib)?;
@@ -4791,7 +4791,7 @@ impl Png_InternationalTextChunk {
             return Ok(self.text.borrow());
         }
         self.f_text.set(true);
-        *self.text.borrow_mut() = if (to_i128(*self.compression_flag())) == (to_i128(0)) { self.text_plain().value().to_string() } else { self.text_zlib().value().to_string() }.to_string();
+        *self.text.borrow_mut() = if ((to_i128(*self.compression_flag())) == (to_i128(0))) { self.text_plain().value().to_string() } else { self.text_zlib().value().to_string() }.to_string();
         Ok(self.text.borrow())
     }
 }

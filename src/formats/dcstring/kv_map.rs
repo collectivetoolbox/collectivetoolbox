@@ -63,7 +63,7 @@ impl DcKvMapEncoding {
         match self {
             Self::Pairs => target.push_char(DC_BEGIN_KV_PAIR)?,
             Self::Legacy if !first => {
-                target.push_char(DC_LIST_ELEMENT_SEPARATOR)?
+                target.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
             }
             Self::Legacy => {}
         }
@@ -99,7 +99,7 @@ impl DcKvMapEncoding {
         match self {
             Self::Pairs => target.push_char(DC_BEGIN_KV_PAIR),
             Self::Legacy if !first => {
-                target.push_char(DC_LIST_ELEMENT_SEPARATOR)
+                target.push_char(DC_LIST_ELEMENT_SEPARATOR);
             }
             Self::Legacy => {}
         }

@@ -948,7 +948,7 @@ impl Regf_HiveBinCell {
             return Ok(self.cell_size.borrow());
         }
         self.f_cell_size.set(true);
-        *self.cell_size.borrow_mut() = ((if (to_i128(*self.cell_size_raw())) < (to_i128(0)) { (0_i32).saturating_sub(to_i32(1)) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
+        *self.cell_size.borrow_mut() = ((if ((to_i128(*self.cell_size_raw())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(1)) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
         Ok(self.cell_size.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]

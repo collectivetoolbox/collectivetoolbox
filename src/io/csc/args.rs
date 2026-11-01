@@ -601,7 +601,7 @@ pub fn resolve_apple_read_options_from_flags(
     if let Some(style) = read_apple_double {
         match style {
             AppleDoubleStyle::Alongside => {
-                alongside = !no_read_apple_double_alongside
+                alongside = !no_read_apple_double_alongside;
             }
             AppleDoubleStyle::Zip => zip = true,
             AppleDoubleStyle::Netatalk => netatalk = true,

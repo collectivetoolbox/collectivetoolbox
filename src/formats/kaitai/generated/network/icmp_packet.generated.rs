@@ -79,7 +79,7 @@ impl KStruct for IcmpPacket {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if  (*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::Echo) || (*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::EchoReply)  {
+        if  ((*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::Echo) || (*self_rc.icmp_type() == IcmpPacket_IcmpTypeEnum::EchoReply))  {
             let t = Self::read_into::<_, IcmpPacket_EchoMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.echo.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

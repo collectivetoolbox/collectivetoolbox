@@ -238,7 +238,7 @@ impl KStruct for SwitchIntegers2 {
         *self_rc.ham.borrow_mut() = _io.read_bytes(usize::try_from(self_rc.len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(self_rc.len())) > (to_i128(3)) {
+        if ((to_i128(self_rc.len())) > (to_i128(3))) {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }

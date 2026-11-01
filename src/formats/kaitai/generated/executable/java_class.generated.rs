@@ -102,7 +102,7 @@ impl KStruct for JavaClass {
         *self_rc.constant_pool.borrow_mut() = Vec::new();
         let l_constant_pool = usize::try_from((i32::from(*self_rc.constant_pool_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_constant_pool {
-            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if (to_i128(_i)) != (to_i128(0)) { *self_rc.constant_pool().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
+            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if ((to_i128(_i)) != (to_i128(0))) { *self_rc.constant_pool().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
             let t = Self::read_into_with_init::<_, JavaClass_ConstantPoolEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.constant_pool.borrow_mut().push(t);
         }
@@ -790,7 +790,7 @@ impl JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
         if self.f_catch_exception.get() {
             return Ok(self.catch_exception.borrow());
         }
-        if (to_i128(*self.catch_type())) != (to_i128(0)) {
+        if ((to_i128(*self.catch_type())) != (to_i128(0))) {
             *self.catch_exception.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.catch_type())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.catch_exception.borrow())
@@ -2119,7 +2119,7 @@ impl JavaClass_ConstantPoolEntry {
             return Ok(self.is_two_entries.borrow());
         }
         self.f_is_two_entries.set(true);
-        *self.is_two_entries.borrow_mut() = (if *self.is_prev_two_entries() { false } else {  (*self.tag() == JavaClass_ConstantPoolEntry_TagEnum::Long) || (*self.tag() == JavaClass_ConstantPoolEntry_TagEnum::Double)  }).try_into()?;
+        *self.is_two_entries.borrow_mut() = (if *self.is_prev_two_entries() { false } else {  ((*self.tag() == JavaClass_ConstantPoolEntry_TagEnum::Long) || (*self.tag() == JavaClass_ConstantPoolEntry_TagEnum::Double))  }).try_into()?;
         Ok(self.is_two_entries.borrow())
     }
 }

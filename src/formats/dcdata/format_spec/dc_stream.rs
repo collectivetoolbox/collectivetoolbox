@@ -277,7 +277,7 @@ fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
             "(" => tokens
                 .push(DcToken::from_short_dc(DC_BEGIN_ASSOCIATIVITY_GROUP)),
             ")" => {
-                tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP))
+                tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP));
             }
             _ => {
                 if let Ok(shorthand) = DcShorthand::parse(part) {

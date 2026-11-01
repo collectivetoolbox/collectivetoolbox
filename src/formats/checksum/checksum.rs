@@ -277,22 +277,22 @@ impl StreamingHasher {
             Self::XxHash3_64(h) => h.write(data),
             Self::XxHash3_128(h) => h.write(data),
             Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => {
-                s.update(data)
+                s.update(data);
             }
             Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => {
-                s.update(data)
+                s.update(data);
             }
             Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => {
-                s.update(data)
+                s.update(data);
             }
             Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => {
-                s.update(data)
+                s.update(data);
             }
             Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => {
-                s.update(data)
+                s.update(data);
             }
             Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => {
-                s.update(data)
+                s.update(data);
             }
         }
     }

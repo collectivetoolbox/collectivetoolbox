@@ -1213,7 +1213,7 @@ impl KStruct for QuicktimeMov_Atom {
         *self_rc.atom_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len32())) == (to_i128(1)) {
+        if ((to_i128(*self_rc.len32())) == (to_i128(1))) {
             *self_rc.len64.borrow_mut() = _io.read_u8be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1314,7 +1314,7 @@ impl QuicktimeMov_Atom {
             return Ok(self.len.borrow());
         }
         self.f_len.set(true);
-        *self.len.borrow_mut() = (if (to_i128(*self.len32())) == (to_i128(0)) { u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))? } else { if (to_i128(*self.len32())) == (to_i128(1)) { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
+        *self.len.borrow_mut() = (if ((to_i128(*self.len32())) == (to_i128(0))) { u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))? } else { if ((to_i128(*self.len32())) == (to_i128(1))) { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
         Ok(self.len.borrow())
     }
 }

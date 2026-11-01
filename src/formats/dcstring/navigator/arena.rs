@@ -1342,13 +1342,13 @@ impl<'a> DcDocumentNavigator<'a> {
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
                             ArenaBuildFrame::Assignment { value, .. } => {
-                                *value = Some(node_id)
+                                *value = Some(node_id);
                             }
                             ArenaBuildFrame::Container { children, .. } => {
-                                children.push(node_id)
+                                children.push(node_id);
                             }
                             ArenaBuildFrame::Tagged { args, .. } => {
-                                args.push(node_id)
+                                args.push(node_id);
                             }
                         }
                         continue;
@@ -1503,13 +1503,13 @@ impl<'a> DcDocumentNavigator<'a> {
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
                             ArenaBuildFrame::Assignment { value, .. } => {
-                                *value = Some(node_id)
+                                *value = Some(node_id);
                             }
                             ArenaBuildFrame::Container { children, .. } => {
-                                children.push(node_id)
+                                children.push(node_id);
                             }
                             ArenaBuildFrame::Tagged { args, .. } => {
-                                args.push(node_id)
+                                args.push(node_id);
                             }
                         }
                     } else {

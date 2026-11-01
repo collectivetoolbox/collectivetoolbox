@@ -118,7 +118,7 @@ impl KStruct for NavRootRecursive {
         *self_rc.value.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.value())) == (to_i128(255)) {
+        if ((to_i128(*self_rc.value())) == (to_i128(255))) {
             let t = Self::read_into::<_, NavRootRecursive>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.next.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

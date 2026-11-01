@@ -303,7 +303,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        match if  (((to_i128(*self_rc.code())) > (to_i128(0)))) && (((to_i128(*self_rc.code())) <= (to_i128(8)))) && (if (to_i128(*self_rc.code())) != (to_i128(10)) { true } else { false })  { i32::from(*self_rc.code()) } else { 0_i32 } {
+        match if  ((((to_i128(*self_rc.code())) > (to_i128(0)))) && (((to_i128(*self_rc.code())) <= (to_i128(8)))) && (if ((to_i128(*self_rc.code())) != (to_i128(10))) { true } else { false }))  { i32::from(*self_rc.code()) } else { 0_i32 } {
             1 => {
                 *self_rc.body.borrow_mut() = Some(_io.read_u1()?.into());
             }

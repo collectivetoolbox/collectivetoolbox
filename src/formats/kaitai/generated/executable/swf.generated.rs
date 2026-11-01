@@ -1120,7 +1120,7 @@ impl KStruct for Swf_SwfBody {
         *self_rc.frame_count.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version())) >= (to_i128(8)) {
+        if ((to_i128(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version())) >= (to_i128(8))) {
             let t = Self::read_into::<_, Swf_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_attributes_tag.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

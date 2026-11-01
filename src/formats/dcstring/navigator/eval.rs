@@ -1014,14 +1014,12 @@ impl DcDocumentNavigator<'_> {
                     }
                     let _ = self.pop_next_token()?;
                     Ok(true)
+                } else if in_set {
+                    let _ = self.pop_next_token()?;
+                    Ok(true)
                 } else {
-                    if in_set {
-                        let _ = self.pop_next_token()?;
-                        Ok(true)
-                    } else {
-                        self.restore_checkpoint(term_checkpoint);
-                        Ok(false)
-                    }
+                    self.restore_checkpoint(term_checkpoint);
+                    Ok(false)
                 }
             }
             SyntaxTerm::Group(group_pat) => self.eval_pattern(group_pat, ctx),

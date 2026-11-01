@@ -105,7 +105,7 @@ impl KStruct for VlqBase128Le {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if (to_i128(_i)) != (to_i128(0)) { *self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if (to_i128(_i)) != (to_i128(0)) { if (to_i128(_i)) == (to_i128(9)) { 9223372036854775808_u64 } else { (*self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
+                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if ((to_i128(_i)) != (to_i128(0))) { *self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if ((to_i128(_i)) != (to_i128(0))) { if ((to_i128(_i)) == (to_i128(9))) { 9223372036854775808_u64 } else { (*self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, VlqBase128Le_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
@@ -169,7 +169,7 @@ impl VlqBase128Le {
             return Ok(self.value_signed.borrow());
         }
         self.f_value_signed.set(true);
-        *self.value_signed.borrow_mut() = (if  (*self.sign_bit()? > 0) && (*self.value()? >= *self.sign_bit()?)  { (0_i64).saturating_sub(i64::from((*self.sign_bit()?).saturating_sub((*self.value()?).saturating_sub(*self.sign_bit()?)))) } else { i64::from(*self.value()?) }).try_into()?;
+        *self.value_signed.borrow_mut() = (if  ((*self.sign_bit()? > 0) && (*self.value()? >= *self.sign_bit()?))  { (0_i64).saturating_sub(i64::from((*self.sign_bit()?).saturating_sub((*self.value()?).saturating_sub(*self.sign_bit()?)))) } else { i64::from(*self.value()?) }).try_into()?;
         Ok(self.value_signed.borrow())
     }
 }
@@ -257,12 +257,12 @@ impl KStruct for VlqBase128Le_Group {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.has_next.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        if !(*self_rc.has_next() == if (to_i128(*self_rc.idx())) == (to_i128(9)) { false } else { *self_rc.has_next() }) {
+        if !(*self_rc.has_next() == if ((to_i128(*self_rc.idx())) == (to_i128(9))) { false } else { *self_rc.has_next() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/group/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
-        let max_val: u64 = (u64::try_from(if (to_i128(*self_rc.idx())) == (to_i128(9)) { 1_i32 } else { 127_i32 })?).try_into()?;
+        let max_val: u64 = (u64::try_from(if ((to_i128(*self_rc.idx())) == (to_i128(9))) { 1_i32 } else { 127_i32 })?).try_into()?;
         if !(*self_rc.value() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/group/seq/1".to_string() }));
         }

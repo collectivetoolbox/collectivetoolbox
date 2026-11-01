@@ -155,7 +155,7 @@ impl ExprOpsParens {
             return Ok(self.bool_and.borrow());
         }
         self.f_bool_and.set(true);
-        *self.bool_and.borrow_mut() = ((if { let _ = true; false } { 1_i32 } else { 0_i32 })).try_into()?;
+        *self.bool_and.borrow_mut() = ((if ({ let _ = true; false }) { 1_i32 } else { 0_i32 })).try_into()?;
         Ok(self.bool_and.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -179,7 +179,7 @@ impl ExprOpsParens {
             return Ok(self.bool_or.borrow());
         }
         self.f_bool_or.set(true);
-        *self.bool_or.borrow_mut() = ((if  (!(false)) || (false)  { 1_i32 } else { 0_i32 })).try_into()?;
+        *self.bool_or.borrow_mut() = ((if  ((!(false)) || (false))  { 1_i32 } else { 0_i32 })).try_into()?;
         Ok(self.bool_or.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -215,7 +215,7 @@ impl ExprOpsParens {
             return Ok(self.f_sum_to_int.borrow());
         }
         self.f_f_sum_to_int.set(true);
-        *self.f_sum_to_int.borrow_mut() = (float_to_int((*self.f_2pi()?) + (*self.f_e()?))?).try_into()?;
+        *self.f_sum_to_int.borrow_mut() = (float_to_int(((*self.f_2pi()?) + (*self.f_e()?)))?).try_into()?;
         Ok(self.f_sum_to_int.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]

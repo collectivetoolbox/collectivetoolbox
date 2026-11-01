@@ -913,12 +913,10 @@ fn emit_read_array_element(
             }
             w.puts(&format!("let (root_in, parent_in) = ({target_args});"));
             w.puts(
-                &"let root = Self::downcast(root_in, t.clone(), true);"
-                    .to_string(),
+                "let root = Self::downcast(root_in, t.clone(), true);",
             );
             w.puts(
-                &"let parent = Self::downcast(parent_in, t.clone(), false);"
-                    .to_string(),
+                "let parent = Self::downcast(parent_in, t.clone(), false);",
             );
             w.puts(&format!(
                 "let res = {type_name}::read(&t, {io_expr}, root, parent);"
@@ -1840,12 +1838,12 @@ fn emit_validation_check(
                     ));
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&"if !(*_x >= min_val) {".to_string());
+                    w.puts("if !(*_x >= min_val) {");
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
-                    w.puts(&"if !(*_x <= max_val) {".to_string());
+                    w.puts("if !(*_x <= max_val) {");
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();

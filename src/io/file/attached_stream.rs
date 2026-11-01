@@ -248,31 +248,31 @@ pub fn create_apple_archive_from_entity_with_stream_source(
         for flag in entity_flags {
             match flag {
                 crate::metadata::FileFlag::OnDesk => {
-                    finfo.flags.is_on_desk = true
+                    finfo.flags.is_on_desk = true;
                 }
                 crate::metadata::FileFlag::SharedApp => {
-                    finfo.flags.is_shared = true
+                    finfo.flags.is_shared = true;
                 }
                 crate::metadata::FileFlag::NoInits => {
-                    finfo.flags.has_no_inits = true
+                    finfo.flags.has_no_inits = true;
                 }
                 crate::metadata::FileFlag::Inited => {
-                    finfo.flags.has_been_inited = true
+                    finfo.flags.has_been_inited = true;
                 }
                 crate::metadata::FileFlag::CustomIcon => {
-                    finfo.flags.has_custom_icon = true
+                    finfo.flags.has_custom_icon = true;
                 }
                 crate::metadata::FileFlag::Stationery => {
-                    finfo.flags.is_stationery = true
+                    finfo.flags.is_stationery = true;
                 }
                 crate::metadata::FileFlag::NameLocked => {
-                    finfo.flags.name_locked = true
+                    finfo.flags.name_locked = true;
                 }
                 crate::metadata::FileFlag::HasBundle => {
-                    finfo.flags.has_bundle = true
+                    finfo.flags.has_bundle = true;
                 }
                 crate::metadata::FileFlag::Invisible => {
-                    finfo.flags.is_invisible = true
+                    finfo.flags.is_invisible = true;
                 }
                 crate::metadata::FileFlag::Alias => finfo.flags.is_alias = true,
                 crate::metadata::FileFlag::CustomBadge => {

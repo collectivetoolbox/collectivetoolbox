@@ -2049,9 +2049,8 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     {
                         if resolved == node_id {
                             return Ok(node_id);
-                        } else {
-                            resolved
                         }
+                        resolved
                     } else {
                         return Ok(node_id);
                     }

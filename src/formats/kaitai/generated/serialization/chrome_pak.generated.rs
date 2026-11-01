@@ -87,14 +87,14 @@ impl KStruct for ChromePak {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.version())) == (to_i128(4)) {
+        if ((to_i128(*self_rc.version())) == (to_i128(4))) {
             *self_rc.num_resources_v4.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.version())) == (to_i128(5)) {
+        if ((to_i128(*self_rc.version())) == (to_i128(5))) {
             let t = Self::read_into::<_, ChromePak_HeaderV5Part>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.v5_part.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
@@ -102,7 +102,7 @@ impl KStruct for ChromePak {
         *self_rc.resources.borrow_mut() = Vec::new();
         let l_resources = usize::try_from((*self_rc.num_resources()?).saturating_add(1_u32))?;
         for _i in 0_usize..l_resources {
-            let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (to_i128(_i)) < (to_i128(*self_rc.num_resources()?))));
+            let f = |t : &mut ChromePak_Resource| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, ((to_i128(_i)) < (to_i128(*self_rc.num_resources()?)))));
             let t = Self::read_into_with_init::<_, ChromePak_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.resources.borrow_mut().push(t);
         }
@@ -128,7 +128,7 @@ impl ChromePak {
             return Ok(self.num_aliases.borrow());
         }
         self.f_num_aliases.set(true);
-        *self.num_aliases.borrow_mut() = (if (to_i128(*self.version())) == (to_i128(5)) { i32::from(*self.v5_part().num_aliases()) } else { 0_i32 }).try_into()?;
+        *self.num_aliases.borrow_mut() = (if ((to_i128(*self.version())) == (to_i128(5))) { i32::from(*self.v5_part().num_aliases()) } else { 0_i32 }).try_into()?;
         Ok(self.num_aliases.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -140,7 +140,7 @@ impl ChromePak {
             return Ok(self.num_resources.borrow());
         }
         self.f_num_resources.set(true);
-        *self.num_resources.borrow_mut() = (if (to_i128(*self.version())) == (to_i128(5)) { u32::from(*self.v5_part().num_resources()) } else { *self.num_resources_v4() }).try_into()?;
+        *self.num_resources.borrow_mut() = (if ((to_i128(*self.version())) == (to_i128(5))) { u32::from(*self.v5_part().num_resources()) } else { *self.num_resources_v4() }).try_into()?;
         Ok(self.num_resources.borrow())
     }
 }
