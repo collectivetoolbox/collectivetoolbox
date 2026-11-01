@@ -603,8 +603,6 @@ struct LedgerBuilder {
     provenance_map: NodeProvenanceMap,
     /// Maps a CSV node ID (`u128`) to an active `Manual` node ID (`u128`) that references it.
     manual_referenced_ids: HashMap<u128, u128>,
-    /// Non-canonical ambiguity branch statement IDs (`Dc 348 "Ambiguous values"`) pending `Dc 592 "Retracts"`.
-    pending_ambiguity_branch_retractions: Vec<u128>,
     /// Canonical human-readable names for Dc, Format, and allocated Long node tokens.
     token_labels: HashMap<DcShorthand, String>,
     /// Decoded UTF-8 strings for string value nodes, keyed by `u128` node ID.
@@ -656,13 +654,6 @@ impl LedgerBuilder {
         provenance_map: NodeProvenanceMap,
     ) -> Self {
         let mut token_labels = initial_token_labels;
-        let (effective_inactive_ids, _, _) =
-            crate::seed_graph::compute_effective_inactive_ids(&existing);
-        let (_, pending_ambiguity_branch_retractions) =
-            crate::seed_graph::compute_non_canonical_ambiguity_branch_ids(
-                &existing,
-                &effective_inactive_ids,
-            );
         let index = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
             existing,
             single_valued_props,
@@ -727,7 +718,6 @@ impl LedgerBuilder {
             retracted_count: 0,
             provenance_map,
             manual_referenced_ids,
-            pending_ambiguity_branch_retractions,
             token_labels,
             string_by_node_id: index.string_by_node_id,
             value_node_by_tokens: index.value_node_by_tokens,
@@ -1219,15 +1209,6 @@ impl LedgerBuilder {
         for (nick, variant_sh) in &desired.vary_as_to_format_variant {
             self.vary_as_to_format_variant
                 .insert(nick.clone(), *variant_sh);
-        }
-
-        // 0. Retract any non-canonical ambiguity branch statements (`Dc 348 "Ambiguous values"`).
-        let pending_retractions =
-            std::mem::take(&mut self.pending_ambiguity_branch_retractions);
-        for stmt_id in pending_retractions {
-            if !self.is_manual_node(stmt_id) {
-                self.retract_node(stmt_id)?;
-            }
         }
 
         // 1. Ensure all seed classification entities exist and add their label/syntax properties.
@@ -3040,7 +3021,7 @@ mod tests {
         // Modify the single-valued Canonical name (`572`)
         defn.name = "Updated name".to_string();
         let (nodes2, stats2) =
-            update_ledger_in_memory(nodes1.clone(), &[defn], &[], &scripts, None)?;
+            update_ledger_in_memory(nodes1.clone(), &[defn.clone()], &[], &scripts, None)?;
 
         // Existing prefix of nodes must be byte-for-byte identical
         assert_eq!(&nodes2[..initial_len], &nodes1[..]);
@@ -3050,6 +3031,20 @@ mod tests {
         assert_eq!(stats2.nodes_appended, 3);
         let last = nodes2.last().unwrap();
         assert_eq!(last.tokens.first(), Some(&sh(DC_SUPERSEDES)));
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
+        assert_eq!(
+            index.get_single_property_string(
+                DcShorthand::Short(900),
+                sh(DC_CANONICAL_NAME),
+            ),
+            Some("Updated name"),
+        );
+        let (nodes3, stats3) =
+            update_ledger_in_memory(nodes2.clone(), &[defn], &[], &scripts, None)?;
+        assert_eq!(stats3.nodes_appended, 0);
+        assert_eq!(stats3.nodes_superseded, 0);
+        assert_eq!(stats3.nodes_retracted, 0);
+        assert_eq!(nodes3, nodes2);
         Ok(())
     }
 
@@ -3067,7 +3062,7 @@ mod tests {
         defn.implies.clear();
         defn.aliases.clear();
         let (nodes2, stats2) =
-            update_ledger_in_memory(nodes1.clone(), &[defn], &[], &scripts, None)?;
+            update_ledger_in_memory(nodes1.clone(), &[defn.clone()], &[], &scripts, None)?;
 
         assert_eq!(&nodes2[..initial_len], &nodes1[..]);
         // Retracted: 1 direct `587` statement + 2 nodes (`584` and `610`) for the multi-valued alias = 3
@@ -3077,6 +3072,22 @@ mod tests {
             assert_eq!(node.tokens.first(), Some(&sh(DC_RETRACTS)));
             assert_eq!(node.tokens.get(1), Some(&sh(DC_ENCLOSING_DOCUMENT)));
         }
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
+        assert!(!index.has_direct_statement(
+            DcShorthand::Short(587),
+            DcShorthand::Short(900),
+            DcShorthand::Short(571),
+        ));
+        assert!(index.get_multi_properties(
+            DcShorthand::Short(900),
+            DcShorthand::Short(576),
+        ).is_empty());
+        let (nodes3, stats3) =
+            update_ledger_in_memory(nodes2.clone(), &[defn], &[], &scripts, None)?;
+        assert_eq!(stats3.nodes_appended, 0);
+        assert_eq!(stats3.nodes_superseded, 0);
+        assert_eq!(stats3.nodes_retracted, 0);
+        assert_eq!(nodes3, nodes2);
         Ok(())
     }
 
@@ -3685,7 +3696,9 @@ mod tests {
     #[crate::ctb_test]
     fn test_live_system_graph_ledger_has_zero_drift() -> Result<()> {
         let repo_root = crate::updater::find_repository_root()?;
-        let stats = update_system_graph_ledger(&repo_root)?;
+        let stats = update_system_graph_ledger_with_options(
+            &repo_root, None, true, None,
+        )?;
         assert_eq!(
             stats.nodes_appended, 0,
             "System graph ledger had pending appends; run ./scripts/validate-data-tables"

@@ -560,12 +560,12 @@ pub fn prevalidate_and_plan_inbox_items(
                     );
                     cur = next_sup;
                 }
-                if parsed.provenance == NodeProvenance::Manual {
-                    ensure!(
-                        working_prov.owner(old_id) == NodeProvenance::Manual,
-                        "{inbox_name} (l{next_id}): cross-ownership violation: manual node cannot supersede CSV-owned node l{old_id}"
-                    );
-                }
+                ensure!(
+                    working_prov.owner(old_id) == parsed.provenance,
+                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} node cannot supersede {:?}-owned node l{old_id}",
+                    parsed.provenance,
+                    working_prov.owner(old_id)
+                );
             } else if verb == sh_retracts {
                 is_revision_stmt = true;
                 let DcShorthand::Long(old_id) = obj else {
@@ -581,12 +581,12 @@ pub fn prevalidate_and_plan_inbox_items(
                     !inactive_ids.contains(&old_id),
                     "{inbox_name} (l{next_id}): cannot retract l{old_id} because it is already superseded or retracted"
                 );
-                if parsed.provenance == NodeProvenance::Manual {
-                    ensure!(
-                        working_prov.owner(old_id) == NodeProvenance::Manual,
-                        "{inbox_name} (l{next_id}): cross-ownership violation: manual node cannot retract CSV-owned node l{old_id}"
-                    );
-                }
+                ensure!(
+                    working_prov.owner(old_id) == parsed.provenance,
+                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} node cannot retract {:?}-owned node l{old_id}",
+                    parsed.provenance,
+                    working_prov.owner(old_id)
+                );
             } else if verb == sh_has_value
                 || (verb == sh_has_a && obj == sh_preferred)
             {
@@ -627,12 +627,12 @@ pub fn prevalidate_and_plan_inbox_items(
                     is_has_a,
                     "{inbox_name} (l{next_id}): target l{has_a_id} is not a property 'Has a' statement"
                 );
-                if parsed.provenance == NodeProvenance::Manual {
-                    ensure!(
-                        working_prov.owner(has_a_id) == NodeProvenance::Manual,
-                        "{inbox_name} (l{next_id}): cross-ownership violation: manual qualifier/value cannot attach to CSV-owned 'Has a' node l{has_a_id}"
-                    );
-                }
+                ensure!(
+                    working_prov.owner(has_a_id) == parsed.provenance,
+                    "{inbox_name} (l{next_id}): cross-ownership violation: {:?} qualifier/value cannot attach to {:?}-owned 'Has a' node l{has_a_id}",
+                    parsed.provenance,
+                    working_prov.owner(has_a_id)
+                );
             }
         }
 
@@ -1531,6 +1531,45 @@ mod tests {
             })
             .unwrap()
             .id;
+        for (owner, provenance) in [
+            (NodeProvenance::Manual, "manual"),
+            (NodeProvenance::Csv, "csv"),
+        ] {
+            let mut owned_prov = prov_map.clone();
+            owned_prov.insert(NodeProvenanceEntry {
+                node_id: name_has_a_id,
+                provenance: owner,
+                rationale: Some("Ownership test".to_string()),
+                allocated_file: None,
+            });
+            for body in [
+                format!("592 615 l{name_has_a_id}"),
+                format!("591 l{manual_stmt_id} l{name_has_a_id}"),
+                format!("{} l{name_has_a_id} u78", sh(DC_HAS_VALUE)),
+                format!(
+                    "{} l{name_has_a_id} {}",
+                    sh(DC_HAS_A),
+                    sh(DC_PREFERRED)
+                ),
+            ] {
+                for input_provenance in ["manual", "csv"] {
+                    let content = format!(
+                        "# @provenance: {input_provenance}\n# @rationale: Ownership test\n{body}\n"
+                    );
+                    let planned = prevalidate_and_plan_inbox_items(
+                        &nodes,
+                        &owned_prov,
+                        &[("ownership.dcsh".to_string(), "sha".to_string(), content)],
+                    );
+                    if input_provenance == provenance {
+                        assert!(planned.is_ok(), "{body}: {planned:?}");
+                    } else {
+                        let err = planned.unwrap_err();
+                        assert!(format!("{err:#}").contains("cross-ownership violation"));
+                    }
+                }
+            }
+        }
         let mut prov_manual_name = prov_map;
         prov_manual_name.insert(NodeProvenanceEntry {
             node_id: name_has_a_id,

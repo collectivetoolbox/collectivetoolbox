@@ -10,9 +10,9 @@
 - An edit-by-edit history cannot be recovered from phase commits. The available
   records establish allocation contents and phase boundaries, not every transient
   source edit or filesystem operation.
-- The ongoing Rust behavior has the policy and durability issues below. They do
-  not invalidate the committed recovery, but should be addressed before relying
-  on this machinery for general-purpose future allocations.
+- The UTF-8 crash-recovery and hidden-operational-state findings remain open.
+  Candidate-order inference, asymmetric inbox ownership checks, and live
+  recovery-count assertions were corrected during the follow-up below.
 
 ## Verdict
 
@@ -65,20 +65,25 @@ initialization markers or high-water directories.
 
 ## Rust Findings
 
-### High: Canonical Choice Is Inferred From List Position
+### Resolved: Candidate Order Was Incorrectly Treated As Authority
 
-[seed_graph.rs](../../src/formats/dcdata/seed_graph.rs#L280) treats the last
-candidate of every ambiguity list as canonical. It also guesses an allocation
-region by subtracting 100 from a candidate ID at
-[seed_graph.rs](../../src/formats/dcdata/seed_graph.rs#L340).
-[graph_ledger.rs](../../src/formats/dcdata/graph_ledger.rs#L1235) then retracts
-earlier-branch statements before reconciling the CSV dataset.
+The original report's explanation was incorrect: knowing which historical run
+produced each candidate does not make either alternative authoritative. The
+historical ID remains ambiguous. Recovery evidence can justify replacement
+references in particular statements, not a general preference between the
+alternatives.
 
-Run 2 ordering is corroborated by this recovery's evidence, so the recorded
-retractions are correct. That does not justify a global rule that the last
-alternative is authoritative, or that nearby IDs belong to recovery. Scope this
-selection to an explicit verified recovery manifest or separately approved
-policy. The generic index should not silently discard other valid alternatives.
+Removed the candidate-order filtering and guessed allocation region from
+[seed_graph.rs](../../src/formats/dcdata/seed_graph.rs), and removed automatic
+earlier-branch retirement from
+[graph_ledger.rs](../../src/formats/dcdata/graph_ledger.rs). Activity now follows
+explicit revisions rather than position in an ambiguity list. Regression tests
+exercise both candidate orders, retain both statements and their references,
+and require an explicit retraction to retire a candidate statement.
+
+The committed recovery's explicit retractions remain in place. After removing
+the inference, the live CSV planner still proposes zero changes, and the
+independent active-statement multiset comparison still matches the incident.
 
 ### High: A Torn UTF-8 Tail Can Block Crash Recovery
 
@@ -93,15 +98,13 @@ suffix as bytes. Add multibyte torn-journal and torn-chunk tests. The existing
 ASCII fault-injection tests do not exercise this failure. No such corruption
 exists in the committed recovery.
 
-### Medium: Ownership Protection Is Asymmetric
+### Resolved: Inbox Ownership Protection Is Symmetric
 
-[inbox.rs](../../src/formats/dcdata/graph_ledger/inbox.rs#L563) and
-[inbox.rs](../../src/formats/dcdata/graph_ledger/inbox.rs#L584) prevent manual
-inbox revisions from modifying CSV-owned nodes, but do not perform the reciprocal
-check for CSV-declared inbox revisions targeting manual nodes. The regular CSV
-builder has additional protections, but direct inbox allocation bypasses that
-builder. Test and enforce both directions, or explicitly authorize exceptional
-cross-owner operations. All nodes in this recovery are CSV-owned.
+[inbox.rs](../../src/formats/dcdata/graph_ledger/inbox.rs) now requires target
+ownership to match input provenance for supersessions, retractions, property
+values, and preferred qualifiers. The existing ownership test checks both
+directions of cross-owner rejection and same-owner acceptance for each operation.
+This is general inbox behavior, not a recovery-specific restriction.
 
 ### Medium: Historical Replay Rewrites The Live Worktree
 
@@ -116,6 +119,10 @@ extract pinned sources into an isolated workspace, explicitly build musl, and
 accept preserved transcript evidence as an input. Never check out old graph data
 over the authoritative recovered ledger.
 
+This is a warning about hypothetical reuse, not a request to rerun recovery.
+Deleting the completed workflow's working files after the independent audits is
+compatible with retaining its historical versions in Git.
+
 ### Medium: Operational State Remains Hidden
 
 [ctbnbdl.rs](../../src/build_support/ctbnbdl.rs#L415) maintains redundant hidden
@@ -129,17 +136,13 @@ remove or explicitly classify redundant shadows as non-authoritative caches.
 Keep the lock inode stable while processes are running. Moving a canary can
 separate new readers/writers from locks still held on the old inode.
 
-### Medium: Live Tests Are Pinned To The Recovery's Final Counts
+### Resolved: Recovery Counts Are Pinned To The Historical Prefix
 
-[seed_graph.rs](../../src/formats/dcdata/seed_graph.rs#L2882) asserts exact current
-active/full counts and inactivity totals. Legitimate future CSV additions will
-break these tests even if the recovery remains correct. Make exact-count recovery
-tests operate on a pinned historical in-memory fixture, while live tests validate
-invariants rather than freezing the entire graph.
-
-[graph_ledger.rs](../../src/formats/dcdata/graph_ledger.rs#L3686) calls the writing
-update API before asserting zero drift. Use the existing dry-run option so a
-failing verification test cannot allocate nodes merely to discover drift.
+The recovery invariants now inspect only the immutable ledger prefix ending at
+`l8589958343`, excluding later allocations and revisions. Its active view reuses
+the production bundle partition helper rather than duplicating selection logic.
+The live zero-drift test now uses the existing dry-run API, so it cannot allocate
+nodes while reporting a failing convergence check.
 
 ## What To Keep
 
@@ -151,8 +154,8 @@ the identities of historical nodes.
 
 Do not revert the Rust recovery commit wholesale: current readers require the
 journal, and the code supplies the mechanism for safely appending future changes.
-Narrow the one-off canonical-selection assumptions and fix the durability gaps
-without changing already-assigned IDs.
+The one-off candidate-selection assumptions have been removed. Fix the remaining
+durability gaps without changing already-assigned IDs.
 
 Blanket retraction would also cancel recovery revision statements, potentially
 reactivating the incident's ambiguous definitions. It would not recreate missing
@@ -160,7 +163,11 @@ Git edit history. No ledger correction is indicated by this audit.
 
 ## Validation And Changes
 
-- Focused musl graph/seed/inbox tests: 26 passed, zero failed or ignored.
+- Follow-up musl graph/seed/inbox tests: 27 passed, zero failed or ignored.
+  These include live Dc/format CSV readback parity, syntax parity, symmetric
+  ownership, ordering-independent ambiguity, and historical-prefix invariants.
+- Existing CSV edit tests additionally verify the resulting active property and
+  relationship state, and zero-change second passes after those edits.
 - Standalone musl journal/bundle tests: 5 passed, zero failed or ignored.
 - Live filesystem CSV dry-run: 23,752 nodes, zero appends, zero supersessions,
   zero retractions, zero chunk writes, and no validation diagnostics.
@@ -169,10 +176,19 @@ Git edit history. No ledger correction is indicated by this audit.
 - The focused inbox parser behavior test was rerun after that change.
 - The reused Python helper's incorrect escape and retraction-subject tokens were
   corrected. Focused helper regressions and the complete read-only audit passed.
+- Those Step 0 helper corrections affect the read-only audit that imports its
+  parser; they do not retroactively change the recovery artifacts or require
+  rerunning allocation.
 - The independent audit command and this report were added. Graph data was not
-  changed. The broader policy/durability findings above are recommendations,
-  not implemented fixes.
+  changed. The remaining UTF-8 durability and hidden-state findings are not
+  implemented fixes.
+- Follow-up production Clippy completed successfully with existing warnings.
 
 The Step 3 reconciliation was already committed in `7abf6f67c`, and its script
 performs a second convergence pass. The new dry-run independently confirms that
 no additional CSV conversion append is needed at the audited state.
+
+The normal `./build` workflow runs CSV reconciliation through its lint stage.
+`build-quick` invokes `./build --quick`, which disables that stage; plain
+`cargo build` does not itself run CSV-to-graph reconciliation. Source CSV edits
+therefore need the normal validation workflow or an explicit validator run.

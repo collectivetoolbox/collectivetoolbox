@@ -252,124 +252,6 @@ pub fn compute_effective_inactive_ids(
     (inactive_ids, superseded_by, retracted_by)
 }
 
-/// Identifies any active nodes belonging to non-canonical (earlier-branch) candidates of
-/// terminal `Dc 348 "Ambiguous values"` records (`348 310 275 l<cand_0> 312 l<cand_1> ... 311`),
-/// including statements transitively referencing those candidates and duplicate tail statements
-/// whose token bodies are already provided by the canonical candidate branch.
-///
-/// Returns `(non_canonical_all_ids, non_canonical_stmt_ids_sorted)`.
-#[must_use]
-pub fn compute_non_canonical_ambiguity_branch_ids(
-    nodes: &[LedgerNode],
-    inactive_ids: &HashSet<u128>,
-) -> (HashSet<u128>, Vec<u128>) {
-    let sh_supersedes = sh(DC_SUPERSEDES);
-    let sh_retracts = sh(DC_RETRACTS);
-
-    let mut canonical_cand_ids: HashSet<u128> = HashSet::new();
-    let mut non_canonical_branch_ids: HashSet<u128> = HashSet::new();
-    let mut min_ambig_candidate_id: Option<u128> = None;
-
-    for node in nodes {
-        if inactive_ids.contains(&node.id) {
-            continue;
-        }
-        let Some(cands) = parse_ambiguous_values_tokens(&node.tokens) else {
-            continue;
-        };
-        let Some(&last_cand) = cands.last() else {
-            continue;
-        };
-        canonical_cand_ids.insert(last_cand);
-        // Reason for fallback: parse_ambiguous_values_tokens guarantees cands.len() >= 2.
-        for &cand in cands.get(..cands.len().saturating_sub(1)).unwrap_or_default() {
-            if !inactive_ids.contains(&cand) {
-                non_canonical_branch_ids.insert(cand);
-            }
-            // Reason for fallback: first candidate initializes min_ambig_candidate_id.
-            min_ambig_candidate_id =
-                Some(min_ambig_candidate_id.map_or(cand, |m| m.min(cand)));
-        }
-    }
-
-    if non_canonical_branch_ids.is_empty() {
-        return (HashSet::new(), Vec::new());
-    }
-
-    // Forward reference closure of active non-348, non-revision statements referencing non_canonical_branch_ids.
-    loop {
-        let mut added = false;
-        for node in nodes {
-            if inactive_ids.contains(&node.id)
-                || non_canonical_branch_ids.contains(&node.id)
-                || canonical_cand_ids.contains(&node.id)
-                || parse_ambiguous_values_tokens(&node.tokens).is_some()
-            {
-                continue;
-            }
-            if let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
-                && (verb == sh_supersedes || verb == sh_retracts)
-            {
-                continue;
-            }
-            let refs_non_canon = node.tokens.iter().any(|tok| {
-                matches!(tok, DcShorthand::Long(id) if non_canonical_branch_ids.contains(id))
-            });
-            if refs_non_canon {
-                non_canonical_branch_ids.insert(node.id);
-                added = true;
-            }
-        }
-        if !added {
-            break;
-        }
-    }
-
-    // Also include active non-revision statements in the ambiguity allocation region whose token
-    // bodies are exact duplicates of active canonical-branch statements (e.g. un-superseded tail statements).
-    let mut canonical_stmt_bodies: HashSet<&[DcShorthand]> = HashSet::new();
-    for node in nodes {
-        if canonical_cand_ids.contains(&node.id)
-            && !inactive_ids.contains(&node.id)
-            && parse_statement_tokens(&node.tokens).is_some()
-        {
-            canonical_stmt_bodies.insert(node.tokens.as_slice());
-        }
-    }
-    // Reason for fallback: non_canonical_branch_ids is non-empty above, so min_ambig_candidate_id is always Some.
-    let min_region_id = min_ambig_candidate_id.unwrap_or(u128::MAX).saturating_sub(100);
-    for node in nodes {
-        if node.id < min_region_id
-            || inactive_ids.contains(&node.id)
-            || non_canonical_branch_ids.contains(&node.id)
-            || canonical_cand_ids.contains(&node.id)
-        {
-            continue;
-        }
-        if let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
-            && verb != sh_supersedes
-            && verb != sh_retracts
-            && canonical_stmt_bodies.contains(node.tokens.as_slice())
-        {
-            non_canonical_branch_ids.insert(node.id);
-        }
-    }
-
-    let mut non_canonical_stmt_ids = Vec::new();
-    for node in nodes {
-        if non_canonical_branch_ids.contains(&node.id)
-            && !inactive_ids.contains(&node.id)
-            && let Some((verb, _, _)) = parse_statement_tokens(&node.tokens)
-            && verb != sh_supersedes
-            && verb != sh_retracts
-        {
-            non_canonical_stmt_ids.push(node.id);
-        }
-    }
-
-    (non_canonical_branch_ids, non_canonical_stmt_ids)
-}
-
 impl SeedGraphIndex {
     /// Returns the lazily loaded process-wide `SeedGraphIndex` from the runtime asset bundle.
     pub fn shared() -> Result<&'static Arc<Self>> {
@@ -592,8 +474,6 @@ impl SeedGraphIndex {
 
         let (mut inactive_ids, superseded_by, retracted_by) =
             compute_effective_inactive_ids(&nodes);
-        let (non_canonical_branch_ids, _) =
-            compute_non_canonical_ambiguity_branch_ids(&nodes, &inactive_ids);
 
         // First pass: index active value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
         let mut value_node_by_tokens = HashMap::new();
@@ -612,9 +492,7 @@ impl SeedGraphIndex {
             {
                 integer_by_node_id.insert(node.id, decoded_int);
             }
-            if inactive_ids.contains(&node.id)
-                || non_canonical_branch_ids.contains(&node.id)
-            {
+            if inactive_ids.contains(&node.id) {
                 continue;
             }
             let stmt_opt = parse_statement_tokens(&node.tokens);
@@ -628,9 +506,7 @@ impl SeedGraphIndex {
             if let Some((verb, subj, obj)) = stmt_opt {
                 if verb == sh_has_value {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id)
-                            && !non_canonical_branch_ids.contains(&has_a_id)
-                        {
+                        if !inactive_ids.contains(&has_a_id) {
                             active_has_val_by_stmt
                                 .insert(has_a_id, (node.id, obj));
                         } else {
@@ -639,9 +515,7 @@ impl SeedGraphIndex {
                     }
                 } else if verb == sh_has_a && obj == sh_preferred {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id)
-                            && !non_canonical_branch_ids.contains(&has_a_id)
-                        {
+                        if !inactive_ids.contains(&has_a_id) {
                             active_pref_qual_by_stmt.insert(has_a_id, node.id);
                         } else {
                             inactive_ids.insert(node.id);
@@ -677,9 +551,7 @@ impl SeedGraphIndex {
         > = HashMap::new();
 
         for node in &nodes {
-            if inactive_ids.contains(&node.id)
-                || non_canonical_branch_ids.contains(&node.id)
-            {
+            if inactive_ids.contains(&node.id) {
                 continue;
             }
             let Some((verb, subj, obj)) = parse_statement_tokens(&node.tokens)
@@ -2879,13 +2751,57 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_ambiguity_recovery_and_live_vs_history_invariants() -> Result<()> {
-        let active_index = SeedGraphIndex::shared()?;
+    fn test_ambiguity_candidates_require_explicit_revisions() -> Result<()> {
+        let original_id = 8_589_934_592_u128;
+        let candidate_one = original_id.saturating_add(1);
+        let candidate_two = original_id.saturating_add(2);
+        let ambiguity_id = original_id.saturating_add(3);
+        let supersession_id = original_id.saturating_add(4);
+        let reference_id = original_id.saturating_add(5);
+        let retraction_id = original_id.saturating_add(6);
+        for (first, second) in [(candidate_one, candidate_two), (candidate_two, candidate_one)] {
+            let mut nodes = crate::graph_ledger::load_ledger_nodes_from_str(
+                &format!(
+                    "l{original_id}: u78\nl{candidate_one}: 587 900 901\nl{candidate_two}: 587 900 902\nl{ambiguity_id}: 348 310 275 l{first} 312 l{second} 311\nl{supersession_id}: 591 l{ambiguity_id} l{original_id}\nl{reference_id}: 588 900 l{candidate_one}\n"
+                ),
+                "ambiguity-test",
+            )?;
+            let index = SeedGraphIndex::from_nodes(nodes.clone());
+            assert_eq!(index.get_ambiguous_candidates(original_id), Some(vec![first, second]));
+            assert!(index.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(901)));
+            assert!(index.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(902)));
+            assert!(index.has_direct_statement(DcShorthand::Short(588), DcShorthand::Short(900), DcShorthand::Long(candidate_one)));
+
+            nodes.extend(crate::graph_ledger::load_ledger_nodes_from_str(
+                &format!("l{retraction_id}: 592 615 l{candidate_one}\n"),
+                "ambiguity-test",
+            )?);
+            let revised = SeedGraphIndex::from_nodes(nodes);
+            assert!(!revised.is_node_active(candidate_one));
+            assert!(revised.is_node_active(candidate_two));
+            assert!(!revised.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(901)));
+            assert!(revised.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(902)));
+            assert_eq!(revised.get_ambiguous_candidates(original_id), Some(vec![first, second]));
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_ambiguity_recovery_prefix_invariants() -> Result<()> {
         let full_index = SeedGraphIndex::load_with_history_from_asset_bundle()?;
+        let full_index = SeedGraphIndex::from_nodes(
+            full_index.nodes.into_iter()
+                .filter(|node| node.id <= 8_589_958_343)
+                .collect(),
+        );
+        let (active_nodes, _) = crate::ctbnbdl::partition_active_and_inactive_nodes_with(
+            &full_index.nodes,
+            crate::graph_ledger::default_ctbnbdl_framing_dcs(),
+        );
+        let active_index = SeedGraphIndex::from_nodes(active_nodes);
 
         // 1. Exact node counts after Step 2a (2,465), Step 2b (2,838), and Step 3 (616 retractions):
-        // Active bundle (`assets/data/graph/85899_34592.ctbnbdl`): 17,147 active nodes (identical active count to commit a90464028)
-        // Full ledger (`assets/data/graph/*.ctbnodes` = active + history `system/85899_34942.ctbnbdl`): 23,752 total nodes (2,931 superseded/retracted targets)
+        // Only the immutable recovery prefix is checked; later allocations and revisions are excluded.
         assert_eq!(active_index.node_count(), 17_147);
         assert_eq!(active_index.inactive_count(), 0);
         assert_eq!(full_index.node_count(), 23_752);
@@ -2936,11 +2852,11 @@ mod tests {
             let r2_eff = cands[1];
             assert!(
                 full_index.is_node_active(r2_eff),
-                "Canonical Run 2 candidate l{r2_eff} (for l{orig_id}) must be active"
+                "Run 2 candidate l{r2_eff} (for l{orig_id}) must be active"
             );
             assert!(
                 active_index.get_node(r2_eff).is_some(),
-                "Canonical Run 2 candidate l{r2_eff} must be present in active bundle"
+                "Run 2 candidate l{r2_eff} must be present in active recovery prefix"
             );
             if full_index.is_node_active(r1_eff) {
                 r1_active_values += 1;
@@ -2948,7 +2864,7 @@ mod tests {
                 r1_retracted_stmts += 1;
                 assert!(
                     active_index.get_node(r1_eff).is_none(),
-                    "Retracted Run 1 statement candidate l{r1_eff} must be excluded from active bundle"
+                    "Retracted Run 1 statement candidate l{r1_eff} must be excluded from active recovery prefix"
                 );
             }
         }
@@ -2968,7 +2884,7 @@ mod tests {
             );
             assert!(
                 active_index.get_node(tail_id).is_none(),
-                "Restored Run 1 tail node l{tail_id} must not be in active bundle"
+                "Restored Run 1 tail node l{tail_id} must not be in active recovery prefix"
             );
         }
 
