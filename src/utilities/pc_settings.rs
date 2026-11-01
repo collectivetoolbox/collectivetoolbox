@@ -40,8 +40,8 @@ use crate::json::patch::{
     apply_bool, apply_serde, apply_string, apply_u16, apply_u32, apply_u64_vec,
 };
 use crate::storage::get_storage_dir;
-use crate::{branding, is_in_test, official_domain};
-use crate::{get_current_test_name, json};
+use crate::{branding, official_domain};
+use crate::json;
 
 #[derive(
     Eq, PartialEq, Debug, Clone, Copy, Deserialize, Serialize, SmartDefault,

@@ -105,16 +105,15 @@ use crate::dc::{
     DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
     DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
     DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT,
-    DC_WILDCARD_PATTERN, DcChar,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
 use crate::format_spec::{DcToken, FormatExpr, encode_dc_stream, parse_format_expr};
 use crate::report::ValidationReport;
-use crate::shared::{BidiClass, GeneralCategory, SupportLevel};
+use crate::shared::SupportLevel;
 use crate::syntax::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
+    ActionArg, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 use crate::syntax::parse_dc_syntax;

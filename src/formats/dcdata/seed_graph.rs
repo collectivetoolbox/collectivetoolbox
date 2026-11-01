@@ -78,7 +78,7 @@ use crate::dc::{
 };
 use crate::dc_def::{DcDefn, FormatDetails};
 use crate::format_spec::{
-    DcToken, FormatExpr, decode_dc_stream, format_chain_directive,
+    DcToken, FormatExpr, decode_dc_stream,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_integer_value_tokens,

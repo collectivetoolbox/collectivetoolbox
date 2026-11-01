@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 pub(crate) use ctb_build_support::{
-    dc_codegen, find_repository_root_from, fs2, sha2,
+    fs2, sha2,
 };
 
 pub use crate as ctb_formats_dc_data;

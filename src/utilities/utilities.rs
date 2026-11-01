@@ -607,7 +607,7 @@ pub fn fork(path: &PathBuf, args: Vec<&str>) {
     #[cfg(unix)]
     {
         if let Ok(Fork::Child) = daemon(false, false) {
-            if let Err(e) = Command::new(path).args(args).output() {
+            if let Err(_e) = Command::new(path).args(args).output() {
                 log!("failed to execute process: {e:?}");
             }
         }

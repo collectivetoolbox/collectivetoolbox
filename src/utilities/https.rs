@@ -27,7 +27,6 @@ use rustls::ClientConfig;
 use rustls::RootCertStore;
 
 use crate::branding;
-use crate::get_embedded_asset;
 use crate::invocation_settings::{self, TlsValidatorOverride};
 use crate::pc_settings::{PcSettingBoolKey, get_bool_setting};
 

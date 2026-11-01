@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! based on.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result};

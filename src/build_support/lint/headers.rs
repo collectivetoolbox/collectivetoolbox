@@ -21,7 +21,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! in Rust, Scheme, Dockerfile, Python, and shell script files.
 
 use std::collections::BTreeSet;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 

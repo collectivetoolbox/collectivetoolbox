@@ -80,7 +80,7 @@ pub use ctb_formats_dcdata::describe_general_category;
 #[derive(Debug)]
 pub struct ConversionOutput<T> {
     pub result: T,
-    #[must_use]
+    
     pub log: FormatLog,
 }
 
